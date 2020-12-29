@@ -123,13 +123,12 @@ static ssize_t rgbToClk(const uint8_t* rgb, size_t numRgb, uint8_t* out, size_t 
 int SpidevNeoPixels::setup(const char* spidev)
 {
 	data.resize(kSpiMaxTransferSize);
-	int ret = spi.setup(spidev, // Device to open
-		kSpiClock, // Clock speed in Hz
-		SPI::SS_LOW, // Chip select, won't matter
-		0, // Delay after last transfer before deselecting the device, won't matter
-		kSpiWordLength, // No. of bits per transaction word,
-		SPI::MODE3 // SPI mode
-	);
+	int ret = spi.setup({
+			.device = spidev, // Device to open
+			.speed = kSpiClock, // Clock speed in Hz
+			.numBits = kSpiWordLength, // No. of bits per transaction word,
+			.mode = Spi::MODE3 // SPI mode
+			});
 	return ret;
 }
 
