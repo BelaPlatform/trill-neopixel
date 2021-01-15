@@ -3,12 +3,14 @@
 #include <string.h>
 #include <stdio.h>
 
+#define BUS_MSBIT_FIRST 1 // true for SPI
+#define BUS_BIG_ENDIAN 1 // true for SPI (or so it seems)
+
 #undef SNP_DEBUG
 const unsigned int kSpiClock = 12000000;
 const unsigned int kSpiMinTransferSize = 160; // min number of bytes to trigger DMA transfer
 const unsigned int kSpiMaxTransferSize = 4096; // max number of bytes to be sent at once
 const unsigned int kSpiWordLength = 32;
-const uint8_t kSpiMsbFirst = 1;
 const float kSpiInterWordTimeNs = 200;
 const float kSpiPeriodNs = 1000000000.0 / kSpiClock;
 const uint8_t kBitsPerByte = 8;
@@ -53,14 +55,27 @@ const T_t TL[2] = {
 const double kSpiLeadingZerosNs = 10000; // determined empirically
 const unsigned int kSpiLeadingZeros = std::ceil((kSpiLeadingZerosNs / kSpiPeriodNs));
 
-bool readBitField(const uint8_t* data, uint32_t offset) {
-	uint8_t position = offset % kBitsPerByte;
+// In {read,write}BitField, `offset` is the number of bits.
+// This is decomposed into `i` (the byte number) and `position` (the bit
+// number).
+
+// In readBitField we want `0` to be the MSB and `7` to be the LSB, which maps
+// nicely to the NeoPixel bus protocol.
+static bool readBitField(const uint8_t* data, uint32_t offset) {
+	uint8_t position = kBitsPerByte - (offset % kBitsPerByte);
 	unsigned int i = offset / kBitsPerByte;
 	return data[i] & (1 << position);
 }
 
-void writeBitField(uint8_t* data, uint32_t offset, bool value) {
+// This function is used to write into memory the bit sequence that will be shifted out over the bus.
+// We interpret the offset differently according to whether the bus in use is MSBit or LSBit first.
+// Bus endianness is handled elsewhere.
+static void writeBitField(uint8_t* data, uint32_t offset, bool value) {
+#if (1 == BUS_MSBIT_FIRST)
+	uint8_t position = kBitsPerByte - 1 - (offset % kBitsPerByte);
+#else
 	uint8_t position = offset % kBitsPerByte;
+#endif
 	unsigned int i = offset / kBitsPerByte;
 	if(value)
 		data[i] |= 1 << position;
@@ -71,9 +86,8 @@ void writeBitField(uint8_t* data, uint32_t offset, bool value) {
 static ssize_t rgbToClk(const uint8_t* rgb, size_t numRgb, uint8_t* out, size_t numOut)
 {
 	memset(out, 0, numOut * sizeof(out[0]));
-	// writeBitField(out, 0, 1);
 	uint32_t clk = 0;
-	// emsure we have complete RGB sets
+	// ensure we have complete RGB sets
 	numRgb = numRgb - (numRgb % 3);
 	for(uint32_t inBit = 0; inBit < numRgb * kBitsPerByte; ++inBit) {
 		// data comes in as RGB but needs to be shuffled into GRB for the WS2812B
@@ -159,8 +173,8 @@ ssize_t SpidevNeoPixels::send(const uint8_t* rgb, size_t length) {
 	printf("\n");
 #endif // SNP_DEBUG
 
-	// format data
-	// SPI transmits the most significant byte first ("right justified in each word")
+#if (1 == BUS_BIG_ENDIAN)
+	// format data if needed
 	// so if we have more than 1 byte per word we need to shuffle them around so that
 	// they are output in the correct order
 	unsigned int bytesPerWord = kSpiWordLength / kBitsPerByte;
@@ -171,10 +185,7 @@ ssize_t SpidevNeoPixels::send(const uint8_t* rgb, size_t length) {
 			data[n + bytesPerWord - 1 - b] = tmp;
 		}
 	}
-	if(kSpiMsbFirst) {
-		for(unsigned int n = 0; n < len; ++n)
-			data[n] = __builtin_bitreverse8(data[n]);
-	}
+#endif // BUS_BIG_ENDIAN
 
 	size_t transmissionLength = len;
 	if(transmissionLength < kSpiMinTransferSize)
