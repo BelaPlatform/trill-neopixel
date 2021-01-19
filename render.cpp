@@ -88,6 +88,7 @@ void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
 	}
 #endif
 #if 1 // weighted sum
+	// How many accompanying LEDs are on
 	float r = 2;
 	for(int no = 0; no < nOut; ++no) {
 		out[no] = 0;
@@ -116,12 +117,11 @@ unsigned int padsToOrderMap[30] = {
 	11,
 	12,
 	13,
+	28,
 	27,
 	26,
 	25,
-	14,
 	15,
-	16,
 	17,
 	18,
 	19,
@@ -130,8 +130,9 @@ unsigned int padsToOrderMap[30] = {
 	21,
 	22,
 	23,
-	28,
 	29,
+	14,
+	16,
 };
 
 template <typename T, typename U>
@@ -173,6 +174,7 @@ void trillNp(void*)
 #endif
 		for(unsigned int n = 0; n < kNumLeds; ++n)
 			np.setPixelColor(n, d[n] * 255, 0, 0);
+			// Set colour above
 		npShow(); // do the showing in a different thread, so it doesn't affect timing of this loop
 		usleep(10000);
 	}
@@ -192,7 +194,10 @@ bool setup(BelaContext *context, void *userData)
 	return true;
 }
 
-void render(BelaContext *context, void *userData){}
+void render(BelaContext *context, void *userData)
+{
+
+}
 
 
 void cleanup(BelaContext *context, void *userData)
