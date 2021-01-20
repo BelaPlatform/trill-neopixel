@@ -3,8 +3,9 @@
 #include <vector>
 #include <stdint.h>
 #include <unistd.h> // ssize_t
+#include "GpNeoPixels.h"
 
-class SpidevNeoPixels {
+class SpidevNeoPixels : GpNeoPixels {
 public:
 	SpidevNeoPixels(const char* spidev) { setup(spidev); }
 	SpidevNeoPixels() {}
