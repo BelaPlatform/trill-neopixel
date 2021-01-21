@@ -1,8 +1,9 @@
 #include <Bela.h>
 #include <stdio.h>
-#include <libraries/Trill/Trill.h>
 #include <vector>
-#include <cmath>
+#include "TrillRackInterface.h"
+extern TrillRackInterface tri; // owned by TrillRack.cpp
+static uint8_t kNumLeds = 16;
 
 //#define SPIDEV 1
 #define MCASP 1
@@ -14,8 +15,6 @@ SpidevNeoPixels snp;
 #include "BelaAudioNeoPixels.h"
 BelaAudioNeoPixels* bnp; // required by NeoPixel.h
 #endif // MCASP
-Trill trill;
-uint8_t kNumLeds = 16;
 
 volatile int gRunning = 0;
 #define CROSSFADE // demo: slowly crossfade between neighbouring LEDs
@@ -93,121 +92,15 @@ void lowleveldemo(void*) {
 	}
 }
 
-#include "NeoPixel.h"
-NeoPixel np(kNumLeds, 0, NEO_GRB);
-AuxiliaryTask sendNpTask;
-static void sendNp(void*) {
-	np.show();
-}
-void npShow() {
-	Bela_scheduleAuxiliaryTask(sendNpTask); //
-}
-
-void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
+void tr_loop_launcher(void*)
 {
-#if 0 // naive: sum all input energy into outputs
-	for(unsigned int no = 0; no < nOut; ++no) {
-		out[no] = 0;
-		unsigned int niStart = no * nIn / nOut;
-		unsigned int niEnd = (no + 1) * nIn / nOut;
-		for(unsigned int ni = niStart; ni < niEnd; ++ni) {
-			out[no] += in[ni];
-		}
-	}
-#endif
-#if 1 // weighted sum
-	// How many accompanying LEDs are on
-	float r = 2;
-	for(int no = 0; no < nOut; ++no) {
-		out[no] = 0;
-		for(int ni = 0; ni < nIn; ++ni) {
-			float fracInIdx = no * nIn / (float)nOut;
-			float weight = (1 - (std::abs(fracInIdx - ni) / r));
-			weight = std::max(0.f, weight); // clip to 0
-			out[no] += in[ni] * weight;
-		}
-	}
-#endif
-}
-
-unsigned int padsToOrderMap[30] = {
-	0,
-	1,
-	2,
-	3,
-	4,
-	5,
-	6,
-	7,
-	8,
-	9,
-	10,
-	11,
-	12,
-	13,
-	28,
-	27,
-	26,
-	25,
-	15,
-	17,
-	18,
-	19,
-	20,
-	24,
-	21,
-	22,
-	23,
-	29,
-	14,
-	16,
-};
-
-template <typename T, typename U>
-void sort(T* out, U* in, unsigned int* order, unsigned int size)
-{
-	for(unsigned int n = 0; n < size; ++n)
-		out[n] = in[order[n]];
-}
-
-void trillNp(void*)
-{
+	while(!gRunning)
+		usleep(100000);
 	while(!Bela_stopRequested()) {
-		trill.readI2C();
-		unsigned int numPads = 24;//trill.rawData.size();
-		float* pads = trill.rawData.data();
-		float i[numPads];
-		sort(i, pads, padsToOrderMap, numPads);
-#if 0 // debug order
-		for(unsigned int n = 0; n < numPads; ++n)
-			printf("%4d ", n);
-		printf("\n");
-		for(unsigned int n = 0; n < numPads; ++n)
-			printf("%4.0f ", pads[n] * 4096);
-		printf("\n");
-		for(unsigned int n = 0; n < numPads; ++n)
-			printf("%4.0f ", i[n] * 4096);
-		printf("\n");
-		printf("\n");
-#endif
-		float d[kNumLeds];
-		resample(d, kNumLeds, i, numPads);
-#if 0 // debug resample
-		for(unsigned int n = 0; n < numPads; ++n)
-			printf("%.2f ", i[n]);
-		printf("\n");
-		for(unsigned int n = 0; n < kNumLeds; ++n)
-			printf("%.2f    ", d[n]);
-		printf("\n\n");
-#endif
-		for(unsigned int n = 0; n < kNumLeds; ++n)
-			np.setPixelColor(n, d[n] * 255, 0, 0);
-			// Set colour above
-		npShow(); // do the showing in a different thread, so it doesn't affect timing of this loop
-		usleep(10000);
+		tr_loop();
+		usleep(500); // failsafe sleep
 	}
 }
-
 bool setup(BelaContext *context, void *userData)
 {
 #ifdef SPIDEV
@@ -222,15 +115,10 @@ bool setup(BelaContext *context, void *userData)
 	//Bela_runAuxiliaryTask(lowleveldemo, 90);
 	//return true;
 
-	np.begin();
-	if(trill.setup(1, Trill::FLEX, 0x50))
-		return false;
-	trill.setMode(Trill::DIFF);
-	trill.printDetails();
-
-	sendNpTask = Bela_runAuxiliaryTask(sendNp, 90);
-	Bela_runAuxiliaryTask(trillNp, 90);
-	return true;
+	//sendNpTask = Bela_runAuxiliaryTask(sendNp, 90);
+	//Bela_runAuxiliaryTask(trillNp, 90);
+	Bela_runAuxiliaryTask(tr_loop_launcher, 1);
+	return tr_setup();
 }
 
 void render(BelaContext *context, void *userData)
@@ -239,6 +127,7 @@ void render(BelaContext *context, void *userData)
 #ifdef MCASP
 	bnp->process(context);
 #endif // MCASP
+	tri.process(context);
 }
 
 
