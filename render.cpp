@@ -2,13 +2,24 @@
 #include <stdio.h>
 #include <libraries/Trill/Trill.h>
 #include <vector>
-#include "SpidevNeoPixels.h"
 #include <cmath>
 
+//#define SPIDEV 1
+#define MCASP 1
+#ifdef SPIDEV
+#include "SpidevNeoPixels.h"
 SpidevNeoPixels snp;
+#endif // SPIDEV
+#ifdef MCASP
+#include "BelaAudioNeoPixels.h"
+BelaAudioNeoPixels bnp;
+#endif // MCASP
 Trill trill;
 uint8_t kNumLeds = 16;
 
+volatile int gRunning = 0;
+#define CROSSFADE
+//#define SINGLE_LED
 const uint8_t kBytesPerRgb = 3;
 // routine that slowly crossfades between neighbouring LEDs
 void crossfade(void*) {
@@ -23,11 +34,20 @@ void crossfade(void*) {
 	}};
 	std::vector<uint8_t> rgb(kNumLeds * kBytesPerRgb);
 	unsigned int maxVal = 100;
+	while(!gRunning)
+		usleep(100000);
+	while(!Bela_stopRequested())
 	for (unsigned int n = 0; n < 2 * maxVal && !Bela_stopRequested(); ++n) {
 		for(unsigned int l = 0; l < kNumLeds; ++l) {
 			for(unsigned int b = 0;  b < kBytesPerRgb; ++b) {
-				//uint8_t val = colors[(( n + l) * kBytesPerRgb + b) % colors.size()];;
-				//rgb[l * kBytesPerRgb + b] = val;
+#ifdef SINGLE_LED
+				if(l != 5)
+					break;
+				uint8_t val = colors[(( n + l) * kBytesPerRgb + b) % colors.size()];;
+				rgb[l * kBytesPerRgb + b] = val;
+				printf("%3d  ", val);
+#endif // SINGLE_LED
+#ifdef CROSSFADE
 				uint8_t val = 0;
 				if(5 == l && 0 == b) {
 				if(n <  maxVal)
@@ -46,6 +66,7 @@ void crossfade(void*) {
 					printf("%d, ", val);
 				}
 				rgb[l * kBytesPerRgb + b] = val;
+#endif // CROSSFADE
 			}
 		}
 		printf("\n");
@@ -60,7 +81,12 @@ void crossfade(void*) {
 		}
 		printf("\n");
 #endif
+#ifdef SPIDEV
 		snp.send(rgb.data(), rgb.size());
+#endif // SPIDEV
+#ifdef MCASP
+		bnp.send(rgb.data(), rgb.size());
+#endif // MCASP
 		usleep(100000 / maxVal);
 	}
 }
@@ -182,7 +208,19 @@ void trillNp(void*)
 
 bool setup(BelaContext *context, void *userData)
 {
-	snp.setup("/dev/spidev2.1");
+#ifdef SPIDEV
+	if(snp.setup("/dev/spidev2.1"))
+		return false;
+#endif // SPIDEV
+#ifdef MCASP
+	if(bnp.setup(context, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}))
+		return false;
+#endif // MCASP
+#if SPIDEV || MCASP
+	Bela_runAuxiliaryTask(crossfade, 90);
+	return true;
+#endif // both
+
 	np.begin();
 	if(trill.setup(1, Trill::FLEX, 0x50))
 		return false;
@@ -196,7 +234,10 @@ bool setup(BelaContext *context, void *userData)
 
 void render(BelaContext *context, void *userData)
 {
-
+	gRunning = 1;
+#ifdef MCASP
+	bnp.process(context);
+#endif // MCASP
 }
 
 
