@@ -35,6 +35,10 @@
 
 #ifndef ADAFRUIT_NEOPIXEL_H
 #define ADAFRUIT_NEOPIXEL_H
+#define BELA_NEOPIXELS
+#ifdef BELA_NEOPIXELS
+  #include "BelaAudioNeoPixels.h" // has to be included here to avoid conflicts with defines
+#endif // BELA_NEOPIXELS
 
 #ifdef ARDUINO
   #if (ARDUINO >= 100)

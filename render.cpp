@@ -12,17 +12,19 @@ SpidevNeoPixels snp;
 #endif // SPIDEV
 #ifdef MCASP
 #include "BelaAudioNeoPixels.h"
-BelaAudioNeoPixels bnp;
+BelaAudioNeoPixels* bnp; // required by NeoPixel.h
 #endif // MCASP
 Trill trill;
 uint8_t kNumLeds = 16;
 
 volatile int gRunning = 0;
-#define CROSSFADE
-//#define SINGLE_LED
+#define CROSSFADE // demo: slowly crossfade between neighbouring LEDs
+//#define SINGLE_LED // demo: change the color of a single LED
 const uint8_t kBytesPerRgb = 3;
-// routine that slowly crossfades between neighbouring LEDs
-void crossfade(void*) {
+void lowleveldemo(void*) {
+#if (!defined(CROSSFADE) && !defined(SINGLE_LED))
+	return;
+#endif
 	std::vector<uint8_t> colors = {{
 		0x00, 0xC0, 0x00,
 		0xC0, 0x00, 0x00,
@@ -85,7 +87,7 @@ void crossfade(void*) {
 		snp.send(rgb.data(), rgb.size());
 #endif // SPIDEV
 #ifdef MCASP
-		bnp.send(rgb.data(), rgb.size());
+		bnp->send(rgb.data(), rgb.size());
 #endif // MCASP
 		usleep(100000 / maxVal);
 	}
@@ -213,13 +215,12 @@ bool setup(BelaContext *context, void *userData)
 		return false;
 #endif // SPIDEV
 #ifdef MCASP
-	if(bnp.setup(context, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}))
+	bnp = new BelaAudioNeoPixels;
+	if(bnp->setup(context, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}))
 		return false;
 #endif // MCASP
-#if SPIDEV || MCASP
-	Bela_runAuxiliaryTask(crossfade, 90);
-	return true;
-#endif // both
+	//Bela_runAuxiliaryTask(lowleveldemo, 90);
+	//return true;
 
 	np.begin();
 	if(trill.setup(1, Trill::FLEX, 0x50))
@@ -236,7 +237,7 @@ void render(BelaContext *context, void *userData)
 {
 	gRunning = 1;
 #ifdef MCASP
-	bnp.process(context);
+	bnp->process(context);
 #endif // MCASP
 }
 

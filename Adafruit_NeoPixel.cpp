@@ -45,6 +45,10 @@
 
 #include "Adafruit_NeoPixel.h"
 
+#ifdef BELA_NEOPIXELS
+extern __attribute__((weak)) BelaAudioNeoPixels* bnp;
+#endif // BELA_NEOPIXELS
+
 #if defined(TARGET_LPC1768)
   #include <time.h>
 #endif
@@ -1139,6 +1143,11 @@ void Adafruit_NeoPixel::show(void) {
 
 
 #elif defined(__linux__)
+#if defined(BELA_NEOPIXELS)
+  if(bnp)
+     bnp->send(pixels, numBytes);
+   else
+#endif // BELA_NEOPIXELS
 // Linux with spidev (Bela, BBB, Pi, etc ...)
   snp.send(pixels, numBytes);
 #elif defined(__arm__)
