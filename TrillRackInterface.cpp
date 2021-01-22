@@ -41,12 +41,13 @@ void TrillRackInterface::scopeWrite(unsigned int channel, float val)
 }
 void TrillRackInterface::process(BelaContext* context)
 {
+	unsigned int scopeEvery = 4;
 	if(!scopeInited) {
 		// we initialise here so setup and constructor don't need context
-		scope.setup(kScopeChannels, context->audioSampleRate / context->audioFrames);
+		scope.setup(kScopeChannels, context->audioSampleRate / scopeEvery);
 		scopeInited = true;
 	}
-	else
+	for(unsigned int n = 0; n < context->audioFrames / scopeEvery; ++n)
 		scope.log(scopeData);
         if(anInCh < context->analogInChannels)
                 anIn = ::analogRead(context, 0, anInCh);
