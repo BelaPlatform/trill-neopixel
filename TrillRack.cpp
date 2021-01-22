@@ -7,15 +7,16 @@ static uint8_t kNumLeds = 16;
 TrillRackInterface tri(0, 0, 1);
 NeoPixel np(kNumLeds, 0, NEO_GRB);
 Trill trill;
+const unsigned int kLoopSleepTimeUs = 10000;
 
 bool tr_setup()
 {
-        np.begin();
-        if(trill.setup(1, Trill::FLEX, 0x50))
-                return false;
-        trill.setMode(Trill::DIFF);
-        trill.printDetails();
-        return true;
+	np.begin();
+	if(trill.setup(1, Trill::FLEX, 0x50))
+			return false;
+	trill.setMode(Trill::DIFF);
+	trill.printDetails();
+	return true;
 }
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
@@ -87,48 +88,55 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 
 void tr_loop()
 {
-        trill.readI2C();
-        unsigned int numPads = 24;//trill.rawData.size();
-        float* tmp = trill.rawData.data();
-        float pads[numPads];
-        sort(pads, tmp, padsToOrderMap, numPads);
+	trill.readI2C();
+	unsigned int numPads = 24;//trill.rawData.size();
+	float* tmp = trill.rawData.data();
+	float pads[numPads];
+	sort(pads, tmp, padsToOrderMap, numPads);
 #if 0 // debug order
-        for(unsigned int n = 0; n < numPads; ++n)
-                printf("%4d ", n);
-        printf("\n");
-        for(unsigned int n = 0; n < numPads; ++n)
-                printf("%4.0f ", pads[n] * 4096);
-        printf("\n");
-        for(unsigned int n = 0; n < numPads; ++n)
-                printf("%4.0f ", pads[n] * 4096);
-        printf("\n");
-        printf("\n");
+	for(unsigned int n = 0; n < numPads; ++n)
+		printf("%4d ", n);
+	printf("\n");
+	for(unsigned int n = 0; n < numPads; ++n)
+		printf("%4.0f ", pads[n] * 4096);
+	printf("\n");
+	for(unsigned int n = 0; n < numPads; ++n)
+		printf("%4.0f ", pads[n] * 4096);
+	printf("\n");
+	printf("\n");
 #endif
-        float bright[kNumLeds];
-        // bright is a scratchpad for LED values
-        resample(bright, kNumLeds, pads, numPads);
+	float bright[kNumLeds];
+	// bright is a scratchpad for LED values
+	resample(bright, kNumLeds, pads, numPads);
 #if 0 // debug resample
-        for(unsigned int n = 0; n < numPads; ++n)
-                printf("%.2f ", pads[n]);
-        printf("\n");
-        for(unsigned int n = 0; n < kNumLeds; ++n)
-                printf("%.2f    ", bright[n]);
-        printf("\n\n");
+	for(unsigned int n = 0; n < numPads; ++n)
+		printf("%.2f ", pads[n]);
+	printf("\n");
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		printf("%.2f	", bright[n]);
+	printf("\n\n");
 #endif
-        // find peak (i.e.: "finger position" (really poor man centroid detection)
-        unsigned int pk = 0;
-        for(unsigned int n = 0; n < numPads; ++n)
-                if(pads[n] > pads[pk])
-                        pk = n;
-        // read analog in. Do nothing with it
-        float anIn = tri.analogRead();
-        // write to the first DAC the "finger position"
-        tri.analogWrite(0, pk / (float)numPads);
-        // write to the second DAC the (even poorer man) "touch size"
-        tri.analogWrite(1, pads[pk]);
-        // Set colour depending on activation
-        for(unsigned int n = 0; n < kNumLeds; ++n)
-                np.setPixelColor(n, bright[n] * 255, 0, 0);
-        np.show(); // actually display the updated LEDs
-        usleep(10000);
+	// Set colour depending on activation
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, bright[n] * 255, 0, 0);
+	np.show(); // actually display the updated LEDs
+
+	// find peak (i.e.: "finger position" (really poor man centroid detection)
+	unsigned int pk = 0;
+	for(unsigned int n = 0; n < numPads; ++n)
+		if(pads[n] > pads[pk])
+			pk = n;
+	float fingerPos = pk / (float)numPads;
+	// even poorer man's "touch size"
+	float touchSize = pads[pk];
+	 // read analog in.
+	float anIn = tri.analogRead();
+	// write outs
+	tri.analogWrite(0, fingerPos);
+	tri.analogWrite(1, touchSize);
+
+	tri.scopeWrite(0, anIn);
+	tri.scopeWrite(1, fingerPos);
+	tri.scopeWrite(2, touchSize);
+	usleep(kLoopSleepTimeUs);
 }
