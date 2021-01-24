@@ -5,7 +5,7 @@
 
 static uint8_t kNumLeds = 16;
 TrillRackInterface tri(0, 0, 1);
-NeoPixel np(kNumLeds, 0, NEO_GRB);
+NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
 const unsigned int kLoopSleepTimeUs = 10000;
 
