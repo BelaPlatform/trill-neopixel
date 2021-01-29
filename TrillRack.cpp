@@ -5,7 +5,37 @@
 #include "NeoPixel.h"
 #include <cmath>
 
-TrillRackInterface tri(0, 0, 1);
+// Robbie's Variables
+// ------------------
+// Mode switching
+int gMode = 0;
+int gDiInLast = 0;
+int gCounter = 0;
+int gEndOfGesture = 0; // store gesture length
+int gRestartCount = 0;
+#define gMaxRecordLength 10000
+float gTouchPositionRecording[gMaxRecordLength];
+int gPrevTouchPresent = 0; // store whether a touch was previously present
+
+// Master clock
+int gMtrClkCounter = 0;
+int gMtrClkTimePeriod = 80;
+int gMtrClkTrigger = 0;
+int gMtrClkTriggerLED = 0;
+
+// LED Flash Event
+double gEndTime = 0; //for pulse length
+double gPulseLength = 40;
+
+// Div Mult clock
+int gDivMultClkCounter = 0;
+int gDivMultClkTimePeriod = 160;
+int gDivMultClkTrigger = 0;
+double gDivMultEndTime = 0;
+// ------------------
+
+
+TrillRackInterface tri(0, 0, 1, 15, 3);
 const unsigned int kNumLeds = 16;
 NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
@@ -46,26 +76,55 @@ unsigned int padsToOrderMap[kNumPads] = {
 
 LedSliders ledSliders;
 
-bool tr_setup()
+// MODE 1: DIRECT CONTROL / SINGLE SLIDER
+void mode1_setup()
 {
-	np.begin();
-#ifdef ON_BOARD_SENSOR
-	if(trill.setup(1, Trill::FLEX, 0x50))
-		return false;
-#ifndef LEDSLIDERS
-	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
-#endif // !LEDSLIDERS
-#else // ON_BOARD_SENSOR
-	if(trill.setup(1, Trill::BAR, 0x23))
-		return false;
-#ifndef LEDSLIDERS
-	cd.setup(24, 4, 3200);
-#endif // !LEDSLIDERS
-#endif // ON_BOARD_SENSOR
-	trill.setMode(Trill::DIFF);
-	trill.printDetails();
+	unsigned int guardPads = 1;
+	// set up ledSliders with two sub-sliders
+	ledSliders.setup({
+		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
+		.sizeScale = 3200,
+		.maxNumCentroids = {1},
+		.boundaries = {
+			{.firstPad = 0, .lastPad = kNumPads,
+			.firstLed = 0, .lastLed = kNumLeds, },
+			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
+			// .firstLed = 0, .lastLed = kNumLeds / 2, },
+			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
+			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
+		},
+		.np = &np,
+	});
+	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
+	{
+		unsigned int m = n % 3;
+		// set each subslider to R, G, B etc
+		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((1 == m) * 255), uint8_t((2 == m) * 255)};
+		ledSliders.sliders[n].setColor(color);
+		ledSliders.sliders[n].setLedMode(LedSlider::AUTO_CENTROIDS);
+	}
+	
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 255, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 255, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+}
 
-#ifdef LEDSLIDERS
+// MODE 2: DIRECT CONTROL / DOUBLE SLIDER
+void mode2_setup()
+{
 	unsigned int guardPads = 1;
 	// set up ledSliders with two sub-sliders
 	ledSliders.setup({
@@ -90,7 +149,253 @@ bool tr_setup()
 		ledSliders.sliders[n].setColor(color);
 		ledSliders.sliders[n].setLedMode(LedSlider::AUTO_CENTROIDS);
 	}
-#endif // LEDSLIDERS
+	
+	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
+		np.setPixelColor(n, 255, 0, 0);
+	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 255, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
+		np.setPixelColor(n, 255, 0, 0);
+	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 255, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+}
+
+// MODE 3: SINGLE SLIDER / LOOP GESTURE
+void mode3_setup()
+{
+	unsigned int guardPads = 1;
+	// set up ledSliders with two sub-sliders
+	ledSliders.setup({
+		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
+		.sizeScale = 3200,
+		.maxNumCentroids = {1},
+		.boundaries = {
+			{.firstPad = 0, .lastPad = kNumPads,
+			.firstLed = 0, .lastLed = kNumLeds, },
+			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
+			// .firstLed = 0, .lastLed = kNumLeds / 2, },
+			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
+			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
+		},
+		.np = &np,
+	});
+	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
+	{
+		unsigned int m = n % 3;
+		// set each subslider to R, G, B etc
+		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
+		ledSliders.sliders[n].setColor(color);
+		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
+	}
+	
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 255);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 255);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+}
+
+// MODE 4: LFO / DOUBLE SLIDER
+void mode4_setup()
+{
+	unsigned int guardPads = 1;
+	// set up ledSliders with two sub-sliders
+	ledSliders.setup({
+		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
+		.sizeScale = 3200,
+		.maxNumCentroids = {1, 1},
+		.boundaries = {
+			//{.firstPad = 0, .lastPad = kNumPads,
+			//.firstLed = 0, .lastLed = kNumLeds, },
+			{.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
+			.firstLed = 0, .lastLed = kNumLeds / 2, },
+			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
+			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
+		},
+		.np = &np,
+	});
+	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
+	{
+		unsigned int m = n % 3;
+		// set each subslider to R, G, B etc
+		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((0 == m) * 255), uint8_t((1 == m) * 255)};
+		ledSliders.sliders[n].setColor(color);
+		ledSliders.sliders[n].setLedMode(LedSlider::AUTO_CENTROIDS);
+	}
+	
+	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
+		np.setPixelColor(n, 255, 255, 0);
+	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 255);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
+		np.setPixelColor(n, 255, 255, 0);
+	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 255);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show(); // actually display the updated LEDs
+	usleep(200000);
+}
+
+
+void mode1_loop()
+{
+	ledSliders.process(trill.rawData.data());
+	np.show(); // actually display the updated LEDs
+}
+
+void mode2_loop()
+{
+	ledSliders.process(trill.rawData.data());
+	np.show(); // actually display the updated LEDs
+}
+
+void mode3_loop()
+{
+	ledSliders.process(trill.rawData.data());
+	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
+	float touchSize = ledSliders.sliders[0].compoundTouchSize();
+	int touchPresent = ledSliders.sliders[0].getNumTouches();
+	
+	LedSlider::centroid_t centroids[1];
+	
+	if (touchPresent) {
+		//  First time
+		if (touchPresent != gPrevTouchPresent){
+			rt_printf("NEW TOUCH\n");
+			gCounter = 0;
+			gEndOfGesture = 0;
+			for(int n = 0; n < gMaxRecordLength; n++) {
+				gTouchPositionRecording[n] = 0.0;
+			}
+		}
+			
+		centroids[0].location = fingerPos;
+		centroids[0].size = touchSize;
+		// Record gesture
+		gTouchPositionRecording[gCounter] = fingerPos;
+		
+		gRestartCount = 1;
+		gCounter++;
+	}
+	
+	if (!touchPresent) {
+		
+		// Reset counter and store the sample length
+		if (gRestartCount) {
+			gEndOfGesture = gCounter;
+			rt_printf("END OF RECORDING: %d\n",gEndOfGesture);
+			gCounter = 0;
+			gRestartCount = 0;
+		}
+		
+		if (gCounter < gEndOfGesture) {
+			centroids[0].location = gTouchPositionRecording[gCounter];
+			centroids[0].size = 0.5;
+			gCounter++;
+		} else {
+			gCounter = 0;
+		}
+		
+	}
+	
+	gPrevTouchPresent = touchPresent;
+	
+	// Show centroid on the LEDs
+	ledSliders.sliders[0].setLedsCentroids(centroids, 2);
+	np.show(); // actually display the updated LEDs
+}
+
+void mode4_loop()
+{
+	// ledSliders.process(trill.rawData.data());
+	for(unsigned int n = 0; n < kNumLeds/2; ++n)
+		np.setPixelColor(n, gMtrClkTrigger * 255, gMtrClkTrigger * 255, 0);
+	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, gDivMultClkTrigger * 255);
+	np.show(); // actually display the updated LEDs
+}
+
+void master_clock(float tempoControl)
+{
+	gMtrClkTrigger = 0;
+	
+	if (gMtrClkCounter >= tempoControl * gMtrClkTimePeriod) {
+		
+		gMtrClkTrigger = 1;
+		gMtrClkTriggerLED = 1;
+		gEndTime = tri.getTimeMs() + gPulseLength;
+		rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gEndTime);
+		gMtrClkCounter = 0;
+	}
+	gMtrClkCounter++;
+	
+	if(gEndTime < tri.getTimeMs()) {
+    	gMtrClkTriggerLED = 0;
+    }
+}
+
+void divmult_clock(int trigger, float tempoControl)
+{
+	if (gDivMultClkCounter >= tempoControl * gDivMultClkTimePeriod) {
+		
+		gDivMultClkTrigger = 1;
+		gDivMultEndTime = tri.getTimeMs() + gPulseLength;
+		rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gDivMultEndTime);
+		gDivMultClkCounter = 0;
+	}
+	gDivMultClkCounter++;
+	
+	if(gDivMultEndTime < tri.getTimeMs()) {
+    	gDivMultClkTrigger = 0;
+    }
+}
+
+bool tr_setup()
+{
+	np.begin();
+
+	if(trill.setup(1, Trill::FLEX, 0x50))
+		return false;
+
+	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
+
+	trill.setMode(Trill::DIFF);
+	trill.printDetails();
+	
+	mode1_setup();
+	
 	return true;
 }
 
@@ -128,56 +433,78 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
+
+
 void tr_loop()
 {
 	trill.readI2C();
-#ifdef LEDSLIDERS
-	ledSliders.process(trill.rawData.data());
-	np.show(); // actually display the updated LEDs
+
 	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
 	float touchSize = ledSliders.sliders[0].compoundTouchSize();
-#else // LEDSLIDERS
-	float* tmp = trill.rawData.data();
-	float pads[kNumPads];
-	sort(pads, tmp, padsToOrderMap, kNumPads);
-#if 1 // debug order
-	for(unsigned int n = 0; n < kNumPads; ++n)
-		printf("%4d ", n);
-	printf("\n");
-	for(unsigned int n = 0; n < kNumPads; ++n)
-		printf("%4.0f ", tmp[n] * 4096);
-	printf("\n");
-	for(unsigned int n = 0; n < kNumPads; ++n)
-		printf("%4.0f ", pads[n] * 4096);
-	printf("\n");
-	printf("\n");
-#endif
-	float bright[kNumLeds];
-	// bright is a scratchpad for LED values
-	resample(bright, kNumLeds, pads, kNumPads);
-#if 0 // debug resample
-	for(unsigned int n = 0; n < kNumPads; ++n)
-		printf("%.2f ", pads[n]);
-	printf("\n");
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		printf("%.2f	", bright[n]);
-	printf("\n\n");
-#endif
-	// Set colour depending on activation
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, bright[n] * (n >= 8) * 255, bright[n] * (n < 8) * 255, 0);
-	np.show(); // actually display the updated LEDs
 
-	cd.process(trill.rawData.data());
-	float fingerPos = cd.compoundTouchLocation();
-	float touchSize = cd.compoundTouchSize();
-#endif // LEDSLIDERS
-	// read analog in.
+	// Read analog in.
 	float anIn = tri.analogRead();
-	// write outs
+	
+	// Run the clock
+	master_clock(anIn*3.0);
+	
+	// Run the div mult clock
+	divmult_clock(gMtrClkTrigger, anIn*3.0);
+
+
+	// Read digital in.
+	float diIn = tri.digitalRead();
+	int shouldChangeMode;
+	if (diIn == 1 && diIn != gDiInLast){
+		shouldChangeMode = 1;
+	} else {
+		shouldChangeMode = 0;
+	}
+	gDiInLast = diIn;
+	
+	// Switch between modes
+	if(shouldChangeMode) {
+		gMode = (gMode+1)%4;
+		//  Setup first
+		switch (gMode) {
+			case 0:
+	    		mode1_setup();
+	    		break;
+			case 1:
+	    		mode2_setup();
+	    		break;
+    		case 2:
+	    		mode3_setup();
+	    		break;
+    		case 3:
+	    		mode4_setup();
+	    		break;
+		}
+	}
+	
+	// Loop afterwards
+	switch (gMode) {
+		case 0:
+    		mode1_loop();
+    		break;
+		case 1:
+    		mode2_loop();
+    		break;
+		case 2:
+    		mode3_loop();
+    		break;
+		case 3:
+    		mode4_loop();
+    		break;
+	}
+	
+	tri.digitalWrite(gMtrClkTriggerLED);
+	
+	// write analog outputs
 	tri.analogWrite(0, fingerPos);
 	tri.analogWrite(1, touchSize);
-
+	
+	// Send to scope
 	tri.scopeWrite(0, anIn);
 	tri.scopeWrite(1, fingerPos);
 	tri.scopeWrite(2, touchSize);
