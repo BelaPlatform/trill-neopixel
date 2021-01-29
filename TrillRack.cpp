@@ -11,11 +11,20 @@
 int gMode = 0;
 int gDiInLast = 0;
 int gCounter = 0;
+
+// Recording the gesture
 int gEndOfGesture = 0; // store gesture length
 int gRestartCount = 0;
 #define gMaxRecordLength 10000
 float gTouchPositionRecording[gMaxRecordLength];
 int gPrevTouchPresent = 0; // store whether a touch was previously present
+
+// Recording two gestures at once
+int gPrevTouchPresentDualLFO[2] = {0};
+int gCounterDualLFO[2] = {0};
+int gEndOfGestureDualLFO[2] = {0};
+float gTouchPositionRecordingDualLFO[2][gMaxRecordLength] = {0, 0};
+int gRestartCountDualLFO[2] = {0};
 
 // Master clock
 int gMtrClkCounter = 0;
@@ -243,7 +252,7 @@ void mode4_setup()
 		// set each subslider to R, G, B etc
 		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((0 == m) * 255), uint8_t((1 == m) * 255)};
 		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::AUTO_CENTROIDS);
+		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
 	}
 	
 	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
@@ -333,17 +342,66 @@ void mode3_loop()
 	gPrevTouchPresent = touchPresent;
 	
 	// Show centroid on the LEDs
-	ledSliders.sliders[0].setLedsCentroids(centroids, 2);
+	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 	np.show(); // actually display the updated LEDs
 }
 
+// DUAL LFOS
 void mode4_loop()
 {
-	// ledSliders.process(trill.rawData.data());
-	for(unsigned int n = 0; n < kNumLeds/2; ++n)
-		np.setPixelColor(n, gMtrClkTrigger * 255, gMtrClkTrigger * 255, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, gDivMultClkTrigger * 255);
+	ledSliders.process(trill.rawData.data());
+	
+	float fingerPosDualLFO[2] = {ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation()};
+	unsigned int touchPresentDualLFO[2] = {ledSliders.sliders[0].getNumTouches(), ledSliders.sliders[1].getNumTouches()};
+	
+	LedSlider::centroid_t centroids[2];
+	
+	for (int m=0; m<2; m++) {
+		if (touchPresentDualLFO[m]) {
+			//  First time
+			if (touchPresentDualLFO[m] != gPrevTouchPresentDualLFO[m]){
+				rt_printf("NEW TOUCH SENSOR %d\n", m);
+				gCounterDualLFO[m] = 0;
+				gEndOfGestureDualLFO[m] = 0;
+				for(int n = 0; n < gMaxRecordLength; n++) {
+					gTouchPositionRecordingDualLFO[m][n] = 0.0;
+				}
+			}
+				
+			centroids[m].location = fingerPosDualLFO[m];
+			centroids[m].size = 0.5;
+			// Record gesture
+			gTouchPositionRecordingDualLFO[m][gCounterDualLFO[m]] = fingerPosDualLFO[m];
+			
+			gRestartCountDualLFO[m] = 1;
+			gCounterDualLFO[m]++;
+		}
+		
+		if (!touchPresentDualLFO[m]) {
+			
+			// Reset counter and store the sample length
+			if (gRestartCountDualLFO[m]) {
+				gEndOfGestureDualLFO[m] = gCounterDualLFO[m];
+				rt_printf("END OF RECORDING %d\n",m);
+				gCounterDualLFO[m] = 0;
+				gRestartCountDualLFO[m] = 0;
+			}
+			
+			if (gCounterDualLFO[m] < gEndOfGestureDualLFO[m]) {
+				centroids[m].location = gTouchPositionRecordingDualLFO[m][gCounterDualLFO[m]];
+				centroids[m].size = 0.5;
+				gCounterDualLFO[m]++;
+			} else {
+				gCounterDualLFO[m] = 0;
+			}
+			
+		}
+		
+		gPrevTouchPresentDualLFO[m] = touchPresentDualLFO[m];
+		
+		ledSliders.sliders[m].setLedsCentroids(centroids + m, 1);
+	}
+	
 	np.show(); // actually display the updated LEDs
 }
 
@@ -356,7 +414,7 @@ void master_clock(float tempoControl)
 		gMtrClkTrigger = 1;
 		gMtrClkTriggerLED = 1;
 		gEndTime = tri.getTimeMs() + gPulseLength;
-		rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gEndTime);
+		// rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gEndTime);
 		gMtrClkCounter = 0;
 	}
 	gMtrClkCounter++;
@@ -372,7 +430,7 @@ void divmult_clock(int trigger, float tempoControl)
 		
 		gDivMultClkTrigger = 1;
 		gDivMultEndTime = tri.getTimeMs() + gPulseLength;
-		rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gDivMultEndTime);
+		// rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gDivMultEndTime);
 		gDivMultClkCounter = 0;
 	}
 	gDivMultClkCounter++;

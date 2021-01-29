@@ -37,6 +37,7 @@ void LedSlider::setLedsRaw(const float* values)
 
 void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length)
 {
+	ledCentroids.resize(length);
 	for(unsigned int n = 0; n < length && n < ledCentroids.size(); ++n)
 		ledCentroids[n] = values[n];
 	updateLeds();
