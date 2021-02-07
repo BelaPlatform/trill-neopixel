@@ -8,10 +8,10 @@ class TrillRackInterface
 {
 public:
 	TrillRackInterface() {};
-	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh, unsigned int diOutCh);
-	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh);
+	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh);
+	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh);
 	float analogRead();
-	float digitalRead();
+	float digitalRead(unsigned int channel);
 	void digitalWrite(int val);
 	void analogWrite(unsigned int channel, float val);
 	void process(BelaContext* context);
@@ -21,13 +21,14 @@ public:
 	double getTimeMs();
 private:
 	enum { nAnOut = 2 };
+	enum { nDiIn = 2 };
 	float anIn;
-	float diIn;
+	float diIn[2];
 	int diOut;
 	float anOut[nAnOut];
 	double lastTimeMs;
 	unsigned int anInCh;
-	unsigned int diInCh;
+	unsigned int diInCh[2];
 	unsigned int diOutCh;
 	unsigned int anOutCh[nAnOut];
 	float scopeData[kScopeChannels];

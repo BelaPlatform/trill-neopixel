@@ -1,25 +1,26 @@
 #include "TrillRackInterface.h"
 #include <string.h>
 
-TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh)
+TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh)
 {
-	setup(anInCh, anOutCh0, anOutCh1, diInCh, diOutCh);
+	setup(anInCh, anOutCh0, anOutCh1, diInCh1, diInCh2, diOutCh);
 }
 
-int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh)
+int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh)
 {
 	scopeInited = false;
 	this->anInCh = anInCh;
-	this->diInCh = diInCh;
+	this->diInCh[0] = diInCh1;
+	this->diInCh[1] = diInCh2;
 	this->diOutCh = diOutCh;
 	this->anOutCh[0] = anOutCh0;
 	this->anOutCh[1] = anOutCh1;
 	anIn = 0;
-	diIn = 0;
 	diOut = 0;
 	lastTimeMs =  0;
 	memset(scopeData, 0, sizeof(scopeData));
 	memset(anOut, 0, sizeof(anOut));
+	memset(diIn, 0, sizeof(diIn));
 	return 0;
 }
 
@@ -28,9 +29,10 @@ float TrillRackInterface::analogRead()
 	return anIn;
 }
 
-float TrillRackInterface::digitalRead()
+float TrillRackInterface::digitalRead(unsigned int channel)
 {
-	return diIn;
+	if(channel < nDiIn)
+		return diIn[channel];
 }
 
 void TrillRackInterface::digitalWrite(int val)
@@ -73,8 +75,9 @@ void TrillRackInterface::process(BelaContext* context)
 		scope.log(scopeData);
         if(anInCh < context->analogInChannels)
                 anIn = ::analogRead(context, 0, anInCh);
-        if(diInCh < context->digitalChannels)
-                diIn = ::digitalRead(context, 0, diInCh);
+        for(unsigned int m = 0; m < nDiIn; ++m)
+	        if(diInCh[m] < context->digitalChannels)
+                diIn[m] = ::digitalRead(context, 0, diInCh[m]);
         if(diOutCh < context->digitalChannels)
     		    ::pinMode(context, 0, diOutCh, OUTPUT); // Set diOutCh as output
         		::digitalWrite(context, 0, diOutCh, diOut);
