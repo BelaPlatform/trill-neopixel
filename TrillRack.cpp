@@ -4,6 +4,9 @@
 #include "LedSliders.h"
 #include "NeoPixel.h"
 #include <cmath>
+#ifdef STM32
+#define rt_printf printf
+#endif // STM32
 
 // Robbie's Variables
 // ------------------
@@ -176,7 +179,6 @@ void mode1_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1},
 		.boundaries = {
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
@@ -185,6 +187,7 @@ void mode1_setup()
 			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -222,7 +225,6 @@ void mode2_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1, 1},
 		.boundaries = {
 			//{.firstPad = 0, .lastPad = kNumPads,
 			//.firstLed = 0, .lastLed = kNumLeds, },
@@ -231,6 +233,7 @@ void mode2_setup()
 			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1, 1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -272,7 +275,6 @@ void mode3_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1},
 		.boundaries = {
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
@@ -281,6 +283,7 @@ void mode3_setup()
 			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -318,7 +321,6 @@ void mode4_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1, 1},
 		.boundaries = {
 			//{.firstPad = 0, .lastPad = kNumPads,
 			//.firstLed = 0, .lastLed = kNumLeds, },
@@ -327,6 +329,7 @@ void mode4_setup()
 			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1, 1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -370,7 +373,6 @@ void mode5_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1},
 		.boundaries = {
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
@@ -379,6 +381,7 @@ void mode5_setup()
 			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -418,7 +421,6 @@ void mode6_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1},
 		.boundaries = {
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
@@ -427,6 +429,7 @@ void mode6_setup()
 			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -464,7 +467,6 @@ void mode7_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1},
 		.boundaries = {
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
@@ -473,6 +475,7 @@ void mode7_setup()
 			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
@@ -510,7 +513,6 @@ void mode8_setup()
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
-		.maxNumCentroids = {1, 1},
 		.boundaries = {
 			//{.firstPad = 0, .lastPad = kNumPads,
 			//.firstLed = 0, .lastLed = kNumLeds, },
@@ -519,6 +521,7 @@ void mode8_setup()
 			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
+		.maxNumCentroids = {1, 1},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)

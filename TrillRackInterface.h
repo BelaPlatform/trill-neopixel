@@ -1,6 +1,10 @@
 #pragma once
-#include <Bela.h>
+#ifdef STM32
+#define BelaContext void
+#else // STM32
+#define USE_SCOPE
 #include <libraries/Scope/Scope.h>
+#endif // STM32
 
 bool tr_setup();
 void tr_loop();
@@ -31,7 +35,9 @@ private:
 	unsigned int diInCh[2];
 	unsigned int diOutCh;
 	unsigned int anOutCh[nAnOut];
+#ifdef USE_SCOPE
 	float scopeData[kScopeChannels];
 	Scope scope;
 	bool scopeInited;
+#endif // USE_SCOPE
 };

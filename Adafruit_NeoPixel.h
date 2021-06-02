@@ -35,10 +35,19 @@
 
 #ifndef ADAFRUIT_NEOPIXEL_H
 #define ADAFRUIT_NEOPIXEL_H
+#ifdef __linux__
 #define BELA_NEOPIXELS
+#elif defined(STM32)
+#define STM32_NEOPIXELS
+#endif
+
 #ifdef BELA_NEOPIXELS
   #include "BelaAudioNeoPixels.h" // has to be included here to avoid conflicts with defines
 #endif // BELA_NEOPIXELS
+#ifdef STM32_NEOPIXELS
+  #include <stdint.h>
+  #include "Arduino.h"
+#endif // STM32_NEOPIXELS
 
 #ifdef ARDUINO
   #if (ARDUINO >= 100)

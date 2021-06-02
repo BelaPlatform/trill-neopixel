@@ -1,5 +1,8 @@
 #include "TrillRackInterface.h"
 #include <string.h>
+#ifndef STM32
+#include <Bela.h>
+#endif // STM32
 
 TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh)
 {
@@ -8,7 +11,6 @@ TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh
 
 int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh)
 {
-	scopeInited = false;
 	this->anInCh = anInCh;
 	this->diInCh[0] = diInCh1;
 	this->diInCh[1] = diInCh2;
@@ -18,7 +20,10 @@ int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsign
 	anIn = 0;
 	diOut = 0;
 	lastTimeMs =  0;
+#ifdef USE_SCOPE
+	scopeInited = false;
 	memset(scopeData, 0, sizeof(scopeData));
+#endif //USE_SCOPE
 	memset(anOut, 0, sizeof(anOut));
 	memset(diIn, 0, sizeof(diIn));
 	return 0;
@@ -48,13 +53,17 @@ void TrillRackInterface::analogWrite(unsigned int channel, float val)
 
 void TrillRackInterface::scopeWrite(float* data)
 {
+#ifdef USE_SCOPE
 	memcpy(scopeData, data, sizeof(scopeData));
+#endif // USE_SCOPE
 }
 
 void TrillRackInterface::scopeWrite(unsigned int channel, float val)
 {
+#ifdef USE_SCOPE
 	if(channel < kScopeChannels)
 		scopeData[channel] = val;
+#endif // USE_SCOPE
 }
 
 double TrillRackInterface::getTimeMs() {
@@ -63,8 +72,8 @@ double TrillRackInterface::getTimeMs() {
 
 void TrillRackInterface::process(BelaContext* context)
 {
+#ifdef USE_SCOPE
 	lastTimeMs = context->audioFramesElapsed / context->audioSampleRate * 1000;
-	
 	unsigned int scopeEvery = 4;
 	if(!scopeInited) {
 		// we initialise here so setup and constructor don't need context
@@ -84,5 +93,6 @@ void TrillRackInterface::process(BelaContext* context)
 	for(unsigned int i = 0; i < nAnOut; ++i)
                 if(anOutCh[i] < context->analogOutChannels)
                         ::analogWrite(context, 0, anOutCh[i], anOut[i]);
+#endif // USE_SCOPE
 }
 
