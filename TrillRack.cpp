@@ -95,9 +95,6 @@ unsigned int padsToOrderMap[kNumPads] = {
 	24,
 };
 
-#define ON_BOARD_SENSOR // use on-board sensor. Otherwise, use an external Trill Bar
-#define LEDSLIDERS // use ledSliders for single- or multi- slider + viz. Otherwise, maually manage LEDs and CentroidDetection
-
 LedSliders ledSliders;
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
