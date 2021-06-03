@@ -288,7 +288,6 @@ void mode3_setup()
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
-		unsigned int m = n % 3;
 		// set each subslider to R, G, B etc
 		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
 		ledSliders.sliders[n].setColor(color);
@@ -386,7 +385,6 @@ void mode5_setup()
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
-		unsigned int m = n % 3;
 		// set each subslider to R, G, B etc
 		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
 		ledSliders.sliders[n].setColor(color);
@@ -434,7 +432,6 @@ void mode6_setup()
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
-		unsigned int m = n % 3;
 		// set each subslider to R, G, B etc
 		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
 		ledSliders.sliders[n].setColor(color);
@@ -480,7 +477,6 @@ void mode7_setup()
 	});
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
-		unsigned int m = n % 3;
 		// set each subslider to R, G, B etc
 		rgb_t color = {(uint8_t)(0), uint8_t(0), uint8_t(255)};
 		ledSliders.sliders[n].setColor(color);
