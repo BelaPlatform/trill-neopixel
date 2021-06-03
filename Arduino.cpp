@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+Print Serial;
+
 void Print::print() {};
 void Print::print(const char* p) {
 	printf("%s", p);

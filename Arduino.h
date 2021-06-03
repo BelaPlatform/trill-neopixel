@@ -22,7 +22,7 @@ struct Print {
 	void println(uint32_t, const char*);
 };
 
-static Print Serial;
+extern Print Serial;
 
 unsigned long micros();
 uint32_t millis();
