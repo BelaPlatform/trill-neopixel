@@ -31,7 +31,7 @@ float gTouchPositionRecording[gMaxRecordLength];
 int gPrevTouchPresent = 0; // store whether a touch was previously present
 
 // Recording two gestures at once
-int gPrevTouchPresentDualLFO[2] = {0};
+unsigned int gPrevTouchPresentDualLFO[2] = {0};
 int gCounterDualLFO[2] = {0};
 int gEndOfGestureDualLFO[2] = {0};
 float gTouchPositionRecordingDualLFO[2][gMaxRecordLength] = {0, 0};
@@ -115,9 +115,9 @@ void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
 #if 1 // weighted sum
 	// How many accompanying LEDs are on
 	float r = 2;
-	for(int no = 0; no < nOut; ++no) {
+	for(unsigned int no = 0; no < nOut; ++no) {
 		out[no] = 0;
-		for(int ni = 0; ni < nIn; ++ni) {
+		for(unsigned int ni = 0; ni < nIn; ++ni) {
 			float fracInIdx = no * nIn / (float)nOut;
 			float weight = (1 - (std::abs(fracInIdx - ni) / r));
 			weight = std::max(0.f, weight); // clip to 0
@@ -722,9 +722,10 @@ void mode5_loop()
 	float out1 = oscillator1.process();
 	float out2 = oscillator2.process();
 	
-	for(unsigned int n = 0; n < int(kNumLeds*gDivisionPoint); ++n)
+	unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
+	for(unsigned int n = 0; n < split; ++n)
 		np.setPixelColor(n, 0, out1*255, 0);
-	for(unsigned int n = int(kNumLeds*gDivisionPoint); n < kNumLeds; ++n)
+	for(unsigned int n = split; n < kNumLeds; ++n)
 		np.setPixelColor(n, 0, 0, out2*255);
 	// for(unsigned int n = 0; n < kNumLeds; ++n)
 	// 	np.setPixelColor(n, bright[n]*255, bright[n]*255, out*255 );
@@ -769,9 +770,10 @@ void mode6_loop()
 	float out1 = oscillator1.process();
 	float out2 = oscillator2.process();
 	
-	for(unsigned int n = 0; n < int(kNumLeds*gDivisionPoint); ++n)
+	unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
+	for(unsigned int n = 0; n < split; ++n)
 		np.setPixelColor(n, 0, out1*255, 0);
-	for(unsigned int n = int(kNumLeds*gDivisionPoint); n < kNumLeds; ++n)
+	for(unsigned int n = split; n < kNumLeds; ++n)
 		np.setPixelColor(n, 0, 0, out2*255);
 	// for(unsigned int n = 0; n < kNumLeds; ++n)
 	// 	np.setPixelColor(n, bright[n]*255, bright[n]*255, out*255 );
