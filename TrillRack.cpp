@@ -171,25 +171,40 @@ void divmult_clock(int trigger, float tempoControl)
     }
 }
 
-// MODE 1: DIRECT CONTROL / SINGLE SLIDER
-void mode1_setup()
+void ledSlidersSetupOneSlider()
 {
-	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 		.sizeScale = 3200,
 		.boundaries = {
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
-			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			// .firstLed = 0, .lastLed = kNumLeds / 2, },
-			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
 		.maxNumCentroids = {1},
 		.np = &np,
 	});
+}
+
+void ledSlidersSetupTwoSliders(unsigned int guardPads)
+{
+	ledSliders.setup({
+		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
+		.sizeScale = 3200,
+		.boundaries = {
+			{.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
+			.firstLed = 0, .lastLed = kNumLeds / 2, },
+			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
+			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
+		},
+		.maxNumCentroids = {1, 1},
+		.np = &np,
+	});
+}
+
+// MODE 1: DIRECT CONTROL / SINGLE SLIDER
+void mode1_setup()
+{
+	ledSlidersSetupOneSlider();
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		unsigned int m = n % 3;
@@ -221,21 +236,7 @@ void mode1_setup()
 void mode2_setup()
 {
 	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			//{.firstPad = 0, .lastPad = kNumPads,
-			//.firstLed = 0, .lastLed = kNumLeds, },
-			{.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			.firstLed = 0, .lastLed = kNumLeds / 2, },
-			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1, 1},
-		.np = &np,
-	});
+	ledSlidersSetupTwoSliders(guardPads);
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		unsigned int m = n % 3;
@@ -270,22 +271,7 @@ void mode2_setup()
 // MODE 3: SINGLE SLIDER / LOOP GESTURE
 void mode3_setup()
 {
-	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			{.firstPad = 0, .lastPad = kNumPads,
-			.firstLed = 0, .lastLed = kNumLeds, },
-			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			// .firstLed = 0, .lastLed = kNumLeds / 2, },
-			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1},
-		.np = &np,
-	});
+	ledSlidersSetupOneSlider();
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		// set each subslider to R, G, B etc
@@ -316,21 +302,7 @@ void mode3_setup()
 void mode4_setup()
 {
 	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			//{.firstPad = 0, .lastPad = kNumPads,
-			//.firstLed = 0, .lastLed = kNumLeds, },
-			{.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			.firstLed = 0, .lastLed = kNumLeds / 2, },
-			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1, 1},
-		.np = &np,
-	});
+	ledSlidersSetupTwoSliders(guardPads);
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		unsigned int m = n % 3;
@@ -367,22 +339,7 @@ void mode5_setup()
 	oscillator1.setup(1000, Oscillator::triangle);
 	oscillator2.setup(1000, Oscillator::triangle);
 	
-	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			{.firstPad = 0, .lastPad = kNumPads,
-			.firstLed = 0, .lastLed = kNumLeds, },
-			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			// .firstLed = 0, .lastLed = kNumLeds / 2, },
-			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1},
-		.np = &np,
-	});
+	ledSlidersSetupOneSlider();
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		// set each subslider to R, G, B etc
@@ -414,22 +371,7 @@ void mode6_setup()
 	oscillator1.setup(1000, Oscillator::square);
 	oscillator2.setup(1000, Oscillator::square);
 	
-	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			{.firstPad = 0, .lastPad = kNumPads,
-			.firstLed = 0, .lastLed = kNumLeds, },
-			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			// .firstLed = 0, .lastLed = kNumLeds / 2, },
-			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1},
-		.np = &np,
-	});
+	ledSlidersSetupOneSlider();
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		// set each subslider to R, G, B etc
@@ -459,22 +401,7 @@ void mode6_setup()
 // MODE 7: ENVELOPE GENERATOR
 void mode7_setup()
 {
-	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			{.firstPad = 0, .lastPad = kNumPads,
-			.firstLed = 0, .lastLed = kNumLeds, },
-			// {.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			// .firstLed = 0, .lastLed = kNumLeds / 2, },
-			// {.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			// .firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1},
-		.np = &np,
-	});
+	ledSlidersSetupOneSlider();
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		// set each subslider to R, G, B etc
@@ -505,21 +432,7 @@ void mode7_setup()
 void mode8_setup()
 {
 	unsigned int guardPads = 1;
-	// set up ledSliders with two sub-sliders
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			//{.firstPad = 0, .lastPad = kNumPads,
-			//.firstLed = 0, .lastLed = kNumLeds, },
-			{.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			.firstLed = 0, .lastLed = kNumLeds / 2, },
-			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {1, 1},
-		.np = &np,
-	});
+	ledSlidersSetupTwoSliders(guardPads);
 	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
 	{
 		unsigned int m = n % 3;
