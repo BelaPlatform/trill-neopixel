@@ -36,18 +36,21 @@
 #ifndef ADAFRUIT_NEOPIXEL_H
 #define ADAFRUIT_NEOPIXEL_H
 #ifdef __linux__
-#define BELA_NEOPIXELS
+// select one of the two
+#define BELA_NEOPIXEL
+//#define SPIDEV_NEOPIXELS
 #elif defined(STM32)
-#define STM32_NEOPIXELS
+#define STM32_NEOPIXEL
 #endif
 
-#ifdef BELA_NEOPIXELS
+#ifdef BELA_NEOPIXEL
   #include "BelaAudioNeoPixels.h" // has to be included here to avoid conflicts with defines
-#endif // BELA_NEOPIXELS
-#ifdef STM32_NEOPIXELS
+#endif // BELA_NEOPIXEL
+#ifdef STM32_NEOPIXEL
   #include <stdint.h>
   #include "Arduino.h"
-#endif // STM32_NEOPIXELS
+  #include "Stm32NeoPixel.h"
+#endif // STM32_NEOPIXEL
 
 #ifdef ARDUINO
   #if (ARDUINO >= 100)
@@ -57,9 +60,9 @@
   #include <pins_arduino.h>
   #endif
 #endif
-#ifdef __linux__
+#ifdef SPIDEV_NEOPIXEL
   #include "SpidevNeoPixels.h"
-#endif
+#endif // SPIDEV_NEOPIXEL
 
 #ifdef TARGET_LPC1768
   #include <Arduino.h>
@@ -224,7 +227,9 @@ class Adafruit_NeoPixel {
     neoPixelType type=NEO_GRB + NEO_KHZ800);
   Adafruit_NeoPixel(void);
   ~Adafruit_NeoPixel();
-
+#ifdef STM32_NEOPIXEL
+  void              setSnp(Stm32NeoPixel* snp);
+#endif // STM32_NEOPIXEL
   void              begin(void);
   void              show(void);
   void              setPin(uint16_t p);
@@ -376,8 +381,11 @@ class Adafruit_NeoPixel {
   volatile uint8_t *port;       ///< Output PORT register
   uint8_t           pinMask;    ///< Output PORT bitmask
 #endif
-#ifdef __linux__
+#ifdef SPIDEV_NEOPIXEL
   SpidevNeoPixels snp;
+#endif
+#ifdef STM32_NEOPIXEL
+  Stm32NeoPixel* snp = nullptr;
 #endif
 #if defined(ARDUINO_ARCH_STM32) || defined(ARDUINO_ARCH_ARDUINO_CORE_STM32)
   GPIO_TypeDef *gpioPort;       ///< Output GPIO PORT

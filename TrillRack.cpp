@@ -813,9 +813,17 @@ void mode8_loop()
 	np.show(); // actually display the updated LEDs
 }
 
+#ifdef STM32_NEOPIXEL
+extern TIM_HandleTypeDef htim2;
+static Stm32NeoPixelT<uint32_t, 28> snp(&htim2, TIM_CHANNEL_2, 66, 33);
+#endif // STM32_NEOPIXEL
+
 bool tr_setup()
 {
 	np.begin();
+#ifdef STM32_NEOPIXEL
+	np.setSnp(&snp);
+#endif // STM32_NEOPIXEL
 
 	if(trill.setup(1, Trill::FLEX, 0x50))
 		return false;

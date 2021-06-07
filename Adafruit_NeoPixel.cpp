@@ -45,9 +45,12 @@
 
 #include "Adafruit_NeoPixel.h"
 
-#ifdef BELA_NEOPIXELS
+#ifdef BELA_NEOPIXEL
 extern __attribute__((weak)) BelaAudioNeoPixels* bnp;
-#endif // BELA_NEOPIXELS
+#endif // BELA_NEOPIXEL
+#ifdef STM32_NEOPIXEL
+extern __attribute__((weak)) Stm32NeoPixel* snp;
+#endif // STM32_NEOPIXEL
 
 #if defined(TARGET_LPC1768)
   #include <time.h>
@@ -78,9 +81,9 @@ Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, uint16_t p, neoPixelType t) :
   updateType(t);
   updateLength(n);
   setPin(p);
-#ifdef __linux__
+#ifdef SPIDEV_NEOPIXEL
   snp.setup("/dev/spidev2.1");
-#endif // __linux__
+#endif // SPIDEV_NEOPIXEL
 }
 
 /*!
@@ -108,6 +111,13 @@ Adafruit_NeoPixel::~Adafruit_NeoPixel() {
   free(pixels);
   if(pin >= 0) pinMode(pin, INPUT);
 }
+
+#ifdef STM32_NEOPIXEL
+void Adafruit_NeoPixel::setSnp(Stm32NeoPixel* snp)
+{
+  this->snp = snp;
+}
+#endif // STM32_NEOPIXEL
 
 /*!
   @brief   Configure NeoPixel pin for output.
@@ -1142,14 +1152,15 @@ void Adafruit_NeoPixel::show(void) {
 // END AVR ----------------------------------------------------------------
 
 
-#elif defined(__linux__)
-#if defined(BELA_NEOPIXELS)
+#elif defined(BELA_NEOPIXEL)
   if(bnp)
-     bnp->send(pixels, numBytes);
-   else
-#endif // BELA_NEOPIXELS
-// Linux with spidev (Bela, BBB, Pi, etc ...)
+    bnp->send(pixels, numBytes);
+#elif defined(SPIDEV_NEOPIXEL)
+   // Linux with spidev (Bela, BBB, Pi, etc ...)
   snp.send(pixels, numBytes);
+#elif defined(STM32_NEOPIXEL)
+  if(snp)
+    snp->send(pixels, numBytes);
 #elif defined(__arm__)
 
 // ARM MCUs -- Teensy 3.0, 3.1, LC, Arduino Due ---------------------------
