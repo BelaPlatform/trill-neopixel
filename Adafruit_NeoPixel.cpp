@@ -48,9 +48,6 @@
 #ifdef BELA_NEOPIXEL
 extern __attribute__((weak)) BelaAudioNeoPixels* bnp;
 #endif // BELA_NEOPIXEL
-#ifdef STM32_NEOPIXEL
-extern __attribute__((weak)) Stm32NeoPixel* snp;
-#endif // STM32_NEOPIXEL
 
 #if defined(TARGET_LPC1768)
   #include <time.h>
