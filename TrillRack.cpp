@@ -225,27 +225,6 @@ static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], L
 		initSubSlider(n, colors[n], mode);
 }
 
-static bool modeChangeBlink(double ms, rgb_t color)
-{
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, color.r, color.g, color.b);
-	np.show();
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show();
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, color.r, color.g, color.b);
-	np.show();
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show();
-	usleep(200000);
-	return true;
-}
-
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
 {
 	for(unsigned int n = 0; n < endFirst; ++n)
@@ -269,6 +248,12 @@ bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t st
 	np.show();
 	usleep(200000);
 	return true;
+}
+
+static bool modeChangeBlink(double ms, rgb_t color)
+{
+	rgb_t colors[2] = {color, color};
+	return modeChangeBlinkSplit(ms, colors, kNumLeds, kNumLeds);
 }
 
 // MODE 1: DIRECT CONTROL / SINGLE SLIDER
