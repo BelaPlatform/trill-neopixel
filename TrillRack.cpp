@@ -183,7 +183,16 @@ void divmult_clock(int trigger, float tempoControl)
     }
 }
 
-void ledSlidersSetupOneSlider()
+static void initSubSlider(size_t n, rgb_t color, LedSlider::LedMode_t mode)
+{
+	if(n < ledSliders.sliders.size())
+	{
+		ledSliders.sliders[n].setColor(color);
+		ledSliders.sliders[n].setLedMode(mode);
+	}
+}
+
+static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 {
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
@@ -195,9 +204,10 @@ void ledSlidersSetupOneSlider()
 		.maxNumCentroids = {1},
 		.np = &np,
 	});
+	initSubSlider(0, color, mode);
 }
 
-void ledSlidersSetupTwoSliders(unsigned int guardPads)
+static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], LedSlider::LedMode_t mode)
 {
 	ledSliders.setup({
 		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
@@ -211,139 +221,95 @@ void ledSlidersSetupTwoSliders(unsigned int guardPads)
 		.maxNumCentroids = {1, 1},
 		.np = &np,
 	});
+	for(unsigned int n = 0; n < 2; ++n)
+		initSubSlider(n, colors[n], mode);
+}
+
+void modeChangeBlink(rgb_t color)
+{
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, color.r, color.g, color.b);
+	np.show();
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show();
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, color.r, color.g, color.b);
+	np.show();
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show();
+	usleep(200000);
+}
+
+void modeChangeBlinkSplit(rgb_t colors[2], size_t endFirst, size_t startSecond)
+{
+	for(unsigned int n = 0; n < endFirst; ++n)
+		np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
+	for(unsigned int n = startSecond; n < kNumLeds; ++n)
+		np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
+	np.show();
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show();
+	usleep(200000);
+	for(unsigned int n = 0; n < endFirst; ++n)
+		np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
+	for(unsigned int n = startSecond; n < kNumLeds; ++n)
+		np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
+	np.show();
+	usleep(200000);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, 0, 0, 0);
+	np.show();
+	usleep(200000);
 }
 
 // MODE 1: DIRECT CONTROL / SINGLE SLIDER
 void mode1_setup()
 {
-	ledSlidersSetupOneSlider();
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		unsigned int m = n % 3;
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((1 == m) * 255), uint8_t((2 == m) * 255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::AUTO_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 255, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 255, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t color = {uint8_t(255), 0, 0};
+	ledSlidersSetupOneSlider(
+		color,
+		LedSlider::AUTO_CENTROIDS
+	);
+	modeChangeBlink(color);
 }
 
 // MODE 2: DIRECT CONTROL / DOUBLE SLIDER
 void mode2_setup()
 {
 	unsigned int guardPads = 1;
-	ledSlidersSetupTwoSliders(guardPads);
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		unsigned int m = n % 3;
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((1 == m) * 255), uint8_t((2 == m) * 255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::AUTO_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
-		np.setPixelColor(n, 255, 0, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 255, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
-		np.setPixelColor(n, 255, 0, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 255, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t colors[2] = {
+		{uint8_t(255), 0, 0},
+		{0, uint8_t(255), 0},
+	};
+	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
+	modeChangeBlinkSplit(colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 // MODE 3: SINGLE SLIDER / LOOP GESTURE
 void mode3_setup()
 {
-	ledSlidersSetupOneSlider();
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 255, 255, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 255, 255, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+	ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
+	modeChangeBlink(color);
 }
 
 // MODE 4: LFO / DOUBLE SLIDER
 void mode4_setup()
 {
 	unsigned int guardPads = 1;
-	ledSlidersSetupTwoSliders(guardPads);
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		unsigned int m = n % 3;
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((0 == m) * 255), uint8_t((1 == m) * 255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
-		np.setPixelColor(n, 255, 255, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
-		np.setPixelColor(n, 255, 255, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t colors[2] = {
+		{uint8_t(255), uint8_t(255), 0},
+		{0, 0, uint8_t(255)},
+	};
+	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+	modeChangeBlinkSplit(colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 void mode5_setup()
@@ -351,31 +317,13 @@ void mode5_setup()
 	oscillator1.setup(1000, Oscillator::triangle);
 	oscillator2.setup(1000, Oscillator::triangle);
 	
-	ledSlidersSetupOneSlider();
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 255, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 255, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+	ledSlidersSetupOneSlider(
+		color,
+		LedSlider::MANUAL_CENTROIDS
+	);
+	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe it was a typo?
+	modeChangeBlink(otherColor);
 }
 
 void mode6_setup()
@@ -383,97 +331,39 @@ void mode6_setup()
 	oscillator1.setup(1000, Oscillator::square);
 	oscillator2.setup(1000, Oscillator::square);
 	
-	ledSlidersSetupOneSlider();
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)(255), uint8_t(255), uint8_t(255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 255, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 255, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+	ledSlidersSetupOneSlider(
+		color,
+		LedSlider::MANUAL_CENTROIDS
+	);
+	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe it was a typo?
+	modeChangeBlink(otherColor);
 }
 
 // MODE 7: ENVELOPE GENERATOR
 void mode7_setup()
 {
-	ledSlidersSetupOneSlider();
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)(0), uint8_t(0), uint8_t(255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t color = {0, 0, uint8_t(255)};
+	ledSlidersSetupOneSlider(
+		color,
+		LedSlider::MANUAL_CENTROIDS
+	);
+	modeChangeBlink(color);
 }
 
 // MODE 8: DUAL ENVELOPE GENERATOR
 void mode8_setup()
 {
 	unsigned int guardPads = 1;
-	ledSlidersSetupTwoSliders(guardPads);
-	for(unsigned int n = 0; n < ledSliders.sliders.size(); ++n)
-	{
-		unsigned int m = n % 3;
-		// set each subslider to R, G, B etc
-		rgb_t color = {(uint8_t)((0 == m) * 255), uint8_t((0 == m) * 255), uint8_t((1 == m) * 255)};
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(LedSlider::MANUAL_CENTROIDS);
-	}
-	
-	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
-		np.setPixelColor(n, 255, 255, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds/2-guardPads; ++n)
-		np.setPixelColor(n, 255, 255, 0);
-	for(unsigned int n = kNumLeds/2; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 255);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show(); // actually display the updated LEDs
-	usleep(200000);
+	rgb_t colors[2] = {
+		{uint8_t(255), uint8_t(255), 0},
+		{0, 0, uint8_t(255)},
+	};
+	ledSlidersSetupTwoSliders(guardPads,
+		colors,
+		LedSlider::MANUAL_CENTROIDS
+	);
+	modeChangeBlinkSplit(colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 void mode1_loop()
