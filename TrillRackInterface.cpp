@@ -38,6 +38,8 @@ float TrillRackInterface::digitalRead(unsigned int channel)
 {
 	if(channel < nDiIn)
 		return diIn[channel];
+	else
+	  return 0;
 }
 
 void TrillRackInterface::digitalWrite(int val)
