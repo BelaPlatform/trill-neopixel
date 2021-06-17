@@ -225,7 +225,7 @@ static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], L
 		initSubSlider(n, colors[n], mode);
 }
 
-void modeChangeBlink(rgb_t color)
+static bool modeChangeBlink(double ms, rgb_t color)
 {
 	for(unsigned int n = 0; n < kNumLeds; ++n)
 		np.setPixelColor(n, color.r, color.g, color.b);
@@ -243,9 +243,10 @@ void modeChangeBlink(rgb_t color)
 		np.setPixelColor(n, 0, 0, 0);
 	np.show();
 	usleep(200000);
+	return true;
 }
 
-void modeChangeBlinkSplit(rgb_t colors[2], size_t endFirst, size_t startSecond)
+bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
 {
 	for(unsigned int n = 0; n < endFirst; ++n)
 		np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
@@ -267,21 +268,22 @@ void modeChangeBlinkSplit(rgb_t colors[2], size_t endFirst, size_t startSecond)
 		np.setPixelColor(n, 0, 0, 0);
 	np.show();
 	usleep(200000);
+	return true;
 }
 
 // MODE 1: DIRECT CONTROL / SINGLE SLIDER
-void mode1_setup()
+bool mode1_setup(double ms)
 {
 	rgb_t color = {uint8_t(255), 0, 0};
 	ledSlidersSetupOneSlider(
 		color,
 		LedSlider::AUTO_CENTROIDS
 	);
-	modeChangeBlink(color);
+	return modeChangeBlink(ms, color);
 }
 
 // MODE 2: DIRECT CONTROL / DOUBLE SLIDER
-void mode2_setup()
+bool mode2_setup(double ms)
 {
 	unsigned int guardPads = 1;
 	rgb_t colors[2] = {
@@ -289,19 +291,19 @@ void mode2_setup()
 		{0, uint8_t(255), 0},
 	};
 	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
-	modeChangeBlinkSplit(colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 // MODE 3: SINGLE SLIDER / LOOP GESTURE
-void mode3_setup()
+bool mode3_setup(double ms)
 {
 	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
 	ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
-	modeChangeBlink(color);
+	return modeChangeBlink(ms, color);
 }
 
 // MODE 4: LFO / DOUBLE SLIDER
-void mode4_setup()
+bool mode4_setup(double ms)
 {
 	unsigned int guardPads = 1;
 	rgb_t colors[2] = {
@@ -309,10 +311,10 @@ void mode4_setup()
 		{0, 0, uint8_t(255)},
 	};
 	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-	modeChangeBlinkSplit(colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
-void mode5_setup()
+bool mode5_setup(double ms)
 {
 	oscillator1.setup(1000, Oscillator::triangle);
 	oscillator2.setup(1000, Oscillator::triangle);
@@ -323,10 +325,10 @@ void mode5_setup()
 		LedSlider::MANUAL_CENTROIDS
 	);
 	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe it was a typo?
-	modeChangeBlink(otherColor);
+	return modeChangeBlink(ms, otherColor);
 }
 
-void mode6_setup()
+bool mode6_setup(double ms)
 {
 	oscillator1.setup(1000, Oscillator::square);
 	oscillator2.setup(1000, Oscillator::square);
@@ -337,22 +339,22 @@ void mode6_setup()
 		LedSlider::MANUAL_CENTROIDS
 	);
 	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe it was a typo?
-	modeChangeBlink(otherColor);
+	return modeChangeBlink(ms, otherColor);
 }
 
 // MODE 7: ENVELOPE GENERATOR
-void mode7_setup()
+bool mode7_setup(double ms)
 {
 	rgb_t color = {0, 0, uint8_t(255)};
 	ledSlidersSetupOneSlider(
 		color,
 		LedSlider::MANUAL_CENTROIDS
 	);
-	modeChangeBlink(color);
+	return modeChangeBlink(ms, color);
 }
 
 // MODE 8: DUAL ENVELOPE GENERATOR
-void mode8_setup()
+bool mode8_setup(double ms)
 {
 	unsigned int guardPads = 1;
 	rgb_t colors[2] = {
@@ -363,7 +365,7 @@ void mode8_setup()
 		colors,
 		LedSlider::MANUAL_CENTROIDS
 	);
-	modeChangeBlinkSplit(colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 void mode1_loop()
@@ -718,6 +720,28 @@ void mode8_loop()
 	np.show(); // actually display the updated LEDs
 }
 
+enum { kNumModes = 8 };
+static bool (*mode_setups[kNumModes])(double) = {
+	mode1_setup,
+	mode2_setup,
+	mode3_setup,
+	mode4_setup,
+	mode5_setup,
+	mode6_setup,
+	mode7_setup,
+	mode8_setup,
+};
+static void (*mode_loops[kNumModes])(void) = {
+	mode1_loop,
+	mode2_loop,
+	mode3_loop,
+	mode4_loop,
+	mode5_loop,
+	mode6_loop,
+	mode7_loop,
+	mode8_loop,
+};
+
 #ifdef STM32_NEOPIXEL
 extern TIM_HandleTypeDef htim2;
 static Stm32NeoPixelT<uint32_t, 28> snp(&htim2, TIM_CHANNEL_2, 66, 33);
@@ -768,7 +792,7 @@ bool tr_setup()
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
 
-	mode1_setup();
+	mode_setups[gMode](0);
 
 	return true;
 }
@@ -822,67 +846,19 @@ void tr_loop()
 	} 
 	gDiIn2Last = diIn2;
 	
-	
+	static double setupMs = 0;
 	// Switch between setup modes
 	if(shouldChangeMode) {
-		gMode = (gMode+1)%8;
-		//  Setup first
-		switch (gMode) {
-			case 0:
-	    		mode1_setup();
-	    		break;
-			case 1:
-	    		mode2_setup();
-	    		break;
-    		case 2:
-	    		mode3_setup();
-	    		break;
-    		case 3:
-	    		mode4_setup();
-	    		break;
-    		case 4:
-	    		mode5_setup();
-	    		break;
-    		case 5:
-	    		mode6_setup();
-	    		break;
-    		case 6:
-	    		mode7_setup();
-	    		break;
-    		case 7:
-	    		mode8_setup();
-	    		break;
-		}
+		setupMs = tri.getTimeMs();
+		gMode = (gMode + 1) % kNumModes;
 	}
-	
-	// Loop afterwards
-	switch (gMode) {
-		case 0:
-    		mode1_loop();
-    		break;
-		case 1:
-    		mode2_loop();
-    		break;
-		case 2:
-    		mode3_loop();
-    		break;
-		case 3:
-    		mode4_loop();
-    		break;
-		case 4:
-    		mode5_loop();
-    		break;
-		case 5:
-    		mode6_loop();
-    		break;
-		case 6:
-    		mode7_loop();
-    		break;
-		case 7:
-    		mode8_loop();
-    		break;
+
+	bool shouldProcess = mode_setups[gMode](tri.getTimeMs() - setupMs);
+	if(shouldProcess)
+	{
+		// if setup is done, run
+		mode_loops[gMode]();
 	}
-	
 	tri.digitalWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
