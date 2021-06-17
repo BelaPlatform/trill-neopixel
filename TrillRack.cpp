@@ -5,6 +5,8 @@
 #include "NeoPixel.h"
 #include <cmath>
 #ifdef STM32
+#define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
+#define TRILL_BAR // whether to use an external Trill Bar
 #define rt_printf printf
 #endif // STM32
 
@@ -83,6 +85,18 @@ unsigned int padsToOrderMap[kNumPads] = {
 	11,
 	12,
 	13,
+#ifdef TRILL_BAR
+	14,
+	15,
+	16,
+	17,
+	18,
+	19,
+	20,
+	21,
+	22,
+	23,
+#else // TRILL_BAR
 	28,
 	27,
 	26,
@@ -93,6 +107,7 @@ unsigned int padsToOrderMap[kNumPads] = {
 	19,
 	20,
 	24,
+#endif // TRILL_BAR
 };
 
 LedSliders ledSliders;
@@ -818,6 +833,17 @@ extern TIM_HandleTypeDef htim2;
 static Stm32NeoPixelT<uint32_t, 28> snp(&htim2, TIM_CHANNEL_2, 66, 33);
 #endif // STM32_NEOPIXEL
 
+#ifdef STM32_NEOPIXEL
+extern "C" {
+void tr_snpDone(void);
+};
+
+void tr_snpDone()
+{
+	snp.done();
+}
+#endif // STM32_NEOPIXEL
+
 bool tr_setup()
 {
 	np.begin();
@@ -825,27 +851,53 @@ bool tr_setup()
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL
 
+#ifdef TRILL_BAR
+	if(trill.setup(1, Trill::BAR))
+#else // TRILL_BAR
 	if(trill.setup(1, Trill::FLEX, 0x50))
+#endif // TRILL_BAR
 		return false;
-	
-	trill.setPrescaler(5);
+	trill.printDetails();
+	if(trill.setMode(Trill::DIFF))
+		return false;
+#ifdef TRILL_BAR
+	if(trill.setPrescaler(2))
+		return false;
+#else // TRILL_BAR
+	if(trill.setPrescaler(5))
+		return false;
+#endif // TRILL_BAR
+	if(trill.setNoiseThreshold(0.06))
+		return false;
+	if(trill.updateBaseline())
+		return false;
+#ifdef TRILL_CALLBACK
+	if(trill.prepareForDataRead())
+		return false;
+#endif // TRILL_CALLBACK
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
 
-	trill.setMode(Trill::DIFF);
-	trill.printDetails();
-	
 	mode1_setup();
 
-	
 	return true;
 }
 
+#ifdef TRILL_CALLBACK
+void tr_newData(const uint8_t* newData, size_t len)
+{
+	gNewDataBusy = 1;
+	trill.newData(newData, len);
+	gNewDataBusy = 0;
+}
+#endif // TRILL_CALLBACK
 
 
 void tr_loop()
 {
+#ifndef TRILL_CALLBACK
 	trill.readI2C();
+#endif // TRILL_CALLBACK
 
 	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
 	float touchSize = ledSliders.sliders[0].compoundTouchSize();

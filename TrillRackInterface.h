@@ -1,13 +1,19 @@
 #pragma once
 #ifdef STM32
 #define BelaContext void
+#include <stdint.h>
+#include <stddef.h>
 #else // STM32
 #define USE_SCOPE
 #include <libraries/Scope/Scope.h>
 #endif // STM32
 
+extern "C" {
 bool tr_setup();
 void tr_loop();
+void tr_newData(const uint8_t* newData, size_t len);
+void tr_process(void* ptr);
+}
 class TrillRackInterface
 {
 public:
