@@ -41,12 +41,12 @@ public:
   // RGB values in triplets
   ssize_t send(const uint8_t* rgb, size_t length) override
   {
+    if(npBusyFlag)
+      return -1;
     // check boundaries and ensure it's multiples of kNumBytesPerPixel.
     size_t numBytes = std::min(maxPixels, length / kNumBytesPerPixel) * kNumBytesPerPixel;
 
     // see https://controllerstech.com/pwm-with-dma-in-stm32/, but adapted for TIM2 (32 bit CCR).
-    if(npBusyFlag)
-      return -1;
     npBusyFlag = true;
     unsigned int n = 0;
     for(unsigned int i = 0; i < kLeadingZeros; ++i)
