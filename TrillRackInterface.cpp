@@ -1,6 +1,9 @@
 #include "TrillRackInterface.h"
 #include <string.h>
-#ifndef STM32
+#ifdef STM32
+#include <stdint.h>
+extern "C" { int32_t HAL_GetTick(void); };
+#else // STM32
 #include <Bela.h>
 #endif // STM32
 
@@ -96,5 +99,29 @@ void TrillRackInterface::process(BelaContext* context)
                 if(anOutCh[i] < context->analogOutChannels)
                         ::analogWrite(context, 0, anOutCh[i], anOut[i]);
 #endif // USE_SCOPE
+#ifdef STM32
+  lastTimeMs = HAL_GetTick();
+  extern uint16_t gAdcInputs[1];
+  anIn = gAdcInputs[0]; // TODO: this is not necessarily the most recent one nor up to date.
+  tr_loop();
+	extern uint16_t gDacNext[2];
+#if 1
+	for(unsigned int n = 0; n < 2; ++n)
+	{
+	  float val = anOut[n] * 4096 + 0.5;
+	  if(val < 0)
+	    val = 0;
+	  else if (val > 4095)
+	    val = 4095;
+	  gDacNext[n] = val;
+	}
+#else
+  static unsigned int count = 0;
+  gDacNext[0] = count++;
+  gDacNext[1] = count;
+  if(count >= 4096)
+    count = 0;
+#endif
+#endif // STM32
 }
 
