@@ -256,10 +256,17 @@ class Adafruit_NeoPixel {
              if show() would block (meaning some idle time is available).
   */
   bool canShow(void) {
+#ifdef STM32_NEOPIXEL
+	// TODO: should call snp->done() instead, however that may cause the caller
+	// (::send()) to stay in a busy loop from IRQ context (aaargh!). We cold
+	// find a better way of handling this
+    return true;
+#else // STM32_NEOPIXEL
     if (endTime > micros()) {
       endTime = micros();
     }
     return (micros() - endTime) >= 300L;
+#endif // STM32_NEOPIXEL
   }
   /*!
     @brief   Get a pointer directly to the NeoPixel data buffer in RAM.
