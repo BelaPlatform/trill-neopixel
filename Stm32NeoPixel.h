@@ -27,6 +27,8 @@ public:
     this->TIM_CHANNEL_x = TIM_CHANNEL_x;
     this->setDuration = setDuration;
     this->resetDuration = resetDuration;
+    memset(pwmData.data(), 0, sizeof(pwmData));
+    lastDataEnd = sizeof(pwmData);
     return 0;
   }
   bool ready()
@@ -81,9 +83,18 @@ public:
         pwmData[n++] = dur;
       }
     }
-    for(unsigned int i = 0; i < kTrailingZeros; ++i)
-      pwmData[n++] = 0;
-    HAL_Delay(1); // min delay between repetitions. TODO: remove from here
+    // Ensure all pwmData after n is set to zero.
+    // Clean up any old data at the end of the array that may have been set before
+    // note that the last kTrailingZeros values are set to 0 in setup() and never overwritten,
+    // so at each iteration we only have to clean anything dirty that may be left over from
+    // the previous one.
+    // This way we save CPU by always memset()'ing the minimum amount possible. In particular,
+    // if we always send the same amount of data, there is never anything dirty to clean.
+    ssize_t newZeros = lastDataEnd - n;
+    if(newZeros > 0)
+      memset(pwmData.data() + n, 0, newZeros  * sizeof(pwmData[0]));
+    lastDataEnd = n; // remember the last dirty index
+    n += kTrailingZeros;
     htim->Instance->CCR2 = 0;
     if(HAL_OK == HAL_TIM_PWM_Start_DMA(htim, TIM_CHANNEL_x, (uint32_t *)pwmData.data(), n))
       return n;
@@ -100,10 +111,13 @@ private:
   enum { kLeadingZeros = 1 };
   // ensure the last PWM value is 0, so if the DMA callback arrives late, we
   // have stopped sending out stuff already.
-  enum { kTrailingZeros = 1 };
+  // the remaining values are for end of frame ( >280us according to WS2812B-2020 datasheet)
+  // alternatively, one could try to throttle requests based on timestamps
+  enum { kTrailingZeros = 1 + 400 };
   enum { kNumBitsPerByte = 8 };
   enum { kNumBytesPerPixel = 3 }; // GRB
   TIM_HandleTypeDef* htim;
   uint32_t TIM_CHANNEL_x;
+  size_t lastDataEnd;
   std::array<clkPwmDurType_t, (maxPixels) * kNumBitsPerByte * kNumBytesPerPixel + kTrailingZeros + kLeadingZeros> pwmData;
 };
