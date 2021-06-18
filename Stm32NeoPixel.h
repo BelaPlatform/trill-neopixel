@@ -62,6 +62,7 @@ public:
       // this switch() swaps R and G
       switch(color)
       {
+        default:
         case 0:
           colorIdx = 1;
           break;
