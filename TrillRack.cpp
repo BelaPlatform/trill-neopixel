@@ -363,22 +363,14 @@ bool mode8_setup(double ms)
 
 void mode1_loop()
 {
-	ledSliders.process(trill.rawData.data());
-	np.show(); // actually display the updated LEDs
-	
-	// outputs
-	
 }
 
 void mode2_loop()
 {
-	ledSliders.process(trill.rawData.data());
-	np.show(); // actually display the updated LEDs
 }
 
 void mode3_loop()
 {
-	ledSliders.process(trill.rawData.data());
 	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
 	float touchSize = ledSliders.sliders[0].compoundTouchSize();
 	int touchPresent = ledSliders.sliders[0].getNumTouches();
@@ -415,28 +407,22 @@ void mode3_loop()
 			gRestartCount = 0;
 		}
 		
-		if (gCounter < gEndOfGesture) {
-			centroids[0].location = gTouchPositionRecording[gCounter];
-			centroids[0].size = 0.5;
-			gCounter++;
-		} else {
+		centroids[0].location = gTouchPositionRecording[gCounter];
+		centroids[0].size = 0.5;
+		++gCounter;
+		if (gCounter >= gEndOfGesture)
 			gCounter = 0;
-		}
-		
 	}
 	
 	gPrevTouchPresent = touchPresent;
 	
 	// Show centroid on the LEDs
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
-	np.show(); // actually display the updated LEDs
 }
 
 // DUAL LFOS
 void mode4_loop()
 {
-	ledSliders.process(trill.rawData.data());
-	
 	float fingerPosDualLFO[2] = {ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation()};
 	unsigned int touchPresentDualLFO[2] = {ledSliders.sliders[0].getNumTouches(), ledSliders.sliders[1].getNumTouches()};
 	
@@ -487,8 +473,6 @@ void mode4_loop()
 		
 		ledSliders.sliders[m].setLedsCentroids(centroids + m, 1);
 	}
-	
-	np.show(); // actually display the updated LEDs
 }
 
 void mode5_loop()
@@ -500,9 +484,6 @@ void mode5_loop()
 	
 	float t = gMtrClkTimePeriodScaled * 0.001;
 	float freqMult = 1/t;
-	
-	ledSliders.process(trill.rawData.data());
-	
 	unsigned int numPads = 24;
 	float* tmp = trill.rawData.data();
 	float pads[numPads];
@@ -535,8 +516,6 @@ void mode5_loop()
 		np.setPixelColor(n, 0, 0, out2*255);
 	// for(unsigned int n = 0; n < kNumLeds; ++n)
 	// 	np.setPixelColor(n, bright[n]*255, bright[n]*255, out*255 );
-	np.show(); // actually display the updated LEDs
-	
 }
 
 void mode6_loop()
@@ -548,9 +527,6 @@ void mode6_loop()
 	
 	float t = gMtrClkTimePeriodScaled * 0.001;
 	float freqMult = 1/t;
-	
-	ledSliders.process(trill.rawData.data());
-	
 	unsigned int numPads = 24;
 	float* tmp = trill.rawData.data();
 	float pads[numPads];
@@ -583,14 +559,11 @@ void mode6_loop()
 		np.setPixelColor(n, 0, 0, out2*255);
 	// for(unsigned int n = 0; n < kNumLeds; ++n)
 	// 	np.setPixelColor(n, bright[n]*255, bright[n]*255, out*255 );
-	np.show(); // actually display the updated LEDs
-	
 }
 
 // ENVELOPE GENERATOR
 void mode7_loop()
 {
-	ledSliders.process(trill.rawData.data());
 	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
 	float touchSize = ledSliders.sliders[0].compoundTouchSize();
 	int touchPresent = ledSliders.sliders[0].getNumTouches();
@@ -647,14 +620,11 @@ void mode7_loop()
 	
 	// Show centroid on the LEDs
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
-	np.show(); // actually display the updated LEDs
 }
 
 // MODE 8: DUAL ENVELOPE GENERATOR
 void mode8_loop()
 {
-	ledSliders.process(trill.rawData.data());
-	
 	float fingerPosDualLFO[2] = {ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation()};
 	unsigned int touchPresentDualLFO[2] = {ledSliders.sliders[0].getNumTouches(), ledSliders.sliders[1].getNumTouches()};
 	
@@ -709,8 +679,6 @@ void mode8_loop()
 		
 		ledSliders.sliders[m].setLedsCentroids(centroids + m, 1);
 	}
-	
-	np.show(); // actually display the updated LEDs
 }
 
 enum { kNumModes = 8 };
@@ -849,8 +817,10 @@ void tr_loop()
 	bool shouldProcess = mode_setups[gMode](tri.getTimeMs() - setupMs);
 	if(shouldProcess)
 	{
+		ledSliders.process(trill.rawData.data());
 		// if setup is done, run
 		mode_loops[gMode]();
+		np.show(); // actually display the updated LEDs
 	}
 	tri.digitalWrite(gMtrClkTriggerLED);
 	
