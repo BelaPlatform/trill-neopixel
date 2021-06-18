@@ -227,27 +227,35 @@ static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], L
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
 {
-	for(unsigned int n = 0; n < endFirst; ++n)
-		np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
-	for(unsigned int n = startSecond; n < kNumLeds; ++n)
-		np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
-	np.show();
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show();
-	usleep(200000);
-	for(unsigned int n = 0; n < endFirst; ++n)
-		np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
-	for(unsigned int n = startSecond; n < kNumLeds; ++n)
-		np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
-	np.show();
-	usleep(200000);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, 0);
-	np.show();
-	usleep(200000);
-	return true;
+	static double oldMs = 9999999999999999;
+	bool done = false;
+	double period = 200;
+	if(ms < oldMs) // start when time jumps back
+	{
+		for(unsigned int n = 0; n < endFirst; ++n)
+			np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
+		for(unsigned int n = startSecond; n < kNumLeds; ++n)
+			np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
+		np.show();
+	} else if (oldMs < 1 * period && ms >= 1 * period) {
+		for(unsigned int n = 0; n < kNumLeds; ++n)
+			np.setPixelColor(n, 0, 0, 0);
+		np.show();
+	} else if (oldMs < 2 * period && ms >= 2 * period) {
+		for(unsigned int n = 0; n < endFirst; ++n)
+			np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
+		for(unsigned int n = startSecond; n < kNumLeds; ++n)
+			np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
+		np.show();
+	} else if (oldMs < 3 * period && ms >= 3 * period) {
+		for(unsigned int n = 0; n < kNumLeds; ++n)
+			np.setPixelColor(n, 0, 0, 0);
+		np.show();
+	} else {
+		done = true;
+	}
+	oldMs = ms;
+	return done;
 }
 
 static bool modeChangeBlink(double ms, rgb_t color)
@@ -776,9 +784,6 @@ bool tr_setup()
 #endif // TRILL_CALLBACK
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
-
-	mode_setups[gMode](0);
-
 	return true;
 }
 
@@ -815,7 +820,8 @@ void tr_loop()
 	int diIn1 = tri.digitalRead(0);
 	
 	int shouldChangeMode;
-	if (diIn1 == 1 && diIn1 != gDiIn1Last){
+	static bool firstRun = true;
+	if ((diIn1 == 1 && diIn1 != gDiIn1Last) || (firstRun)){
 		shouldChangeMode = 1;
 	} else {
 		shouldChangeMode = 0;
@@ -835,8 +841,10 @@ void tr_loop()
 	// Switch between setup modes
 	if(shouldChangeMode) {
 		setupMs = tri.getTimeMs();
-		gMode = (gMode + 1) % kNumModes;
+		if(!firstRun)
+			gMode = (gMode + 1) % kNumModes;
 	}
+	firstRun = false;
 
 	bool shouldProcess = mode_setups[gMode](tri.getTimeMs() - setupMs);
 	if(shouldProcess)
