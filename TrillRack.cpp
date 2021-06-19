@@ -758,9 +758,7 @@ bool tr_setup()
 #ifdef TRILL_CALLBACK
 void tr_newData(const uint8_t* newData, size_t len)
 {
-	gNewDataBusy = 1;
 	trill.newData(newData, len);
-	gNewDataBusy = 0;
 }
 #endif // TRILL_CALLBACK
 
