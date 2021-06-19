@@ -6,6 +6,7 @@
 #include <cmath>
 #ifdef STM32
 #define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
+#define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
 #define TRILL_BAR // whether to use an external Trill Bar
 #define rt_printf printf
 #endif // STM32
@@ -762,6 +763,12 @@ void tr_newData(const uint8_t* newData, size_t len)
 }
 #endif // TRILL_CALLBACK
 
+#ifdef TR_LOOP_TIME_CRITICAL
+void tr_process(void* ptr)
+{
+	tri.process(ptr);
+}
+#endif // TR_LOOP_TIME_CRITICAL
 
 void tr_loop()
 {
@@ -830,5 +837,7 @@ void tr_loop()
 	tri.scopeWrite(0, anIn);
 	tri.scopeWrite(1, fingerPos);
 	tri.scopeWrite(2, touchSize);
+#ifndef TR_LOOP_TIME_CRITICAL
 	usleep(kLoopSleepTimeUs);
+#endif // TR_LOOP_TIME_CRITICAL
 }
