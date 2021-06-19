@@ -9,6 +9,7 @@
 #define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
 #define TRILL_BAR // whether to use an external Trill Bar
 #define rt_printf printf
+#define REDUCE_RAM_USAGE
 #endif // STM32
 
 // Robbie's Variables
@@ -693,15 +694,26 @@ static bool (*mode_setups[kNumModes])(double) = {
 	mode7_setup,
 	mode8_setup,
 };
+#ifdef REDUCE_RAM_USAGE
+static void mode_loop_dummy() {}
+#endif // REDUCE_RAM_USAGE
 static void (*mode_loops[kNumModes])(void) = {
 	mode1_loop,
 	mode2_loop,
 	mode3_loop,
+#ifdef REDUCE_RAM_USAGE
+	mode_loop_dummy,
+#else // REDUCE_RAM_USAGE
 	mode4_loop,
+#endif // REDUCE_RAM_USAGE
 	mode5_loop,
 	mode6_loop,
 	mode7_loop,
+#ifdef REDUCE_RAM_USAGE
+	mode_loop_dummy,
+#else // REDUCE_RAM_USAGE
 	mode8_loop,
+#endif // REDUCE_RAM_USAGE
 };
 
 #ifdef STM32_NEOPIXEL
