@@ -28,7 +28,7 @@ public:
     this->setDuration = setDuration;
     this->resetDuration = resetDuration;
     memset(pwmData.data(), 0, sizeof(pwmData));
-    lastDataEnd = sizeof(pwmData);
+    lastDataEnd = 0;
     return 0;
   }
   bool ready()
@@ -93,7 +93,7 @@ public:
     // if we always send the same amount of data, there is never anything dirty to clean.
     ssize_t newZeros = lastDataEnd - n;
     if(newZeros > 0)
-      memset(pwmData.data() + n, 0, newZeros  * sizeof(pwmData[0]));
+      memset(pwmData.data() + n, 0, newZeros * sizeof(pwmData[0]));
     lastDataEnd = n; // remember the last dirty index
     n += kTrailingZeros;
     htim->Instance->CCR2 = 0;
