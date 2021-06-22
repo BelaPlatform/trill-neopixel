@@ -25,7 +25,7 @@ typedef enum {
 } OutMode;
 
 // Mode switching
-int gMode = 2;
+int gMode = 3;
 static OutMode gOutMode = kOutModeFollowTouch;
 int gDiIn1Last = 0;
 int gCounter = 0;
@@ -315,6 +315,7 @@ bool mode4_setup(double ms)
 		{0, 0, uint8_t(255)},
 	};
 	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+	gOutMode = kOutModeFollowLeds;
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
@@ -493,63 +494,21 @@ void mode3_loop()
 	// Show centroid on the LEDs
 	LedSlider::centroid_t centroids[1];
 	centroids[0].location = g.first;
-	centroids[0].size = g.second;
+	centroids[0].size = g.first ? g.second : 0;
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 }
 
 // DUAL LFOS
 void mode4_loop()
 {
-	float fingerPosDualLFO[2] = {ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation()};
-	unsigned int touchPresentDualLFO[2] = {ledSliders.sliders[0].getNumTouches(), ledSliders.sliders[1].getNumTouches()};
-	
+	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, true);
 	LedSlider::centroid_t centroids[2];
-	
-	for (int m=0; m<2; m++) {
-		if (touchPresentDualLFO[m]) {
-			//  First time
-			if (touchPresentDualLFO[m] != gPrevTouchPresentDualLFO[m]){
-				rt_printf("NEW TOUCH SENSOR %d\n", m);
-				gCounterDualLFO[m] = 0;
-				gEndOfGestureDualLFO[m] = 0;
-				for(int n = 0; n < gMaxRecordLength; n++) {
-					gTouchPositionRecordingDualLFO[m][n] = 0.0;
-				}
-			}
-				
-			centroids[m].location = fingerPosDualLFO[m];
-			centroids[m].size = 0.5;
-			// Record gesture
-			gTouchPositionRecordingDualLFO[m][gCounterDualLFO[m]] = fingerPosDualLFO[m];
-			
-			gRestartCountDualLFO[m] = 1;
-			gCounterDualLFO[m]++;
-		}
-		
-		if (!touchPresentDualLFO[m]) {
-			
-			// Reset counter and store the sample length
-			if (gRestartCountDualLFO[m]) {
-				gEndOfGestureDualLFO[m] = gCounterDualLFO[m];
-				rt_printf("END OF RECORDING %d\n",m);
-				gCounterDualLFO[m] = 0;
-				gRestartCountDualLFO[m] = 0;
-			}
-			
-			if (gCounterDualLFO[m] < gEndOfGestureDualLFO[m]) {
-				centroids[m].location = gTouchPositionRecordingDualLFO[m][gCounterDualLFO[m]];
-				centroids[m].size = 0.5;
-				gCounterDualLFO[m]++;
-			} else {
-				gCounterDualLFO[m] = 0;
-			}
-			
-		}
-		
-		gPrevTouchPresentDualLFO[m] = touchPresentDualLFO[m];
-		
-		ledSliders.sliders[m].setLedsCentroids(centroids + m, 1);
-	}
+	centroids[0].location = g.first;
+	centroids[0].size = g.first ? 0.5 : 0;
+	centroids[1].location = g.second;
+	centroids[1].size = g.first ? 0.5 : 0;
+	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+	ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
 }
 
 void mode5_loop()
@@ -776,11 +735,7 @@ static void (*mode_loops[kNumModes])(void) = {
 	mode1_loop,
 	mode2_loop,
 	mode3_loop,
-#ifdef REDUCE_RAM_USAGE
-	mode_loop_dummy,
-#else // REDUCE_RAM_USAGE
 	mode4_loop,
-#endif // REDUCE_RAM_USAGE
 	mode5_loop,
 	mode6_loop,
 	mode7_loop,
