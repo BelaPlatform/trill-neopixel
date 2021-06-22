@@ -21,7 +21,7 @@ Oscillator oscillator2;
 
 
 // Mode switching
-int gMode = 0;
+int gMode = 2;
 int gDiIn1Last = 0;
 int gCounter = 0;
 int gDiIn2Last = 0;
@@ -30,16 +30,17 @@ int gSubMode = 0;
 // Recording the gesture
 int gEndOfGesture = 0; // store gesture length
 int gRestartCount = 0;
-#define gMaxRecordLength 10000
-float gTouchPositionRecording[gMaxRecordLength];
-int gPrevTouchPresent = 0; // store whether a touch was previously present
+enum { kMaxRecordLength = 1000 };
+unsigned int gPrevTouchPresent = 0; // store whether a touch was previously present
 
 // Recording two gestures at once
+/*
 unsigned int gPrevTouchPresentDualLFO[2] = {0};
 int gCounterDualLFO[2] = {0};
 int gEndOfGestureDualLFO[2] = {0};
-float gTouchPositionRecordingDualLFO[2][gMaxRecordLength] = {0, 0};
+float gTouchPositionRecordingDualLFO[2][kMaxRecordLength] = {0, 0};
 int gRestartCountDualLFO[2] = {0};
+*/
 
 // Master clock
 int gMtrClkCounter = 0;
@@ -203,7 +204,7 @@ static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 			{.firstPad = 0, .lastPad = kNumPads,
 			.firstLed = 0, .lastLed = kNumLeds, },
 		},
-		.maxNumCentroids = {1},
+		.maxNumCentroids = {2},
 		.np = &np,
 	});
 	initSubSlider(0, color, mode);
@@ -220,7 +221,7 @@ static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], L
 			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
 			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
 		},
-		.maxNumCentroids = {1, 1},
+		.maxNumCentroids = {2, 2},
 		.np = &np,
 	});
 	for(unsigned int n = 0; n < 2; ++n)
@@ -371,54 +372,120 @@ void mode2_loop()
 {
 }
 
+class Recorder
+{
+public:
+	typedef float sample_t;
+	void disable()
+	{
+	  active = false;
+	}
+	void startRecording()
+	{
+	  active = true;
+		current = 0;
+		end = 0;
+	}
+	sample_t& record(const sample_t& in)
+	{
+		data[current] = in;
+		sample_t& ret = data[current];
+		++current;
+		// if we run out of memory, overwrite the beginning of the sequence
+		if(data.size() == current)
+			current = 0;
+		return ret;
+	}
+	void stopRecording()
+	{
+		end = current;
+		current = 0;
+	}
+	sample_t& play(bool loop)
+	{
+	  static sample_t zero = 0;
+	  if(!active)
+	    return zero;
+		auto& ret = data[current];
+		current++;
+		if(current >= end)
+		{
+			if(loop)
+				current = 0;
+		}
+		return ret;
+	}
+private:
+	std::array<sample_t, kMaxRecordLength> data;
+	size_t end = 0;
+	size_t current = 0;
+	bool active = false;
+};
+
+class GestureRecorder
+{
+public:
+	typedef struct {
+		Recorder::sample_t first;
+		Recorder::sample_t second;
+	} Gesture_t;
+	Gesture_t process(const std::vector<LedSlider>& sliders, bool loop)
+	{
+		if(sliders.size() < 1)
+			return Gesture_t();
+		bool single = (1 == sliders.size());
+		unsigned int active[2];
+		active[0] = sliders[0].getNumTouches();
+		if(single)
+			active[1] = active[0];
+		else
+			active[1] = sliders[1].getNumTouches();
+		Recorder::sample_t out[2];
+		for(unsigned int n = 0; n < 2; ++n)
+		{
+			if(active[n] != pastActive[n]) //state change
+			{
+			  printf("t: %u\n\r", active[n]);
+				if(2 == active[n])  // two touches: disable
+				  rs[n].disable();
+				else if(1 == active[n] && 0 == pastActive[n]) // going from 0 to 1 touch: start recording (and enable)
+					rs[n].startRecording();
+				else if(0 == active[n]) // going to 0 touches: start playing back (unless disabled)
+					rs[n].stopRecording();
+			}
+			pastActive[n] = active[n];
+			if(active[n])
+			{
+				Recorder::sample_t val;
+				if(0 == n)
+					val = sliders[n].compoundTouchLocation();
+				else {
+					if(single)
+						val = sliders[0].compoundTouchSize();
+					else
+						val = sliders[n].compoundTouchLocation();
+				}
+				out[n] = rs[n].record(val);
+			}
+			else
+				out[n] = rs[n].play(loop);
+		}
+		return {out[0], out[1]};
+	}
+private:
+	std::array<Recorder, 2> rs;
+	unsigned int pastActive[2];
+} gGestureRecorder;
+
+float gTouchPositionRecording[100]; // dummy, to be removed next
+
 void mode3_loop()
 {
-	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
-	float touchSize = ledSliders.sliders[0].compoundTouchSize();
-	int touchPresent = ledSliders.sliders[0].getNumTouches();
-	
-	LedSlider::centroid_t centroids[1];
-	
-	if (touchPresent) {
-		//  First time
-		if (touchPresent != gPrevTouchPresent){
-			rt_printf("NEW TOUCH\n");
-			gCounter = 0;
-			gEndOfGesture = 0;
-			for(int n = 0; n < gMaxRecordLength; n++) {
-				gTouchPositionRecording[n] = 0.0;
-			}
-		}
-			
-		centroids[0].location = fingerPos;
-		centroids[0].size = touchSize;
-		// Record gesture
-		gTouchPositionRecording[gCounter] = fingerPos;
-		
-		gRestartCount = 1;
-		gCounter++;
-	}
-	
-	if (!touchPresent) {
-		
-		// Reset counter and store the sample length
-		if (gRestartCount) {
-			gEndOfGesture = gCounter;
-			rt_printf("END OF RECORDING: %d\n",gEndOfGesture);
-			gCounter = 0;
-			gRestartCount = 0;
-		}
-		
-		centroids[0].location = gTouchPositionRecording[gCounter];
-		centroids[0].size = 0.5;
-		++gCounter;
-		if (gCounter >= gEndOfGesture)
-			gCounter = 0;
-	}
-	
-	gPrevTouchPresent = touchPresent;
-	
+	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, true);
 	// Show centroid on the LEDs
+	LedSlider::centroid_t centroids[1];
+	centroids[0].location = g.first;
+	centroids[0].size = g.second;
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 }
 
@@ -788,12 +855,8 @@ void tr_loop()
 	trill.readI2C();
 #endif // TRILL_CALLBACK
 
-	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
-	float touchSize = ledSliders.sliders[0].compoundTouchSize();
-
 	// Read analog in.
 	float anIn = tri.analogRead();
-	
 	// Run the clock
 	master_clock(anIn*3.0);
 	
@@ -842,13 +905,20 @@ void tr_loop()
 	tri.digitalWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
-	tri.analogWrite(0, fingerPos);
-	tri.analogWrite(1, touchSize);
+	if(1 == ledSliders.sliders.size())
+	{
+		tri.analogWrite(0, ledSliders.sliders[0].compoundTouchLocation());
+		tri.analogWrite(1, ledSliders.sliders[0].compoundTouchSize());
+	} else if (2 == ledSliders.sliders.size())
+	{
+		tri.analogWrite(0, ledSliders.sliders[0].compoundTouchLocation());
+		tri.analogWrite(1, ledSliders.sliders[1].compoundTouchLocation());
+	}
 	
 	// Send to scope
 	tri.scopeWrite(0, anIn);
-	tri.scopeWrite(1, fingerPos);
-	tri.scopeWrite(2, touchSize);
+	tri.scopeWrite(1, ledSliders.sliders[0].compoundTouchLocation());
+	tri.scopeWrite(2, ledSliders.sliders[0].compoundTouchSize());
 #ifndef TR_LOOP_TIME_CRITICAL
 	usleep(kLoopSleepTimeUs);
 #endif // TR_LOOP_TIME_CRITICAL
