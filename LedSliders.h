@@ -39,6 +39,7 @@ public:
 	void setLedsRaw(const float* values);
 	void setLedsCentroids(const centroid_t* values, unsigned int length);
 	void process(const float* rawData);
+	centroid_t& operator[](size_t i) {return ledCentroids[i];}
 private:
 	void updateLeds();
 	NeoPixel* np;

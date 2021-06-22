@@ -19,9 +19,14 @@
 Oscillator oscillator1;
 Oscillator oscillator2;
 
+typedef enum {
+	kOutModeFollowTouch,
+	kOutModeFollowLeds,
+} OutMode;
 
 // Mode switching
 int gMode = 2;
+static OutMode gOutMode = kOutModeFollowTouch;
 int gDiIn1Last = 0;
 int gCounter = 0;
 int gDiIn2Last = 0;
@@ -275,6 +280,7 @@ bool mode1_setup(double ms)
 		color,
 		LedSlider::AUTO_CENTROIDS
 	);
+	gOutMode = kOutModeFollowTouch;
 	return modeChangeBlink(ms, color);
 }
 
@@ -287,6 +293,7 @@ bool mode2_setup(double ms)
 		{0, uint8_t(255), 0},
 	};
 	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
+	gOutMode = kOutModeFollowTouch;
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
@@ -295,6 +302,7 @@ bool mode3_setup(double ms)
 {
 	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
 	ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
+	gOutMode = kOutModeFollowLeds;
 	return modeChangeBlink(ms, color);
 }
 
@@ -905,14 +913,23 @@ void tr_loop()
 	tri.digitalWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
-	if(1 == ledSliders.sliders.size())
+	auto& sls = ledSliders.sliders;
+	switch (gOutMode)
 	{
-		tri.analogWrite(0, ledSliders.sliders[0].compoundTouchLocation());
-		tri.analogWrite(1, ledSliders.sliders[0].compoundTouchSize());
-	} else if (2 == ledSliders.sliders.size())
-	{
-		tri.analogWrite(0, ledSliders.sliders[0].compoundTouchLocation());
-		tri.analogWrite(1, ledSliders.sliders[1].compoundTouchLocation());
+		case kOutModeFollowTouch:
+			tri.analogWrite(0, sls[0].compoundTouchLocation());
+			if(1 == sls.size())
+				tri.analogWrite(1, sls[0].compoundTouchSize());
+			else if (2 == sls.size())
+				tri.analogWrite(1, sls[1].compoundTouchLocation());
+			break;
+		case kOutModeFollowLeds:
+			tri.analogWrite(0, sls[0][0].location);
+			if(1 == sls.size())
+				tri.analogWrite(1, sls[0][0].size);
+			else if (2 == sls.size())
+				tri.analogWrite(1, sls[1][0].location);
+			break;
 	}
 	
 	// Send to scope
