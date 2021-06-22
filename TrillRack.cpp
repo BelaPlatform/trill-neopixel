@@ -387,11 +387,11 @@ public:
 	typedef float sample_t;
 	void disable()
 	{
-	  active = false;
+		active = false;
 	}
 	void startRecording()
 	{
-	  active = true;
+		active = true;
 		current = 0;
 		end = 0;
 	}
@@ -412,15 +412,17 @@ public:
 	}
 	sample_t& play(bool loop)
 	{
-	  static sample_t zero = 0;
-	  if(!active)
-	    return zero;
+		static sample_t zero = 0;
+		if(!active)
+			return zero;
 		auto& ret = data[current];
 		current++;
 		if(current >= end)
 		{
 			if(loop)
 				current = 0;
+			else
+				active = 0;
 		}
 		return ret;
 	}
@@ -454,9 +456,8 @@ public:
 		{
 			if(active[n] != pastActive[n]) //state change
 			{
-			  printf("t: %u\n\r", active[n]);
 				if(2 == active[n])  // two touches: disable
-				  rs[n].disable();
+					rs[n].disable();
 				else if(1 == active[n] && 0 == pastActive[n]) // going from 0 to 1 touch: start recording (and enable)
 					rs[n].startRecording();
 				else if(0 == active[n]) // going to 0 touches: start playing back (unless disabled)
