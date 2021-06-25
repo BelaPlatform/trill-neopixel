@@ -355,6 +355,7 @@ bool mode7_setup(double ms)
 		color,
 		LedSlider::MANUAL_CENTROIDS
 	);
+	gOutMode = kOutModeFollowLeds;
 	return modeChangeBlink(ms, color);
 }
 
@@ -370,6 +371,7 @@ bool mode8_setup(double ms)
 		colors,
 		LedSlider::MANUAL_CENTROIDS
 	);
+	gOutMode = kOutModeFollowLeds;
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
@@ -489,20 +491,18 @@ private:
 
 float gTouchPositionRecording[100]; // dummy, to be removed next
 
-void mode3_loop()
+static void gestureRecorderSingle_loop(bool loop)
 {
-	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, true);
-	// Show centroid on the LEDs
+	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
 	LedSlider::centroid_t centroids[1];
 	centroids[0].location = g.first;
 	centroids[0].size = g.first ? g.second : 0;
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 }
 
-// DUAL LFOS
-void mode4_loop()
+static void gestureRecorderSplit_loop(bool loop)
 {
-	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, true);
+	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
 	LedSlider::centroid_t centroids[2];
 	centroids[0].location = g.first;
 	centroids[0].size = g.first ? 0.5 : 0;
@@ -510,6 +510,18 @@ void mode4_loop()
 	centroids[1].size = g.first ? 0.5 : 0;
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 	ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
+}
+
+// SINGLE LFO
+void mode3_loop()
+{
+	gestureRecorderSingle_loop(true);
+}
+
+// DUAL LFOS
+void mode4_loop()
+{
+	gestureRecorderSplit_loop(true);
 }
 
 void mode5_loop()
@@ -601,121 +613,13 @@ void mode6_loop()
 // ENVELOPE GENERATOR
 void mode7_loop()
 {
-	float fingerPos = ledSliders.sliders[0].compoundTouchLocation();
-	float touchSize = ledSliders.sliders[0].compoundTouchSize();
-	int touchPresent = ledSliders.sliders[0].getNumTouches();
-	
-	LedSlider::centroid_t centroids[1];
-	
-	if (touchPresent) {
-		//  First time this loop runs
-		if (touchPresent != gPrevTouchPresent){
-			rt_printf("NEW TOUCH\n");
-			gCounter = 0; // reset counter
-			gEndOfGesture = 0; // reset end of gesture time
-			for(int n = 0; n < gMaxRecordLength; n++) {
-				gTouchPositionRecording[n] = 0.0; // clear the buffer of recorded positions
-			}
-		}
-		
-		// Every other time store the gesture
-		centroids[0].location = fingerPos;
-		centroids[0].size = touchSize;
-
-		gTouchPositionRecording[gCounter] = fingerPos;
-		
-		gRestartCount = 1;
-		gCounter++;
-	}
-	
-	if (!touchPresent) {
-		
-		// Reset counter and store the sample length the first time this loop runs
-		if (gRestartCount) {
-			gEndOfGesture = gCounter;
-			rt_printf("END OF RECORDING: %d\n",gEndOfGesture);
-			gCounter = 0;
-			gRestartCount = 0;
-		}
-		
-		// ever other time playback the gesture
-		if (gCounter < gEndOfGesture) {
-			centroids[0].location = gTouchPositionRecording[gCounter];
-			centroids[0].size = 0.5;
-			gCounter++;
-		} else {
-			centroids[0].size = 0.0;
-		}
-		
-		if (gMtrClkTrigger) {
-			gCounter = 0; //restarts the playback
-		}
-		
-	}
-	
-	gPrevTouchPresent = touchPresent;
-	
-	// Show centroid on the LEDs
-	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+	gestureRecorderSingle_loop(false);
 }
 
 // MODE 8: DUAL ENVELOPE GENERATOR
 void mode8_loop()
 {
-	float fingerPosDualLFO[2] = {ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation()};
-	unsigned int touchPresentDualLFO[2] = {ledSliders.sliders[0].getNumTouches(), ledSliders.sliders[1].getNumTouches()};
-	
-	LedSlider::centroid_t centroids[2];
-	
-	for (int m=0; m<2; m++) {
-		if (touchPresentDualLFO[m]) {
-			//  First time
-			if (touchPresentDualLFO[m] != gPrevTouchPresentDualLFO[m]){
-				rt_printf("NEW TOUCH SENSOR %d\n", m);
-				gCounterDualLFO[m] = 0;
-				gEndOfGestureDualLFO[m] = 0;
-				for(int n = 0; n < gMaxRecordLength; n++) {
-					gTouchPositionRecordingDualLFO[m][n] = 0.0;
-				}
-			}
-				
-			centroids[m].location = fingerPosDualLFO[m];
-			centroids[m].size = 0.5;
-			// Record gesture
-			gTouchPositionRecordingDualLFO[m][gCounterDualLFO[m]] = fingerPosDualLFO[m];
-			
-			gRestartCountDualLFO[m] = 1;
-			gCounterDualLFO[m]++;
-		}
-		
-		if (!touchPresentDualLFO[m]) {
-			
-			// Reset counter and store the sample length
-			if (gRestartCountDualLFO[m]) {
-				gEndOfGestureDualLFO[m] = gCounterDualLFO[m];
-				rt_printf("END OF RECORDING %d\n",m);
-				gCounterDualLFO[m] = 0;
-				gRestartCountDualLFO[m] = 0;
-			}
-			
-			if (gCounterDualLFO[m] < gEndOfGestureDualLFO[m]) {
-				centroids[m].location = gTouchPositionRecordingDualLFO[m][gCounterDualLFO[m]];
-				centroids[m].size = 0.5;
-				gCounterDualLFO[m]++;
-			} else {
-				centroids[m].size = 0.0;
-			}
-			
-			if (gMtrClkTrigger) {
-				gCounterDualLFO[m] = 0;
-			}
-			
-		}
-		
-		gPrevTouchPresentDualLFO[m] = touchPresentDualLFO[m];
-		
-		ledSliders.sliders[m].setLedsCentroids(centroids + m, 1);
-	}
+	gestureRecorderSplit_loop(false);
 }
 
 enum { kNumModes = 8 };
