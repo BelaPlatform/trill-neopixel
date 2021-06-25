@@ -259,7 +259,7 @@ bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t st
 		for(unsigned int n = 0; n < kNumLeds; ++n)
 			np.setPixelColor(n, 0, 0, 0);
 		np.show();
-	} else {
+	} else if (ms >= 4 * period) {
 		done = true;
 	}
 	oldMs = ms;
