@@ -394,7 +394,7 @@ public:
 	void startRecording()
 	{
 		active = true;
-		current = 0;
+		start = current;
 		end = 0;
 	}
 	sample_t& record(const sample_t& in)
@@ -402,15 +402,18 @@ public:
 		data[current] = in;
 		sample_t& ret = data[current];
 		++current;
-		// if we run out of memory, overwrite the beginning of the sequence
 		if(data.size() == current)
 			current = 0;
+		// if the circular buffer is full,
+		// move its starting point
+		if(current == start)
+			start++;
 		return ret;
 	}
 	void stopRecording()
 	{
 		end = current;
-		current = 0;
+		current = start;
 	}
 	sample_t& play(bool loop)
 	{
@@ -430,6 +433,7 @@ public:
 	}
 private:
 	std::array<sample_t, kMaxRecordLength> data;
+	size_t start = 0;
 	size_t end = 0;
 	size_t current = 0;
 	bool active = false;
