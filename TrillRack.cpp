@@ -425,9 +425,9 @@ public:
 		if(current >= end)
 		{
 			if(loop)
-				current = 0;
+				current = start;
 			else
-				active = 0;
+				active = false;
 		}
 		return ret;
 	}
