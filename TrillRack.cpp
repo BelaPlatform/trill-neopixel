@@ -439,7 +439,7 @@ protected:
 	bool active = false;
 };
 
-template <unsigned int max>
+template <typename sample_t, unsigned int max>
 class TimestampedRecorder : public Recorder<uint32_t>
 {
 	enum { kRepsBits = 10, kSampleBits = 22 };
@@ -450,14 +450,14 @@ class TimestampedRecorder : public Recorder<uint32_t>
 	};
 	static_assert(sizeof(timedData_t) <= 4); // if you change field values to be larger than 4 bytes, be well aware of that
 public:
-	static uint32_t inToSample(const float& in)
+	static uint32_t inToSample(const sample_t& in)
 	{
 		uint32_t r = in / max * kSampleMax + 0.5f;
 		return r;
 	}
-	static float sampleToOut(uint32_t sample)
+	static sample_t sampleToOut(uint32_t sample)
 	{
-		return sample * max / float(kSampleMax);
+		return sample * max / sample_t(kSampleMax);
 	}
 	static struct timedData_t recordToTimedData(uint32_t d)
 	{
@@ -467,7 +467,7 @@ public:
 	{
 		return *(uint32_t*)&t;
 	}
-	float record(const float& in)
+	sample_t record(const sample_t& in)
 	{
 		uint32_t sample = inToSample(in);
 		if(sample > kSampleMax)
@@ -483,7 +483,7 @@ public:
 		}
 		return sampleToOut(sample);
 	}
-	float play(bool loop)
+	sample_t play(bool loop)
 	{
 		if(playData.reps)
 			--playData.reps;
@@ -503,7 +503,7 @@ private:
 class GestureRecorder
 {
 public:
-	typedef float sample_t; // this must match TimestampedRecorder's type
+	typedef float sample_t;
 	typedef struct {
 		sample_t first;
 		sample_t second;
@@ -551,7 +551,7 @@ public:
 		return {out[0], out[1]};
 	}
 private:
-	std::array<TimestampedRecorder<1>, 2> rs;
+	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
 	unsigned int pastActive[2];
 } gGestureRecorder;
 
