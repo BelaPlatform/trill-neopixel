@@ -171,8 +171,8 @@ void master_clock(float tempoControl)
 	gMtrClkCounter++;
 	
 	if(gEndTime < tri.getTimeMs()) {
-    	gMtrClkTriggerLED = 0;
-    }
+		gMtrClkTriggerLED = 0;
+	}
 }
 
 void divmult_clock(int trigger, float tempoControl)
@@ -187,8 +187,8 @@ void divmult_clock(int trigger, float tempoControl)
 	gDivMultClkCounter++;
 	
 	if(gDivMultEndTime < tri.getTimeMs()) {
-    	gDivMultClkTrigger = 0;
-    }
+		gDivMultClkTrigger = 0;
+	}
 }
 
 static void initSubSlider(size_t n, rgb_t color, LedSlider::LedMode_t mode)
