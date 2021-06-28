@@ -383,10 +383,10 @@ void mode2_loop()
 {
 }
 
+template <typename sample_t>
 class Recorder
 {
 public:
-	typedef float sample_t;
 	void disable()
 	{
 		active = false;
@@ -431,7 +431,7 @@ public:
 		}
 		return ret;
 	}
-private:
+protected:
 	std::array<sample_t, kMaxRecordLength> data;
 	size_t start = 0;
 	size_t end = 0;
@@ -439,12 +439,74 @@ private:
 	bool active = false;
 };
 
+template <unsigned int max>
+class TimestampedRecorder : public Recorder<uint32_t>
+{
+	enum { kRepsBits = 10, kSampleBits = 22 };
+	struct timedData_t
+	{
+		uint32_t reps : kRepsBits;
+		uint32_t sample : kSampleBits;
+	};
+	static_assert(sizeof(timedData_t) <= 4); // if you change field values to be larger than 4 bytes, be well aware of that
+public:
+	static uint32_t inToSample(const float& in)
+	{
+		uint32_t r = in / max * kSampleMax + 0.5f;
+		return r;
+	}
+	static float sampleToOut(uint32_t sample)
+	{
+		return sample * max / float(kSampleMax);
+	}
+	static struct timedData_t recordToTimedData(uint32_t d)
+	{
+		return *(struct timedData_t*)&d;
+	}
+	static uint32_t timedDataToRecord(const struct timedData_t t)
+	{
+		return *(uint32_t*)&t;
+	}
+	float record(const float& in)
+	{
+		uint32_t sample = inToSample(in);
+		if(sample > kSampleMax)
+			sample = kSampleMax;
+		if(oldSample == sample && kRepsMax != reps)
+			++reps;
+		else {
+			uint32_t r = timedDataToRecord({ .reps = reps, .sample = oldSample });
+			uint32_t d = Recorder<uint32_t>::record(r);
+			recordToTimedData(d);
+			reps = 0;
+			oldSample = sample;
+		}
+		return sampleToOut(sample);
+	}
+	float play(bool loop)
+	{
+		if(playData.reps)
+			--playData.reps;
+		else {
+			playData = recordToTimedData(Recorder<uint32_t>::play(loop));
+		}
+		return sampleToOut(playData.sample);
+	}
+private:
+	enum { kRepsMax = (1 << kRepsBits) - 1 };
+	enum { kSampleMax = (1 << kSampleBits) - 1 };
+	timedData_t playData = {0};
+	uint32_t oldSample;
+	uint16_t reps;
+};
+
 class GestureRecorder
 {
 public:
+	typedef float sample_t; // this must match TimestampedRecorder's type
 	typedef struct {
-		Recorder::sample_t first;
-		Recorder::sample_t second;
+		sample_t first;
+		sample_t second;
 	} Gesture_t;
 	Gesture_t process(const std::vector<LedSlider>& sliders, bool loop)
 	{
@@ -457,7 +519,7 @@ public:
 			active[1] = active[0];
 		else
 			active[1] = sliders[1].getNumTouches();
-		Recorder::sample_t out[2];
+		sample_t out[2];
 		for(unsigned int n = 0; n < 2; ++n)
 		{
 			if(active[n] != pastActive[n]) //state change
@@ -472,7 +534,7 @@ public:
 			pastActive[n] = active[n];
 			if(active[n])
 			{
-				Recorder::sample_t val;
+				sample_t val;
 				if(0 == n)
 					val = sliders[n].compoundTouchLocation();
 				else {
@@ -489,7 +551,7 @@ public:
 		return {out[0], out[1]};
 	}
 private:
-	std::array<Recorder, 2> rs;
+	std::array<TimestampedRecorder<1>, 2> rs;
 	unsigned int pastActive[2];
 } gGestureRecorder;
 
