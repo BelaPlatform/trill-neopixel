@@ -9,7 +9,7 @@
 #endif // STM32
 
 extern "C" {
-bool tr_setup();
+int tr_setup();
 void tr_loop();
 void tr_newData(const uint8_t* newData, size_t len);
 void tr_process(void* ptr);

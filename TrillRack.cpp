@@ -733,7 +733,7 @@ void tr_snpDone()
 }
 #endif // STM32_NEOPIXEL
 
-bool tr_setup()
+int tr_setup()
 {
 	np.begin();
 #ifdef STM32_NEOPIXEL
@@ -741,10 +741,22 @@ bool tr_setup()
 #endif // STM32_NEOPIXEL
 
 #ifdef TRILL_BAR
-	if(trill.setup(1, Trill::BAR))
-#else // TRILL_BAR
-	if(trill.setup(1, Trill::FLEX, 0x50))
-#endif // TRILL_BAR
+	Trill::Device device = Trill::BAR;
+	uint8_t startAddr = 0x20;
+#else
+	Trill::Device device = Trill::FLEX;
+	uint8_t startAddr = 0x50;
+#endif
+	uint8_t foundAddress = 0;
+	for(uint8_t addr = startAddr; addr <= startAddr + 8; ++addr)
+	{
+		if(!trill.setup(1, device, addr))
+		{
+			foundAddress = addr;
+			break;
+		}
+	}
+	if(!foundAddress)
 		return false;
 	trill.printDetails();
 	if(trill.setMode(Trill::DIFF))
@@ -766,7 +778,7 @@ bool tr_setup()
 #endif // TRILL_CALLBACK
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
-	return true;
+	return foundAddress;
 }
 
 #ifdef TRILL_CALLBACK
