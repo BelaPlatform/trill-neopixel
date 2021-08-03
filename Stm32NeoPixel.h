@@ -2,7 +2,8 @@
 #include <array>
 #include <stdint.h>
 #include <unistd.h> // ssize_t
-#include "stm32l4xx_hal.h"
+#include "main.h"
+
 #include <algorithm>
 
 class Stm32NeoPixel
