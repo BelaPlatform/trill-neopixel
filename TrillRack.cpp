@@ -387,9 +387,19 @@ template <typename sample_t>
 class Recorder
 {
 public:
+	void enable(bool restart)
+	{
+		active = true;
+		if(restart)
+			current = start;
+	}
 	void disable()
 	{
 		active = false;
+	}
+	bool isEnabled()
+	{
+		return active;
 	}
 	void startRecording()
 	{
@@ -500,6 +510,60 @@ private:
 	uint16_t reps;
 };
 
+class DebouncedTouches
+{
+	typedef uint8_t touchCount_t;
+public:
+	touchCount_t process(const touchCount_t newTouches)
+	{
+		touchCount_t ret;
+		size_t backMax;
+		if(newTouches > lastRet)
+			backMax = kUpDebounce;
+		else if (newTouches < lastRet)
+			backMax = kDownDebounce;
+		else
+			backMax = 0;
+		ret = newTouches;
+		if(0 != newTouches) // going to 0 touches should not be ambiguous, so we should let it through immediately
+		{
+			for(unsigned int n = 0; n < backMax; ++n)
+			{
+				// let the new value through only if all recent past values are the same
+				if(old(n) != newTouches)
+				{
+					#if 0
+					printf("old[%d] %d %di---", n, old(n), newTouches);
+					for(unsigned int n = 0; n < backMax; ++n)
+						printf("%d ", old(n));
+					printf("\n\r");
+					#endif
+					ret = lastRet;
+					break;
+				}
+			}
+		}
+		history[idx++] = newTouches;
+		if(idx >= history.size())
+			idx = 0;
+		 lastRet = ret;
+		 return ret;
+	}
+private:
+	touchCount_t old(size_t back) {
+		return history[(idx - back - 1 + 2 * history.size()) % history.size()];
+	}
+	touchCount_t oldest() {
+		return history[idx];
+	}
+	enum { kUpDebounce = 4 };
+	enum { kDownDebounce = 8 };
+	enum { kMaxDebounce = size_t(kUpDebounce) > size_t(kDownDebounce) ? size_t(kUpDebounce) : size_t(kDownDebounce) };
+	std::array<touchCount_t,kMaxDebounce> history;
+	size_t idx = 0;
+	touchCount_t lastRet;
+};
+
 class GestureRecorder
 {
 public:
@@ -514,24 +578,33 @@ public:
 			return Gesture_t();
 		bool single = (1 == sliders.size());
 		unsigned int active[2];
-		active[0] = sliders[0].getNumTouches();
+		active[0] = dt[0].process(sliders[0].getNumTouches());
 		if(single)
 			active[1] = active[0];
 		else
-			active[1] = sliders[1].getNumTouches();
+			active[1] = dt[1].process(sliders[1].getNumTouches());
 		sample_t out[2];
 		for(unsigned int n = 0; n < 2; ++n)
 		{
 			if(active[n] != pastActive[n]) //state change
 			{
-				if(2 == active[n])  // two touches: disable
-					rs[n].disable();
-				else if(1 == active[n] && 0 == pastActive[n]) // going from 0 to 1 touch: start recording (and enable)
+				lastStateChangeWasToggling = false;
+				printf("[%d] newAc: %d, pastAc: %d\n\r", n, active[n], pastActive[n]);
+				if(2 == active[n] && 0 == pastActive[n]) { // two touches: toggle enable
+					if(rs[n].isEnabled())
+						rs[n].disable();
+					else
+						rs[n].enable(true);
+					// TODO: avoid ????what????
+					lastStateChangeWasToggling = true;
+				} else if(1 == active[n] && 0 == pastActive[n]) // going from 0 to 1 touch: start recording (and enable)
 					rs[n].startRecording();
 				else if(0 == active[n]) // going to 0 touches: start playing back (unless disabled)
 					rs[n].stopRecording();
 			}
 			pastActive[n] = active[n];
+			if(!rs[n].isEnabled() || lastStateChangeWasToggling)
+				return {0, 0};
 			if(active[n])
 			{
 				sample_t val;
@@ -553,6 +626,8 @@ public:
 private:
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
 	unsigned int pastActive[2];
+	DebouncedTouches dt[2];
+	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
 float gTouchPositionRecording[100]; // dummy, to be removed next
