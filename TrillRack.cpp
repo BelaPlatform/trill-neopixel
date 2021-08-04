@@ -7,7 +7,7 @@
 #ifdef STM32
 #define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
 #define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
-#define TRILL_BAR // whether to use an external Trill Bar
+//#define TRILL_BAR // whether to use an external Trill Bar
 #define rt_printf printf
 #define REDUCE_RAM_USAGE
 #endif // STM32
@@ -820,7 +820,7 @@ int tr_setup()
 	uint8_t startAddr = 0x20;
 #else
 	Trill::Device device = Trill::FLEX;
-	uint8_t startAddr = 0x50;
+	uint8_t startAddr = 0x48;
 #endif
 	uint8_t foundAddress = 0;
 	for(uint8_t addr = startAddr; addr <= startAddr + 8; ++addr)
