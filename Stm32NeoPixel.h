@@ -38,7 +38,7 @@ public:
   }
   void done()
   {
-    HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Stop_DMA(htim, TIM_CHANNEL_x);
     npBusyFlag = 0;
   }
   // RGB values in triplets

@@ -1,3 +1,4 @@
+#include <TrillRackApplication_bsp.h>
 #include "TrillRackInterface.h"
 #include <libraries/Trill/Trill.h> // include this above NeoPixel or "HEX" gets screwed up
 #include <libraries/Trill/CentroidDetection.h> // include this above NeoPixel or "HEX" gets screwed up
@@ -70,7 +71,7 @@ float gDivisionPoint = 0;
 
 
 TrillRackInterface tri(0, 0, 1, 15, 14, 3);
-const unsigned int kNumLeds = 16;
+const unsigned int kNumLeds = 23;
 NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
 CentroidDetection cd;
@@ -793,8 +794,7 @@ static void (*mode_loops[kNumModes])(void) = {
 };
 
 #ifdef STM32_NEOPIXEL
-extern TIM_HandleTypeDef htim2;
-static Stm32NeoPixelT<uint32_t, 28> snp(&htim2, TIM_CHANNEL_2, 66, 33);
+static Stm32NeoPixelT<uint32_t, kNumLeds> snp(&neoPixelHtim, neoPixelHtim_TIM_CHANNEL_x, 0.66 * neoPixelHtim_COUNTER_PERIOD, 0.33 * neoPixelHtim_COUNTER_PERIOD);
 #endif // STM32_NEOPIXEL
 
 #ifdef STM32_NEOPIXEL
