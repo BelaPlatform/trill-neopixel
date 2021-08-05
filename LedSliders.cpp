@@ -32,7 +32,7 @@ void LedSlider::setLedMode(LedMode_t mode)
 
 void LedSlider::setLedsRaw(const float* values)
 {
-	memcpy(ledValues.data(), values, ledValues.size() * ledValues[0]);
+	memcpy(ledValues.data(), values, ledValues.size() * sizeof(ledValues[0]));
 }
 
 void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length)
