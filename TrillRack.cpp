@@ -78,8 +78,9 @@ CentroidDetection cd;
 
 const unsigned int kLoopSleepTimeUs = 10000;
 
-const unsigned int kNumPads = 24;
+const unsigned int kNumPads = 26;
 unsigned int padsToOrderMap[kNumPads] = {
+#ifdef OLD
 	0,
 	1,
 	2,
@@ -117,6 +118,34 @@ unsigned int padsToOrderMap[kNumPads] = {
 	20,
 	24,
 #endif // TRILL_BAR
+#else // OLD
+	29,
+	28,
+	27,
+	26,
+	25,
+	24,
+	23,
+	22,
+	21,
+	17,
+	18,
+	19,
+	14,
+	13,
+	11,
+	3,
+	4,
+	5,
+	6,
+	8,
+	7,
+	9,
+	10,
+	12,
+	15,
+	16,
+#endif // OLD
 };
 
 LedSliders ledSliders;
@@ -840,7 +869,7 @@ int tr_setup()
 	if(trill.setPrescaler(2))
 		return false;
 #else // TRILL_BAR
-	if(trill.setPrescaler(5))
+	if(trill.setPrescaler(4))
 		return false;
 #endif // TRILL_BAR
 	if(trill.setNoiseThreshold(0.06))
@@ -852,7 +881,7 @@ int tr_setup()
 		return false;
 #endif // TRILL_CALLBACK
 
-	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 3200);
+	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 8000);
 	return foundAddress;
 }
 
