@@ -100,21 +100,21 @@ void TrillRackInterface::process(BelaContext* context)
                         ::analogWrite(context, 0, anOutCh[i], anOut[i]);
 #endif // USE_SCOPE
 #ifdef STM32
-  lastTimeMs = HAL_GetTick();
-  extern uint16_t gAdcInputs[1];
-  anIn = gAdcInputs[0]; // TODO: this is not necessarily the most recent one nor up to date.
-  pinMode(context, 0, 5, INPUT);
-  tr_loop();
+	lastTimeMs = HAL_GetTick();
+	extern uint16_t gAdcInputs[1];
+	anIn = gAdcInputs[0]; // TODO: this is not necessarily the most recent one nor up to date.
+	pinMode(context, 0, 5, INPUT);
+	tr_loop();
 	extern uint16_t gDacNext[2];
 #if 1
 	for(unsigned int n = 0; n < 2; ++n)
 		gDacNext[n] = anOut[n];
 #else
-  static unsigned int count = 0;
-  gDacNext[0] = count++;
-  gDacNext[1] = count;
-  if(count >= 4096)
-    count = 0;
+	static unsigned int count = 0;
+	gDacNext[0] = count++ / 4096.f;
+	gDacNext[1] = count / 4096.f;
+	if(count >= 4096)
+		count = 0;
 #endif
 #endif // STM32
 }
