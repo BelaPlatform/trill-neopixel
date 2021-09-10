@@ -103,18 +103,12 @@ void TrillRackInterface::process(BelaContext* context)
   lastTimeMs = HAL_GetTick();
   extern uint16_t gAdcInputs[1];
   anIn = gAdcInputs[0]; // TODO: this is not necessarily the most recent one nor up to date.
+  pinMode(context, 0, 5, INPUT);
   tr_loop();
 	extern uint16_t gDacNext[2];
 #if 1
 	for(unsigned int n = 0; n < 2; ++n)
-	{
-	  float val = anOut[n] * 4096 + 0.5;
-	  if(val < 0)
-	    val = 0;
-	  else if (val > 4095)
-	    val = 4095;
-	  gDacNext[n] = val;
-	}
+		gDacNext[n] = anOut[n];
 #else
   static unsigned int count = 0;
   gDacNext[0] = count++;

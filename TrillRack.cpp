@@ -905,7 +905,7 @@ void tr_newData(const uint8_t* newData, size_t len)
 #endif // TRILL_CALLBACK
 
 #ifdef TR_LOOP_TIME_CRITICAL
-void tr_process(void* ptr)
+void tr_process(BelaContext* ptr)
 {
 	tri.process(ptr);
 }
