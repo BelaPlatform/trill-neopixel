@@ -855,7 +855,7 @@ int tr_setup()
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL
-
+	np.show();
 #ifdef TRILL_BAR
 	Trill::Device device = Trill::BAR;
 	uint8_t startAddr = 0x20;
