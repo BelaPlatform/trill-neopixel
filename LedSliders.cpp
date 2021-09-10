@@ -75,6 +75,39 @@ void LedSlider::process(const float* rawData)
 }
 
 extern void resample(float* out, unsigned int nOut, float* in, unsigned int nIn);
+
+// numWeights should be even.
+static void idxToWeights(float idx, float* weights, unsigned int numWeights)
+{
+	// triangular peak
+	// P0{x0, y0} is the peak
+	float x0 = idx;
+	float span = (numWeights / 2) * 2;
+	float y0 = 1;
+	// P1{x1, y1} is the left zero
+	float x1 = x0 - span * 0.5f;
+	float y1 = 0;
+	// P2{x2, y2} is the right zero
+	float x2 = x0 + span * 0.5f;
+	float y2 = 0;
+	// line through P0, P1:
+	float m1 = (y0 - y1) / (x0 - x1);
+	float q1 = y0 - m1 * x0;
+	// line through P0, P2:
+	float m2 = (y0 - y2) / (x0 - x2);
+	float q2 = y0 - m2 * x0;
+	for(unsigned int n = 0; n < numWeights; ++n)
+	{
+		float y;
+		float x = n;
+		if(x < x0)
+			y = m1 * x + q1;
+		else
+			y = m2 * x + q2;
+		weights[n] = y >= 0 ? y : 0;
+	}
+}
+
 void LedSlider::updateLeds()
 {
 	if(AUTO_CENTROIDS == mode || MANUAL_CENTROIDS == mode)
@@ -83,22 +116,26 @@ void LedSlider::updateLeds()
 		memset(ledValues.data(), 0, sizeof(ledValues[0]) * ledValues.size());
 		for(unsigned int n = 0; n < ledCentroids.size(); ++n)
 		{
+			float size = ledCentroids[n].size;
 			float idx = ledCentroids[n].location;
 			if(idx > 1 || idx < 0)
 				continue;
 			idx *= ledValues.size();
-			float size = ledCentroids[n].size;
 			if(size > 1)
 				size = 1;
-			//printf("idx: %f, siz; %f\n", idx, size);
-			unsigned int idx0 = (unsigned int)(idx);
-			float frac = idx - idx0;
-			unsigned int idx1 = idx0 + 1;
-			if(idx1 >= ledValues.size())
-				idx1 = idx0;
-			// attempt at kindof interpolated write
-			ledValues[idx0] += (1.f - frac) * size;
-			ledValues[idx1] += frac * size;
+			if(size <= 0)
+				continue;
+			unsigned int numWeights = 4;
+			float weights[numWeights];
+			int idx0 = int(idx - numWeights / 2) + 1;
+			idxToWeights(idx - idx0, weights, numWeights);
+			for(unsigned int i = 0; i < numWeights; ++i)
+			{
+				int ii = i + idx0 - 1;
+				ii = ii >= 0 ? ii : 0;
+				ii = ii < int(ledValues.size()) ? ii : int(ledValues.size()) - 1;
+				ledValues[ii] += weights[i] * size;
+			}
 		}
 		//for(unsigned int n = 0; n < ledValues.size(); ++n)
 			//printf("[%d]: %f ", n, ledValues[n]);
