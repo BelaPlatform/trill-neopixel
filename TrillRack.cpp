@@ -598,10 +598,11 @@ class GestureRecorder
 {
 public:
 	typedef float sample_t;
-	typedef struct {
+	struct Gesture_t {
 		sample_t first;
 		sample_t second;
-	} Gesture_t;
+		bool valid = false;
+	};
 	Gesture_t process(const std::vector<LedSlider>& sliders, bool loop)
 	{
 		if(sliders.size() < 1)
@@ -634,7 +635,7 @@ public:
 			}
 			pastActive[n] = active[n];
 			if(!rs[n].isEnabled() || lastStateChangeWasToggling)
-				return {0, 0};
+				return Gesture_t();
 			if(active[n])
 			{
 				sample_t val;
@@ -651,7 +652,7 @@ public:
 			else
 				out[n] = rs[n].play(loop);
 		}
-		return {out[0], out[1]};
+		return {out[0], out[1], true};
 	}
 private:
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
@@ -665,22 +666,33 @@ float gTouchPositionRecording[100]; // dummy, to be removed next
 static void gestureRecorderSingle_loop(bool loop)
 {
 	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
+#if 0
+	static int count = 0;
+	bool p = count++ % 20 == 0;
+	p && printf("=%.3f %.3f\n\r", g.first, g.second);
+#endif
 	LedSlider::centroid_t centroids[1];
-	centroids[0].location = g.first;
-	centroids[0].size = g.first ? g.second : 0;
-	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+	if(g.valid)
+	{
+		centroids[0].location = g.first;
+		centroids[0].size = g.second;
+		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+	}
 }
 
 static void gestureRecorderSplit_loop(bool loop)
 {
 	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
-	LedSlider::centroid_t centroids[2];
-	centroids[0].location = g.first;
-	centroids[0].size = g.first ? 0.5 : 0;
-	centroids[1].location = g.second;
-	centroids[1].size = g.first ? 0.5 : 0;
-	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
-	ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
+	if(g.valid)
+	{
+		LedSlider::centroid_t centroids[2];
+		centroids[0].location = g.first;
+		centroids[0].size = 0.9;
+		centroids[1].location = g.second;
+		centroids[1].size = 0.9;
+		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+		ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
+	}
 }
 
 // SINGLE LFO
