@@ -525,15 +525,20 @@ public:
 		else {
 			if(!firstSample)
 			{
-				uint32_t r = timedDataToRecord({.reps = reps, .sample = oldSample});
-				uint32_t d = Base::record(r);
-				recordToTimedData(d);
+				pushSample();
 			}
 			reps = 0;
 			oldSample = sample;
 		}
 		firstSample = false;
 		return sampleToOut(sample);
+	}
+
+	void stopRecording() override
+	{
+		// flush whatever we haven't recorded yet
+		pushSample();
+		Base::stopRecording();
 	}
 
 	sample_t play(bool loop)
@@ -545,17 +550,22 @@ public:
 		}
 		return sampleToOut(playData.sample);
 	}
-	void printData()
+	void printData() override
 	{
-		for(unsigned int n = 0; n < data.size(); ++n)
+		for(unsigned int n = start; n < data.size() + end; ++n)
 		{
+			unsigned int idx = n % data.size();
 			timedData_t d = recordToTimedData(data[n]);
-			if(0 == d.reps)
-				continue;
-			printf("[%u] %5lu %lu %s\n\r", n, d.reps, d.sample, n == start ? "start" : (n == end ? "end" : ""));
+			printf("[%u] %lu %5.2f %s\n\r", idx, d.reps, sampleToOut(d.sample), idx == start ? "start" : (idx == end ? "end" : ""));
+			if(idx == end)
+				break;
 		}
 	}
 private:
+	void pushSample(){
+		uint32_t r = timedDataToRecord({.reps = reps, .sample = oldSample});
+		Base::record(r);
+	}
 	enum { kRepsMax = (1 << kRepsBits) - 1 };
 	enum { kSampleMax = (1 << kSampleBits) - 1 };
 	timedData_t playData = {0};
