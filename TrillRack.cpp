@@ -434,48 +434,61 @@ public:
 	{
 		active = true;
 		start = current;
-		end = 0;
+		full = false;
 	}
 	sample_t& record(const sample_t& in)
 	{
 		data[current] = in;
 		sample_t& ret = data[current];
-		++current;
-		if(data.size() == current)
-			current = 0;
-		// if the circular buffer is full,
-		// move its starting point
+		increment(current);
+		// if the circular buffer becomes full, make a note of it
 		if(current == start)
-			start++;
+			full = true;
 		return ret;
 	}
-	void stopRecording()
+	virtual void stopRecording()
 	{
 		end = current;
+		if(full)
+		{
+			// if the circular buffer became full, adjust start
+			// so that we use all data in the buffer
+			start = end;
+			increment(start);
+		}
 		current = start;
 	}
+
 	sample_t& play(bool loop)
 	{
 		static sample_t zero = 0;
-		if(!active)
-			return zero;
-		auto& ret = data[current];
-		current++;
-		if(current >= end)
+		if(current == end)
 		{
 			if(loop)
 				current = start;
 			else
 				active = false;
 		}
+		if(!active)
+			return zero;
+		auto& ret = data[current];
+		increment(current);
 		return ret;
 	}
 protected:
+	template<typename T> void increment(T& idx)
+	{
+		idx = idx + 1;
+		if(data.size() == idx)
+			idx = 0;
+	};
+
 	std::array<sample_t, kMaxRecordLength> data;
 	size_t start = 0;
 	size_t end = 0;
 	size_t current = 0;
 	bool active = false;
+	bool full = false; // whether during recording the buffer becomes full
 };
 
 template <typename sample_t, unsigned int max>
