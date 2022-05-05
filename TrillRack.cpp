@@ -430,7 +430,7 @@ public:
 	{
 		return active;
 	}
-	void startRecording()
+	virtual void startRecording()
 	{
 		active = true;
 		start = current;
@@ -481,6 +481,8 @@ protected:
 template <typename sample_t, unsigned int max>
 class TimestampedRecorder : public Recorder<uint32_t>
 {
+private:
+	typedef Recorder<uint32_t> Base;
 	enum { kRepsBits = 10, kSampleBits = 22 };
 	struct timedData_t
 	{
@@ -506,30 +508,52 @@ public:
 	{
 		return *(uint32_t*)&t;
 	}
+	void startRecording() override
+	{
+		firstSample = true;
+		Base::startRecording();
+	}
+
 	sample_t record(const sample_t& in)
 	{
 		uint32_t sample = inToSample(in);
 		if(sample > kSampleMax)
 			sample = kSampleMax;
-		if(oldSample == sample && kRepsMax != reps)
+
+		if(!firstSample && oldSample == sample && kRepsMax != reps)
 			++reps;
 		else {
-			uint32_t r = timedDataToRecord({ .reps = reps, .sample = oldSample });
-			uint32_t d = Recorder<uint32_t>::record(r);
-			recordToTimedData(d);
+			if(!firstSample)
+			{
+				uint32_t r = timedDataToRecord({.reps = reps, .sample = oldSample});
+				uint32_t d = Base::record(r);
+				recordToTimedData(d);
+			}
 			reps = 0;
 			oldSample = sample;
 		}
+		firstSample = false;
 		return sampleToOut(sample);
 	}
+
 	sample_t play(bool loop)
 	{
 		if(playData.reps)
 			--playData.reps;
 		else {
-			playData = recordToTimedData(Recorder<uint32_t>::play(loop));
+			playData = recordToTimedData(Base::play(loop));
 		}
 		return sampleToOut(playData.sample);
+	}
+	void printData()
+	{
+		for(unsigned int n = 0; n < data.size(); ++n)
+		{
+			timedData_t d = recordToTimedData(data[n]);
+			if(0 == d.reps)
+				continue;
+			printf("[%u] %5lu %lu %s\n\r", n, d.reps, d.sample, n == start ? "start" : (n == end ? "end" : ""));
+		}
 	}
 private:
 	enum { kRepsMax = (1 << kRepsBits) - 1 };
@@ -537,6 +561,7 @@ private:
 	timedData_t playData = {0};
 	uint32_t oldSample;
 	uint16_t reps;
+	bool firstSample = false;
 };
 
 class DebouncedTouches
