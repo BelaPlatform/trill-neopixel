@@ -19,8 +19,8 @@ class TrillRackInterface
 {
 public:
 	TrillRackInterface() {};
-	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh);
-	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh);
+	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh);
+	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh);
 	float analogRead();
 	float digitalRead(unsigned int channel);
 	void digitalWrite(int val);
@@ -32,15 +32,13 @@ public:
 	double getTimeMs();
 private:
 	enum { nAnOut = 2 };
-	enum { nDiIn = 2 };
 	float anIn;
-	float diIn[2];
+	float diIn;
 	int diOut;
 	float anOut[nAnOut];
 	double lastTimeMs;
 	unsigned int anInCh;
-	unsigned int diInCh[2];
-	unsigned int diOutCh;
+	unsigned int diInCh;
 	unsigned int anOutCh[nAnOut];
 #ifdef USE_SCOPE
 	float scopeData[kScopeChannels];

@@ -28,9 +28,8 @@ typedef enum {
 // Mode switching
 int gMode = 3;
 static OutMode gOutMode = kOutModeFollowTouch;
-int gDiIn1Last = 0;
+int gDiIn0Last = 0;
 int gCounter = 0;
-int gDiIn2Last = 0;
 int gSubMode = 0;
 
 // Recording the gesture
@@ -70,7 +69,7 @@ float gDivisionPoint = 0;
 // ------------------
 
 
-TrillRackInterface tri(0, 0, 1, 15, 14, 3);
+TrillRackInterface tri(0, 0, 1, 5);
 const unsigned int kNumLeds = 23;
 NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
@@ -927,32 +926,24 @@ void tr_loop()
 
 
 	// Read 1st digital in (mode switching)
-	int diIn1 = tri.digitalRead(0);
+	int diIn0 = tri.digitalRead(0);
 	
 	int shouldChangeMode;
 	static bool firstRun = true;
-	if ((diIn1 == 1 && diIn1 != gDiIn1Last) || (firstRun)){
+	if ((diIn0 == 1 && diIn0 != gDiIn0Last) || (firstRun)){
 		shouldChangeMode = 1;
 	} else {
 		shouldChangeMode = 0;
 	}
-	gDiIn1Last = diIn1;
+	gDiIn0Last = diIn0;
 
-	// Read 2nd digital in (sub mode)
-	int diIn2 = tri.digitalRead(1);
-	
-	if (diIn2 == 1 && diIn2 != gDiIn2Last){
-		gSubMode = !gSubMode;
-		rt_printf("LATCH STATE: %d\n", gSubMode);
-	} 
-	gDiIn2Last = diIn2;
-	
 	static double setupMs = 0;
 	// Switch between setup modes
 	if(shouldChangeMode) {
-		setupMs = tri.getTimeMs();
+	  setupMs = tri.getTimeMs();
 		if(!firstRun)
 			gMode = (gMode + 1) % kNumModes;
+	  printf("mode: %d\n", gMode);
 	}
 	firstRun = false;
 

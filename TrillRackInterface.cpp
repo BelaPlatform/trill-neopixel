@@ -7,17 +7,15 @@ extern "C" { int32_t HAL_GetTick(void); };
 #include <Bela.h>
 #endif // STM32
 
-TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh)
+TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0)
 {
-	setup(anInCh, anOutCh0, anOutCh1, diInCh1, diInCh2, diOutCh);
+	setup(anInCh, anOutCh0, anOutCh1, diInCh0);
 }
 
-int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh1, unsigned int diInCh2, unsigned int diOutCh)
+int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0)
 {
 	this->anInCh = anInCh;
-	this->diInCh[0] = diInCh1;
-	this->diInCh[1] = diInCh2;
-	this->diOutCh = diOutCh;
+	this->diInCh = diInCh0;
 	this->anOutCh[0] = anOutCh0;
 	this->anOutCh[1] = anOutCh1;
 	anIn = 0;
@@ -28,7 +26,6 @@ int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsign
 	memset(scopeData, 0, sizeof(scopeData));
 #endif //USE_SCOPE
 	memset(anOut, 0, sizeof(anOut));
-	memset(diIn, 0, sizeof(diIn));
 	return 0;
 }
 
@@ -39,8 +36,8 @@ float TrillRackInterface::analogRead()
 
 float TrillRackInterface::digitalRead(unsigned int channel)
 {
-	if(channel < nDiIn)
-		return diIn[channel];
+	if(channel < 1)
+		return diIn;
 	else
 	  return 0;
 }
@@ -100,12 +97,14 @@ void TrillRackInterface::process(BelaContext* context)
                         ::analogWrite(context, 0, anOutCh[i], anOut[i]);
 #endif // USE_SCOPE
 #ifdef STM32
+  if(diInCh < context->digitalChannels)
+    diIn = ::digitalRead(context, 0, diInCh);
 	lastTimeMs = HAL_GetTick();
 	extern uint16_t gAdcInputs[1];
 	anIn = gAdcInputs[0]; // TODO: this is not necessarily the most recent one nor up to date.
 	pinMode(context, 0, 5, INPUT);
 	tr_loop();
-	extern uint16_t gDacNext[2];
+	extern float gDacNext[2];
 #if 1
 	for(unsigned int n = 0; n < 2; ++n)
 		gDacNext[n] = anOut[n];
