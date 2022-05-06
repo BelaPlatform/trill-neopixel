@@ -563,7 +563,7 @@ public:
 		}
 		return sampleToOut(playData.sample);
 	}
-	void printData() override
+	void printData()
 	{
 		for(unsigned int n = start; n < data.size() + end; ++n)
 		{
