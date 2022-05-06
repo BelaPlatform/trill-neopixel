@@ -7,17 +7,18 @@ extern "C" { int32_t HAL_GetTick(void); };
 #include <Bela.h>
 #endif // STM32
 
-TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0)
+TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0, unsigned int diOutCh0)
 {
-	setup(anInCh, anOutCh0, anOutCh1, diInCh0);
+	setup(anInCh, anOutCh0, anOutCh1, diInCh0, diOutCh0);
 }
 
-int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0)
+int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0, unsigned int diOutCh0)
 {
 	this->anInCh = anInCh;
 	this->diInCh = diInCh0;
 	this->anOutCh[0] = anOutCh0;
 	this->anOutCh[1] = anOutCh1;
+	this->diOutCh = diOutCh0;
 	anIn = 0;
 	diOut = 0;
 	lastTimeMs =  0;
@@ -72,6 +73,7 @@ double TrillRackInterface::getTimeMs() {
 	return lastTimeMs;
 }
 
+#include <stdio.h>
 void TrillRackInterface::process(BelaContext* context)
 {
 #ifdef USE_SCOPE
@@ -97,13 +99,24 @@ void TrillRackInterface::process(BelaContext* context)
                         ::analogWrite(context, 0, anOutCh[i], anOut[i]);
 #endif // USE_SCOPE
 #ifdef STM32
-  if(diInCh < context->digitalChannels)
-    diIn = ::digitalRead(context, 0, diInCh);
 	lastTimeMs = HAL_GetTick();
-	extern uint16_t gAdcInputs[1];
-	anIn = gAdcInputs[0]; // TODO: this is not necessarily the most recent one nor up to date.
-	pinMode(context, 0, 5, INPUT);
+	if(diInCh >= context->digitalChannels
+			|| diOutCh >= context->digitalChannels
+			|| anInCh >= context->analogInChannels
+			|| anOutCh[0] >= context->analogOutChannels
+			|| anOutCh[1] >= context->analogOutChannels
+		)
+	{
+		printf("Invalid channels\n\r");
+		return;
+	}
+	pinMode(context, 0, diInCh, INPUT);
+	pinMode(context, 0, diOutCh, OUTPUT);
+
+	diIn = ::digitalRead(context, 0, diInCh);
+	anIn = ::analogRead(context, 0, anInCh);
 	tr_loop();
+	::digitalWrite(context, 0, diOutCh, diOut);
 	extern float gDacNext[2];
 #if 1
 	for(unsigned int n = 0; n < 2; ++n)

@@ -19,8 +19,8 @@ class TrillRackInterface
 {
 public:
 	TrillRackInterface() {};
-	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh);
-	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh);
+	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh, unsigned int diOutCh);
+	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh);
 	float analogRead();
 	float digitalRead(unsigned int channel);
 	void digitalWrite(int val);
@@ -40,6 +40,7 @@ private:
 	unsigned int anInCh;
 	unsigned int diInCh;
 	unsigned int anOutCh[nAnOut];
+	unsigned int diOutCh;
 #ifdef USE_SCOPE
 	float scopeData[kScopeChannels];
 	Scope scope;

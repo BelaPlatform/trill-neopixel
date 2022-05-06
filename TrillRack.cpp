@@ -69,7 +69,7 @@ float gDivisionPoint = 0;
 // ------------------
 
 
-TrillRackInterface tri(0, 0, 1, 5);
+TrillRackInterface tri(0, 0, 1, 5, 4);
 const unsigned int kNumLeds = 23;
 NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
