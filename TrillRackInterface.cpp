@@ -19,6 +19,7 @@ int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsign
 	this->anOutCh[0] = anOutCh0;
 	this->anOutCh[1] = anOutCh1;
 	this->diOutCh = diOutCh0;
+	firstRun = true;
 	anIn = 0;
 	diOut = 0;
 	lastTimeMs =  0;
@@ -100,18 +101,24 @@ void TrillRackInterface::process(BelaContext* context)
 #endif // USE_SCOPE
 #ifdef STM32
 	lastTimeMs = HAL_GetTick();
-	if(diInCh >= context->digitalChannels
-			|| diOutCh >= context->digitalChannels
-			|| anInCh >= context->analogInChannels
-			|| anOutCh[0] >= context->analogOutChannels
-			|| anOutCh[1] >= context->analogOutChannels
-		)
+	if(firstRun)
 	{
-		printf("Invalid channels\n\r");
-		return;
+		//emulation of Bela's setup()
+		firstRun = false;
+		if(diInCh >= context->digitalChannels
+				|| diOutCh >= context->digitalChannels
+				|| anInCh >= context->analogInChannels
+				|| anOutCh[0] >= context->analogOutChannels
+				|| anOutCh[1] >= context->analogOutChannels
+			)
+		{
+			printf("Invalid channels\n\r");
+			return; //false
+		}
+		pinMode(context, 0, diInCh, INPUT);
+		pinMode(context, 0, diOutCh, OUTPUT);
+		return; //true
 	}
-	pinMode(context, 0, diInCh, INPUT);
-	pinMode(context, 0, diOutCh, OUTPUT);
 
 	diIn = ::digitalRead(context, 0, diInCh);
 	anIn = ::analogRead(context, 0, anInCh);

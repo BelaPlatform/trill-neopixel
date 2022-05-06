@@ -41,6 +41,7 @@ private:
 	unsigned int diInCh;
 	unsigned int anOutCh[nAnOut];
 	unsigned int diOutCh;
+	bool firstRun;
 #ifdef USE_SCOPE
 	float scopeData[kScopeChannels];
 	Scope scope;
