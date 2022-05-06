@@ -651,14 +651,25 @@ public:
 		if(sliders.size() < 1)
 			return Gesture_t();
 		bool single = (1 == sliders.size());
-		unsigned int active[2];
+		std::array<unsigned int, 2> active;
 		active[0] = dt[0].process(sliders[0].getNumTouches());
 		if(single)
 			active[1] = active[0];
 		else
 			active[1] = dt[1].process(sliders[1].getNumTouches());
 		sample_t out[2];
-		for(unsigned int n = 0; n < 2; ++n)
+		static bool pastIn = false;
+		bool in = tri.analogRead() > 0.5;
+		if(in && !pastIn)
+		{
+			assert(active.size() == rs.size());
+			for(size_t n = 0; n < active.size(); ++n)
+				if(!active[n])
+					rs[n].enable(true);
+		}
+		pastIn = in;
+
+		for(unsigned int n = 0; n < active.size(); ++n)
 		{
 			if(active[n] != pastActive[n]) //state change
 			{
@@ -697,8 +708,8 @@ public:
 		}
 		return {out[0], out[1], true};
 	}
-private:
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
+private:
 	unsigned int pastActive[2];
 	DebouncedTouches dt[2];
 	bool lastStateChangeWasToggling = false;
