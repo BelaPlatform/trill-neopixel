@@ -26,7 +26,7 @@ typedef enum {
 } OutMode;
 
 // Mode switching
-int gMode = 3;
+int gMode = 1;
 static OutMode gOutMode = kOutModeFollowTouch;
 int gDiIn0Last = 0;
 int gCounter = 0;
@@ -412,6 +412,8 @@ void mode2_loop()
 {
 }
 
+static bool should(void*);
+
 template <typename sample_t>
 class Recorder
 {
@@ -435,6 +437,8 @@ public:
 		active = true;
 		start = current;
 		full = false;
+		if(should(this))
+			printf("ST %u\n\r", start);
 	}
 	sample_t& record(const sample_t& in)
 	{
@@ -448,6 +452,8 @@ public:
 	}
 	virtual void stopRecording()
 	{
+		if(should(this))
+			printf("SO %u\n\r", current);
 		end = current;
 		if(full)
 		{
@@ -457,6 +463,17 @@ public:
 			increment(start);
 		}
 		current = start;
+		if(should(this))
+		{
+			printf("lo %d %d %d\n\r", start, end, full);
+			if(start == end)
+			{
+				volatile unsigned int n = 1;
+				for(unsigned int c= 0; c < n; ++c)
+					printData();
+			} else
+				printData();
+		}
 	}
 
 	sample_t& play(bool loop)
@@ -466,8 +483,9 @@ public:
 		{
 			if(loop)
 				current = start;
-			else
+			else {
 				active = false;
+			}
 		}
 		if(!active)
 			return zero;
@@ -475,6 +493,18 @@ public:
 		increment(current);
 		return ret;
 	}
+
+	virtual void printData()
+	{
+		for(unsigned int n = start; n < data.size() + end; ++n)
+		{
+			unsigned int idx = n % data.size();
+			printf("%u]%.2f\n\r", idx, data[idx]);
+			if(end == idx)
+				break;
+		}
+	}
+
 protected:
 	template<typename T> void increment(T& idx)
 	{
@@ -701,12 +731,18 @@ public:
 		}
 		return {out[0], out[1], true};
 	}
-private:
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
+//	std::array<Recorder<float>, 2> rs;
+private:
 	unsigned int pastActive[2];
 	DebouncedTouches dt[2];
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
+
+bool should(void* that)
+{
+	return that != &gGestureRecorder.rs[1];
+}
 
 float gTouchPositionRecording[100]; // dummy, to be removed next
 
@@ -874,7 +910,7 @@ static void (*mode_loops[kNumModes])(void) = {
 	mode5_loop,
 	mode6_loop,
 	mode7_loop,
-#ifdef REDUCE_RAM_USAGE
+#ifdef AAREDUCE_RAM_USAGE
 	mode_loop_dummy,
 #else // REDUCE_RAM_USAGE
 	mode8_loop,
@@ -941,6 +977,7 @@ int tr_setup()
 #endif // TRILL_CALLBACK
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 8000);
+//	gGestureRecorder.rs[0].printData();
 	return foundAddress;
 }
 
