@@ -986,20 +986,22 @@ void tr_loop()
 	gDiIn0Last = diIn0;
 
 	static double setupMs = 0;
+	static bool setupDone = false;
 	// Switch between setup modes
 	if(shouldChangeMode) {
-	  setupMs = tri.getTimeMs();
+		setupMs = tri.getTimeMs();
 		if(!firstRun)
 			gMode = (gMode + 1) % kNumModes;
-	  printf("mode: %d\n", gMode);
+		printf("mode: %d\n\r", gMode);
+		setupDone = false;
 	}
 	firstRun = false;
 
-	bool shouldProcess = mode_setups[gMode](tri.getTimeMs() - setupMs);
-	if(shouldProcess)
+	if(!setupDone)
+		setupDone = mode_setups[gMode](tri.getTimeMs() - setupMs);
+	if(setupDone)
 	{
 		ledSliders.process(trill.rawData.data());
-		// if setup is done, run
 		mode_loops[gMode]();
 		np.show(); // actually display the updated LEDs
 	}
