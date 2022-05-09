@@ -37,15 +37,6 @@ int gRestartCount = 0;
 enum { kMaxRecordLength = 1000 };
 unsigned int gPrevTouchPresent = 0; // store whether a touch was previously present
 
-// Recording two gestures at once
-/*
-unsigned int gPrevTouchPresentDualLFO[2] = {0};
-int gCounterDualLFO[2] = {0};
-int gEndOfGestureDualLFO[2] = {0};
-float gTouchPositionRecordingDualLFO[2][kMaxRecordLength] = {0, 0};
-int gRestartCountDualLFO[2] = {0};
-*/
-
 // Master clock
 int gMtrClkCounter = 0;
 int gMtrClkTimePeriod = 260;
@@ -739,8 +730,6 @@ private:
 #endif // TWO_FINGERS_TOGGLE_ENABLE
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
-
-float gTouchPositionRecording[100]; // dummy, to be removed next
 
 static void gestureRecorderSingle_loop(bool loop)
 {
