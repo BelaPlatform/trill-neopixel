@@ -688,8 +688,6 @@ public:
 					rs[n].stopRecording();
 			}
 			pastActive[n] = active[n];
-			if(!rs[n].isEnabled() || lastStateChangeWasToggling)
-				return Gesture_t();
 			if(active[n])
 			{
 				sample_t val;
