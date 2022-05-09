@@ -23,7 +23,7 @@ public:
 	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh);
 	float analogRead();
 	float digitalRead(unsigned int channel);
-	void digitalWrite(int val);
+	void buttonLedWrite(float val);
 	void analogWrite(unsigned int channel, float val);
 	void process(BelaContext* context);
 	void scopeWrite(unsigned int channel, float val);
@@ -34,7 +34,8 @@ private:
 	enum { nAnOut = 2 };
 	float anIn;
 	float diIn;
-	int diOut;
+	float ledOut;
+	unsigned int ledPwmIdx = 0;
 	float anOut[nAnOut];
 	double lastTimeMs;
 	unsigned int anInCh;

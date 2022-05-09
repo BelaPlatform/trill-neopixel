@@ -1030,7 +1030,7 @@ void tr_loop()
 		mode_loops[gMode]();
 		np.show(); // actually display the updated LEDs
 	}
-	tri.digitalWrite(gMtrClkTriggerLED);
+	tri.buttonLedWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
 	auto& sls = ledSliders.sliders;

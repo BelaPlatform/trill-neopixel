@@ -21,7 +21,7 @@ int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsign
 	this->diOutCh = diOutCh0;
 	firstRun = true;
 	anIn = 0;
-	diOut = 0;
+	ledOut = 0;
 	lastTimeMs =  0;
 #ifdef USE_SCOPE
 	scopeInited = false;
@@ -44,9 +44,9 @@ float TrillRackInterface::digitalRead(unsigned int channel)
 	  return 0;
 }
 
-void TrillRackInterface::digitalWrite(int val)
+void TrillRackInterface::buttonLedWrite(float val)
 {	
-	diOut = val;
+	ledOut = val;
 }
 
 void TrillRackInterface::analogWrite(unsigned int channel, float val)
@@ -123,7 +123,14 @@ void TrillRackInterface::process(BelaContext* context)
 	diIn = ::digitalRead(context, 0, diInCh);
 	anIn = ::analogRead(context, 0, anInCh);
 	tr_loop();
-	::digitalWrite(context, 0, diOutCh, diOut);
+	enum { kLedPwmPeriod = 512 };
+	for(size_t n = 0; n < context->digitalFrames; ++n)
+	{
+		::digitalWriteOnce(context, n, diOutCh, ledPwmIdx < ledOut * float(kLedPwmPeriod));
+		ledPwmIdx++;
+		if(kLedPwmPeriod == ledPwmIdx)
+			ledPwmIdx = 0;
+	}
 	extern float gDacNext[2];
 #if 1
 	for(unsigned int n = 0; n < 2; ++n)
