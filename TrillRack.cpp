@@ -408,6 +408,19 @@ void mode2_loop()
 {
 }
 
+// MODE 9: monochrome VUmeter / envelope follower (pretty crude, without rectification or lowpass for now.
+// good for LFOs/EGs
+bool mode9_setup(double ms)
+{
+	rgb_t color = {uint8_t(127), uint8_t(127), 0};
+	ledSlidersSetupOneSlider(
+		color,
+		LedSlider::MANUAL_CENTROIDS
+	);
+	gOutMode = kOutModeFollowLeds;
+	return modeChangeBlink(ms, color);
+}
+
 template <typename sample_t>
 class Recorder
 {
@@ -872,7 +885,16 @@ void mode8_loop()
 	gestureRecorderSplit_loop(false);
 }
 
-enum { kNumModes = 8 };
+void mode9_loop()
+{
+	float in = tri.analogRead();
+	LedSlider::centroid_t centroids[1];
+	centroids[0].location = in;
+	centroids[0].size = 0.9;
+	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+}
+
+enum { kNumModes = 9 };
 static bool (*mode_setups[kNumModes])(double) = {
 	mode1_setup,
 	mode2_setup,
@@ -882,6 +904,7 @@ static bool (*mode_setups[kNumModes])(double) = {
 	mode6_setup,
 	mode7_setup,
 	mode8_setup,
+	mode9_setup,
 };
 #ifdef REDUCE_RAM_USAGE
 static void mode_loop_dummy() {}
@@ -899,6 +922,7 @@ static void (*mode_loops[kNumModes])(void) = {
 #else // REDUCE_RAM_USAGE
 	mode8_loop,
 #endif // REDUCE_RAM_USAGE
+	mode9_loop,
 };
 
 #ifdef STM32_NEOPIXEL
