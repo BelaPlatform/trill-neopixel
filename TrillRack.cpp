@@ -583,6 +583,8 @@ private:
 	bool firstSample = false;
 };
 
+//#define TWO_FINGERS_TOGGLE_ENABLE // we disable it for now because it's barely usable
+#ifdef TWO_FINGERS_TOGGLE_ENABLE
 class DebouncedTouches
 {
 	typedef uint8_t touchCount_t;
@@ -636,6 +638,7 @@ private:
 	size_t idx = 0;
 	touchCount_t lastRet;
 };
+#endif // TWO_FINGERS_TOGGLE_ENABLE
 
 class GestureRecorder
 {
@@ -652,11 +655,21 @@ public:
 			return Gesture_t();
 		bool single = (1 == sliders.size());
 		std::array<unsigned int, 2> active;
+#ifdef TWO_FINGERS_TOGGLE_ENABLE
 		active[0] = dt[0].process(sliders[0].getNumTouches());
+#else // TWO_FINGERS_TOGGLE_ENABLE
+		active[0] = sliders[0].getNumTouches();
+#endif // TWO_FINGERS_TOGGLE_ENABLE
 		if(single)
 			active[1] = active[0];
 		else
+		{
+#ifdef TWO_FINGERS_TOGGLE_ENABLE
 			active[1] = dt[1].process(sliders[1].getNumTouches());
+#else // TWO_FINGERS_TOGGLE_ENABLE
+			active[1] = sliders[1].getNumTouches();
+#endif // TWO_FINGERS_TOGGLE_ENABLE
+		}
 		sample_t out[2];
 		static bool pastIn = false;
 		bool in = tri.analogRead() > 0.5;
@@ -673,18 +686,18 @@ public:
 		{
 			if(active[n] != pastActive[n]) //state change
 			{
-				lastStateChangeWasToggling = false;
 				printf("[%d] newAc: %d, pastAc: %d\n\r", n, active[n], pastActive[n]);
+#ifdef TWO_FINGERS_TOGGLE_ENABLE
 				if(2 == active[n] && 0 == pastActive[n]) { // two touches: toggle enable
 					if(rs[n].isEnabled())
 						rs[n].disable();
 					else
-						rs[n].enable(true);
-					// TODO: avoid ????what????
-					lastStateChangeWasToggling = true;
-				} else if(1 == active[n] && 0 == pastActive[n]) // going from 0 to 1 touch: start recording (and enable)
+						rs[n].enable(true); // TODO: issue with enabling here is that we may continue recording before we release
+				} else
+#endif // TWO_FINGERS_TOGGLE_ENABLE
+				if(1 == active[n] && 0 == pastActive[n]) { // going from 0 to 1 touch: start recording (and enable)
 					rs[n].startRecording();
-				else if(0 == active[n]) // going to 0 touches: start playing back (unless disabled)
+				} else if(0 == active[n]) // going to 0 touches: start playing back (unless disabled)
 					rs[n].stopRecording();
 			}
 			pastActive[n] = active[n];
@@ -709,7 +722,9 @@ public:
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
 private:
 	unsigned int pastActive[2];
+#ifdef TWO_FINGERS_TOGGLE_ENABLE
 	DebouncedTouches dt[2];
+#endif // TWO_FINGERS_TOGGLE_ENABLE
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
