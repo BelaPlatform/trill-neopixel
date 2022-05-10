@@ -26,7 +26,7 @@ typedef enum {
 } OutMode;
 
 // Mode switching
-int gMode = 9;
+int gMode = 0;
 static OutMode gOutMode = kOutModeFollowTouch;
 int gDiIn0Last = 0;
 int gCounter = 0;
@@ -136,7 +136,9 @@ unsigned int padsToOrderMap[kNumPads] = {
 #endif // OLD
 };
 
-LedSliders ledSliders;
+static LedSliders ledSliders;
+static LedSliders ledSlidersAlt;
+static bool gAlt = false;
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
 {
@@ -302,6 +304,29 @@ static void ledSlidersExpButtonsProcess(LedSliders& sl, std::vector<float>& outs
 	}
 }
 
+static void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets)
+{
+	onsets.resize(0);
+	offsets.resize(0);
+	states.resize(sl.sliders.size());
+	for(size_t n = 0; n < sl.sliders.size(); ++n)
+	{
+		LedSlider::centroid_t centroid;
+		centroid.location = 0.5;
+		bool state = sl.sliders[n].getNumTouches();
+		bool pastState = states[n];
+		if(state && !pastState) {
+			onsets.emplace_back(n);
+		} else if (!state && pastState) {
+			offsets.emplace_back(n);
+		}
+		// full brightness for "active"
+		// dimmed for "inactive"
+		centroid.size = state ? 1 : 0.1;
+		sl.sliders[n].setLedsCentroids(&centroid, 1);
+	}
+}
+
 static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 {
 	ledSliders.setup({
@@ -368,6 +393,24 @@ static bool modeChangeBlink(double ms, rgb_t color)
 {
 	rgb_t colors[2] = {color, color};
 	return modeChangeBlinkSplit(ms, colors, kNumLeds, kNumLeds);
+}
+
+// MODE Alt: settings UI
+static bool modeAlt_setup()
+{
+	ledSlidersSetupMultiSlider(
+		ledSlidersAlt,
+		{
+			{uint8_t(255), 0, 0},
+			{0, uint8_t(0), uint8_t(255)},
+			{0, uint8_t(0), uint8_t(255)},
+			{0, uint8_t(0), uint8_t(255)},
+			{0, uint8_t(255), 0},
+		},
+		LedSlider::MANUAL_CENTROIDS,
+		true
+	);
+	return true;
 }
 
 // MODE 1: DIRECT CONTROL / SINGLE SLIDER
@@ -1082,6 +1125,7 @@ int tr_setup()
 #endif // TRILL_CALLBACK
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 8000);
+	modeAlt_setup();
 	return foundAddress;
 }
 
@@ -1148,25 +1192,44 @@ void tr_loop()
 
 	// Read 1st digital in (mode switching)
 	int diIn0 = tri.digitalRead(0);
+	tri.buttonLedWrite(!diIn0);
 	
-	int shouldChangeMode;
 	static bool firstRun = true;
-	if ((diIn0 == 1 && diIn0 != gDiIn0Last) || (firstRun)){
-		shouldChangeMode = 1;
-	} else {
-		shouldChangeMode = 0;
+	if ((diIn0 == 0 && diIn0 != gDiIn0Last) && !firstRun){
+		// button onset
+		if(gAlt){ // exit from alt mode
+			gAlt = 0;
+			np.clear();
+		}
+	}
+	if(!diIn0)
+	{
+		bool touch = false;
+		for(auto& s : ledSliders.sliders)
+		{
+			if((touch = s.getNumTouches()))
+				break;
+		}
+		if(touch)
+		{
+			//button is on + one touch: enter alt mode
+			gAlt = true;
+			np.clear();
+		}
 	}
 	gDiIn0Last = diIn0;
 
 	static double setupMs = 0;
 	static bool setupDone = false;
-	// Switch between setup modes
+	static int shouldChangeMode = 1;
+
 	if(shouldChangeMode) {
 		setupMs = tri.getTimeMs();
 		if(!firstRun)
-			gMode = (gMode + 1) % kNumModes;
+			gMode = (gMode + shouldChangeMode + kNumModes) % kNumModes;
 		printf("mode: %d\n\r", gMode);
 		setupDone = false;
+		shouldChangeMode = 0;
 	}
 	firstRun = false;
 
@@ -1174,8 +1237,26 @@ void tr_loop()
 		setupDone = mode_setups[gMode](tri.getTimeMs() - setupMs);
 	if(setupDone)
 	{
-		ledSliders.process(trill.rawData.data());
-		mode_loops[gMode]();
+		if(gAlt)
+		{
+			ledSlidersAlt.process(trill.rawData.data());
+			static const size_t numButtons = ledSlidersAlt.sliders.size();
+			static std::vector<bool> altStates(numButtons);
+			static std::vector<size_t> onsets(numButtons);
+			static std::vector<size_t> offsets(numButtons);
+			ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets);
+			if(onsets.size())
+			{
+				// only consider one touch
+				if(0 == onsets[0])
+					shouldChangeMode = -1;
+				else if(numButtons - 1 == onsets[0])
+					shouldChangeMode = 1;
+			}
+		} else {
+			ledSliders.process(trill.rawData.data());
+			mode_loops[gMode](); // TODO: should run the active mode even if we are in alt, but making sure the LEDs don't get set
+		}
 		np.show(); // actually display the updated LEDs
 	}
 	tri.buttonLedWrite(gMtrClkTriggerLED);
