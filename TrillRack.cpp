@@ -26,7 +26,7 @@ typedef enum {
 } OutMode;
 
 // Mode switching
-int gMode = 3;
+int gMode = 9;
 static OutMode gOutMode = kOutModeFollowTouch;
 int gDiIn0Last = 0;
 int gCounter = 0;
@@ -215,6 +215,90 @@ static void initSubSlider(size_t n, rgb_t color, LedSlider::LedMode_t mode)
 	{
 		ledSliders.sliders[n].setColor(color);
 		ledSliders.sliders[n].setLedMode(mode);
+	}
+}
+
+static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial)
+{
+	std::vector<LedSliders::delimiters_t> boundaries;
+	size_t numSplits = colors.size();
+	if(!numSplits)
+		return;
+
+	float guardPads = 2;
+	float guardLeds = 2;
+	if(0 == numSplits)
+	{
+		guardPads = 0;
+		guardLeds = 0;
+	}
+	float activePads = (kNumPads - (guardPads * (numSplits - 1))) / float(numSplits);
+	float activeLeds = (kNumLeds - (guardLeds * (numSplits - 1))) / float(numSplits);
+	for(size_t n = 0; n < numSplits; ++n)
+	{
+		size_t firstPad = n * (activePads + guardPads);
+		size_t firstLed = n * (activeLeds + guardLeds);
+		size_t lastPad = firstPad + activePads;
+		size_t lastLed = firstLed + activeLeds;
+		boundaries.push_back({
+				.firstPad = firstPad,
+				.lastPad = lastPad,
+				.firstLed = firstLed,
+				.lastLed = lastLed,
+		});
+	}
+	LedSliders::Settings settings = {
+			.order = {padsToOrderMap, padsToOrderMap + kNumPads},
+			.sizeScale = 3200,
+			.boundaries = boundaries,
+			.maxNumCentroids = {2},
+			.np = &np,
+	};
+	ls.setup(settings);
+	assert(numSplits == ls.sliders.size());
+
+	for(size_t n = 0; n < numSplits; ++n)
+	{
+		ls.sliders[n].setColor(colors[n]);
+		ls.sliders[n].setLedMode(mode);
+		if(setInitial)
+		{
+			LedSlider::centroid_t centroid;
+			centroid.location = 0.5;
+			centroid.size = 0.1;
+			ls.sliders[n].setLedsCentroids(&centroid, 1);
+		}
+	}
+}
+
+static void ledSlidersMultiButtonsProcess(LedSliders& sl, std::vector<float>& outs, float scale, std::vector<float>const& offsets = {})
+{
+	int highest = -1;
+	for(size_t n = 0; n < sl.sliders.size(); ++n)
+	{
+		if(sl.sliders[n].getNumTouches())
+			highest = n;
+	}
+	bool allFollow = false;
+	for(auto& o : outs)
+		o = 0;
+	for(size_t n = 0; n < sl.sliders.size(); ++n)
+	{
+		LedSlider::centroid_t centroid;
+		if(highest == int(n) || allFollow)
+		{
+			centroid.location = sl.sliders[n].compoundTouchLocation();
+			centroid.size = sl.sliders[n].compoundTouchSize();
+			if(outs.size() > 0)
+				outs[0] = centroid.location * scale + (offsets.size() > n ? offsets[n] : 0);
+			if(outs.size() > 1)
+				outs[1] = centroid.size;
+		} else {
+			// dimmed for "inactive"
+			centroid.size = 0.1;
+			centroid.location = 0.5;
+		}
+		sl.sliders[n].setLedsCentroids(&centroid, 1);
 	}
 }
 
@@ -408,6 +492,24 @@ bool mode9_setup(double ms)
 	);
 	gOutMode = kOutModeFollowLeds;
 	return modeChangeBlink(ms, color);
+}
+
+bool mode10_setup(double ms)
+{
+	ledSlidersSetupMultiSlider(
+		ledSliders,
+		{
+			{uint8_t(255), 0, 0},
+			{0, uint8_t(0), uint8_t(255)},
+			{0, uint8_t(0), uint8_t(255)},
+			{0, uint8_t(0), uint8_t(255)},
+			{0, uint8_t(255), 0},
+		},
+		LedSlider::MANUAL_CENTROIDS,
+		true
+	);
+	gOutMode = kOutModeManual;
+	return modeChangeBlink(ms, {0, 0, uint8_t(255)});
 }
 
 template <typename sample_t>
@@ -881,7 +983,20 @@ void mode9_loop()
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 }
 
-enum { kNumModes = 9 };
+void mode10_loop()
+{
+	float scale = 0.1;
+	static std::vector<float> offsets = {
+			0.5,
+			0.6,
+			0.7,
+			0.8,
+			0.9,
+	};
+	ledSlidersMultiButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
+}
+
+enum { kNumModes = 10 };
 static bool (*mode_setups[kNumModes])(double) = {
 	mode1_setup,
 	mode2_setup,
@@ -892,6 +1007,7 @@ static bool (*mode_setups[kNumModes])(double) = {
 	mode7_setup,
 	mode8_setup,
 	mode9_setup,
+	mode10_setup,
 };
 static void (*mode_loops[kNumModes])(void) = {
 	mode1_loop,
@@ -903,6 +1019,7 @@ static void (*mode_loops[kNumModes])(void) = {
 	mode7_loop,
 	mode8_loop,
 	mode9_loop,
+	mode10_loop,
 };
 
 #ifdef STM32_NEOPIXEL
