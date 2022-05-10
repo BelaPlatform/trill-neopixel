@@ -5,6 +5,7 @@
 #include "LedSliders.h"
 #include "NeoPixel.h"
 #include <cmath>
+#include <assert.h>
 #ifdef STM32
 #define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
 #define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
