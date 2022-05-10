@@ -1101,6 +1101,38 @@ void tr_process(BelaContext* ptr)
 
 void tr_loop()
 {
+#ifdef STM32
+	static std::array<uint32_t, 2> pastTicks;
+	static size_t pastTicksIdx = 0;
+	static size_t backoff = 0;
+	// ensure that we are not taking up all CPU
+	// i.e.: check that systick had a chance to run recently
+	if(backoff)
+		backoff--;
+	if(backoff)
+		return;
+
+	uint32_t tick = HAL_GetTick();
+	bool different = false;
+	for(auto& t : pastTicks) {
+		if(tick != t) {
+			different = true;
+			break;
+		}
+	}
+	pastTicks[pastTicksIdx] = tick;
+	static_assert(!((pastTicks.size() - 1) & pastTicks.size())); // ensure it's a power of 2 so that the next line works
+	pastTicksIdx = (pastTicksIdx + 1) & (pastTicks.size() - 1);
+	if(pastTicks.size() == pastTicksIdx)
+		pastTicksIdx &= pastTicks.size() - 1;
+
+	if(!different){
+		printf("C");
+		backoff = 2;
+		return;
+	}
+#endif // STM32
+
 #ifndef TRILL_CALLBACK
 	trill.readI2C();
 #endif // TRILL_CALLBACK
