@@ -1069,7 +1069,7 @@ int tr_setup()
 	if(trill.setPrescaler(2))
 		return false;
 #else // TRILL_BAR
-	if(trill.setPrescaler(4))
+	if(trill.setPrescaler(5))
 		return false;
 #endif // TRILL_BAR
 	if(trill.setNoiseThreshold(0.06))
