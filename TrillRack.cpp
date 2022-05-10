@@ -271,7 +271,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	}
 }
 
-static void ledSlidersMultiButtonsProcess(LedSliders& sl, std::vector<float>& outs, float scale, std::vector<float>const& offsets = {})
+static void ledSlidersExpButtonsProcess(LedSliders& sl, std::vector<float>& outs, float scale, std::vector<float>const& offsets = {})
 {
 	int highest = -1;
 	for(size_t n = 0; n < sl.sliders.size(); ++n)
@@ -500,10 +500,10 @@ bool mode10_setup(double ms)
 		ledSliders,
 		{
 			{uint8_t(255), 0, 0},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(255), 0},
+			{uint8_t(200), uint8_t(50), 0},
+			{uint8_t(150), uint8_t(100), 0},
+			{uint8_t(100), uint8_t(150), 0},
+			{uint8_t(50), uint8_t(200), 0},
 		},
 		LedSlider::MANUAL_CENTROIDS,
 		true
@@ -993,7 +993,7 @@ void mode10_loop()
 			0.8,
 			0.9,
 	};
-	ledSlidersMultiButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
+	ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 }
 
 enum { kNumModes = 10 };
