@@ -32,10 +32,7 @@ int gCounter = 0;
 int gSubMode = 0;
 
 // Recording the gesture
-int gEndOfGesture = 0; // store gesture length
-int gRestartCount = 0;
 enum { kMaxRecordLength = 1000 };
-unsigned int gPrevTouchPresent = 0; // store whether a touch was previously present
 
 // Master clock
 int gMtrClkCounter = 0;
