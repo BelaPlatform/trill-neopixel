@@ -110,6 +110,8 @@ static void idxToWeights(float idx, float* weights, unsigned int numWeights)
 
 void LedSlider::updateLeds()
 {
+	if(!ledValues.size())
+		return;
 	if(AUTO_CENTROIDS == mode || MANUAL_CENTROIDS == mode)
 	{
 		//memset(scratch.data(), 0, sizeof(scratch[0]) * scratch.size());
