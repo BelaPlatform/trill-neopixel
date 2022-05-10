@@ -22,6 +22,7 @@ Oscillator oscillator2;
 typedef enum {
 	kOutModeFollowTouch,
 	kOutModeFollowLeds,
+	kOutModeManual,
 } OutMode;
 
 // Mode switching
@@ -33,6 +34,7 @@ int gSubMode = 0;
 
 // Recording the gesture
 enum { kMaxRecordLength = 1000 };
+static std::vector<float> gManualAnOut(2);
 
 // Master clock
 int gMtrClkCounter = 0;
@@ -1046,6 +1048,10 @@ void tr_loop()
 				tri.analogWrite(1, sls[0][0].size);
 			else if (2 == sls.size())
 				tri.analogWrite(1, sls[1][0].location);
+			break;
+		case kOutModeManual:
+			for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
+				tri.analogWrite(n, gManualAnOut[n]);
 			break;
 	}
 	
