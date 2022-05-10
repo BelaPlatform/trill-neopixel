@@ -587,6 +587,11 @@ public:
 		increment(current);
 		return ret;
 	}
+
+	size_t size()
+	{
+		return (start - end + data.size()) % data.size();
+	}
 protected:
 	template<typename T> void increment(T& idx)
 	{
@@ -760,10 +765,13 @@ class GestureRecorder
 {
 public:
 	typedef float sample_t;
-	struct Gesture_t {
-		sample_t first;
-		sample_t second;
+	struct HalfGesture_t{
+		sample_t value;
 		bool valid = false;
+	};
+	struct Gesture_t {
+		struct HalfGesture_t first;
+		struct HalfGesture_t second;
 	};
 	Gesture_t process(const std::vector<LedSlider>& sliders, bool loop)
 	{
@@ -786,7 +794,7 @@ public:
 			active[1] = sliders[1].getNumTouches();
 #endif // TWO_FINGERS_TOGGLE_ENABLE
 		}
-		sample_t out[2];
+		HalfGesture_t out[2];
 		static bool pastIn = false;
 		bool in = tri.analogRead() > 0.5;
 		if(in && !pastIn)
@@ -828,12 +836,15 @@ public:
 					else
 						val = sliders[n].compoundTouchLocation();
 				}
-				out[n] = rs[n].record(val);
+				out[n] = { rs[n].record(val), true };
 			}
-			else
-				out[n] = rs[n].play(loop);
+			else {
+				if(rs[n].size())
+					out[n] = { rs[n].play(loop), true };
+
+			}
 		}
-		return {out[0], out[1], true};
+		return {out[0], out[1]};
 	}
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
 private:
@@ -852,27 +863,30 @@ static void gestureRecorderSingle_loop(bool loop)
 	bool p = count++ % 20 == 0;
 	p && printf("=%.3f %.3f\n\r", g.first, g.second);
 #endif
-	LedSlider::centroid_t centroids[1];
-	if(g.valid)
+	LedSlider::centroid_t centroid;
+	if(g.first.valid && g.second.valid)
 	{
-		centroids[0].location = g.first;
-		centroids[0].size = g.second;
-		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+		centroid.location = g.first.value;
+		centroid.size = g.second.value;
+		ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 	}
 }
 
 static void gestureRecorderSplit_loop(bool loop)
 {
 	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
-	if(g.valid)
+	LedSlider::centroid_t centroid;
+	if(g.first.valid)
 	{
-		LedSlider::centroid_t centroids[2];
-		centroids[0].location = g.first;
-		centroids[0].size = 0.9;
-		centroids[1].location = g.second;
-		centroids[1].size = 0.9;
-		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
-		ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
+		centroid.location = g.first.value;
+		centroid.size = 0.9;
+		ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+	}
+	if(g.second.valid)
+	{
+		centroid.location = g.second.value;
+		centroid.size = 0.9;
+		ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
 	}
 }
 
