@@ -910,7 +910,7 @@ void mode5_loop()
 	if (touchPosition > 0.0) {
 		gDivisionPoint = touchPosition;
 		
-		rt_printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
+//		rt_printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
 	}
 	
 	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
@@ -953,7 +953,7 @@ void mode6_loop()
 	if (touchPosition > 0.0) {
 		gDivisionPoint = touchPosition;
 		
-		rt_printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
+//		rt_printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
 	}
 	
 	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
