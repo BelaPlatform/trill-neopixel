@@ -211,15 +211,6 @@ void divmult_clock(int trigger, float tempoControl)
 	}
 }
 
-static void initSubSlider(size_t n, rgb_t color, LedSlider::LedMode_t mode)
-{
-	if(n < ledSliders.sliders.size())
-	{
-		ledSliders.sliders[n].setColor(color);
-		ledSliders.sliders[n].setLedMode(mode);
-	}
-}
-
 static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial)
 {
 	std::vector<LedSliders::delimiters_t> boundaries;
@@ -329,35 +320,12 @@ static void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& sta
 
 static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 {
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			{.firstPad = 0, .lastPad = kNumPads,
-			.firstLed = 0, .lastLed = kNumLeds, },
-		},
-		.maxNumCentroids = {2},
-		.np = &np,
-	});
-	initSubSlider(0, color, mode);
+	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false);
 }
 
 static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], LedSlider::LedMode_t mode)
 {
-	ledSliders.setup({
-		.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-		.sizeScale = 3200,
-		.boundaries = {
-			{.firstPad = kNumPads / 2 + guardPads, .lastPad = kNumPads,
-			.firstLed = kNumLeds / 2, .lastLed = kNumLeds, },
-			{.firstPad = 0, .lastPad = kNumPads / 2 - guardPads,
-			.firstLed = 0, .lastLed = kNumLeds / 2, },
-		},
-		.maxNumCentroids = {2, 2},
-		.np = &np,
-	});
-	for(unsigned int n = 0; n < 2; ++n)
-		initSubSlider(n, colors[n], mode);
+	ledSlidersSetupMultiSlider(ledSliders, {colors[0], colors[1]}, mode, false);
 }
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
