@@ -341,30 +341,26 @@ static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], L
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
 {
-	static double oldMs = 9999999999999999;
 	bool done = false;
 	double period = 200;
 	// blink on-off-on-off
 	if(
-			(ms < oldMs) // start when time jumps back
-			|| (oldMs < 2 * period && ms >= 2 * period)
+			ms < 1 *period
+			|| (ms >= 2 * period && ms < 3 * period)
 	){
 		for(unsigned int n = 0; n < endFirst; ++n)
 			np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
 		for(unsigned int n = startSecond; n < kNumLeds; ++n)
 			np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
-		np.show();
 	} else if (
-			(oldMs < 1 * period && ms >= 1 * period)
-			|| (oldMs < 3 * period && ms >= 3 * period)
+			(ms >= 1 * period && ms < 2 * period)
+			|| (ms >= 3 * period && ms < 4 * period)
 	){
 		for(unsigned int n = 0; n < kNumLeds; ++n)
 			np.setPixelColor(n, 0, 0, 0);
-		np.show();
 	} else if (ms >= 4 * period) {
 		done = true;
 	}
-	oldMs = ms;
 	return done;
 }
 
