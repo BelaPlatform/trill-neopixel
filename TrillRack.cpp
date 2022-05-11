@@ -396,11 +396,14 @@ static bool modeAlt_setup()
 bool mode1_setup(double ms)
 {
 	rgb_t color = {uint8_t(255), 0, 0};
-	ledSlidersSetupOneSlider(
-		color,
-		LedSlider::AUTO_CENTROIDS
-	);
-	gOutMode = kOutModeFollowTouch;
+	if(!ms)
+	{
+		ledSlidersSetupOneSlider(
+			color,
+			LedSlider::AUTO_CENTROIDS
+		);
+		gOutMode = kOutModeFollowTouch;
+	}
 	return modeChangeBlink(ms, color);
 }
 
@@ -412,8 +415,11 @@ bool mode2_setup(double ms)
 		{uint8_t(255), 0, 0},
 		{0, uint8_t(255), 0},
 	};
-	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
-	gOutMode = kOutModeFollowTouch;
+	if(!ms)
+	{
+		ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
+		gOutMode = kOutModeFollowTouch;
+	}
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
@@ -421,8 +427,11 @@ bool mode2_setup(double ms)
 bool mode3_setup(double ms)
 {
 	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
-	ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
-	gOutMode = kOutModeFollowLeds;
+	if(!ms)
+	{
+		ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
+		gOutMode = kOutModeFollowLeds;
+	}
 	return modeChangeBlink(ms, color);
 }
 
@@ -434,36 +443,45 @@ bool mode4_setup(double ms)
 		{uint8_t(255), uint8_t(255), 0},
 		{0, 0, uint8_t(255)},
 	};
-	ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-	gOutMode = kOutModeFollowLeds;
+	if(!ms)
+	{
+		ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+		gOutMode = kOutModeFollowLeds;
+	}
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 bool mode5_setup(double ms)
 {
-	oscillator1.setup(1000, Oscillator::triangle);
-	oscillator2.setup(1000, Oscillator::triangle);
-	
-	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
-	ledSlidersSetupOneSlider(
-		color,
-		LedSlider::MANUAL_CENTROIDS
-	);
-	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe it was a typo?
+	if(!ms)
+	{
+		oscillator1.setup(1000, Oscillator::triangle);
+		oscillator2.setup(1000, Oscillator::triangle);
+
+		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+		ledSlidersSetupOneSlider(
+			color,
+			LedSlider::MANUAL_CENTROIDS
+		);
+	}
+	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
 	return modeChangeBlink(ms, otherColor);
 }
 
 bool mode6_setup(double ms)
 {
-	oscillator1.setup(1000, Oscillator::square);
-	oscillator2.setup(1000, Oscillator::square);
-	
-	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
-	ledSlidersSetupOneSlider(
-		color,
-		LedSlider::MANUAL_CENTROIDS
-	);
-	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe it was a typo?
+	if(!ms)
+	{
+		oscillator1.setup(1000, Oscillator::square);
+		oscillator2.setup(1000, Oscillator::square);
+
+		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+		ledSlidersSetupOneSlider(
+			color,
+			LedSlider::MANUAL_CENTROIDS
+		);
+	}
+	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
 	return modeChangeBlink(ms, otherColor);
 }
 
@@ -471,11 +489,14 @@ bool mode6_setup(double ms)
 bool mode7_setup(double ms)
 {
 	rgb_t color = {0, 0, uint8_t(255)};
-	ledSlidersSetupOneSlider(
-		color,
-		LedSlider::MANUAL_CENTROIDS
-	);
-	gOutMode = kOutModeFollowLeds;
+	if(!ms)
+	{
+		ledSlidersSetupOneSlider(
+			color,
+			LedSlider::MANUAL_CENTROIDS
+		);
+		gOutMode = kOutModeFollowLeds;
+	}
 	return modeChangeBlink(ms, color);
 }
 
@@ -487,11 +508,14 @@ bool mode8_setup(double ms)
 		{uint8_t(255), uint8_t(255), 0},
 		{0, 0, uint8_t(255)},
 	};
-	ledSlidersSetupTwoSliders(guardPads,
-		colors,
-		LedSlider::MANUAL_CENTROIDS
-	);
-	gOutMode = kOutModeFollowLeds;
+	if(!ms)
+	{
+		ledSlidersSetupTwoSliders(guardPads,
+			colors,
+			LedSlider::MANUAL_CENTROIDS
+		);
+		gOutMode = kOutModeFollowLeds;
+	}
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
@@ -508,29 +532,35 @@ void mode2_loop()
 bool mode9_setup(double ms)
 {
 	rgb_t color = {uint8_t(127), uint8_t(127), 0};
-	ledSlidersSetupOneSlider(
-		color,
-		LedSlider::MANUAL_CENTROIDS
-	);
-	gOutMode = kOutModeFollowLeds;
+	if(!ms)
+	{
+		ledSlidersSetupOneSlider(
+			color,
+			LedSlider::MANUAL_CENTROIDS
+		);
+		gOutMode = kOutModeFollowLeds;
+	}
 	return modeChangeBlink(ms, color);
 }
 
 bool mode10_setup(double ms)
 {
-	ledSlidersSetupMultiSlider(
-		ledSliders,
-		{
-			{uint8_t(255), 0, 0},
-			{uint8_t(200), uint8_t(50), 0},
-			{uint8_t(150), uint8_t(100), 0},
-			{uint8_t(100), uint8_t(150), 0},
-			{uint8_t(50), uint8_t(200), 0},
-		},
-		LedSlider::MANUAL_CENTROIDS,
-		true
-	);
-	gOutMode = kOutModeManual;
+	if(!ms)
+	{
+		ledSlidersSetupMultiSlider(
+			ledSliders,
+			{
+				{0, uint8_t(255), 0},
+				{0, uint8_t(200), uint8_t(50)},
+				{0, uint8_t(150), uint8_t(100)},
+				{0, uint8_t(100), uint8_t(150)},
+				{0, uint8_t(50), uint8_t(200)},
+			},
+			LedSlider::MANUAL_CENTROIDS,
+			true
+		);
+		gOutMode = kOutModeManual;
+	}
 	return modeChangeBlink(ms, {0, 0, uint8_t(255)});
 }
 
