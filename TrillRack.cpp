@@ -296,26 +296,36 @@ static void ledSlidersExpButtonsProcess(LedSliders& sl, std::vector<float>& outs
 	}
 }
 
-static void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets)
+static void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates)
 {
 	onsets.resize(0);
 	offsets.resize(0);
 	states.resize(sl.sliders.size());
 	for(size_t n = 0; n < sl.sliders.size(); ++n)
 	{
-		LedSlider::centroid_t centroid;
-		centroid.location = 0.5;
 		bool state = sl.sliders[n].getNumTouches();
 		bool pastState = states[n];
-		if(state && !pastState) {
-			onsets.emplace_back(n);
-		} else if (!state && pastState) {
-			offsets.emplace_back(n);
+		if(!onlyUpdateStates)
+		{
+			bool shouldUpdateCentroids = false;
+			if(state && !pastState) {
+				onsets.emplace_back(n);
+				shouldUpdateCentroids = true;
+			} else if (!state && pastState) {
+				offsets.emplace_back(n);
+				shouldUpdateCentroids = true;
+			}
+			if(shouldUpdateCentroids)
+			{
+				LedSlider::centroid_t centroid;
+				centroid.location = 0.5;
+				// dimmed for "inactive"
+				// full brightness for "active"
+				centroid.size = state ? 1 : 0.1;
+				sl.sliders[n].setLedsCentroids(&centroid, 1);
+			}
 		}
-		// full brightness for "active"
-		// dimmed for "inactive"
-		centroid.size = state ? 1 : 0.1;
-		sl.sliders[n].setLedsCentroids(&centroid, 1);
+		states[n] = state;
 	}
 }
 
@@ -1178,13 +1188,14 @@ void tr_loop()
 	tri.buttonLedWrite(!diIn0);
 	
 	static bool firstRun = true;
+	bool justEnteredAlt = false;
 	if ((diIn0 == 0 && diIn0 != gDiIn0Last) && !firstRun){
 		// button onset
 		if(gAlt){ // exit from alt mode
-			gAlt = 0;
+			gAlt = false;
 			np.clear();
 		}
-	}
+	} else
 	if(!diIn0)
 	{
 		bool touch = false;
@@ -1197,6 +1208,7 @@ void tr_loop()
 		{
 			//button is on + one touch: enter alt mode
 			gAlt = true;
+			justEnteredAlt = true;
 			np.clear();
 		}
 	}
@@ -1227,7 +1239,8 @@ void tr_loop()
 			static std::vector<bool> altStates(numButtons);
 			static std::vector<size_t> onsets(numButtons);
 			static std::vector<size_t> offsets(numButtons);
-			ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets);
+			// if we have just entered, only update states
+			ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, justEnteredAlt);
 			if(onsets.size())
 			{
 				// only consider one touch
