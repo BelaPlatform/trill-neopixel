@@ -1244,10 +1244,28 @@ void tr_loop()
 	}
 	gDiIn0Last = diIn0;
 
+	static int shouldChangeMode = 1;
+	if(gAlt)
+	{
+		ledSlidersAlt.process(trill.rawData.data());
+		static const size_t numButtons = ledSlidersAlt.sliders.size();
+		static std::vector<bool> altStates(numButtons);
+		static std::vector<size_t> onsets(numButtons);
+		static std::vector<size_t> offsets(numButtons);
+		// if we have just entered, only update states
+		ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, justEnteredAlt);
+		if(onsets.size())
+		{
+			// only consider one touch
+			if(0 == onsets[0])
+				shouldChangeMode = -1;
+			else if(numButtons - 1 == onsets[0])
+				shouldChangeMode = 1;
+		}
+	}
+
 	static double setupMs = 0;
 	static bool setupDone = false;
-	static int shouldChangeMode = 1;
-
 	if(shouldChangeMode) {
 		setupMs = tri.getTimeMs();
 		if(!firstRun)
@@ -1262,30 +1280,16 @@ void tr_loop()
 		setupDone = mode_setups[gMode](tri.getTimeMs() - setupMs);
 	if(setupDone)
 	{
-		if(gAlt)
-		{
-			ledSlidersAlt.process(trill.rawData.data());
-			static const size_t numButtons = ledSlidersAlt.sliders.size();
-			static std::vector<bool> altStates(numButtons);
-			static std::vector<size_t> onsets(numButtons);
-			static std::vector<size_t> offsets(numButtons);
-			// if we have just entered, only update states
-			ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, justEnteredAlt);
-			if(onsets.size())
-			{
-				// only consider one touch
-				if(0 == onsets[0])
-					shouldChangeMode = -1;
-				else if(numButtons - 1 == onsets[0])
-					shouldChangeMode = 1;
-			}
-		} else {
+		if(!gAlt) {
 			ledSliders.process(trill.rawData.data());
-			mode_loops[gMode](); // TODO: should run the active mode even if we are in alt, but making sure the LEDs don't get set
+			mode_loops[gMode](); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
 		}
-		np.show(); // actually display the updated LEDs
 	}
-	tri.buttonLedWrite(gMtrClkTriggerLED);
+	// actually display the updated LEDs
+	// this may have been written by alt, mode_setups or mode_loops, whatever last wrote it is whatever we display
+	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.
+	np.show();
+//	tri.buttonLedWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
 	auto& sls = ledSliders.sliders;
