@@ -6,6 +6,10 @@
 #include "NeoPixel.h"
 #include <cmath>
 #include <assert.h>
+extern "C" {
+#include "usbd_midi_if.h"
+};
+
 #ifdef STM32
 #define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
 #define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
@@ -139,7 +143,6 @@ unsigned int padsToOrderMap[kNumPads] = {
 
 static LedSliders ledSliders;
 static LedSliders ledSlidersAlt;
-static bool gAlt = false;
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
 {
@@ -1058,6 +1061,41 @@ void mode10_loop()
 	ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 }
 
+static int gAlt = 0;
+
+#include "bootloader.h"
+
+static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
+{
+	for(unsigned int n = 0; n < length; ++n)
+		printf("%02x ", msg[n]);
+	if(length)
+		printf("\n\r");
+	// loopback the input to the output
+	sendMidiMessage(msg, length);
+	// program change channel 1, program 2, (i.e.: 0x0 and 0x1 respectively)
+	if(0x0c == msg[0] && 0xc0 == msg[1] && 0x01 == msg[2])
+	{
+		printf("Jumping to bootloader\n\r");
+		bootloaderResetTo();
+	}
+	return 0;
+}
+
+static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
+	static rgb_t color;
+	if(0 == num)
+		color.r = value * 2;
+	if(1 == num)
+		color.g = value * 2;
+	if(2 == num)
+		color.b = value * 2;
+	gAlt = 2;
+	printf("%d %d %d\n\r", color.r, color.g, color.b);
+	for(unsigned int n = 0; n < kNumLeds; ++n)
+		np.setPixelColor(n, color.r, color.g, color.b);
+}
+
 enum { kNumModes = 10 };
 static bool (*mode_setups[kNumModes])(double) = {
 	mode1_setup,
@@ -1145,6 +1183,8 @@ int tr_setup()
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 8000);
 	modeAlt_setup();
+	setHdlCtlChange(midiCtlCallback);
+	setHdlAll(midiInputCallback);
 	return foundAddress;
 }
 
@@ -1195,7 +1235,7 @@ void tr_loop()
 		return;
 	}
 #endif // STM32
-
+	processMidiMessage();
 #ifndef TRILL_CALLBACK
 	trill.readI2C();
 #endif // TRILL_CALLBACK
@@ -1233,7 +1273,7 @@ void tr_loop()
 		if(touch)
 		{
 			//button is on + one touch: enter alt mode
-			gAlt = true;
+			gAlt = 1;
 			justEnteredAlt = true;
 			np.clear();
 		}
@@ -1241,7 +1281,7 @@ void tr_loop()
 	gDiIn0Last = diIn0;
 
 	static int shouldChangeMode = 1;
-	if(gAlt)
+	if(1 == gAlt)
 	{
 		ledSlidersAlt.process(trill.rawData.data());
 		static const size_t numButtons = ledSlidersAlt.sliders.size();
