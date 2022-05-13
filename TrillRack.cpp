@@ -1122,6 +1122,125 @@ static void (*mode_loops[kNumModes])(void) = {
 	mode10_loop,
 };
 
+class CalibrationProcedure {
+private:
+typedef enum {
+	kCalibrationNoInput,
+	kCalibrationWaitConnect,
+	kCalibrationConnected,
+	kCalibrationDone,
+} Calibration_t;
+Calibration_t calibrationState;
+size_t count;
+float unconnectedAdc;
+float connectedAdc;
+float anOut;
+float minDiff;
+float minValue;
+static constexpr unsigned kCalibrationNoInputCount = 50;
+static constexpr unsigned kCalibrationConnectedStepCount = 20;
+static constexpr unsigned kCalibrationWaitPostThreshold = 50;
+static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
+static constexpr float kStep = 1.0 / 4096;
+static constexpr float kRangeStart = 0.30;
+static constexpr float kRangeStop = 0.35;
+
+public:
+void start()
+{
+	calibrationState = kCalibrationNoInput;
+	count = 0;
+	unconnectedAdc = 0;
+	calibrationState = kCalibrationNoInput;
+	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
+	gOutMode = kOutModeManual;
+}
+
+void process()
+{
+	float anIn = tri.analogRead();
+	switch (calibrationState)
+	{
+		case kCalibrationNoInput:
+			unconnectedAdc += anIn;
+			count++;
+			if(kCalibrationNoInputCount == count)
+			{
+				calibrationState = kCalibrationWaitConnect;
+				unconnectedAdc /= count;
+				printf("unconnectedAdc: %.5f, connect an input\n\r", unconnectedAdc);
+				anOut = 0; // set this as a test value so we can detect when DAC is connected to ADC
+				count = 0;
+			}
+			break;
+		case kCalibrationWaitConnect:
+			// wait for ADC to be connected, then wait some more to avoid any spurious transients
+			if(anIn < kCalibrationAdcConnectedThreshold)
+			{
+				if(0 == count)
+					printf("Jack connected");
+				count++;
+			} else {
+				count = 0;
+			}
+			if(kCalibrationWaitPostThreshold == count)
+			{
+				printf(", started\n\r");
+				calibrationState = kCalibrationConnected;
+				minDiff = 1000000000;
+				minValue = 1000000000;
+				count = 0;
+				anOut = kRangeStart;
+			}
+			break;
+		case kCalibrationConnected:
+		{
+			if(anOut >= kRangeStop)
+			{
+				printf("Gotten a minimum at %f (diff %f)\n\r", minValue, minDiff);
+				calibrationState = kCalibrationDone;
+				break;
+			}
+			if (count == kCalibrationConnectedStepCount) {
+				connectedAdc /= (count - 1);
+				float diff = connectedAdc - unconnectedAdc;
+				diff = diff > 0 ? diff : -diff; // abs
+				if(diff < minDiff)
+				{
+					minDiff = diff;
+					minValue = anOut;
+				}
+				count = 0;
+				anOut += kStep;
+			}
+			if(0 == count)
+			{
+				connectedAdc = 0;
+			}
+			 else if (count >= 1) {
+				connectedAdc += anIn;
+			}
+			count++;
+		}
+			break;
+		case kCalibrationDone:
+			anOut = minValue;
+			break;
+	}
+	gManualAnOut[0] = anOut;
+}
+float getGnd()
+{
+	return minValue;
+}
+bool valid()
+{
+	return kCalibrationDone == calibrationState;
+}
+
+} gCalibrationProcedure;
+
+
 #ifdef STM32_NEOPIXEL
 static Stm32NeoPixelT<uint32_t, kNumLeds> snp(&neoPixelHtim, neoPixelHtim_TIM_CHANNEL_x, 0.66 * neoPixelHtim_COUNTER_PERIOD, 0.33 * neoPixelHtim_COUNTER_PERIOD);
 #endif // STM32_NEOPIXEL
