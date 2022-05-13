@@ -1136,7 +1136,7 @@ float unconnectedAdc;
 float connectedAdc;
 float anOut;
 float minDiff;
-float minValue;
+float minValue = 0.333447; // some resonable default, for my board at least
 static constexpr unsigned kCalibrationNoInputCount = 50;
 static constexpr unsigned kCalibrationConnectedStepCount = 20;
 static constexpr unsigned kCalibrationWaitPostThreshold = 50;
@@ -1507,9 +1507,29 @@ void tr_loop()
 			// everything should have been done already.
 			break;
 	}
-	// actually write analog outs
+	const float gnd = gCalibrationProcedure.getGnd();
 	for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
-		tri.analogWrite(n, gManualAnOut[n]);
+	{
+		float value = gManualAnOut[n];
+		// rescale analog outputs
+		switch (gOutRange)
+		{
+			case kOutRangeFull:
+				// nothing to do
+				break;
+			case kOutRangeBipolar:
+				value = map(value, 0, 1, 0, 2.f * gnd);
+				break;
+			case kOutRangePositive5:
+				value = map(value, 0, 1, gnd, gnd * 2.f);
+				break;
+			case kOutRangePositive10:
+				value = map(value, 0, 1, gnd, gnd * 3.f);
+				break;
+		}
+		// actually write analog outs
+		tri.analogWrite(n, value);
+	}
 	
 	// Send to scope
 	tri.scopeWrite(0, anIn);
