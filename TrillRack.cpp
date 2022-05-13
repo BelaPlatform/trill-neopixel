@@ -1321,6 +1321,16 @@ void tr_process(BelaContext* ptr)
 }
 #endif // TR_LOOP_TIME_CRITICAL
 
+enum {
+	kOutRangeFull,
+	kOutRangeBipolar,
+	kOutRangePositive5,
+	kOutRangePositive10,
+	kOutRangeNum,
+};
+// C++ doesn't allow myenumvar++, so we need this as an int
+static int gOutRange = kOutRangeFull;
+
 void tr_loop()
 {
 #ifdef STM32
@@ -1426,15 +1436,24 @@ void tr_loop()
 			if(onsets.size())
 			{
 				// only consider one touch
-				if(0 == onsets[0])
+				const unsigned int button = onsets[0];
+				if(0 == button)
 					shouldChangeMode = -1;
-				else if(numButtons - 1 == onsets[0])
-					shouldChangeMode = 1;
-				else if (1 == onsets [0])
+				else if (1 == button)
 				{
 					gCalibrationProcedure.setup();
 					isCalibration = true;
 				}
+				else if(2 == button)
+				{
+					// cycle through out ranges
+					gOutRange = gOutRange + 1;
+					if(kOutRangeNum == gOutRange)
+						gOutRange = kOutRangeFull;
+					printf("Range: %d\n\r", gOutRange);
+				}
+				else if(numButtons - 1 == button)
+					shouldChangeMode = 1;
 			}
 		}
 	}
@@ -1471,24 +1490,26 @@ void tr_loop()
 	switch (gOutMode)
 	{
 		case kOutModeFollowTouch:
-			tri.analogWrite(0, sls[0].compoundTouchLocation());
+			gManualAnOut[0] = sls[0].compoundTouchLocation();
 			if(1 == sls.size())
-				tri.analogWrite(1, sls[0].compoundTouchSize());
+				gManualAnOut[1] = sls[0].compoundTouchSize();
 			else if (2 == sls.size())
-				tri.analogWrite(1, sls[1].compoundTouchLocation());
+				gManualAnOut[1] = sls[1].compoundTouchLocation();
 			break;
 		case kOutModeFollowLeds:
-			tri.analogWrite(0, sls[0][0].location);
+			gManualAnOut[0] = sls[0][0].location;
 			if(1 == sls.size())
-				tri.analogWrite(1, sls[0][0].size);
+				gManualAnOut[1] = sls[0][0].size;
 			else if (2 == sls.size())
-				tri.analogWrite(1, sls[1][0].location);
+				gManualAnOut[1] = sls[1][0].location;
 			break;
 		case kOutModeManual:
-			for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
-				tri.analogWrite(n, gManualAnOut[n]);
+			// everything should have been done already.
 			break;
 	}
+	// actually write analog outs
+	for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
+		tri.analogWrite(n, gManualAnOut[n]);
 	
 	// Send to scope
 	tri.scopeWrite(0, anIn);
