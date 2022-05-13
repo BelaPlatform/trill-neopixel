@@ -1146,7 +1146,7 @@ static constexpr float kRangeStart = 0.30;
 static constexpr float kRangeStop = 0.35;
 
 public:
-void start()
+void setup()
 {
 	calibrationState = kCalibrationNoInput;
 	count = 0;
@@ -1407,15 +1407,35 @@ void tr_loop()
 		static std::vector<bool> altStates(numButtons);
 		static std::vector<size_t> onsets(numButtons);
 		static std::vector<size_t> offsets(numButtons);
-		// if we have just entered, only update states
-		ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, justEnteredAlt);
-		if(onsets.size())
+		static bool isCalibration;
+		if(justEnteredAlt)
+			isCalibration = false;
+		if(isCalibration)
 		{
-			// only consider one touch
-			if(0 == onsets[0])
-				shouldChangeMode = -1;
-			else if(numButtons - 1 == onsets[0])
-				shouldChangeMode = 1;
+			gCalibrationProcedure.process();
+			if(gCalibrationProcedure.valid())
+			{
+				// once done, let's get out of calibration
+				isCalibration = false;
+			}
+		}
+		else {
+			// if we have just entered, only update states
+			ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, justEnteredAlt);
+			// see if a button was pressed
+			if(onsets.size())
+			{
+				// only consider one touch
+				if(0 == onsets[0])
+					shouldChangeMode = -1;
+				else if(numButtons - 1 == onsets[0])
+					shouldChangeMode = 1;
+				else if (1 == onsets [0])
+				{
+					gCalibrationProcedure.setup();
+					isCalibration = true;
+				}
+			}
 		}
 	}
 
