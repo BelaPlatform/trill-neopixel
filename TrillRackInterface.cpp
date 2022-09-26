@@ -7,21 +7,23 @@ extern "C" { int32_t HAL_GetTick(void); };
 #include <Bela.h>
 #endif // STM32
 
-TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0, unsigned int diOutCh0)
+TrillRackInterface::TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0, unsigned int diOutCh0, unsigned int diOutCh1)
 {
-	setup(anInCh, anOutCh0, anOutCh1, diInCh0, diOutCh0);
+	setup(anInCh, anOutCh0, anOutCh1, diInCh0, diOutCh0, diOutCh1);
 }
 
-int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0, unsigned int diOutCh0)
+int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh0, unsigned int diOutCh0, unsigned int diOutCh1)
 {
 	this->anInCh = anInCh;
 	this->diInCh = diInCh0;
 	this->anOutCh[0] = anOutCh0;
 	this->anOutCh[1] = anOutCh1;
-	this->diOutCh = diOutCh0;
+	this->diOutCh[0] = diOutCh0;
+	this->diOutCh[1] = diOutCh1;
 	firstRun = true;
 	anIn = 0;
-	ledOut = 0;
+	for(unsigned int c = 0; c < nDigOut; ++c)
+		ledOut[c] = 0;
 	lastTimeMs =  0;
 #ifdef USE_SCOPE
 	scopeInited = false;
@@ -44,9 +46,10 @@ float TrillRackInterface::digitalRead(unsigned int channel)
 	  return 0;
 }
 
-void TrillRackInterface::buttonLedWrite(float val)
+void TrillRackInterface::buttonLedWrite(unsigned int ch, float val)
 {	
-	ledOut = val;
+	if(ch < nDigOut)
+		ledOut[ch] = val;
 }
 
 void TrillRackInterface::analogWrite(unsigned int channel, float val)
@@ -106,7 +109,8 @@ void TrillRackInterface::process(BelaContext* context)
 		//emulation of Bela's setup()
 		firstRun = false;
 		if(diInCh >= context->digitalChannels
-				|| diOutCh >= context->digitalChannels
+				|| diOutCh[0] >= context->digitalChannels
+				|| diOutCh[1] >= context->digitalChannels
 				|| anInCh >= context->analogInChannels
 				|| anOutCh[0] >= context->analogOutChannels
 				|| anOutCh[1] >= context->analogOutChannels
@@ -116,7 +120,8 @@ void TrillRackInterface::process(BelaContext* context)
 			return; //false
 		}
 		pinMode(context, 0, diInCh, INPUT);
-		pinMode(context, 0, diOutCh, OUTPUT);
+		for(unsigned int c = 0; c < nDigOut; ++c)
+			pinMode(context, 0, c, OUTPUT);
 		return; //true
 	}
 
@@ -126,7 +131,8 @@ void TrillRackInterface::process(BelaContext* context)
 	enum { kLedPwmPeriod = 512 };
 	for(size_t n = 0; n < context->digitalFrames; ++n)
 	{
-		::digitalWriteOnce(context, n, diOutCh, ledPwmIdx < ledOut * float(kLedPwmPeriod));
+		for(unsigned int c = 0; c < nDigOut; ++c)
+			::digitalWriteOnce(context, n, diOutCh[c], ledPwmIdx < ledOut[c] * float(kLedPwmPeriod));
 		ledPwmIdx++;
 		if(kLedPwmPeriod == ledPwmIdx)
 			ledPwmIdx = 0;

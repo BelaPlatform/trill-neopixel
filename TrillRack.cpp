@@ -10,6 +10,8 @@ extern "C" {
 #include "usbd_midi_if.h"
 };
 
+#define REV2
+
 #ifdef STM32
 #define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
 #define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
@@ -62,8 +64,12 @@ double gDivMultEndTime = 0;
 float gDivisionPoint = 0;
 // ------------------
 
+#ifdef REV2
+TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_A_Pin), __builtin_ctz(SW_LED_B_Pin));
+#else // REV2
+TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_Pin), 6 /* dummy */);
+#endif // REV2
 
-TrillRackInterface tri(0, 0, 1, 5, 4);
 const unsigned int kNumLeds = 23;
 NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
@@ -73,6 +79,34 @@ const unsigned int kLoopSleepTimeUs = 10000;
 
 const unsigned int kNumPads = 26;
 unsigned int padsToOrderMap[kNumPads] = {
+#ifdef REV2
+	29,
+	28,
+	27,
+	26,
+	25,
+	24,
+	23,
+	22,
+	21,
+	17,
+	18,
+	19,
+	20,
+	12,
+	10,
+	9,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	11,
+	13,
+	14,
+	15,
+#else // REV2
 #ifdef OLD
 	0,
 	1,
@@ -139,6 +173,7 @@ unsigned int padsToOrderMap[kNumPads] = {
 	15,
 	16,
 #endif // OLD
+#endif // REV2
 };
 
 static LedSliders ledSliders;
@@ -1383,7 +1418,7 @@ void tr_loop()
 
 	// Read 1st digital in (mode switching)
 	int diIn0 = tri.digitalRead(0);
-	tri.buttonLedWrite(!diIn0);
+	tri.buttonLedWrite(0, !diIn0);
 	
 	static bool firstRun = true;
 	bool justEnteredAlt = false;

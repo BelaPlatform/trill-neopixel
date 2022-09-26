@@ -19,11 +19,11 @@ class TrillRackInterface
 {
 public:
 	TrillRackInterface() {};
-	TrillRackInterface(unsigned int anInCh, unsigned int anOut0Ch, unsigned int anOut1Ch, unsigned int diInCh, unsigned int diOutCh);
-	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh);
+	TrillRackInterface(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh0, unsigned int diOutCh1);
+	int setup(unsigned int anInCh, unsigned int anOutCh0, unsigned int anOutCh1, unsigned int diInCh, unsigned int diOutCh0, unsigned int diOutCh1);
 	float analogRead();
 	float digitalRead(unsigned int channel);
-	void buttonLedWrite(float val);
+	void buttonLedWrite(unsigned int ch, float val);
 	void analogWrite(unsigned int channel, float val);
 	void process(BelaContext* context);
 	void scopeWrite(unsigned int channel, float val);
@@ -32,16 +32,17 @@ public:
 	double getTimeMs();
 private:
 	enum { nAnOut = 2 };
+	enum { nDigOut = 2 };
 	float anIn;
 	float diIn;
-	float ledOut;
+	float ledOut[nDigOut];
 	unsigned int ledPwmIdx = 0;
 	float anOut[nAnOut];
 	double lastTimeMs;
 	unsigned int anInCh;
 	unsigned int diInCh;
 	unsigned int anOutCh[nAnOut];
-	unsigned int diOutCh;
+	unsigned int diOutCh[nDigOut];
 	bool firstRun;
 #ifdef USE_SCOPE
 	float scopeData[kScopeChannels];
