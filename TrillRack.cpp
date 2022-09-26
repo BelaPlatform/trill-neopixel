@@ -1084,12 +1084,15 @@ static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
 
 static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 	static rgb_t color;
+	value = value * 2;
+	if(254 == value)
+		value = 255;
 	if(0 == num)
-		color.r = value * 2;
+		color.r = value;
 	if(1 == num)
-		color.g = value * 2;
+		color.g = value;
 	if(2 == num)
-		color.b = value * 2;
+		color.b = value;
 	gAlt = 2;
 	printf("%d %d %d\n\r", color.r, color.g, color.b);
 	for(unsigned int n = 0; n < kNumLeds; ++n)
