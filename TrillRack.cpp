@@ -1565,6 +1565,9 @@ void tr_loop()
 				value = map(value, 0, 1, gnd, gnd * 3.f);
 				break;
 		}
+#ifdef REV2
+		value = 1.f - value; // inverting outs
+#endif // REV2
 		// actually write analog outs
 		tri.analogWrite(n, value);
 	}
