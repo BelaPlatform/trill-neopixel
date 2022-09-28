@@ -12,12 +12,7 @@ extern "C" {
 
 #define REV2
 
-#ifdef STM32
-#define TRILL_CALLBACK // whether the I2C transfer is done via DMA + callback
-#define TR_LOOP_TIME_CRITICAL // whether to disallow usleep() inside tr_loop
 //#define TRILL_BAR // whether to use an external Trill Bar
-#define rt_printf printf
-#endif // STM32
 
 // Robbie's Variables
 // ------------------
@@ -224,7 +219,7 @@ void master_clock(float tempoControl)
 		gMtrClkTrigger = 1;
 		gMtrClkTriggerLED = 1;
 		gEndTime = tri.getTimeMs() + gPulseLength;
-		// rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gEndTime);
+		// printf("BANG: %f  %f\n",tri.getTimeMs(), gEndTime);
 		gMtrClkCounter = 0;
 	}
 	gMtrClkCounter++;
@@ -240,7 +235,7 @@ void divmult_clock(int trigger, float tempoControl)
 		
 		gDivMultClkTrigger = 1;
 		gDivMultEndTime = tri.getTimeMs() + gPulseLength;
-		// rt_printf("BANG: %f  %f\n",tri.getTimeMs(), gDivMultEndTime);
+		// printf("BANG: %f  %f\n",tri.getTimeMs(), gDivMultEndTime);
 		gDivMultClkCounter = 0;
 	}
 	gDivMultClkCounter++;
@@ -999,7 +994,7 @@ void mode5_loop()
 	if (touchPosition > 0.0) {
 		gDivisionPoint = touchPosition;
 		
-//		rt_printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
+//		printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
 	}
 	
 	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
@@ -1042,7 +1037,7 @@ void mode6_loop()
 	if (touchPosition > 0.0) {
 		gDivisionPoint = touchPosition;
 		
-//		rt_printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
+//		printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
 	}
 	
 	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
@@ -1361,10 +1356,8 @@ int tr_setup()
 		return false;
 	if(trill.updateBaseline())
 		return false;
-#ifdef TRILL_CALLBACK
 	if(trill.prepareForDataRead())
 		return false;
-#endif // TRILL_CALLBACK
 
 	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 8000);
 	modeAlt_setup();
@@ -1373,19 +1366,15 @@ int tr_setup()
 	return foundAddress;
 }
 
-#ifdef TRILL_CALLBACK
 void tr_newData(const uint8_t* newData, size_t len)
 {
 	trill.newData(newData, len);
 }
-#endif // TRILL_CALLBACK
 
-#ifdef TR_LOOP_TIME_CRITICAL
 void tr_process(BelaContext* ptr)
 {
 	tri.process(ptr);
 }
-#endif // TR_LOOP_TIME_CRITICAL
 
 enum {
 	kOutRangeFull,
@@ -1431,9 +1420,6 @@ void tr_loop()
 	}
 #endif // STM32
 	processMidiMessage();
-#ifndef TRILL_CALLBACK
-	trill.readI2C();
-#endif // TRILL_CALLBACK
 
 	// Read analog in.
 	float anIn = tri.analogRead();
@@ -1604,7 +1590,4 @@ void tr_loop()
 	tri.scopeWrite(0, anIn);
 	tri.scopeWrite(1, ledSliders.sliders[0].compoundTouchLocation());
 	tri.scopeWrite(2, ledSliders.sliders[0].compoundTouchSize());
-#ifndef TR_LOOP_TIME_CRITICAL
-	usleep(kLoopSleepTimeUs);
-#endif // TR_LOOP_TIME_CRITICAL
 }
