@@ -1117,21 +1117,49 @@ static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
 	return 0;
 }
 
-static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
-	static rgb_t color;
+static uint8_t midiInToPixel(uint8_t value)
+{
 	value = value * 2;
 	if(254 == value)
 		value = 255;
-	if(0 == num)
-		color.r = value;
-	if(1 == num)
-		color.g = value;
-	if(2 == num)
-		color.b = value;
+	return value;
+}
+
+static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
+	if(num < 3) {
+		value = midiInToPixel(value);
+		static rgb_t color;
+		if(0 == num)
+			color.r = value;
+		if(1 == num)
+			color.g = value;
+		if(2 == num)
+			color.b = value;
+		for(unsigned int n = 0; n < kNumLeds; ++n)
+			np.setPixelColor(n, color.r, color.g, color.b);
+		printf("colors %d %d %d\n\r", color.r, color.g, color.b);
+	} else {
+		static rgb_t color;
+		if(3 == num)
+		{
+			static unsigned int idx = 0;
+			idx = value;
+			if(idx < kNumLeds) {
+				np.setPixelColor(idx, color.r, color.g, color.b);
+			}
+			printf("color at %d: %d %d %d\n\r", idx, color.r, color.g, color.b);
+		} else {
+			value = midiInToPixel(value);
+			if(4 == num)
+				color.r = value;
+			if(5 == num)
+				color.g = value;
+			if(6 == num)
+				color.b = value;
+			printf("pixel color: %d %d %d\n\r", color.r, color.g, color.b);
+		}
+	}
 	gAlt = 2;
-	printf("%d %d %d\n\r", color.r, color.g, color.b);
-	for(unsigned int n = 0; n < kNumLeds; ++n)
-		np.setPixelColor(n, color.r, color.g, color.b);
 }
 
 enum { kNumModes = 10 };
