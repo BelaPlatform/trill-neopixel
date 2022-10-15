@@ -457,10 +457,20 @@ void tr_loop()
 	// Run the div mult clock
 	divmult_clock(gMtrClkTrigger, anIn*3.0);
 
-
+	const float gnd = gCalibrationProcedure.getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
 	// Read 1st digital in (mode switching)
 	int diIn0 = tri.digitalRead(0);
+	// Button LEDs:
+	// First LED follows button
 	tri.buttonLedWrite(0, !diIn0);
+	// Second LED displays a clipped version of the input.
+	// The clipping ensures that a small offset (e.g.: due to calibration or lack thereof)
+	// won't cause the LED to be dim the whole time.
+	const float kButtonLedThreshold = 0.04;
+	float clippedIn = tri.analogRead() - gnd;
+	if(clippedIn < kButtonLedThreshold)
+		clippedIn = 0;
+	tri.buttonLedWrite(1, clippedIn);
 	
 	static bool firstRun = true;
 	bool justEnteredAlt = false;
@@ -588,7 +598,6 @@ void tr_loop()
 			// everything should have been done already.
 			break;
 	}
-	const float gnd = gCalibrationProcedure.getGnd();
 	for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
 	{
 		float value = gManualAnOut[n];
