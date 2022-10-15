@@ -741,16 +741,20 @@ public:
 #endif // TWO_FINGERS_TOGGLE_ENABLE
 		}
 		HalfGesture_t out[2];
-		static bool pastIn = false;
-		bool in = tri.analogRead() > 0.5;
-		if(in && !pastIn)
+		static bool pastAnalogIn = false;
+		static bool pastButtonIn = false;
+		bool analogIn = tri.analogRead() > 0.5;
+		bool buttonIn = !tri.digitalRead(0);
+		// reset on rising edge on analog or button ins
+		if((analogIn && !pastAnalogIn) || (buttonIn && !pastButtonIn))
 		{
 			assert(active.size() == rs.size());
 			for(size_t n = 0; n < active.size(); ++n)
 				if(!active[n])
 					rs[n].enable(true);
 		}
-		pastIn = in;
+		pastAnalogIn = analogIn;
+		pastButtonIn = buttonIn;
 
 		for(unsigned int n = 0; n < active.size(); ++n)
 		{
