@@ -259,9 +259,9 @@ bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t st
 			|| (ms >= 2 * period && ms < 3 * period)
 	){
 		for(unsigned int n = 0; n < endFirst; ++n)
-			np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
-		for(unsigned int n = startSecond; n < kNumLeds; ++n)
 			np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
+		for(unsigned int n = startSecond; n < kNumLeds; ++n)
+			np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
 	} else if (
 			(ms >= 1 * period && ms < 2 * period)
 			|| (ms >= 3 * period && ms < 4 * period)
