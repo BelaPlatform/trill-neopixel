@@ -280,17 +280,31 @@ static bool modeChangeBlink(double ms, rgb_t color)
 	return modeChangeBlinkSplit(ms, colors, kNumLeds, kNumLeds);
 }
 
+namespace Colors {
+	static const rgb_t Red = {255, 0, 0};
+	static const rgb_t Orange = {255, 94, 0};
+	static const rgb_t Green = {0, 255, 0};
+	static const rgb_t LimeGreen = {82, 180, 0};
+	static const rgb_t White = {40, 40, 255};
+	static const rgb_t Grey = {0, 40, 128};
+	static const rgb_t Pink = {134, 0, 134};
+	static const rgb_t WarmYellow = {160, 160, 0};
+	static const rgb_t GreenishBlue = {0, 84, 100};
+	static const rgb_t Peach = {100, 88, 100};
+	static const rgb_t Blue = {0, 0, 255};
+}
+
 // MODE Alt: settings UI
 bool modeAlt_setup()
 {
 	ledSlidersSetupMultiSlider(
 		ledSlidersAlt,
 		{
-			{uint8_t(255), 0, 0},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(255), 0},
+			{Colors::Red},
+			{Colors::Grey},
+			{Colors::Grey},
+			{Colors::Grey},
+			{Colors::Green},
 		},
 		LedSlider::MANUAL_CENTROIDS,
 		true
@@ -301,7 +315,7 @@ bool modeAlt_setup()
 // MODE 1: DIRECT CONTROL / SINGLE SLIDER
 bool mode1_setup(double ms)
 {
-	rgb_t color = {uint8_t(255), 0, 0};
+	rgb_t color = {Colors::Red};
 	if(!ms)
 	{
 		ledSlidersSetupOneSlider(
@@ -318,8 +332,8 @@ bool mode2_setup(double ms)
 {
 	unsigned int guardPads = 1;
 	rgb_t colors[2] = {
-		{uint8_t(255), 0, 0},
-		{0, uint8_t(255), 0},
+		{Colors::Red},
+		{Colors::Orange},
 	};
 	if(!ms)
 	{
@@ -332,7 +346,7 @@ bool mode2_setup(double ms)
 // MODE 3: LFO / SINGLE SLIDER
 bool mode3_setup(double ms)
 {
-	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+	rgb_t color = {Colors::White};
 	if(!ms)
 	{
 		ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
@@ -346,8 +360,8 @@ bool mode4_setup(double ms)
 {
 	unsigned int guardPads = 1;
 	rgb_t colors[2] = {
-		{uint8_t(255), uint8_t(255), 0},
-		{0, 0, uint8_t(255)},
+		Colors::White,
+		Colors::Grey,
 	};
 	if(!ms)
 	{
@@ -364,13 +378,13 @@ bool mode5_setup(double ms)
 		oscillator1.setup(1000, Oscillator::triangle);
 		oscillator2.setup(1000, Oscillator::triangle);
 
-		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+		rgb_t color = {Colors::Pink};
 		ledSlidersSetupOneSlider(
 			color,
 			LedSlider::MANUAL_CENTROIDS
 		);
 	}
-	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
+	rgb_t otherColor = {Colors::Pink};
 	return modeChangeBlink(ms, otherColor);
 }
 
@@ -381,20 +395,20 @@ bool mode6_setup(double ms)
 		oscillator1.setup(1000, Oscillator::square);
 		oscillator2.setup(1000, Oscillator::square);
 
-		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+		rgb_t color = Colors::Pink;
 		ledSlidersSetupOneSlider(
 			color,
 			LedSlider::MANUAL_CENTROIDS
 		);
 	}
-	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
+	rgb_t otherColor = {Colors::Pink};
 	return modeChangeBlink(ms, otherColor);
 }
 
 // MODE 7: ENVELOPE GENERATOR
 bool mode7_setup(double ms)
 {
-	rgb_t color = {0, 0, uint8_t(255)};
+	rgb_t color = Colors::Blue;
 	if(!ms)
 	{
 		ledSlidersSetupOneSlider(
@@ -411,8 +425,8 @@ bool mode8_setup(double ms)
 {
 	unsigned int guardPads = 1;
 	rgb_t colors[2] = {
-		{uint8_t(255), uint8_t(255), 0},
-		{0, 0, uint8_t(255)},
+		Colors::Blue,
+		Colors::Grey,
 	};
 	if(!ms)
 	{
@@ -437,7 +451,7 @@ void mode2_loop()
 // good for LFOs/EGs
 bool mode9_setup(double ms)
 {
-	rgb_t color = {uint8_t(127), uint8_t(127), 0};
+	rgb_t color = Colors::WarmYellow;
 	if(!ms)
 	{
 		ledSlidersSetupOneSlider(
@@ -449,6 +463,7 @@ bool mode9_setup(double ms)
 	return modeChangeBlink(ms, color);
 }
 
+// expressive buttons
 bool mode10_setup(double ms)
 {
 	if(!ms)
@@ -456,6 +471,7 @@ bool mode10_setup(double ms)
 		ledSlidersSetupMultiSlider(
 			ledSliders,
 			{
+				// crossfade from Colors:::Green
 				{0, uint8_t(255), 0},
 				{0, uint8_t(200), uint8_t(50)},
 				{0, uint8_t(150), uint8_t(100)},
@@ -885,10 +901,12 @@ void mode5_loop()
 	float out2 = oscillator2.process();
 	
 	unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
+	const rgb_t& topColor = Colors::Pink;
+	const rgb_t& bottomColor = Colors::Red;
 	for(unsigned int n = 0; n < split; ++n)
-		np.setPixelColor(n, 0, out1*255, 0);
+		np.setPixelColor(n, topColor.r * out1, topColor.g * out1, topColor.b * out1);
 	for(unsigned int n = split; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, out2*255);
+		np.setPixelColor(n, bottomColor.r * out2, bottomColor.g * out2, bottomColor.b * out2);
 }
 
 void mode6_loop()
