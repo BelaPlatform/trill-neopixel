@@ -24,6 +24,7 @@ int gSubMode = 0;
 
 // Recording the gesture
 enum { kMaxRecordLength = 1000 };
+const float kSizeScale = 10000;
 
 // Master clock
 int gMtrClkCounter = 0;
@@ -152,7 +153,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	}
 	LedSliders::Settings settings = {
 			.order = {padsToOrderMap, padsToOrderMap + kNumPads},
-			.sizeScale = 3200,
+			.sizeScale = kSizeScale,
 			.boundaries = boundaries,
 			.maxNumCentroids = {2},
 			.np = &np,

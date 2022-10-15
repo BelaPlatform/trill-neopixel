@@ -380,7 +380,7 @@ int tr_setup()
 	if(trill.prepareForDataRead())
 		return false;
 
-	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 8000);
+	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 1); //dummy sizeScale
 	modeAlt_setup();
 	setHdlCtlChange(midiCtlCallback);
 	setHdlAll(midiInputCallback);
@@ -406,6 +406,13 @@ enum {
 };
 // C++ doesn't allow myenumvar++, so we need this as an int
 static int gOutRange = kOutRangeFull;
+
+static float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
+{
+	float value = map(x, in_min, in_max, out_min, out_max);
+	value = constrain(value, out_min, out_max);
+	return value;
+}
 
 void tr_loop()
 {
@@ -592,13 +599,18 @@ void tr_loop()
 				// nothing to do
 				break;
 			case kOutRangeBipolar:
-				value = map(value, 0, 1, 0, 2.f * gnd);
+			{
+				float base = 0; // -5V
+				if(1 == sls.size() && 1 == n) // if this is a size
+					base = gnd; // make it always positive
+				value = mapAndConstrain(value, 0, 1, base, gnd * 2.f);
+			}
 				break;
 			case kOutRangePositive5:
-				value = map(value, 0, 1, gnd, gnd * 2.f);
+				value = mapAndConstrain(value, 0, 1, gnd, gnd * 2.f);
 				break;
 			case kOutRangePositive10:
-				value = map(value, 0, 1, gnd, gnd * 3.f);
+				value = mapAndConstrain(value, 0, 1, gnd, gnd * 3.f);
 				break;
 		}
 #ifdef REV2
