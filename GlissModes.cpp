@@ -881,8 +881,6 @@ void mode5_loop()
 	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
 	oscillator2.setFrequency(gDivisionPoint * freqMult*2);
 	
-	// float out1 = (oscillator1.process()+1)*0.5;
-	// float out2 = (oscillator2.process()+1)*0.5;
 	float out1 = oscillator1.process();
 	float out2 = oscillator2.process();
 	
@@ -891,51 +889,11 @@ void mode5_loop()
 		np.setPixelColor(n, 0, out1*255, 0);
 	for(unsigned int n = split; n < kNumLeds; ++n)
 		np.setPixelColor(n, 0, 0, out2*255);
-	// for(unsigned int n = 0; n < kNumLeds; ++n)
-	// 	np.setPixelColor(n, bright[n]*255, bright[n]*255, out*255 );
 }
 
 void mode6_loop()
 {
-	
-	
-	// t = clock time period / 1000
-	// f = 1/t
-	
-	float t = gMtrClkTimePeriodScaled * 0.001;
-	float freqMult = 1/t;
-	unsigned int numPads = 24;
-	float* tmp = trill.rawData.data();
-	float pads[numPads];
-	sort(pads, tmp, padsToOrderMap, numPads);
-	
-	float bright[kNumLeds];
-	// bright is a scratchpad for LED values
-	resample(bright, kNumLeds, pads, numPads);
-
-	float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
-	
-	if (touchPosition > 0.0) {
-		gDivisionPoint = touchPosition;
-		
-//		printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
-	}
-	
-	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
-	oscillator2.setFrequency(gDivisionPoint * freqMult*2);
-	
-	// float out1 = (oscillator1.process()+1)*0.5;
-	// float out2 = (oscillator2.process()+1)*0.5;
-	float out1 = oscillator1.process();
-	float out2 = oscillator2.process();
-	
-	unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
-	for(unsigned int n = 0; n < split; ++n)
-		np.setPixelColor(n, 0, out1*255, 0);
-	for(unsigned int n = split; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, out2*255);
-	// for(unsigned int n = 0; n < kNumLeds; ++n)
-	// 	np.setPixelColor(n, bright[n]*255, bright[n]*255, out*255 );
+	mode5_loop();
 }
 
 // ENVELOPE GENERATOR
