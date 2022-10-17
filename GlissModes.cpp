@@ -13,8 +13,7 @@ extern NeoPixel np;
 extern Trill trill;
 extern std::vector<float> gManualAnOut;
 
-Oscillator oscillator1;
-Oscillator oscillator2;
+std::array<Oscillator, 2> oscillators;
 
 // Mode switching
 int gMode = 0;
@@ -361,8 +360,8 @@ bool mode5_setup(double ms)
 {
 	if(!ms)
 	{
-		oscillator1.setup(1000, Oscillator::triangle);
-		oscillator2.setup(1000, Oscillator::triangle);
+		for(auto& o : oscillators)
+			o.setup(1000, Oscillator::triangle);
 
 		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
 		ledSlidersSetupOneSlider(
@@ -370,6 +369,7 @@ bool mode5_setup(double ms)
 			LedSlider::MANUAL_CENTROIDS
 		);
 	}
+	gOutMode = kOutModeManual;
 	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
 	return modeChangeBlink(ms, otherColor);
 }
@@ -378,8 +378,8 @@ bool mode6_setup(double ms)
 {
 	if(!ms)
 	{
-		oscillator1.setup(1000, Oscillator::square);
-		oscillator2.setup(1000, Oscillator::square);
+		for(auto& o : oscillators)
+			o.setup(1000, Oscillator::square);
 
 		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
 		ledSlidersSetupOneSlider(
@@ -387,6 +387,7 @@ bool mode6_setup(double ms)
 			LedSlider::MANUAL_CENTROIDS
 		);
 	}
+	gOutMode = kOutModeManual;
 	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
 	return modeChangeBlink(ms, otherColor);
 }
@@ -854,41 +855,33 @@ void mode4_loop()
 
 void mode5_loop()
 {
-	
-	
 	// t = clock time period / 1000
 	// f = 1/t
-	
 	float t = gMtrClkTimePeriodScaled * 0.001;
 	float freqMult = 1/t;
-	unsigned int numPads = 24;
-	float* tmp = trill.rawData.data();
-	float pads[numPads];
-	sort(pads, tmp, padsToOrderMap, numPads);
-	
-	float bright[kNumLeds];
-	// bright is a scratchpad for LED values
-	resample(bright, kNumLeds, pads, numPads);
-
 	float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
 	
 	if (touchPosition > 0.0) {
 		gDivisionPoint = touchPosition;
-		
-//		printf("%f and %f and freqmult: %f\n", (0.92 - gDivisionPoint) * freqMult*2, gDivisionPoint * freqMult*2, freqMult);
 	}
 	
-	oscillator1.setFrequency((0.92 - gDivisionPoint) * freqMult*2);
-	oscillator2.setFrequency(gDivisionPoint * freqMult*2);
-	
-	float out1 = oscillator1.process();
-	float out2 = oscillator2.process();
-	
-	unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
-	for(unsigned int n = 0; n < split; ++n)
-		np.setPixelColor(n, 0, out1*255, 0);
-	for(unsigned int n = split; n < kNumLeds; ++n)
-		np.setPixelColor(n, 0, 0, out2*255);
+	const float kMaxBrightness = 0.5f;
+	rgb_t lfoColors[2] = {{0, 0, 255}, {0, 255, 0}};
+	std::array<float,oscillators.size()> freqs = {
+			gDivisionPoint * freqMult * 2,
+			(0.92f - gDivisionPoint) * freqMult * 2.f,
+	};
+	for(size_t n = 0; n < oscillators.size(); ++n) {
+		float out = oscillators[n].process(freqs[n]);
+		gManualAnOut[n] = map(out, -1, 1, 0, 1);
+		float brightness = map(out, -1, 1, 0, kMaxBrightness);
+		unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
+		unsigned int start = (1 == n) ? 0 : split;
+		unsigned int stop = (1 == n) ? split : kNumLeds;
+		rgb_t color = {uint8_t(brightness * lfoColors[n].r), uint8_t(brightness * lfoColors[n].g), uint8_t(brightness * lfoColors[n].b)};
+		for(unsigned int p = start; p <  stop; ++p)
+			np.setPixelColor(p, color.r, color.g, color.b);
+	}
 }
 
 void mode6_loop()
