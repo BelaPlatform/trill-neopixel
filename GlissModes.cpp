@@ -376,8 +376,7 @@ static bool balancedLfoSetup(double ms, bool triangle)
 	}
 	gOutMode = kOutModeManual;
 	unsigned int split = triangle ? kNumLeds * 0.66 : kNumLeds * 0.33;
-	rgb_t colors[2] = {gBalancedLfoColors[1], gBalancedLfoColors[0]};  // swap colors order to match behaviour at runtime. TODO: tidy up
-	return modeChangeBlinkSplit(ms, colors, split, split);
+	return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), split, split);
 }
 
 bool mode5_setup(double ms)
@@ -869,16 +868,16 @@ void mode5_loop()
 	// to discern increased brightness.
 	const float kMaxBrightness = 0.4f;
 	std::array<float,oscillators.size()> freqs = {
-			gDivisionPoint * freqMult * 2,
 			(0.92f - gDivisionPoint) * freqMult * 2.f,
+			gDivisionPoint * freqMult * 2,
 	};
 	for(size_t n = 0; n < oscillators.size(); ++n) {
 		float out = oscillators[n].process(freqs[n]);
-		gManualAnOut[n] = map(out, -1, 1, 0, 1);
+		gManualAnOut[!n] = map(out, -1, 1, 0, 1); // The ! is so that the CV outs order matches the display. TODO: tidy up
 		float brightness = map(out, -1, 1, 0, kMaxBrightness);
 		unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
-		unsigned int start = (1 == n) ? 0 : split;
-		unsigned int stop = (1 == n) ? split : kNumLeds;
+		unsigned int start = (0 == n) ? 0 : split;
+		unsigned int stop = (0 == n) ? split : kNumLeds;
 		rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
 		for(unsigned int p = start; p <  stop; ++p)
 			np.setPixelColor(p, color.r, color.g, color.b);
