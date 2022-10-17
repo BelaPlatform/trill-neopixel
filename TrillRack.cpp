@@ -12,6 +12,7 @@ extern "C" {
 };
 extern const unsigned int kNumModes;
 extern bool gSecondTouchIsSize;
+extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool (*mode_setups[])(double);
 extern void (*mode_loops[])(void);
 extern OutMode gOutMode;
@@ -198,10 +199,15 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 			shouldOverrideDisplay = true;
 		} else if(6 == num) {
 			unsigned int split = value;
+			// set color currently used by active mode
 			if(split < ledSliders.sliders.size()) {
+				// for most modes
 				ledSliders.sliders[split].setColor(color);
 				printf("mode color at split %d: %d %d %d\n\r", split, color.r, color.g, color.b);
 			}
+			if(split < gBalancedLfoColors.size()) // for balanced lfo modes
+				gBalancedLfoColors[split] = color;
+
 		}
 	} else {
 		// set DACs
