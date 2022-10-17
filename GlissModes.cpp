@@ -14,6 +14,8 @@ extern Trill trill;
 extern std::vector<float> gManualAnOut;
 
 std::array<Oscillator, 2> oscillators;
+const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{{0, 0, 255}, {0, 255, 0}}};
+std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MIDI without changing defaults
 
 // Mode switching
 int gMode = 0;
@@ -359,40 +361,33 @@ bool mode4_setup(double ms)
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
-bool mode5_setup(double ms)
+static bool balancedLfoSetup(double ms, bool triangle)
 {
+	gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
 	if(!ms)
 	{
 		for(auto& o : oscillators)
-			o.setup(1000, Oscillator::triangle);
+			o.setup(1000, triangle ? Oscillator::triangle : Oscillator::square);
 
-		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
 		ledSlidersSetupOneSlider(
-			color,
+			{0, 0, 0}, // dummy
 			LedSlider::MANUAL_CENTROIDS
 		);
 	}
 	gOutMode = kOutModeManual;
-	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
-	return modeChangeBlink(ms, otherColor);
+	unsigned int split = triangle ? kNumLeds * 0.66 : kNumLeds * 0.33;
+	rgb_t colors[2] = {gBalancedLfoColors[1], gBalancedLfoColors[0]};  // swap colors order to match behaviour at runtime. TODO: tidy up
+	return modeChangeBlinkSplit(ms, colors, split, split);
+}
+
+bool mode5_setup(double ms)
+{
+	return balancedLfoSetup(ms, true);
 }
 
 bool mode6_setup(double ms)
 {
-	if(!ms)
-	{
-		for(auto& o : oscillators)
-			o.setup(1000, Oscillator::square);
-
-		rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
-		ledSlidersSetupOneSlider(
-			color,
-			LedSlider::MANUAL_CENTROIDS
-		);
-	}
-	gOutMode = kOutModeManual;
-	rgb_t otherColor = {0, uint8_t(255), 0}; // TODO: maybe this is meant to be the same as above?
-	return modeChangeBlink(ms, otherColor);
+	return balancedLfoSetup(ms, false);
 }
 
 // MODE 7: ENVELOPE GENERATOR
@@ -869,8 +864,10 @@ void mode5_loop()
 		gDivisionPoint = touchPosition;
 	}
 	
-	const float kMaxBrightness = 0.5f;
-	rgb_t lfoColors[2] = {{0, 0, 255}, {0, 255, 0}};
+	// limit max brightness. On the one hand, it reduces power consumption,
+	// on the other hand it attempts to avoid the upper range, where it becomes hard
+	// to discern increased brightness.
+	const float kMaxBrightness = 0.4f;
 	std::array<float,oscillators.size()> freqs = {
 			gDivisionPoint * freqMult * 2,
 			(0.92f - gDivisionPoint) * freqMult * 2.f,
@@ -882,7 +879,7 @@ void mode5_loop()
 		unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
 		unsigned int start = (1 == n) ? 0 : split;
 		unsigned int stop = (1 == n) ? split : kNumLeds;
-		rgb_t color = {uint8_t(brightness * lfoColors[n].r), uint8_t(brightness * lfoColors[n].g), uint8_t(brightness * lfoColors[n].b)};
+		rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
 		for(unsigned int p = start; p <  stop; ++p)
 			np.setPixelColor(p, color.r, color.g, color.b);
 	}
