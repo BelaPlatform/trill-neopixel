@@ -167,40 +167,57 @@ static uint8_t midiInToPixel(uint8_t value)
 
 #include "LedSliders.h" // rgb_t
 static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
-	if(num < 3) {
-		value = midiInToPixel(value);
+	bool shouldOverrideDisplay = false;
+	if (num < 100){
 		static rgb_t color;
-		if(0 == num)
-			color.r = value;
-		if(1 == num)
-			color.g = value;
-		if(2 == num)
-			color.b = value;
-		for(unsigned int n = 0; n < kNumLeds; ++n)
-			np.setPixelColor(n, color.r, color.g, color.b);
-		printf("colors %d %d %d\n\r", color.r, color.g, color.b);
-	} else {
-		static rgb_t color;
-		if(3 == num)
+		if(num < 3) {
+			value = midiInToPixel(value);
+			if(0 == num)
+				color.r = value;
+			if(1 == num)
+				color.g = value;
+			if(2 == num)
+				color.b = value;
+		}
+		if (4 == num) {
+			// we ignore the controller's value: just use this as a trigger
+			for(unsigned int n = 0; n < kNumLeds; ++n)
+				np.setPixelColor(n, color.r, color.g, color.b);
+			printf("all leds to %d %d %d\n\r", color.r, color.g, color.b);
+			shouldOverrideDisplay = true;
+		}
+		else if(5 == num)
 		{
-			static unsigned int idx = 0;
+			unsigned int idx = 0;
 			idx = value;
 			if(idx < kNumLeds) {
 				np.setPixelColor(idx, color.r, color.g, color.b);
 			}
-			printf("color at %d: %d %d %d\n\r", idx, color.r, color.g, color.b);
-		} else {
-			value = midiInToPixel(value);
-			if(4 == num)
-				color.r = value;
-			if(5 == num)
-				color.g = value;
-			if(6 == num)
-				color.b = value;
-			printf("pixel color: %d %d %d\n\r", color.r, color.g, color.b);
+			printf("color at pixel %d: %d %d %d\n\r", idx, color.r, color.g, color.b);
+			shouldOverrideDisplay = true;
+		} else if(6 == num) {
+			unsigned int split = value;
+			if(split < ledSliders.sliders.size()) {
+				ledSliders.sliders[split].setColor(color);
+				printf("mode color at split %d: %d %d %d\n\r", split, color.r, color.g, color.b);
+			}
+		}
+	} else {
+		// set DACs
+		static int msb;
+		if(100 == num)
+			msb  = value;
+		else if (101 == num) {
+			int lsb = value;
+			gOutMode = kOutModeManual;
+			float f = ((msb << 7) | lsb) / 4096.f;
+			gManualAnOut[0] = f;
+			gManualAnOut[1] = f;
+			shouldOverrideDisplay = true; // override display so we know something's off
 		}
 	}
-	gAlt = 2;
+	if(shouldOverrideDisplay)
+		gAlt = 2;
 }
 
 
