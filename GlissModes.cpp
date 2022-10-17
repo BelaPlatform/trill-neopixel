@@ -20,6 +20,7 @@ int gMode = 0;
 OutMode gOutMode = kOutModeFollowTouch;
 int gCounter = 0;
 int gSubMode = 0;
+bool gSecondTouchIsSize;
 
 // Recording the gesture
 enum { kMaxRecordLength = 1000 };
@@ -309,6 +310,7 @@ bool mode1_setup(double ms)
 		);
 		gOutMode = kOutModeFollowTouch;
 	}
+	gSecondTouchIsSize = true;
 	return modeChangeBlink(ms, color);
 }
 
@@ -337,6 +339,7 @@ bool mode3_setup(double ms)
 		ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
 		gOutMode = kOutModeFollowLeds;
 	}
+	gSecondTouchIsSize = true;
 	return modeChangeBlink(ms, color);
 }
 
@@ -404,6 +407,7 @@ bool mode7_setup(double ms)
 		);
 		gOutMode = kOutModeFollowLeds;
 	}
+	gSecondTouchIsSize = true;
 	return modeChangeBlink(ms, color);
 }
 

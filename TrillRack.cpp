@@ -11,6 +11,7 @@ extern "C" {
 #include "usbd_midi_if.h"
 };
 extern const unsigned int kNumModes;
+extern bool gSecondTouchIsSize;
 extern bool (*mode_setups[])(double);
 extern void (*mode_loops[])(void);
 extern OutMode gOutMode;
@@ -578,8 +579,10 @@ void tr_loop()
 	}
 	firstRun = false;
 
-	if(!setupDone)
+	if(!setupDone) {
+		gSecondTouchIsSize = false; // will be set as needed by the call in the next line
 		setupDone = mode_setups[gMode](tri.getTimeMs() - setupMs);
+	}
 	if(setupDone)
 	{
 		if(!gAlt) {
@@ -627,7 +630,7 @@ void tr_loop()
 			case kOutRangeBipolar:
 			{
 				float base = 0; // -5V
-				if(1 == sls.size() && 1 == n) // if this is a size
+				if(gSecondTouchIsSize && 1 == n) // if this is a size
 					base = gnd; // make it always positive
 				value = mapAndConstrain(value, 0, 1, base, gnd * 2.f);
 			}
