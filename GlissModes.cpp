@@ -11,7 +11,7 @@ extern const unsigned int kNumLeds;
 extern unsigned int padsToOrderMap[];
 extern NeoPixel np;
 extern Trill trill;
-extern std::vector<float> gManualAnOut;
+extern std::array<float,2> gManualAnOut;
 
 std::array<Oscillator, 2> oscillators;
 const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{{0, 0, 255}, {0, 255, 0}}};
@@ -177,7 +177,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	}
 }
 
-static void ledSlidersExpButtonsProcess(LedSliders& sl, std::vector<float>& outs, float scale, std::vector<float>const& offsets = {})
+static void ledSlidersExpButtonsProcess(LedSliders& sl, std::array<float,2>& outs, float scale, std::vector<float>const& offsets = {})
 {
 	int highest = -1;
 	for(size_t n = 0; n < sl.sliders.size(); ++n)
@@ -424,11 +424,11 @@ bool mode8_setup(double ms)
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
-void mode1_loop()
+void mode1_render(BelaContext*)
 {
 }
 
-void mode2_loop()
+void mode2_render(BelaContext*)
 {
 }
 
@@ -840,18 +840,18 @@ static void gestureRecorderSplit_loop(bool loop)
 }
 
 // SINGLE LFO
-void mode3_loop()
+void mode3_render(BelaContext*)
 {
 	gestureRecorderSingle_loop(true);
 }
 
 // DUAL LFOS
-void mode4_loop()
+void mode4_render(BelaContext*)
 {
 	gestureRecorderSplit_loop(true);
 }
 
-void mode5_loop()
+void mode5_render(BelaContext*)
 {
 	// t = clock time period / 1000
 	// f = 1/t
@@ -884,24 +884,24 @@ void mode5_loop()
 	}
 }
 
-void mode6_loop()
+void mode6_render(BelaContext* context)
 {
-	mode5_loop();
+	mode5_render(context);
 }
 
 // ENVELOPE GENERATOR
-void mode7_loop()
+void mode7_render(BelaContext*)
 {
 	gestureRecorderSingle_loop(false);
 }
 
 // MODE 8: DUAL ENVELOPE GENERATOR
-void mode8_loop()
+void mode8_render(BelaContext*)
 {
 	gestureRecorderSplit_loop(false);
 }
 
-void mode9_loop()
+void mode9_render(BelaContext*)
 {
 	float in = tri.analogRead();
 	LedSlider::centroid_t centroids[1];
@@ -910,7 +910,7 @@ void mode9_loop()
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 }
 
-void mode10_loop()
+void mode10_render(BelaContext*)
 {
 	float scale = 0.1;
 	static std::vector<float> offsets = {
@@ -936,15 +936,15 @@ bool (*mode_setups[kNumModes])(double) = {
 	mode9_setup,
 	mode10_setup,
 };
-void (*mode_loops[kNumModes])(void) = {
-	mode1_loop,
-	mode2_loop,
-	mode3_loop,
-	mode4_loop,
-	mode5_loop,
-	mode6_loop,
-	mode7_loop,
-	mode8_loop,
-	mode9_loop,
-	mode10_loop,
+void (*mode_renders[kNumModes])(BelaContext*) = {
+	mode1_render,
+	mode2_render,
+	mode3_render,
+	mode4_render,
+	mode5_render,
+	mode6_render,
+	mode7_render,
+	mode8_render,
+	mode9_render,
+	mode10_render,
 };

@@ -14,7 +14,7 @@ extern const unsigned int kNumModes;
 extern bool gSecondTouchIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool (*mode_setups[])(double);
-extern void (*mode_loops[])(void);
+extern void (*mode_renders[])(BelaContext*);
 extern OutMode gOutMode;
 extern int gMode;
 extern bool modeAlt_setup();
@@ -24,7 +24,7 @@ extern int gMtrClkTrigger;
 extern LedSliders ledSliders;
 extern LedSliders ledSlidersAlt;
 extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates);
-std::vector<float> gManualAnOut(2);
+std::array<float,2> gManualAnOut;
 
 #define REV2
 //#define TRILL_BAR // whether to use an external Trill Bar
@@ -438,7 +438,7 @@ static float mapAndConstrain(float x, float in_min, float in_max, float out_min,
 	return value;
 }
 
-void tr_loop()
+void tr_render(BelaContext* context)
 {
 #ifdef STM32
 	static std::array<uint32_t, 2> pastTicks;
@@ -593,11 +593,11 @@ void tr_loop()
 	{
 		if(!gAlt) {
 			ledSliders.process(trill.rawData.data());
-			mode_loops[gMode](); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
+			mode_renders[gMode](context); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
 		}
 	}
 	// actually display the updated LEDs
-	// this may have been written by alt, mode_setups or mode_loops, whatever last wrote it is whatever we display
+	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
 	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.
 	np.show();
 //	tri.buttonLedWrite(gMtrClkTriggerLED);
@@ -624,6 +624,8 @@ void tr_loop()
 			// everything should have been done already.
 			break;
 	}
+	bool shouldUseAnOutBuffer = true; // TODO: add new modes which set it to false
+	std::array<float, gManualAnOut.size()> anOutBuffer;
 	for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
 	{
 		float value = gManualAnOut[n];
@@ -652,7 +654,22 @@ void tr_loop()
 		value = 1.f - value; // inverting outs
 #endif // REV2
 		// actually write analog outs
-		tri.analogWrite(n, value);
+		anOutBuffer[n] = value;
+	}
+	if(shouldUseAnOutBuffer)
+	{
+		for(unsigned int n = 0; n < context->analogFrames; ++n)
+		{
+			for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
+			{
+				static float pastOut[anOutBuffer.size()];
+				float tmp = pastOut[channel];
+				float alpha = 0.993;
+				float out = tmp * alpha + anOutBuffer[channel] * (1.f - alpha);
+				analogWriteOnce(context, n, channel, out);
+				pastOut[channel] = out;
+			}
+		}
 	}
 	
 	// Send to scope

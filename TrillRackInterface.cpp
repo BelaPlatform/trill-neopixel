@@ -127,7 +127,7 @@ void TrillRackInterface::process(BelaContext* context)
 
 	diIn = ::digitalRead(context, 0, diInCh);
 	anIn = ::analogRead(context, 0, anInCh);
-	tr_loop();
+	tr_render(context);
 	enum { kLedPwmPeriod = 512 };
 	for(size_t n = 0; n < context->digitalFrames; ++n)
 	{
@@ -137,11 +137,7 @@ void TrillRackInterface::process(BelaContext* context)
 		if(kLedPwmPeriod == ledPwmIdx)
 			ledPwmIdx = 0;
 	}
-	extern float gDacNext[2];
-#if 1
-	for(unsigned int n = 0; n < 2; ++n)
-		gDacNext[n] = anOut[n];
-#else
+#if 0
 	static unsigned int count = 0;
 	gDacNext[0] = count++ / 4096.f;
 	gDacNext[1] = count / 4096.f;

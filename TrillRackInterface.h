@@ -10,7 +10,7 @@
 
 extern "C" {
 int tr_setup();
-void tr_loop();
+void tr_render(BelaContext* context);
 void tr_newData(const uint8_t* newData, size_t len);
 void tr_process(BelaContext* ptr);
 void tr_snpDone(void);
