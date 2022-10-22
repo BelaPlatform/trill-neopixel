@@ -18,8 +18,7 @@ extern void (*mode_renders[])(BelaContext*);
 extern OutMode gOutMode;
 extern int gMode;
 extern bool modeAlt_setup();
-extern void master_clock(float);
-extern void divmult_clock(int trigger, float tempoControl);
+extern void triggerInToClock(BelaContext* context);
 extern int gMtrClkTrigger;
 extern LedSliders ledSliders;
 extern LedSliders ledSlidersAlt;
@@ -472,15 +471,7 @@ void tr_render(BelaContext* context)
 	}
 #endif // STM32
 	processMidiMessage();
-
-	// Read analog in.
-	float anIn = tri.analogRead();
-	// Run the clock
-	master_clock(anIn*3.0);
-	
-	// Run the div mult clock
-	divmult_clock(gMtrClkTrigger, anIn*3.0);
-
+	triggerInToClock(context);
 	const float gnd = gCalibrationProcedure.getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
 	// Read 1st digital in (mode switching)
 	int diIn0 = tri.digitalRead(0);
@@ -671,9 +662,4 @@ void tr_render(BelaContext* context)
 			}
 		}
 	}
-	
-	// Send to scope
-	tri.scopeWrite(0, anIn);
-	tri.scopeWrite(1, ledSliders.sliders[0].compoundTouchLocation());
-	tri.scopeWrite(2, ledSliders.sliders[0].compoundTouchSize());
 }

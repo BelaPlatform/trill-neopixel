@@ -5,6 +5,8 @@
 #include <libraries/Oscillator/Oscillator.h>
 #include "LedSliders.h"
 
+//#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
+
 extern TrillRackInterface tri;
 extern const unsigned int kNumPads;
 extern const unsigned int kNumLeds;
@@ -28,23 +30,11 @@ bool gSecondTouchIsSize;
 enum { kMaxRecordLength = 1000 };
 const float kSizeScale = 10000;
 
-// Master clock
-int gMtrClkCounter = 0;
-int gMtrClkTimePeriod = 260;
-int gMtrClkTrigger = 0;
-int gMtrClkTriggerLED = 0;
-float gMtrClkTimePeriodScaled = 0;
-
 // LED Flash Event
 double gEndTime = 0; //for pulse length
 double gPulseLength = 40;
 
-// Div Mult clock
-int gDivMultClkCounter = 0;
-int gDivMultClkTimePeriod = 160;
-int gDivMultClkTrigger = 0;
-double gDivMultEndTime = 0;
-
+float gClockPeriod = 20000; // some initial value so we start oscillating even in the absence of external clock
 // Dual LFOS
 float gDivisionPoint = 0;
 // ------------------
@@ -87,40 +77,49 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
-void master_clock(float tempoControl)
+void triggerInToClock(BelaContext* context)
 {
-	gMtrClkTrigger = 0;
-	
-	gMtrClkTimePeriodScaled = tempoControl * gMtrClkTimePeriod;
-	
-	if (gMtrClkCounter >= tempoControl * gMtrClkTimePeriod) {
-		
-		gMtrClkTrigger = 1;
-		gMtrClkTriggerLED = 1;
-		gEndTime = tri.getTimeMs() + gPulseLength;
-		// printf("BANG: %f  %f\n",tri.getTimeMs(), gEndTime);
-		gMtrClkCounter = 0;
-	}
-	gMtrClkCounter++;
-	
-	if(gEndTime < tri.getTimeMs()) {
-		gMtrClkTriggerLED = 0;
-	}
-}
+	const float kTriggerInOnThreshold = 0.6;
+	const float kTriggerInOffThreshold = kTriggerInOnThreshold - 0.05;
+	static bool lastTrigPrimed = false;
+	static size_t lastTrig = 0;
+	for(size_t n = 0; n < context->analogFrames; ++n)
+	{
+		static bool lastIn = false;
+		// hysteresis
+		float threshold = lastIn ? kTriggerInOffThreshold : kTriggerInOnThreshold;
+		bool in = analogRead(context, n, 0) > threshold;
+		if(in && !lastIn)
+		{
+			size_t newTrig = context->audioFramesElapsed  + n;
+			if(lastTrigPrimed)
+			{
+				size_t newPeriod = newTrig - lastTrig;
+#ifdef TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
+				enum { kInferClockNumPeriods = 5 };
+				static size_t lastPeriods[kInferClockNumPeriods] = {0};
+				static size_t currentPeriod = 0;
+				static size_t periodSum = 0;
+				// moving average
+				periodSum -= lastPeriods[currentPeriod];
+				lastPeriods[currentPeriod] = newPeriod;
+				periodSum += newPeriod;
+				// TODO: it may be that when the clock is changing it's best to follow
+				// it without moving average, especially if it's slow
+				float averagePeriod = float(periodSum) / kInferClockNumPeriods;
+				currentPeriod++;
+				if(currentPeriod == kInferClockNumPeriods)
+					currentPeriod = 0;
+				gClockPeriod = averagePeriod;
+#else // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
+				gClockPeriod = newPeriod;
+#endif // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
+			}
+			lastTrig = newTrig;
+			lastTrigPrimed = true;
+		}
 
-void divmult_clock(int trigger, float tempoControl)
-{
-	if (gDivMultClkCounter >= tempoControl * gDivMultClkTimePeriod) {
-		
-		gDivMultClkTrigger = 1;
-		gDivMultEndTime = tri.getTimeMs() + gPulseLength;
-		// printf("BANG: %f  %f\n",tri.getTimeMs(), gDivMultEndTime);
-		gDivMultClkCounter = 0;
-	}
-	gDivMultClkCounter++;
-	
-	if(gDivMultEndTime < tri.getTimeMs()) {
-		gDivMultClkTrigger = 0;
+		lastIn = in;
 	}
 }
 
@@ -367,7 +366,7 @@ static bool balancedLfoSetup(double ms, bool triangle)
 	if(!ms)
 	{
 		for(auto& o : oscillators)
-			o.setup(1000, triangle ? Oscillator::triangle : Oscillator::square);
+			o.setup(1, triangle ? Oscillator::triangle : Oscillator::square); // Fs set to 1, so we need to pass normalised frequency later
 
 		ledSlidersSetupOneSlider(
 			{0, 0, 0}, // dummy
@@ -851,14 +850,11 @@ void mode4_render(BelaContext*)
 	gestureRecorderSplit_loop(true);
 }
 
-void mode5_render(BelaContext*)
+void mode5_render(BelaContext* context)
 {
-	// t = clock time period / 1000
-	// f = 1/t
-	float t = gMtrClkTimePeriodScaled * 0.001;
-	float freqMult = 1/t;
+	float midFreq = context->analogFrames / gClockPeriod; // we process once per block; the oscillator thinks Fs = 1
 	float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
-	
+
 	if (touchPosition > 0.0) {
 		gDivisionPoint = touchPosition;
 	}
@@ -868,8 +864,8 @@ void mode5_render(BelaContext*)
 	// to discern increased brightness.
 	const float kMaxBrightness = 0.4f;
 	std::array<float,oscillators.size()> freqs = {
-			(0.92f - gDivisionPoint) * freqMult * 2.f,
-			gDivisionPoint * freqMult * 2,
+			(0.92f - gDivisionPoint) * midFreq * 2.f,
+			gDivisionPoint * midFreq * 2,
 	};
 	for(size_t n = 0; n < oscillators.size(); ++n) {
 		float out = oscillators[n].process(freqs[n]);
