@@ -424,53 +424,103 @@ bool mode8_setup(double ms)
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
-static void processLatch(float valueFirst, float valueSecond, bool split)
+static void processLatch(bool split)
 {
-	static bool gIsLatched = false;
-	static bool unlatchArmed;
-	static float latchedValueFirst;
-	static float latchedValueSecond;
 	static bool pastButton = false;
+	bool buttonOnset = false;
+
 	bool button = !tri.digitalRead(0);
 	if(button && !pastButton)
+		buttonOnset = true;
+
+	static std::array<bool,2> isLatched = {false, false};
+	static std::array<bool,2> unlatchArmed = {false, false};
+	static std::array<float,2> latchedValues;
+
+	std::array<float,2> values;
+
+	if(split)
 	{
-		gIsLatched = !gIsLatched;
-		unlatchArmed = false;
-		if(gIsLatched)
+		values[0] = ledSliders.sliders[0].compoundTouchLocation();
+		values[1] = ledSliders.sliders[1].compoundTouchLocation();
+
+	} else {
+		values[0] = ledSliders.sliders[0].compoundTouchLocation();
+		values[1] = ledSliders.sliders[0].compoundTouchSize();
+	}
+
+	std::array<bool,2> hasTouch = {false, false};
+	for(ssize_t n = 0; n < 1 + split; ++n)
+		hasTouch[n] = ledSliders.sliders[n].compoundTouchSize() > 0;
+
+	std::array<bool,2> latchStarts = {false, false};
+	std::array<bool,2> unlatchStarts = {false, false};
+	if(buttonOnset)
+	{
+		// button latches everything if there is at least one touch
+		// and unlatches everything if there is no touch
+		for(size_t n = 0; n < isLatched.size(); ++n)
 		{
-			latchedValueFirst = valueFirst;
-			latchedValueSecond = valueSecond;
+			if(!isLatched[n] && hasTouch[n])
+				latchStarts[n] = true;
+			if(!(hasTouch[0] || hasTouch[1]))
+			{
+				// no touch
+				if(isLatched[n])
+					unlatchStarts[n] = true;
+			}
 		}
 	}
-	if(unlatchArmed)
+
+	for(ssize_t n = 0; n < 1 + split; ++n)
 	{
-		if(split)
+		if(isLatched[n])
 		{
-			if(valueFirst || valueSecond)
-				gIsLatched = false;
-		} else {
-			if(valueSecond)
-				gIsLatched = false;
+			if(!hasTouch[n])
+			{
+				unlatchArmed[n] = true;
+			}
+			if(unlatchArmed[n] && hasTouch[n])
+			{
+				unlatchStarts[n] = true;
+			}
 		}
+
+		if(latchStarts[n])
+		{
+			latchedValues[n] = values[n];
+			if(!split)
+				latchedValues[1] = values[1];
+			isLatched[n] = true;
+			unlatchArmed[n] = false;
+		}
+		if(unlatchStarts[n])
+			isLatched[n] = false;
 	}
-	if(gIsLatched) {
+
+	if(isLatched[0] || isLatched[1]) {
 		gOutMode = kOutModeFollowLeds;
 		LedSlider::centroid_t centroid;
 		if(split)
 		{
-			if(!valueFirst && !valueSecond)
-				unlatchArmed = true;
-			centroid.location = latchedValueFirst;
 			centroid.size = kFixedCentroidSize;
-			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-			centroid.location = latchedValueSecond;
-			centroid.size = kFixedCentroidSize;
-			ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
+			for(size_t n = 0; n < isLatched.size(); ++n)
+			{
+				if(isLatched[n])
+				{
+					centroid.location = latchedValues[n];
+					centroid.size = kFixedCentroidSize;
+				} else {
+					// this is not actually latched, but as gOutMode
+					// is not split, we emulate direct control here.
+					centroid.location = values[n];
+					centroid.size = kFixedCentroidSize * hasTouch[n]; // TODO: when bipolar this should send out "nothing"
+				}
+				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
+			}
 		} else {
-			if(!valueSecond)
-				unlatchArmed = true;
-			centroid.location = latchedValueFirst;
-			centroid.size = latchedValueSecond;
+			centroid.location = latchedValues[0];
+			centroid.size = latchedValues[1];
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 		}
 	}
@@ -481,13 +531,13 @@ static void processLatch(float valueFirst, float valueSecond, bool split)
 
 void mode1_render(BelaContext*)
 {
-	processLatch(ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[0].compoundTouchSize(), false);
+	processLatch(false);
 
 }
 
 void mode2_render(BelaContext*)
 {
-	processLatch(ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation(), true);
+	processLatch(true);
 }
 
 // MODE 9: monochrome VUmeter / envelope follower (pretty crude, without rectification or lowpass for now.
