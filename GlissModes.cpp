@@ -427,6 +427,7 @@ bool mode8_setup(double ms)
 static void processLatch(float valueFirst, float valueSecond, bool split)
 {
 	static bool gIsLatched = false;
+	static bool unlatchArmed;
 	static float latchedValueFirst;
 	static float latchedValueSecond;
 	static bool pastButton = false;
@@ -434,10 +435,22 @@ static void processLatch(float valueFirst, float valueSecond, bool split)
 	if(button && !pastButton)
 	{
 		gIsLatched = !gIsLatched;
+		unlatchArmed = false;
 		if(gIsLatched)
 		{
 			latchedValueFirst = valueFirst;
 			latchedValueSecond = valueSecond;
+		}
+	}
+	if(unlatchArmed)
+	{
+		if(split)
+		{
+			if(valueFirst || valueSecond)
+				gIsLatched = false;
+		} else {
+			if(valueSecond)
+				gIsLatched = false;
 		}
 	}
 	if(gIsLatched) {
@@ -445,6 +458,8 @@ static void processLatch(float valueFirst, float valueSecond, bool split)
 		LedSlider::centroid_t centroid;
 		if(split)
 		{
+			if(!valueFirst && !valueSecond)
+				unlatchArmed = true;
 			centroid.location = latchedValueFirst;
 			centroid.size = kFixedCentroidSize;
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
@@ -452,6 +467,8 @@ static void processLatch(float valueFirst, float valueSecond, bool split)
 			centroid.size = kFixedCentroidSize;
 			ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
 		} else {
+			if(!valueSecond)
+				unlatchArmed = true;
 			centroid.location = latchedValueFirst;
 			centroid.size = latchedValueSecond;
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
