@@ -29,6 +29,7 @@ bool gSecondTouchIsSize;
 // Recording the gesture
 enum { kMaxRecordLength = 1000 };
 const float kSizeScale = 10000;
+const float kFixedCentroidSize = 0.9;
 
 // LED Flash Event
 double gEndTime = 0; //for pulse length
@@ -827,13 +828,13 @@ static void gestureRecorderSplit_loop(bool loop)
 	if(g.first.valid)
 	{
 		centroid.location = g.first.value;
-		centroid.size = 0.9;
+		centroid.size = kFixedCentroidSize;
 		ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 	}
 	if(g.second.valid)
 	{
 		centroid.location = g.second.value;
-		centroid.size = 0.9;
+		centroid.size = kFixedCentroidSize;
 		ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
 	}
 }
@@ -902,7 +903,7 @@ void mode9_render(BelaContext*)
 	float in = tri.analogRead();
 	LedSlider::centroid_t centroids[1];
 	centroids[0].location = in;
-	centroids[0].size = 0.9;
+	centroids[0].size = kFixedCentroidSize;
 	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 }
 
