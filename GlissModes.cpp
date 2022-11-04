@@ -424,12 +424,53 @@ bool mode8_setup(double ms)
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
+static void processLatch(float first, float second, bool split)
+{
+	static bool gIsLatched = false;
+	static float latchedFirst;
+	static float latchedSecond;
+	static bool pastButton = false;
+	bool button = !tri.digitalRead(0);
+	if(button && !pastButton)
+	{
+		gIsLatched = !gIsLatched;
+		if(gIsLatched)
+		{
+			latchedFirst = first;
+			latchedSecond = second;
+		}
+	}
+	if(gIsLatched) {
+		gOutMode = kOutModeFollowLeds;
+		LedSlider::centroid_t centroid;
+		if(split)
+		{
+			centroid.location = latchedFirst;
+			centroid.size = kFixedCentroidSize;
+			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+			centroid.location = latchedSecond;
+			centroid.size = kFixedCentroidSize;
+			ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
+		} else {
+			centroid.location = latchedFirst;
+			centroid.size = latchedSecond;
+			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+		}
+	}
+	else
+		gOutMode = kOutModeFollowTouch;
+	pastButton = button;
+}
+
 void mode1_render(BelaContext*)
 {
+	processLatch(ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[0].compoundTouchSize(), false);
+
 }
 
 void mode2_render(BelaContext*)
 {
+	processLatch(ledSliders.sliders[0].compoundTouchLocation(), ledSliders.sliders[1].compoundTouchLocation(), true);
 }
 
 // MODE 9: monochrome VUmeter / envelope follower (pretty crude, without rectification or lowpass for now.
