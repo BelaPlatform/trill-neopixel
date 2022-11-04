@@ -490,22 +490,22 @@ void tr_render(BelaContext* context)
 	static bool firstRun = true;
 	bool justEnteredAlt = false;
 	static int gDiIn0Last = 0;
-	if ((diIn0 == 0 && diIn0 != gDiIn0Last) && !firstRun){
+	static bool hadTouch = false;
+	bool hasTouch = false;
+	for(auto& s : ledSliders.sliders)
+	{
+		if((hasTouch = s.getNumTouches()))
+			break;
+	}
+	if ((!diIn0 && diIn0 != gDiIn0Last) && !firstRun){
 		// button onset
 		if(gAlt){ // exit from alt mode
 			gAlt = false;
 			np.clear();
 		}
-	} else
-	if(!diIn0)
+	} else if(!diIn0)
 	{
-		bool touch = false;
-		for(auto& s : ledSliders.sliders)
-		{
-			if((touch = s.getNumTouches()))
-				break;
-		}
-		if(touch)
+		if(hasTouch && !hadTouch)
 		{
 			//button is on + one touch: enter alt mode
 			gAlt = 1;
@@ -514,7 +514,7 @@ void tr_render(BelaContext* context)
 		}
 	}
 	gDiIn0Last = diIn0;
-
+	hadTouch = hasTouch;
 	static int shouldChangeMode = 1;
 	if(1 == gAlt)
 	{
