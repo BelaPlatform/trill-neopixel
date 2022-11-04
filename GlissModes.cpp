@@ -424,11 +424,11 @@ bool mode8_setup(double ms)
 	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
-static void processLatch(float first, float second, bool split)
+static void processLatch(float valueFirst, float valueSecond, bool split)
 {
 	static bool gIsLatched = false;
-	static float latchedFirst;
-	static float latchedSecond;
+	static float latchedValueFirst;
+	static float latchedValueSecond;
 	static bool pastButton = false;
 	bool button = !tri.digitalRead(0);
 	if(button && !pastButton)
@@ -436,8 +436,8 @@ static void processLatch(float first, float second, bool split)
 		gIsLatched = !gIsLatched;
 		if(gIsLatched)
 		{
-			latchedFirst = first;
-			latchedSecond = second;
+			latchedValueFirst = valueFirst;
+			latchedValueSecond = valueSecond;
 		}
 	}
 	if(gIsLatched) {
@@ -445,15 +445,15 @@ static void processLatch(float first, float second, bool split)
 		LedSlider::centroid_t centroid;
 		if(split)
 		{
-			centroid.location = latchedFirst;
+			centroid.location = latchedValueFirst;
 			centroid.size = kFixedCentroidSize;
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-			centroid.location = latchedSecond;
+			centroid.location = latchedValueSecond;
 			centroid.size = kFixedCentroidSize;
 			ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
 		} else {
-			centroid.location = latchedFirst;
-			centroid.size = latchedSecond;
+			centroid.location = latchedValueFirst;
+			centroid.size = latchedValueSecond;
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 		}
 	}
