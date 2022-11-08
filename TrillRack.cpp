@@ -15,6 +15,10 @@ extern bool gSecondTouchIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool (*mode_setups[])(double);
 extern void (*mode_renders[])(BelaContext*);
+extern bool menu_setup(double);
+extern void menu_render(BelaContext*);
+extern bool menuShouldChangeMode();
+extern float getGnd();
 extern OutMode gOutMode;
 extern int gMode;
 extern bool modeAlt_setup();
@@ -226,126 +230,6 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 		gAlt = 2;
 }
 
-
-class CalibrationProcedure {
-private:
-typedef enum {
-	kCalibrationNoInput,
-	kCalibrationWaitConnect,
-	kCalibrationConnected,
-	kCalibrationDone,
-} Calibration_t;
-Calibration_t calibrationState;
-size_t count;
-float unconnectedAdc;
-float connectedAdc;
-float anOut;
-float minDiff;
-float minValue = 0.333447; // some resonable default, for my board at least
-static constexpr unsigned kCalibrationNoInputCount = 50;
-static constexpr unsigned kCalibrationConnectedStepCount = 20;
-static constexpr unsigned kCalibrationWaitPostThreshold = 50;
-static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
-static constexpr float kStep = 1.0 / 4096;
-static constexpr float kRangeStart = 0.30;
-static constexpr float kRangeStop = 0.35;
-
-public:
-void setup()
-{
-	calibrationState = kCalibrationNoInput;
-	count = 0;
-	unconnectedAdc = 0;
-	calibrationState = kCalibrationNoInput;
-	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
-	gOutMode = kOutModeManual;
-}
-
-void process()
-{
-	float anIn = tri.analogRead();
-	switch (calibrationState)
-	{
-		case kCalibrationNoInput:
-			unconnectedAdc += anIn;
-			count++;
-			if(kCalibrationNoInputCount == count)
-			{
-				calibrationState = kCalibrationWaitConnect;
-				unconnectedAdc /= count;
-				printf("unconnectedAdc: %.5f, connect an input\n\r", unconnectedAdc);
-				anOut = 0; // set this as a test value so we can detect when DAC is connected to ADC
-				count = 0;
-			}
-			break;
-		case kCalibrationWaitConnect:
-			// wait for ADC to be connected, then wait some more to avoid any spurious transients
-			if(anIn < kCalibrationAdcConnectedThreshold)
-			{
-				if(0 == count)
-					printf("Jack connected");
-				count++;
-			} else {
-				count = 0;
-			}
-			if(kCalibrationWaitPostThreshold == count)
-			{
-				printf(", started\n\r");
-				calibrationState = kCalibrationConnected;
-				minDiff = 1000000000;
-				minValue = 1000000000;
-				count = 0;
-				anOut = kRangeStart;
-			}
-			break;
-		case kCalibrationConnected:
-		{
-			if(anOut >= kRangeStop)
-			{
-				printf("Gotten a minimum at %f (diff %f)\n\r", minValue, minDiff);
-				calibrationState = kCalibrationDone;
-				break;
-			}
-			if (count == kCalibrationConnectedStepCount) {
-				connectedAdc /= (count - 1);
-				float diff = connectedAdc - unconnectedAdc;
-				diff = diff > 0 ? diff : -diff; // abs
-				if(diff < minDiff)
-				{
-					minDiff = diff;
-					minValue = anOut;
-				}
-				count = 0;
-				anOut += kStep;
-			}
-			if(0 == count)
-			{
-				connectedAdc = 0;
-			}
-			 else if (count >= 1) {
-				connectedAdc += anIn;
-			}
-			count++;
-		}
-			break;
-		case kCalibrationDone:
-			anOut = minValue;
-			break;
-	}
-	gManualAnOut[0] = anOut;
-}
-float getGnd()
-{
-	return minValue;
-}
-bool valid()
-{
-	return kCalibrationDone == calibrationState;
-}
-
-} gCalibrationProcedure;
-
-
 #ifdef STM32_NEOPIXEL
 static Stm32NeoPixelT<uint32_t, kNumLeds> snp(&neoPixelHtim, neoPixelHtim_TIM_CHANNEL_x, 0.66 * neoPixelHtim_COUNTER_PERIOD, 0.33 * neoPixelHtim_COUNTER_PERIOD);
 #endif // STM32_NEOPIXEL
@@ -420,15 +304,8 @@ void tr_process(BelaContext* ptr)
 	tri.process(ptr);
 }
 
-enum {
-	kOutRangeFull,
-	kOutRangeBipolar,
-	kOutRangePositive5,
-	kOutRangePositive10,
-	kOutRangeNum,
-};
 // C++ doesn't allow myenumvar++, so we need this as an int
-static int gOutRange = kOutRangeFull;
+int gOutRange = kOutRangeFull;
 
 static float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
 {
@@ -472,7 +349,7 @@ void tr_render(BelaContext* context)
 #endif // STM32
 	processMidiMessage();
 	triggerInToClock(context);
-	const float gnd = gCalibrationProcedure.getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
+	const float gnd = getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
 	// Read 1st digital in (mode switching)
 	int diIn0 = tri.digitalRead(0);
 	// Button LEDs:
@@ -488,7 +365,6 @@ void tr_render(BelaContext* context)
 	tri.buttonLedWrite(1, clippedIn);
 	
 	static bool firstRun = true;
-	bool justEnteredAlt = false;
 	static int gDiIn0Last = 0;
 	static bool hadTouch = false;
 	bool hasTouch = false;
@@ -509,70 +385,26 @@ void tr_render(BelaContext* context)
 		{
 			//button is on + one touch: enter alt mode
 			gAlt = 1;
-			justEnteredAlt = true;
+			menu_setup(0);
 			np.clear();
 		}
 	}
 	gDiIn0Last = diIn0;
 	hadTouch = hasTouch;
-	static int shouldChangeMode = 1;
 	if(1 == gAlt)
 	{
-		ledSlidersAlt.process(trill.rawData.data());
-		static const size_t numButtons = ledSlidersAlt.sliders.size();
-		static std::vector<bool> altStates(numButtons);
-		static std::vector<size_t> onsets(numButtons);
-		static std::vector<size_t> offsets(numButtons);
-		static bool isCalibration;
-		if(justEnteredAlt)
-			isCalibration = false;
-		if(isCalibration)
-		{
-			gCalibrationProcedure.process();
-			if(gCalibrationProcedure.valid())
-			{
-				// once done, let's get out of calibration
-				isCalibration = false;
-			}
-		}
-		else {
-			// if we have just entered, only update states
-			ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, justEnteredAlt);
-			// see if a button was pressed
-			if(onsets.size())
-			{
-				// only consider one touch
-				const unsigned int button = onsets[0];
-				if(0 == button)
-					shouldChangeMode = -1;
-				else if (1 == button)
-				{
-					gCalibrationProcedure.setup();
-					isCalibration = true;
-				}
-				else if(2 == button)
-				{
-					// cycle through out ranges
-					gOutRange = gOutRange + 1;
-					if(kOutRangeNum == gOutRange)
-						gOutRange = kOutRangeFull;
-					printf("Range: %d\n\r", gOutRange);
-				}
-				else if(numButtons - 1 == button)
-					shouldChangeMode = 1;
-			}
-		}
+		menu_render(context);
 	}
 
 	static double setupMs = 0;
 	static bool setupDone = false;
+	int shouldChangeMode = menuShouldChangeMode();
 	if(shouldChangeMode) {
 		setupMs = tri.getTimeMs();
 		if(!firstRun)
 			gMode = (gMode + shouldChangeMode + kNumModes) % kNumModes;
 		printf("mode: %d\n\r", gMode);
 		setupDone = false;
-		shouldChangeMode = 0;
 	}
 	firstRun = false;
 
