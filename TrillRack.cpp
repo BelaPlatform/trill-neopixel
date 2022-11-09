@@ -10,11 +10,11 @@
 extern "C" {
 #include "usbd_midi_if.h"
 };
-extern const unsigned int kNumModes;
 extern bool gSecondTouchIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
-extern bool (*mode_setups[])(double);
-extern void (*mode_renders[])(BelaContext*);
+extern bool performanceMode_update(unsigned int mode);
+extern bool performanceMode_setup(double);
+extern void performanceMode_render(BelaContext*);
 extern bool menu_setup(double);
 extern void menu_render(BelaContext*);
 extern bool menuShouldChangeMode();
@@ -397,7 +397,10 @@ void tr_render(BelaContext* context)
 	if(shouldChangeMode) {
 		setupMs = tri.getTimeMs();
 		if(!firstRun)
+		{
 			gMode = (gMode + shouldChangeMode + kNumModes) % kNumModes;
+			performanceMode_update(gMode);
+		}
 		printf("mode: %d\n\r", gMode);
 		setupDone = false;
 	}
@@ -405,13 +408,13 @@ void tr_render(BelaContext* context)
 
 	if(!setupDone) {
 		gSecondTouchIsSize = false; // will be set as needed by the call in the next line
-		setupDone = mode_setups[gMode](tri.getTimeMs() - setupMs);
+		setupDone = performanceMode_setup(tri.getTimeMs() - setupMs);
 	}
 	if(setupDone)
 	{
 		if(!gAlt) {
 			ledSliders.process(trill.rawData.data());
-			mode_renders[gMode](context); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
+			performanceMode_render(context); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
 		}
 	}
 	// actually display the updated LEDs

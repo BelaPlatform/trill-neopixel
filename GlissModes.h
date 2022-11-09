@@ -11,3 +11,5 @@ typedef enum {
 	kOutRangePositive10,
 	kOutRangeNum,
 } OutRange;
+
+enum { kNumModes = 5 };

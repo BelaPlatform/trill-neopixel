@@ -179,8 +179,8 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		}
 	}
 }
-
-static void ledSlidersExpButtonsProcess(LedSliders& sl, std::array<float,2>& outs, float scale, std::vector<float>const& offsets = {})
+template <size_t T>
+static void ledSlidersExpButtonsProcess(LedSliders& sl, std::array<float,2>& outs, float scale, std::array<float,T>const& offsets = {})
 {
 	int highest = -1;
 	for(size_t n = 0; n < sl.sliders.size(); ++n)
@@ -301,130 +301,6 @@ bool modeAlt_setup()
 		true
 	);
 	return true;
-}
-
-// MODE 1: DIRECT CONTROL / SINGLE SLIDER
-bool mode1_setup(double ms)
-{
-	rgb_t color = {uint8_t(255), 0, 0};
-	if(!ms)
-	{
-		ledSlidersSetupOneSlider(
-			color,
-			LedSlider::AUTO_CENTROIDS
-		);
-		gOutMode = kOutModeFollowTouch;
-	}
-	gSecondTouchIsSize = true;
-	return modeChangeBlink(ms, color);
-}
-
-// MODE 2: DIRECT CONTROL / DOUBLE SLIDER
-bool mode2_setup(double ms)
-{
-	unsigned int guardPads = 1;
-	rgb_t colors[2] = {
-		{uint8_t(255), 0, 0},
-		{0, uint8_t(255), 0},
-	};
-	if(!ms)
-	{
-		ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
-		gOutMode = kOutModeFollowTouch;
-	}
-	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
-}
-
-// MODE 3: LFO / SINGLE SLIDER
-bool mode3_setup(double ms)
-{
-	rgb_t color = {128, 128, 128};
-	if(!ms)
-	{
-		ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
-		gOutMode = kOutModeFollowLeds;
-	}
-	gSecondTouchIsSize = true;
-	return modeChangeBlink(ms, color);
-}
-
-// MODE 4: LFO / DOUBLE SLIDER
-bool mode4_setup(double ms)
-{
-	unsigned int guardPads = 1;
-	rgb_t colors[2] = {
-		{uint8_t(255), uint8_t(255), 0},
-		{0, 0, uint8_t(255)},
-	};
-	if(!ms)
-	{
-		ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-		gOutMode = kOutModeFollowLeds;
-	}
-	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
-}
-
-static bool balancedLfoSetup(double ms, bool triangle)
-{
-	gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
-	if(!ms)
-	{
-		for(auto& o : oscillators)
-			o.setup(1, triangle ? Oscillator::triangle : Oscillator::square); // Fs set to 1, so we need to pass normalised frequency later
-
-		ledSlidersSetupOneSlider(
-			{0, 0, 0}, // dummy
-			LedSlider::MANUAL_CENTROIDS
-		);
-	}
-	gOutMode = kOutModeManual;
-	unsigned int split = triangle ? kNumLeds * 0.66 : kNumLeds * 0.33;
-	return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), split, split);
-}
-
-bool mode5_setup(double ms)
-{
-	return balancedLfoSetup(ms, true);
-}
-
-bool mode6_setup(double ms)
-{
-	return balancedLfoSetup(ms, false);
-}
-
-// MODE 7: ENVELOPE GENERATOR
-bool mode7_setup(double ms)
-{
-	rgb_t color = {0, 0, uint8_t(255)};
-	if(!ms)
-	{
-		ledSlidersSetupOneSlider(
-			color,
-			LedSlider::MANUAL_CENTROIDS
-		);
-		gOutMode = kOutModeFollowLeds;
-	}
-	gSecondTouchIsSize = true;
-	return modeChangeBlink(ms, color);
-}
-
-// MODE 8: DUAL ENVELOPE GENERATOR
-bool mode8_setup(double ms)
-{
-	unsigned int guardPads = 1;
-	rgb_t colors[2] = {
-		{uint8_t(255), uint8_t(255), 0},
-		{0, 0, uint8_t(255)},
-	};
-	if(!ms)
-	{
-		ledSlidersSetupTwoSliders(guardPads,
-			colors,
-			LedSlider::MANUAL_CENTROIDS
-		);
-		gOutMode = kOutModeFollowLeds;
-	}
-	return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 }
 
 static void processLatch(bool split)
@@ -555,54 +431,6 @@ static void processLatch(bool split)
 	else
 		gOutMode = kOutModeFollowTouch;
 	pastButton = button;
-}
-
-void mode1_render(BelaContext*)
-{
-	processLatch(false);
-
-}
-
-void mode2_render(BelaContext*)
-{
-	processLatch(true);
-}
-
-// MODE 9: monochrome VUmeter / envelope follower (pretty crude, without rectification or lowpass for now.
-// good for LFOs/EGs
-bool mode9_setup(double ms)
-{
-	rgb_t color = {uint8_t(127), uint8_t(127), 0};
-	if(!ms)
-	{
-		ledSlidersSetupOneSlider(
-			color,
-			LedSlider::MANUAL_CENTROIDS
-		);
-		gOutMode = kOutModeFollowLeds;
-	}
-	return modeChangeBlink(ms, color);
-}
-
-bool mode10_setup(double ms)
-{
-	if(!ms)
-	{
-		ledSlidersSetupMultiSlider(
-			ledSliders,
-			{
-				{0, uint8_t(255), 0},
-				{0, uint8_t(200), uint8_t(50)},
-				{0, uint8_t(150), uint8_t(100)},
-				{0, uint8_t(100), uint8_t(150)},
-				{0, uint8_t(50), uint8_t(200)},
-			},
-			LedSlider::MANUAL_CENTROIDS,
-			true
-		);
-		gOutMode = kOutModeManual;
-	}
-	return modeChangeBlink(ms, {0, 0, uint8_t(255)});
 }
 
 template <typename sample_t>
@@ -974,88 +802,244 @@ static void gestureRecorderSplit_loop(bool loop)
 		ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
 	}
 }
+class PerformanceMode {
+public:
+	virtual bool setup(double ms) = 0;
+	virtual void render(BelaContext*) = 0;
+	virtual void setParameter(size_t idx, float value) {};
+};
 
-// SINGLE LFO
-void mode3_render(BelaContext*)
-{
-	gestureRecorderSingle_loop(true);
-}
-
-// DUAL LFOS
-void mode4_render(BelaContext*)
-{
-	gestureRecorderSplit_loop(true);
-}
-
-void mode5_render(BelaContext* context)
-{
-	float midFreq = context->analogFrames / gClockPeriod; // we process once per block; the oscillator thinks Fs = 1
-	float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
-
-	if (touchPosition > 0.0) {
-		gDivisionPoint = touchPosition;
+class DirectControlMode : public PerformanceMode {
+	bool setup(double ms) override
+	{
+		if(split)
+		{
+			unsigned int guardPads = 1;
+			rgb_t colors[2] = {
+				{uint8_t(255), 0, 0},
+				{0, uint8_t(255), 0},
+			};
+			if(!ms)
+			{
+				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
+				gOutMode = kOutModeFollowTouch;
+			}
+			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+		} else {
+			rgb_t color = {uint8_t(255), 0, 0};
+			if(!ms)
+			{
+				ledSlidersSetupOneSlider(
+					color,
+					LedSlider::AUTO_CENTROIDS
+				);
+				gOutMode = kOutModeFollowTouch;
+			}
+			gSecondTouchIsSize = true;
+			return modeChangeBlink(ms, color);
+		}
 	}
-	
-	// limit max brightness. On the one hand, it reduces power consumption,
-	// on the other hand it attempts to avoid the upper range, where it becomes hard
-	// to discern increased brightness.
-	const float kMaxBrightness = 0.4f;
-	std::array<float,oscillators.size()> freqs = {
-			(0.92f - gDivisionPoint) * midFreq * 2.f,
-			gDivisionPoint * midFreq * 2,
-	};
-	for(size_t n = 0; n < oscillators.size(); ++n) {
-		float out = oscillators[n].process(freqs[n]);
-		gManualAnOut[!n] = map(out, -1, 1, 0, 1); // The ! is so that the CV outs order matches the display. TODO: tidy up
-		float brightness = map(out, -1, 1, 0, kMaxBrightness);
-		unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
-		unsigned int start = (0 == n) ? 0 : split;
-		unsigned int stop = (0 == n) ? split : kNumLeds;
-		rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
-		for(unsigned int p = start; p <  stop; ++p)
-			np.setPixelColor(p, color.r, color.g, color.b);
+	void render(BelaContext*) override
+	{
+		processLatch(split);
 	}
-}
+	void setParameter(size_t idx, float value) override
+	{
+		switch(idx)
+		{
+		case 0:
+			split = value;
+			break;
+		case 1:
+			autoLatch = value;
+			break;
+		}
+	}
+private:
+	bool split = false;
+	bool autoLatch = false;
+} gDirectControlMode;
 
-void mode6_render(BelaContext* context)
-{
-	mode5_render(context);
-}
-
-// ENVELOPE GENERATOR
-void mode7_render(BelaContext*)
-{
-	gestureRecorderSingle_loop(false);
-}
-
-// MODE 8: DUAL ENVELOPE GENERATOR
-void mode8_render(BelaContext*)
-{
-	gestureRecorderSplit_loop(false);
-}
-
-void mode9_render(BelaContext*)
-{
-	float in = tri.analogRead();
-	LedSlider::centroid_t centroids[1];
-	centroids[0].location = in;
-	centroids[0].size = kFixedCentroidSize;
-	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
-}
-
-void mode10_render(BelaContext*)
-{
-	float scale = 0.1;
-	static std::vector<float> offsets = {
-			0.5,
-			0.6,
-			0.7,
-			0.8,
-			0.9,
+class RecorderMode : public PerformanceMode {
+	bool setup(double ms) override
+	{
+		gOutMode = kOutModeFollowLeds;
+		if(split)
+		{
+			unsigned int guardPads = 1;
+			if(!ms)
+				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+		}
+		else
+		{
+			if(!ms)
+				ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
+			gSecondTouchIsSize = true;
+			return modeChangeBlink(ms, colors[0]);
+		}
+	}
+	void render(BelaContext*) override
+	{
+		if(split)
+			gestureRecorderSplit_loop(retrigger);
+		else
+			gestureRecorderSingle_loop(retrigger);
+	}
+private:
+	bool split = false;
+	bool retrigger = true;
+	unsigned int inputMode = 0;
+	rgb_t colors[2] = {
+			{128, 128, 128},
+			{128, 128, 64},
 	};
-	ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
+} gRecorderMode;
+
+class ScaleMeterMode : public PerformanceMode {
+public:
+	bool setup(double ms) override
+	{
+		rgb_t color = {uint8_t(127), uint8_t(127), 0};
+		if(!ms)
+		{
+			ledSlidersSetupOneSlider(
+				color,
+				LedSlider::MANUAL_CENTROIDS
+			);
+			gOutMode = kOutModeFollowLeds;
+		}
+		return modeChangeBlink(ms, color);
+	}
+	void render(BelaContext*) override
+	{
+		float in = tri.analogRead();
+		LedSlider::centroid_t centroids[1];
+		centroids[0].location = in;
+		centroids[0].size = kFixedCentroidSize;
+		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+	}
+private:
+	unsigned int outputMode = 0;
+	float envelopeDetectorCutoff = 200;
+} gScaleMeterMode;
+
+class BalancedOscsMode : public PerformanceMode {
+public:
+	bool setup(double ms) override
+	{
+		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
+		bool triangle = waveform; // TODO: fix waveforms
+		if(!ms)
+		{
+			for(auto& o : oscillators)
+				o.setup(1, triangle ? Oscillator::triangle : Oscillator::square); // Fs set to 1, so we need to pass normalised frequency later
+
+			ledSlidersSetupOneSlider(
+				{0, 0, 0}, // dummy
+				LedSlider::MANUAL_CENTROIDS
+			);
+		}
+		gOutMode = kOutModeManual;
+		unsigned int split = triangle ? kNumLeds * 0.66 : kNumLeds * 0.33;
+		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), split, split);
+	}
+	void render(BelaContext* context) override
+	{
+		float midFreq = context->analogFrames / gClockPeriod; // we process once per block; the oscillator thinks Fs = 1
+		float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
+
+		if (touchPosition > 0.0) {
+			gDivisionPoint = touchPosition;
+		}
+
+		// limit max brightness. On the one hand, it reduces power consumption,
+		// on the other hand it attempts to avoid the upper range, where it becomes hard
+		// to discern increased brightness.
+		const float kMaxBrightness = 0.4f;
+		std::array<float,oscillators.size()> freqs = {
+				(0.92f - gDivisionPoint) * midFreq * 2.f,
+				gDivisionPoint * midFreq * 2,
+		};
+		for(size_t n = 0; n < oscillators.size(); ++n) {
+			float out = oscillators[n].process(freqs[n]);
+			gManualAnOut[!n] = map(out, -1, 1, 0, 1); // The ! is so that the CV outs order matches the display. TODO: tidy up
+			float brightness = map(out, -1, 1, 0, kMaxBrightness);
+			unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
+			unsigned int start = (0 == n) ? 0 : split;
+			unsigned int stop = (0 == n) ? split : kNumLeds;
+			rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
+			for(unsigned int p = start; p <  stop; ++p)
+				np.setPixelColor(p, color.r, color.g, color.b);
+		}
+	}
+private:
+	unsigned int waveform = 0;
+	float masterClock = 5;
+	unsigned int inputMode = 0;
+} gBalancedOscsMode;
+
+class ExprButtonsMode : public PerformanceMode
+{
+	bool setup(double ms)
+	{
+		if(!ms)
+		{
+			ledSlidersSetupMultiSlider(
+				ledSliders,
+				{
+					{0, uint8_t(255), 0},
+					{0, uint8_t(200), uint8_t(50)},
+					{0, uint8_t(150), uint8_t(100)},
+					{0, uint8_t(100), uint8_t(150)},
+					{0, uint8_t(50), uint8_t(200)},
+				},
+				LedSlider::MANUAL_CENTROIDS,
+				true
+			);
+			gOutMode = kOutModeManual;
+		}
+		return modeChangeBlink(ms, {0, 0, uint8_t(255)});
+	}
+	void render(BelaContext*)
+	{
+		float scale = 0.1;
+		ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
+	}
+private:
+	std::array<float,5> offsets = {
+		0.5,
+		0.6,
+		0.7,
+		0.8,
+		0.9,
+	};
+} gExprButtonsMode;
+
+static unsigned int gCurrentMode;
+static std::array<PerformanceMode*,kNumModes> performanceModes = {
+	&gDirectControlMode,
+	&gRecorderMode,
+	&gScaleMeterMode,
+	&gBalancedOscsMode,
+	&gExprButtonsMode,
+};
+
+void performanceMode_update(unsigned int newMode)
+{
+	if(newMode < performanceModes.size())
+		gCurrentMode = newMode;
 }
 
+bool performanceMode_setup(double ms)
+{
+	return performanceModes[gCurrentMode]->setup(ms);
+}
+
+void performanceMode_render(BelaContext* context)
+{
+	performanceModes[gCurrentMode]->render(context);
+}
 
 class CalibrationProcedure {
 private:
@@ -1567,29 +1551,3 @@ void menu_render(BelaContext*)
 //		}
 	}
 }
-
-extern const unsigned int kNumModes = 10;
-bool (*mode_setups[kNumModes])(double) = {
-	mode1_setup,
-	mode2_setup,
-	mode3_setup,
-	mode4_setup,
-	mode5_setup,
-	mode6_setup,
-	mode7_setup,
-	mode8_setup,
-	mode9_setup,
-	mode10_setup,
-};
-void (*mode_renders[kNumModes])(BelaContext*) = {
-	mode1_render,
-	mode2_render,
-	mode3_render,
-	mode4_render,
-	mode5_render,
-	mode6_render,
-	mode7_render,
-	mode8_render,
-	mode9_render,
-	mode10_render,
-};
