@@ -336,7 +336,7 @@ bool mode2_setup(double ms)
 // MODE 3: LFO / SINGLE SLIDER
 bool mode3_setup(double ms)
 {
-	rgb_t color = {uint8_t(255), uint8_t(255), uint8_t(255)};
+	rgb_t color = {128, 128, 128};
 	if(!ms)
 	{
 		ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
