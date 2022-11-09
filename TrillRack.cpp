@@ -44,7 +44,7 @@ Trill trill;
 CentroidDetection cd;
 
 extern const unsigned int kNumPads = 26;
-unsigned int padsToOrderMap[kNumPads] = {
+std::vector<unsigned int> padsToOrderMap = {
 #ifdef REV2
 	29,
 	28,
@@ -141,7 +141,8 @@ unsigned int padsToOrderMap[kNumPads] = {
 #endif // OLD
 #endif // REV2
 };
-static int gAlt = 0;
+CentroidDetection globalSlider;
+int gAlt = 0;
 
 #include "bootloader.h"
 
@@ -247,6 +248,8 @@ void tr_snpDone()
 
 int tr_setup()
 {
+	assert(kNumPads == padsToOrderMap.size());
+	globalSlider.setup(padsToOrderMap, 4, 1);
 	np.begin();
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
@@ -287,7 +290,6 @@ int tr_setup()
 	if(trill.prepareForDataRead())
 		return false;
 
-	cd.setup({padsToOrderMap, padsToOrderMap + kNumPads / 2}, 4, 1); //dummy sizeScale
 	modeAlt_setup();
 	setHdlCtlChange(midiCtlCallback);
 	setHdlAll(midiInputCallback);
@@ -368,18 +370,14 @@ void tr_render(BelaContext* context)
 	static int gDiIn0Last = 0;
 	static bool hadTouch = false;
 	bool hasTouch = false;
+	// TODO: it would be nicer to use globalSlider instead, but that would require calling process()
+	// on it every time, which may be expensive
 	for(auto& s : ledSliders.sliders)
 	{
 		if((hasTouch = s.getNumTouches()))
 			break;
 	}
-	if ((!diIn0 && diIn0 != gDiIn0Last) && !firstRun){
-		// button onset
-		if(gAlt){ // exit from alt mode
-			gAlt = false;
-			np.clear();
-		}
-	} else if(!diIn0)
+	if(!diIn0)
 	{
 		if(hasTouch && !hadTouch)
 		{
@@ -393,7 +391,7 @@ void tr_render(BelaContext* context)
 	hadTouch = hasTouch;
 	if(1 == gAlt)
 	{
-		menu_render(context);
+		menu_render(context); // this will set gAlt back to 0 when exiting menu
 	}
 
 	static double setupMs = 0;

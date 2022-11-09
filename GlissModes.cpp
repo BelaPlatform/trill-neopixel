@@ -7,11 +7,12 @@
 
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 
+extern int gAlt;
 extern TrillRackInterface tri;
 extern const unsigned int kNumPads;
 extern const unsigned int kNumLeds;
 extern unsigned int gOutRange;
-extern unsigned int padsToOrderMap[];
+extern std::vector<unsigned int> padsToOrderMap;
 extern NeoPixel np;
 extern Trill trill;
 extern std::array<float,2> gManualAnOut;
@@ -44,6 +45,7 @@ float gDivisionPoint = 0;
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
+extern CentroidDetection globalSlider;
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
 {
@@ -155,7 +157,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		});
 	}
 	LedSliders::Settings settings = {
-			.order = {padsToOrderMap, padsToOrderMap + kNumPads},
+			.order = padsToOrderMap,
 			.sizeScale = kSizeScale,
 			.boundaries = boundaries,
 			.maxNumCentroids = {1},
@@ -472,7 +474,7 @@ static void processLatch(bool split)
 			}
 		}
 	}
-#if 0
+#if 1
 	if(!split)
 	{
 		// try to hold without button
@@ -1177,28 +1179,316 @@ float getGnd(){
 	return gCalibrationProcedure.getGnd();
 }
 
-static bool isCalibration;
+class MenuItemType
+{
+public:
+	MenuItemType(rgb_t baseColor) : baseColor(baseColor) {}
+	virtual void process(LedSlider& slider) = 0;
+	rgb_t baseColor;
+};
+
+class MenuItemTypeTransition : public MenuItemType
+{
+public:
+	MenuItemTypeTransition(const char* name, rgb_t baseColor) :
+		MenuItemType(baseColor), name(name) {}
+	virtual void process(LedSlider& slider) override
+	{
+		bool state = slider.getNumTouches();
+		if(state != pastState)
+			transition(state && !pastState);
+		if(state != pastState)
+		{
+			LedSlider::centroid_t centroid;
+			centroid.location = 0.5;
+			// dimmed for "inactive"
+			// full brightness for "active"
+			centroid.size = state ? 1 : 0.1;
+			slider.setLedsCentroids(&centroid, 1);
+		}
+		pastState = state;
+	}
+protected:
+	virtual void transition(bool) = 0;
+	char const* name;
+	bool pastState = false;
+};
+
+class MenuItemTypeTransitionOrHold: public MenuItemTypeTransition
+{
+public:
+	MenuItemTypeTransitionOrHold(const char* name, rgb_t baseColor, uint32_t holdTime) :
+		MenuItemTypeTransition(name, baseColor), holdTime(holdTime) {}
+	void process(LedSlider& slider) override
+	{
+		MenuItemTypeTransition::process(slider);
+		if(!holdNotified && HAL_GetTick() - lastTransition > holdTime)
+		{
+			holdNotified = true;
+			event(pastState ? kHoldHigh : kHoldLow);
+		}
+	}
+private:
+	void transition(bool rising) {
+		lastTransition = HAL_GetTick();
+		event(rising ? kTransitionRising : kTransitionFalling);
+		holdNotified = false;
+	}
+protected:
+	typedef enum {kTransitionFalling, kTransitionRising, kHoldLow, kHoldHigh} Event;
+	virtual void event(Event) = 0;
+	uint32_t lastTransition;
+	uint32_t holdTime;
+	bool holdNotified = true; // avoid notifying on startup
+};
+
+class MenuItemTypeDiscreteContinuous : public MenuItemTypeTransitionOrHold
+{
+public:
+	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, uint32_t holdTime, unsigned int& value, unsigned int numValues):
+		MenuItemTypeTransitionOrHold(name, baseColor, holdTime), value(value), numValues(numValues) {}
+	void event(Event e) override
+	{
+		switch (e)
+		{
+		case kTransitionRising:
+			value++;
+			if(value >= numValues)
+				value = 0;
+			break;
+		case kHoldHigh:
+			break;
+		default:
+			break;
+		}
+	}
+	unsigned int& value;
+	unsigned int numValues;
+};
+
+class MenuItemTypeDiscrete : public MenuItemTypeTransition
+{
+public:
+	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, unsigned int& value, unsigned int numValues) :
+		MenuItemTypeTransition(name, baseColor), value(value), numValues(numValues) {}
+private:
+	void transition(bool rising)
+	{
+		if(rising)
+		{
+			++value;
+			if(value >= numValues)
+				value = 0;
+			printf("Setting %s to %d\n\r", name, value);
+		}
+	}
+	unsigned int& value;
+	unsigned int numValues;
+};
+
 static int shouldChangeMode = 1;
+class MenuItemTypeNextMode : public MenuItemTypeTransition
+{
+public:
+	MenuItemTypeNextMode(const char* name, rgb_t baseColor, unsigned int& value, unsigned int numValues) :
+		MenuItemTypeTransition(name, baseColor) {}
+private:
+	void transition(bool rising)
+	{
+		if(rising)
+			shouldChangeMode = 1;
+	}
+};
+
+class MenuPage { //todo: make non-copyable
+public:
+	const char* name;
+	std::vector<MenuItemType*> items;
+	MenuPage(MenuPage&&) = delete;
+	MenuPage(const char* name, const std::vector<MenuItemType*>& items = {}): name(name), items(items) {}
+	MenuPage() {}
+};
+
+int menu_setup(double);
+static void menu_in(MenuPage& menu);
+static void menu_up();
+static MenuPage* activeMenu;
+class MenuItemTypeEnterSubmenu : public MenuItemTypeTransition
+{
+public:
+	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, MenuPage& submenu) :
+		MenuItemTypeTransition(name, baseColor), submenu(submenu) {}
+private:
+	void transition(bool rising)
+	{
+		if(rising) {
+			menu_in(submenu);
+		}
+	}
+	MenuPage& submenu;
+};
+
+class MenuItemTypeExitSubmenu : public MenuItemTypeTransition
+{
+public:
+	MenuItemTypeExitSubmenu(const char* name, rgb_t baseColor) :
+		MenuItemTypeTransition(name, baseColor) {}
+private:
+	void transition(bool rising)
+	{
+		if(rising) {
+			printf("MENU sEXIT\n\r");
+			menu_up();
+		}
+	}
+};
+
+class MenuItemTypeDisabled : public MenuItemType
+{
+public:
+	MenuItemTypeDisabled() : MenuItemType({0, 0, 0}) {}
+	void process(LedSlider& slider) override {}
+};
+
+unsigned int gDummies[5];
+MenuItemTypeDiscrete zero("0", {0, 0, 255}, gDummies[0], 3);
+MenuItemTypeDiscrete one("1", {0, 0, 255}, gDummies[0], 3);
+MenuItemTypeDiscrete two("2", {0, 0, 255}, gDummies[0], 3);
+MenuItemTypeDiscrete three("3", {0, 0, 255}, gDummies[0], 3);
+MenuItemTypeNextMode nextMode("4", {0, 255, 0}, gDummies[0], 3);
+MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
+MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
+static MenuItemTypeDisabled disabled;
+
+MenuPage mainMenu("main");
+MenuPage globalSettingsMenu("global settings");
+MenuPage singleSliderMenu("single slider");
+static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, globalSettingsMenu);
+
+static bool isCalibration;
+static bool menuJustEntered;
 int menuShouldChangeMode()
 {
 	int tmp = shouldChangeMode;
-	shouldChangeMode = false;
+	shouldChangeMode = 0;
 	return tmp;
 }
 
-int menu_setup(double ms)
+static std::vector<MenuPage*> menuStack;
+
+static void menu_update()
 {
-	std::vector<bool> altStates;
-	std::vector<size_t> onsets;
-	std::vector<size_t> offsets;
-	ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, true);
-	isCalibration = false;
+	// these vectors should really be initialised at startup but they have circular dependencies
+	static bool inited = false;
+	if(!inited)
+	{
+		inited = true;
+		mainMenu.items = {
+			&enterGlobalSettings,
+			&one,
+			&two,
+			&disabled,
+			&nextMode,
+		};
+		globalSettingsMenu.items = {
+			&exitMe,
+			&disabled,
+			&one,
+			&two,
+			&disCon,
+		};
+		singleSliderMenu.items = {
+			&disCon,
+			&disCon,
+			&disCon,
+			&disCon,
+			&disCon,
+		};
+	}
+	MenuPage* newMenu = menuStack.size() ? menuStack.back() : nullptr;
+	if(newMenu && activeMenu != newMenu)
+	{
+		activeMenu = newMenu;
+		printf("menu_update: %s\n\r", newMenu ? newMenu->name : "___");
+		ledSlidersSetupMultiSlider(
+			ledSlidersAlt,
+			{
+				activeMenu->items[0]->baseColor,
+				activeMenu->items[1]->baseColor,
+				activeMenu->items[2]->baseColor,
+				activeMenu->items[3]->baseColor,
+				activeMenu->items[4]->baseColor,
+			},
+			LedSlider::MANUAL_CENTROIDS,
+			true
+		);
+		printf("menuJustEntered goes true\n\r");
+		menuJustEntered = true;
+		isCalibration = false;
+	}
+}
+
+void menu_exit()
+{
+	menuStack.resize(0);
+	activeMenu = nullptr;
+	printf("menu_exit\n\r");
+	gAlt = 0;
+}
+
+static void menu_up()
+{
+	printf("menu_up from %d %s\n\r", menuStack.size(), menuStack.back()->name);
+	if(menuStack.size())
+		menuStack.pop_back();
+	if(!menuStack.size())
+		menu_exit();
+}
+
+static void menu_in(MenuPage& menu)
+{
+	printf("menu_in from %s to %s\n\r", menuStack.size() ? menuStack.back()->name : "___", menu.name);
+	menuStack.emplace_back(&menu);
+}
+
+static bool menuDiIn0Last;
+int menu_setup(double)
+{
+	menuStack.resize(0);
+	menu_in(mainMenu);
+	menu_update(); // TODO: is this needed?
+	menuDiIn0Last = tri.digitalRead(0);
 	return true;
 }
 
 void menu_render(BelaContext*)
 {
+	// if button pressed, go back up
+	bool diIn0 = tri.digitalRead(0);
+	if (!diIn0 && diIn0 != menuDiIn0Last){
+		// button onset
+		printf("button when stack is %d\n\r", menuStack.size());
+		menu_up();
+	}
+	menuDiIn0Last = diIn0;
+
+	menu_update();
+	if(!activeMenu)
+		return;
+	// process these regardless to ensure the display is updated
+	// (i.e.: if menuJustEntered, this will make sure the buttons are shown)
 	ledSlidersAlt.process(trill.rawData.data());
+	// update touches
+	if(menuJustEntered)
+	{
+		globalSlider.process(trill.rawData.data());
+		// if we just entered the menu, ensure we have removed
+		// all fingers once before enabling interaction
+		if(globalSlider.getNumTouches())
+			return;
+		printf("menu just entered goes false: %d\n\r", globalSlider.getNumTouches());
+		menuJustEntered = false;
+	}
 	static const size_t numButtons = ledSlidersAlt.sliders.size();
 	static std::vector<bool> altStates(numButtons);
 	static std::vector<size_t> onsets(numButtons);
@@ -1213,30 +1503,20 @@ void menu_render(BelaContext*)
 		}
 	}
 	else {
-		ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, false);
+		for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
+			activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
+
+//		ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, false);
 		// see if a button was pressed
-		if(onsets.size())
-		{
-			// only consider one touch
-			const unsigned int button = onsets[0];
-			if(0 == button)
-				shouldChangeMode = -1;
-			else if (1 == button)
-			{
-				gCalibrationProcedure.setup();
-				isCalibration = true;
-			}
-			else if(2 == button)
-			{
-				// cycle through out ranges
-				gOutRange = gOutRange + 1;
-				if(kOutRangeNum == gOutRange)
-					gOutRange = kOutRangeFull;
-				printf("Range: %d\n\r", gOutRange);
-			}
-			else if(numButtons - 1 == button)
-				shouldChangeMode = 1;
-		}
+//		if(onsets.size())
+//		{
+//			// only consider one touch
+//			const unsigned int button = onsets[0];
+////				gCalibrationProcedure.setup();
+////				isCalibration = true;
+//			if(numButtons - 1 == button)
+//				shouldChangeMode = 1;
+//		}
 	}
 }
 
