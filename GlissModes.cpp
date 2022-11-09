@@ -1171,10 +1171,10 @@ public:
 	rgb_t baseColor;
 };
 
-class MenuItemTypeTransition : public MenuItemType
+class MenuItemTypeEvent : public MenuItemType
 {
 public:
-	MenuItemTypeTransition(const char* name, rgb_t baseColor, uint32_t holdTime = 0) :
+	MenuItemTypeEvent(const char* name, rgb_t baseColor, uint32_t holdTime = 0) :
 		MenuItemType(baseColor), name(name), holdTime(holdTime) {}
 	void process(LedSlider& slider) override
 	{
@@ -1215,11 +1215,11 @@ protected:
 };
 
 #if 0 // still TODO
-class MenuItemTypeDiscreteContinuous : public MenuItemTypeTransition
+class MenuItemTypeDiscreteContinuous : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, uint32_t holdTime, unsigned int& value, unsigned int numValues):
-		MenuItemTypeTransition(name, baseColor, holdTime), value(value), numValues(numValues) {}
+		MenuItemTypeEvent(name, baseColor, holdTime), value(value), numValues(numValues) {}
 	void event(Event e) override
 	{
 		switch (e)
@@ -1240,11 +1240,11 @@ public:
 };
 #endif
 
-class MenuItemTypeDiscrete : public MenuItemTypeTransition
+class MenuItemTypeDiscrete : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, unsigned int& value, unsigned int numValues) :
-		MenuItemTypeTransition(name, baseColor, 0), value(value), numValues(numValues) {}
+		MenuItemTypeEvent(name, baseColor, 0), value(value), numValues(numValues) {}
 private:
 	void event(Event e)
 	{
@@ -1261,11 +1261,11 @@ private:
 };
 
 static int shouldChangeMode = 1;
-class MenuItemTypeNextMode : public MenuItemTypeTransition
+class MenuItemTypeNextMode : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeNextMode(const char* name, rgb_t baseColor) :
-		MenuItemTypeTransition(name, baseColor, 0) {}
+		MenuItemTypeEvent(name, baseColor, 0) {}
 private:
 	void event(Event e) override
 	{
@@ -1288,11 +1288,11 @@ static void menu_in(MenuPage& menu);
 static void menu_up();
 static MenuPage* activeMenu;
 
-class MenuItemTypeEnterSubmenu : public MenuItemTypeTransition
+class MenuItemTypeEnterSubmenu : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime, MenuPage& submenu) :
-		MenuItemTypeTransition(name, baseColor, holdTime), submenu(submenu) {}
+		MenuItemTypeEvent(name, baseColor, holdTime), submenu(submenu) {}
 private:
 	void event(Event e)
 	{
@@ -1340,11 +1340,11 @@ public:
 	float& value;
 };
 
-class MenuItemTypeExitSubmenu : public MenuItemTypeTransition
+class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeExitSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime = 0) :
-		MenuItemTypeTransition(name, baseColor, holdTime) {}
+		MenuItemTypeEvent(name, baseColor, holdTime) {}
 private:
 	void event(Event e)
 	{
