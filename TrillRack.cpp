@@ -367,7 +367,6 @@ void tr_render(BelaContext* context)
 	tri.buttonLedWrite(1, clippedIn);
 	
 	static bool firstRun = true;
-	static int gDiIn0Last = 0;
 	static bool hadTouch = false;
 	bool hasTouch = false;
 	// TODO: it would be nicer to use globalSlider instead, but that would require calling process()
@@ -384,10 +383,8 @@ void tr_render(BelaContext* context)
 			//button is on + one touch: enter alt mode
 			gAlt = 1;
 			menu_setup(0);
-			np.clear();
 		}
 	}
-	gDiIn0Last = diIn0;
 	hadTouch = hasTouch;
 	if(1 == gAlt)
 	{
