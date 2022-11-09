@@ -1313,19 +1313,57 @@ int menu_setup(double);
 static void menu_in(MenuPage& menu);
 static void menu_up();
 static MenuPage* activeMenu;
-class MenuItemTypeEnterSubmenu : public MenuItemTypeTransition
+
+class MenuItemTypeEnterSubmenu : public MenuItemTypeTransitionOrHold
 {
 public:
-	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, MenuPage& submenu) :
-		MenuItemTypeTransition(name, baseColor), submenu(submenu) {}
+	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime, MenuPage& submenu) :
+		MenuItemTypeTransitionOrHold(name, baseColor, holdTime), submenu(submenu) {}
 private:
-	void transition(bool rising)
+	void event(Event e)
 	{
-		if(rising) {
+		if(kHoldHigh == e) {
 			menu_in(submenu);
 		}
 	}
 	MenuPage& submenu;
+};
+
+class MenuItemTypeSlider : public MenuItemType {
+public:
+	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
+	MenuItemTypeSlider(const rgb_t& color, float* value) :
+		MenuItemType(color), value(value) {}
+	void process(LedSlider& slider) override
+	{
+		if(value)
+			*value = slider.compoundTouchLocation();
+	}
+	float* value;
+};
+
+MenuPage mainMenu("main");
+MenuPage globalSettingsMenu("global settings");
+
+static MenuItemTypeSlider singleSliderMenuItem;
+// this is a submenu consisting of a continuous slider(no buttons). Before entering it,
+// appropriately set the properties of singleSliderMenuItem
+MenuPage singleSliderMenu("single slider", {&singleSliderMenuItem});
+
+// If held-press, get into singleSliderMenu to set value
+class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
+{
+public:
+	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, float& value) :
+		MenuItemTypeEnterSubmenu(name, baseColor, 1000, singleSliderMenu), value(value) {}
+	void event(Event e)
+	{
+		if(kHoldHigh == e) {
+			singleSliderMenuItem = MenuItemTypeSlider(baseColor, &value);
+			menu_in(singleSliderMenu);
+		}
+	}
+	float& value;
 };
 
 class MenuItemTypeExitSubmenu : public MenuItemTypeTransition
@@ -1337,7 +1375,6 @@ private:
 	void transition(bool rising)
 	{
 		if(rising) {
-			printf("MENU sEXIT\n\r");
 			menu_up();
 		}
 	}
@@ -1360,10 +1397,9 @@ MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 static MenuItemTypeDisabled disabled;
 
-MenuPage mainMenu("main");
-MenuPage globalSettingsMenu("global settings");
-MenuPage singleSliderMenu("single slider");
-static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, globalSettingsMenu);
+static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
+float myDummyFloat;
+static MenuItemTypeEnterContinuous enterContinuousMode("Enter continuous mode", {255, 0, 0}, myDummyFloat);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -1395,14 +1431,10 @@ static void menu_update()
 			&disabled,
 			&one,
 			&two,
-			&disCon,
+			&enterContinuousMode,
 		};
 		singleSliderMenu.items = {
-			&disCon,
-			&disCon,
-			&disCon,
-			&disCon,
-			&disCon,
+			&singleSliderMenuItem,
 		};
 	}
 	MenuPage* newMenu = menuStack.size() ? menuStack.back() : nullptr;
@@ -1410,20 +1442,37 @@ static void menu_update()
 	{
 		activeMenu = newMenu;
 		printf("menu_update: %s\n\r", newMenu ? newMenu->name : "___");
-		ledSlidersSetupMultiSlider(
-			ledSlidersAlt,
-			{
-				activeMenu->items[0]->baseColor,
-				activeMenu->items[1]->baseColor,
-				activeMenu->items[2]->baseColor,
-				activeMenu->items[3]->baseColor,
-				activeMenu->items[4]->baseColor,
-			},
-			LedSlider::MANUAL_CENTROIDS,
-			true
-		);
-		printf("menuJustEntered goes true\n\r");
-		menuJustEntered = true;
+		// clear display
+		np.clear();
+		// TODO: the below is not particularly elegant: add a parameter to MenuPage
+		if(activeMenu->items.size() == 5)
+		{
+			ledSlidersSetupMultiSlider(
+				ledSlidersAlt,
+				{
+					activeMenu->items[0]->baseColor,
+					activeMenu->items[1]->baseColor,
+					activeMenu->items[2]->baseColor,
+					activeMenu->items[3]->baseColor,
+					activeMenu->items[4]->baseColor,
+				},
+				LedSlider::MANUAL_CENTROIDS,
+				true
+			);
+			menuJustEntered = true;
+		} else if (1 == activeMenu->items.size()){
+			ledSlidersSetupMultiSlider(
+				ledSlidersAlt,
+				{
+					activeMenu->items[0]->baseColor,
+				},
+				LedSlider::AUTO_CENTROIDS,
+				true
+			);
+			menuJustEntered = false; // this is immediately interactive
+		} else {
+			printf("Can't handle MenuPage\n\r");
+		}
 		isCalibration = false;
 	}
 }
@@ -1486,7 +1535,6 @@ void menu_render(BelaContext*)
 		// all fingers once before enabling interaction
 		if(globalSlider.getNumTouches())
 			return;
-		printf("menu just entered goes false: %d\n\r", globalSlider.getNumTouches());
 		menuJustEntered = false;
 	}
 	static const size_t numButtons = ledSlidersAlt.sliders.size();
