@@ -472,7 +472,32 @@ static void processLatch(bool split)
 			}
 		}
 	}
-
+#if 0
+	if(!split)
+	{
+		// try to hold without button
+		static std::array<std::array<float,latchedValues.size()>,30> pastValues;
+		static size_t idx = 0;
+		size_t pastIdx = (idx - 1 + pastValues.size()) % pastValues.size();
+		if(!values[1] && pastValues[pastIdx][1]) // if size went to zero
+		{
+			values[0] = pastValues[idx][0];
+			values[1] = pastValues[idx][1];
+			latchStarts[0] = true;
+			static bool happend = false;
+			if(!happend)
+				printf("L\n\r");
+			happend = true;
+			pastValues[idx][0] = pastValues[idx][1] = 0;
+		} else {
+			// store past values so we can use them later
+			pastValues[idx] = values;
+		}
+		++idx;
+		if(idx >= pastValues.size())
+			idx = 0;
+	}
+#endif
 	for(ssize_t n = 0; n < 1 + split; ++n)
 	{
 		if(isLatched[n])
