@@ -1174,13 +1174,19 @@ public:
 class MenuItemTypeTransition : public MenuItemType
 {
 public:
-	MenuItemTypeTransition(const char* name, rgb_t baseColor) :
-		MenuItemType(baseColor), name(name) {}
-	virtual void process(LedSlider& slider) override
+	MenuItemTypeTransition(const char* name, rgb_t baseColor, uint32_t holdTime = 0) :
+		MenuItemType(baseColor), name(name), holdTime(holdTime) {}
+	void process(LedSlider& slider) override
 	{
 		bool state = slider.getNumTouches();
 		if(state != pastState)
-			transition(state && !pastState);
+		{
+			bool rising = (state && !pastState);
+			if(holdTime)
+				lastTransition = HAL_GetTick();
+			event(rising ? kTransitionRising : kTransitionFalling);
+			holdNotified = false;
+		}
 		if(state != pastState)
 		{
 			LedSlider::centroid_t centroid;
@@ -1191,46 +1197,29 @@ public:
 			slider.setLedsCentroids(&centroid, 1);
 		}
 		pastState = state;
-	}
-protected:
-	virtual void transition(bool) = 0;
-	char const* name;
-	bool pastState = false;
-};
 
-class MenuItemTypeTransitionOrHold: public MenuItemTypeTransition
-{
-public:
-	MenuItemTypeTransitionOrHold(const char* name, rgb_t baseColor, uint32_t holdTime) :
-		MenuItemTypeTransition(name, baseColor), holdTime(holdTime) {}
-	void process(LedSlider& slider) override
-	{
-		MenuItemTypeTransition::process(slider);
-		if(!holdNotified && HAL_GetTick() - lastTransition > holdTime)
+		if(holdTime && !holdNotified && HAL_GetTick() - lastTransition > holdTime)
 		{
 			holdNotified = true;
 			event(pastState ? kHoldHigh : kHoldLow);
 		}
 	}
-private:
-	void transition(bool rising) {
-		lastTransition = HAL_GetTick();
-		event(rising ? kTransitionRising : kTransitionFalling);
-		holdNotified = false;
-	}
 protected:
+	char const* name;
 	typedef enum {kTransitionFalling, kTransitionRising, kHoldLow, kHoldHigh} Event;
 	virtual void event(Event) = 0;
 	uint32_t lastTransition;
 	uint32_t holdTime;
+	bool pastState = false;
 	bool holdNotified = true; // avoid notifying on startup
 };
 
-class MenuItemTypeDiscreteContinuous : public MenuItemTypeTransitionOrHold
+#if 0 // still TODO
+class MenuItemTypeDiscreteContinuous : public MenuItemTypeTransition
 {
 public:
 	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, uint32_t holdTime, unsigned int& value, unsigned int numValues):
-		MenuItemTypeTransitionOrHold(name, baseColor, holdTime), value(value), numValues(numValues) {}
+		MenuItemTypeTransition(name, baseColor, holdTime), value(value), numValues(numValues) {}
 	void event(Event e) override
 	{
 		switch (e)
@@ -1249,16 +1238,17 @@ public:
 	unsigned int& value;
 	unsigned int numValues;
 };
+#endif
 
 class MenuItemTypeDiscrete : public MenuItemTypeTransition
 {
 public:
 	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, unsigned int& value, unsigned int numValues) :
-		MenuItemTypeTransition(name, baseColor), value(value), numValues(numValues) {}
+		MenuItemTypeTransition(name, baseColor, 0), value(value), numValues(numValues) {}
 private:
-	void transition(bool rising)
+	void event(Event e)
 	{
-		if(rising)
+		if(kTransitionRising == e)
 		{
 			++value;
 			if(value >= numValues)
@@ -1275,11 +1265,11 @@ class MenuItemTypeNextMode : public MenuItemTypeTransition
 {
 public:
 	MenuItemTypeNextMode(const char* name, rgb_t baseColor) :
-		MenuItemTypeTransition(name, baseColor) {}
+		MenuItemTypeTransition(name, baseColor, 0) {}
 private:
-	void transition(bool rising)
+	void event(Event e) override
 	{
-		if(rising)
+		if(kTransitionRising == e)
 			shouldChangeMode = 1;
 	}
 };
@@ -1298,11 +1288,11 @@ static void menu_in(MenuPage& menu);
 static void menu_up();
 static MenuPage* activeMenu;
 
-class MenuItemTypeEnterSubmenu : public MenuItemTypeTransitionOrHold
+class MenuItemTypeEnterSubmenu : public MenuItemTypeTransition
 {
 public:
 	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime, MenuPage& submenu) :
-		MenuItemTypeTransitionOrHold(name, baseColor, holdTime), submenu(submenu) {}
+		MenuItemTypeTransition(name, baseColor, holdTime), submenu(submenu) {}
 private:
 	void event(Event e)
 	{
@@ -1353,12 +1343,12 @@ public:
 class MenuItemTypeExitSubmenu : public MenuItemTypeTransition
 {
 public:
-	MenuItemTypeExitSubmenu(const char* name, rgb_t baseColor) :
-		MenuItemTypeTransition(name, baseColor) {}
+	MenuItemTypeExitSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime = 0) :
+		MenuItemTypeTransition(name, baseColor, holdTime) {}
 private:
-	void transition(bool rising)
+	void event(Event e)
 	{
-		if(rising) {
+		if(kTransitionRising == e) {
 			menu_up();
 		}
 	}
@@ -1377,7 +1367,7 @@ MenuItemTypeDiscrete one("1", {0, 0, 255}, gDummies[0], 3);
 MenuItemTypeDiscrete two("2", {0, 0, 255}, gDummies[0], 3);
 MenuItemTypeDiscrete three("3", {0, 0, 255}, gDummies[0], 3);
 MenuItemTypeNextMode nextMode("4", {0, 255, 0});
-MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
+//MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 static MenuItemTypeDisabled disabled;
 
@@ -1431,6 +1421,7 @@ static void menu_update()
 		// TODO: the below is not particularly elegant: add a parameter to MenuPage
 		if(activeMenu->items.size() == 5)
 		{
+			//buttons
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{
@@ -1445,6 +1436,7 @@ static void menu_update()
 			);
 			menuJustEntered = true;
 		} else if (1 == activeMenu->items.size()){
+			// single slider
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{
