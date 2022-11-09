@@ -1274,7 +1274,7 @@ static int shouldChangeMode = 1;
 class MenuItemTypeNextMode : public MenuItemTypeTransition
 {
 public:
-	MenuItemTypeNextMode(const char* name, rgb_t baseColor, unsigned int& value, unsigned int numValues) :
+	MenuItemTypeNextMode(const char* name, rgb_t baseColor) :
 		MenuItemTypeTransition(name, baseColor) {}
 private:
 	void transition(bool rising)
@@ -1376,7 +1376,7 @@ MenuItemTypeDiscrete zero("0", {0, 0, 255}, gDummies[0], 3);
 MenuItemTypeDiscrete one("1", {0, 0, 255}, gDummies[0], 3);
 MenuItemTypeDiscrete two("2", {0, 0, 255}, gDummies[0], 3);
 MenuItemTypeDiscrete three("3", {0, 0, 255}, gDummies[0], 3);
-MenuItemTypeNextMode nextMode("4", {0, 255, 0}, gDummies[0], 3);
+MenuItemTypeNextMode nextMode("4", {0, 255, 0});
 MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 static MenuItemTypeDisabled disabled;
