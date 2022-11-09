@@ -289,11 +289,11 @@ bool modeAlt_setup()
 	ledSlidersSetupMultiSlider(
 		ledSlidersAlt,
 		{
-			{uint8_t(255), 0, 0},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(0), uint8_t(255)},
-			{0, uint8_t(255), 0},
+			{0, 0, 255},
+			{0, 0, 255},
+			{0, 0, 255},
+			{0, 0, 255},
+			{0, 255, 0},
 		},
 		LedSlider::MANUAL_CENTROIDS,
 		true
