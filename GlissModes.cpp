@@ -802,6 +802,64 @@ static void gestureRecorderSplit_loop(bool loop)
 		ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
 	}
 }
+
+class ParameterEnum {
+public:
+	virtual void next() = 0;
+	virtual uint8_t get() = 0;
+};
+template <uint8_t T, class U>
+class ParameterEnumT : public ParameterEnum
+{
+public:
+	ParameterEnumT<T,U>(U* that, uint8_t value = 0):
+		that(that), value(value) {}
+
+	void next() override
+	{
+		value++;
+		if(value >= T)
+			value = 0;
+		that->update(this, value);
+	}
+	uint8_t get() override
+	{
+		return value;
+	}
+	operator uint8_t() { return value; }
+private:
+	U* that;
+	uint8_t value;
+};
+
+class ParameterContinuous {
+public:
+	ParameterContinuous() : value(0) {}
+	virtual void set(float newValue) = 0;
+	virtual float get() = 0;
+private:
+	float value;
+};
+
+template <class U>
+class ParameterContinuousT : public ParameterContinuous {
+public:
+	ParameterContinuousT<U>(U* that, float value) : that(that), value(value) {}
+	void set(float newValue) override
+	{
+		value = newValue;
+		that->update(this, value);
+	}
+	float get() override
+	{
+		return value;
+	}
+	operator float() { return get(); }
+private:
+	U* that;
+	float value;
+};
+
 class PerformanceMode {
 public:
 	virtual bool setup(double ms) = 0;
@@ -810,6 +868,7 @@ public:
 };
 
 class DirectControlMode : public PerformanceMode {
+public:
 	bool setup(double ms) override
 	{
 		if(split)
@@ -843,21 +902,12 @@ class DirectControlMode : public PerformanceMode {
 	{
 		processLatch(split);
 	}
-	void setParameter(size_t idx, float value) override
+	void update(void* id, uint8_t value)
 	{
-		switch(idx)
-		{
-		case 0:
-			split = value;
-			break;
-		case 1:
-			autoLatch = value;
-			break;
-		}
+
 	}
-private:
-	bool split = false;
-	bool autoLatch = false;
+	ParameterEnumT<2,DirectControlMode> split{this, false};
+	ParameterEnumT<2,DirectControlMode> autoLatch{this, false};
 } gDirectControlMode;
 
 class RecorderMode : public PerformanceMode {
@@ -1243,21 +1293,29 @@ public:
 class MenuItemTypeDiscrete : public MenuItemTypeEvent
 {
 public:
-	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, unsigned int& value, unsigned int numValues) :
-		MenuItemTypeEvent(name, baseColor, 0), value(value), numValues(numValues) {}
+	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, ParameterEnum* parameter) :
+		MenuItemTypeEvent(name, baseColor, 0), parameter(parameter) {}
 private:
 	void event(Event e)
 	{
 		if(kTransitionRising == e)
-		{
-			++value;
-			if(value >= numValues)
-				value = 0;
-			printf("Setting %s to %d\n\r", name, value);
-		}
+			if(parameter)
+				parameter->next();
 	}
-	unsigned int& value;
-	unsigned int numValues;
+	ParameterEnum* parameter;
+};
+
+class MenuItemTypeSlider : public MenuItemType {
+public:
+	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
+	MenuItemTypeSlider(const rgb_t& color, ParameterContinuous* parameter) :
+		MenuItemType(color), parameter(parameter) {}
+	void process(LedSlider& slider) override
+	{
+		if(parameter)
+			parameter->set(slider.compoundTouchLocation());
+	}
+	ParameterContinuous* parameter;
 };
 
 static int shouldChangeMode = 1;
@@ -1303,19 +1361,6 @@ private:
 	MenuPage& submenu;
 };
 
-class MenuItemTypeSlider : public MenuItemType {
-public:
-	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeSlider(const rgb_t& color, float* value) :
-		MenuItemType(color), value(value) {}
-	void process(LedSlider& slider) override
-	{
-		if(value)
-			*value = slider.compoundTouchLocation();
-	}
-	float* value;
-};
-
 MenuPage mainMenu("main");
 MenuPage globalSettingsMenu("global settings");
 
@@ -1328,7 +1373,7 @@ MenuPage singleSliderMenu("single slider", {&singleSliderMenuItem});
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
 {
 public:
-	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, float& value) :
+	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, ParameterContinuous& value) :
 		MenuItemTypeEnterSubmenu(name, baseColor, 1000, singleSliderMenu), value(value) {}
 	void event(Event e)
 	{
@@ -1337,7 +1382,7 @@ public:
 			menu_in(singleSliderMenu);
 		}
 	}
-	float& value;
+	ParameterContinuous& value;
 };
 
 class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
@@ -1361,19 +1406,31 @@ public:
 	void process(LedSlider& slider) override {}
 };
 
-unsigned int gDummies[5];
-MenuItemTypeDiscrete zero("0", {0, 0, 255}, gDummies[0], 3);
-MenuItemTypeDiscrete one("1", {0, 0, 255}, gDummies[0], 3);
-MenuItemTypeDiscrete two("2", {0, 0, 255}, gDummies[0], 3);
-MenuItemTypeDiscrete three("3", {0, 0, 255}, gDummies[0], 3);
+class DummyClass{
+public:
+	void update(void* id, uint8_t value)
+	{
+		printf("Dummy class: %p set to %d\n\r", id, value);
+	}
+	void update(void* id, float value)
+	{
+		printf("Dummy class: float %p set to %f\n\r", id, value);
+	}
+	ParameterEnumT<4,DummyClass> par{this, 2};
+	ParameterContinuousT<DummyClass> par2{this, 0.4};
+} gDummyClassObj;
+
+MenuItemTypeDiscrete zero("0", {0, 0, 255}, &gDummyClassObj.par);
+MenuItemTypeDiscrete one("1", {0, 0, 255}, &gDummyClassObj.par);
+MenuItemTypeDiscrete two("2", {0, 0, 255}, &gDummyClassObj.par);
+MenuItemTypeDiscrete three("3", {0, 0, 255}, &gDummyClassObj.par);
 MenuItemTypeNextMode nextMode("4", {0, 255, 0});
 //MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 static MenuItemTypeDisabled disabled;
 
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
-float myDummyFloat;
-static MenuItemTypeEnterContinuous enterContinuousMode("Enter continuous mode", {255, 0, 0}, myDummyFloat);
+static MenuItemTypeEnterContinuous enterContinuousMode("Enter continuous mode", {255, 0, 0}, gDummyClassObj.par2);
 
 static bool isCalibration;
 static bool menuJustEntered;
