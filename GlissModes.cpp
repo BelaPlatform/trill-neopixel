@@ -158,7 +158,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 			.order = {padsToOrderMap, padsToOrderMap + kNumPads},
 			.sizeScale = kSizeScale,
 			.boundaries = boundaries,
-			.maxNumCentroids = {2},
+			.maxNumCentroids = {1},
 			.np = &np,
 	};
 	ls.setup(settings);
