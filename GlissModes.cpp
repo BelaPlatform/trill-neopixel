@@ -296,6 +296,49 @@ bool modeAlt_setup()
 	return true;
 }
 
+struct TouchFrame {
+	float pos;
+	float sz;
+};
+// A circular buffer. When touch sz goes to zero, retrieve the oldest
+// element in the buffer so we can hope to get more stable values instead
+// of whatever spurious reading we got while releasing the touch
+class AutoLatcher {
+public:
+	void process(TouchFrame& frame, bool& latchStarts)
+	{
+		size_t pastIdx = (idx - 1 + pastFrames.size()) % pastFrames.size();
+		// filter out duplicate frames
+		// TODO: call this per each new frame instead
+		if(pastFrames[pastIdx].sz == frame.sz && pastFrames[pastIdx].pos == frame.pos)
+			return;
+		if(pastFrames[pastIdx].sz && !frame.sz) // if size went to zero
+		{
+			// use the oldest frame we have
+			frame = pastFrames[idx];
+			latchStarts = true;
+			static bool happend = false;
+			if(!happend)
+				printf("L\n\r");
+			happend = true;
+			pastFrames[idx].pos = pastFrames[idx].sz = 0;
+		} else {
+			// if we are still touching
+			// store current value for later
+			pastFrames[idx] = frame;
+		}
+		++idx;
+		if(idx >= pastFrames.size())
+			idx = 0;
+	}
+private:
+	static constexpr size_t kHistoryLength = 5;
+	std::array<TouchFrame,kHistoryLength> pastFrames;
+	size_t idx = 0;
+	// TODO: count valid frames so that for short touches
+	// we don't latch on to garbage
+};
+
 static void processLatch(bool split, bool autoLatch)
 {
 	static bool pastButton = false;
@@ -347,27 +390,11 @@ static void processLatch(bool split, bool autoLatch)
 	{
 		if(!split)
 		{
-			// try to hold without button
-			static std::array<std::array<float,latchedValues.size()>,30> pastValues;
-			static size_t idx = 0;
-			size_t pastIdx = (idx - 1 + pastValues.size()) % pastValues.size();
-			if(!values[1] && pastValues[pastIdx][1]) // if size went to zero
-			{
-				values[0] = pastValues[idx][0];
-				values[1] = pastValues[idx][1];
-				latchStarts[0] = true;
-				static bool happend = false;
-				if(!happend)
-					printf("L\n\r");
-				happend = true;
-				pastValues[idx][0] = pastValues[idx][1] = 0;
-			} else {
-				// store past values so we can use them later
-				pastValues[idx] = values;
-			}
-			++idx;
-			if(idx >= pastValues.size())
-				idx = 0;
+			static AutoLatcher autoLatcher;
+			TouchFrame touchFrame = {values[0], values[1]};
+			autoLatcher.process(touchFrame, latchStarts[0]);
+			values[0] = touchFrame.pos;
+			values[1] = touchFrame.sz;
 		}
 	}
 	for(ssize_t n = 0; n < 1 + split; ++n)
