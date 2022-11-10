@@ -995,7 +995,7 @@ public:
 		}
 	}
 	ParameterEnumT<2> split{this, false};
-	ParameterEnumT<2> retrigger{this, false};
+	ParameterEnumT<2> retrigger{this, true};
 	ParameterEnumT<3> inputMode{this, 0};
 private:
 	rgb_t colors[2] = {
