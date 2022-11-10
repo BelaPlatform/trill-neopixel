@@ -303,7 +303,7 @@ bool modeAlt_setup()
 	return true;
 }
 
-static void processLatch(bool split)
+static void processLatch(bool split, bool autoLatch)
 {
 	static bool pastButton = false;
 	bool buttonOnset = false;
@@ -350,32 +350,33 @@ static void processLatch(bool split)
 			}
 		}
 	}
-#if 1
-	if(!split)
+	if(autoLatch)
 	{
-		// try to hold without button
-		static std::array<std::array<float,latchedValues.size()>,30> pastValues;
-		static size_t idx = 0;
-		size_t pastIdx = (idx - 1 + pastValues.size()) % pastValues.size();
-		if(!values[1] && pastValues[pastIdx][1]) // if size went to zero
+		if(!split)
 		{
-			values[0] = pastValues[idx][0];
-			values[1] = pastValues[idx][1];
-			latchStarts[0] = true;
-			static bool happend = false;
-			if(!happend)
-				printf("L\n\r");
-			happend = true;
-			pastValues[idx][0] = pastValues[idx][1] = 0;
-		} else {
-			// store past values so we can use them later
-			pastValues[idx] = values;
+			// try to hold without button
+			static std::array<std::array<float,latchedValues.size()>,30> pastValues;
+			static size_t idx = 0;
+			size_t pastIdx = (idx - 1 + pastValues.size()) % pastValues.size();
+			if(!values[1] && pastValues[pastIdx][1]) // if size went to zero
+			{
+				values[0] = pastValues[idx][0];
+				values[1] = pastValues[idx][1];
+				latchStarts[0] = true;
+				static bool happend = false;
+				if(!happend)
+					printf("L\n\r");
+				happend = true;
+				pastValues[idx][0] = pastValues[idx][1] = 0;
+			} else {
+				// store past values so we can use them later
+				pastValues[idx] = values;
+			}
+			++idx;
+			if(idx >= pastValues.size())
+				idx = 0;
 		}
-		++idx;
-		if(idx >= pastValues.size())
-			idx = 0;
 	}
-#endif
 	for(ssize_t n = 0; n < 1 + split; ++n)
 	{
 		if(isLatched[n])
@@ -803,16 +804,35 @@ static void gestureRecorderSplit_loop(bool loop)
 	}
 }
 
-class ParameterEnum {
+class Parameter {
+public:
+	bool same(Parameter& p)
+	{
+		return (this == &p);
+	}
+};
+
+class ParameterUpdateCapable {
+public:
+	virtual void updated(Parameter&) {};
+};
+
+class PerformanceMode : public ParameterUpdateCapable {
+public:
+	virtual bool setup(double ms) = 0;
+	virtual void render(BelaContext*) = 0;
+};
+
+class ParameterEnum : public Parameter {
 public:
 	virtual void next() = 0;
 	virtual uint8_t get() = 0;
 };
-template <uint8_t T, class U>
+template <uint8_t T>
 class ParameterEnumT : public ParameterEnum
 {
 public:
-	ParameterEnumT<T,U>(U* that, uint8_t value = 0):
+	ParameterEnumT<T>(ParameterUpdateCapable* that, uint8_t value = 0):
 		that(that), value(value) {}
 
 	void next() override
@@ -820,7 +840,7 @@ public:
 		value++;
 		if(value >= T)
 			value = 0;
-		that->update(this, value);
+		that->updated(*this);
 	}
 	uint8_t get() override
 	{
@@ -828,43 +848,26 @@ public:
 	}
 	operator uint8_t() { return value; }
 private:
-	U* that;
+	ParameterUpdateCapable* that;
 	uint8_t value;
 };
 
-class ParameterContinuous {
+class ParameterContinuous : public Parameter {
 public:
-	ParameterContinuous() : value(0) {}
-	virtual void set(float newValue) = 0;
-	virtual float get() = 0;
-private:
-	float value;
-};
-
-template <class U>
-class ParameterContinuousT : public ParameterContinuous {
-public:
-	ParameterContinuousT<U>(U* that, float value) : that(that), value(value) {}
-	void set(float newValue) override
+	ParameterContinuous(ParameterUpdateCapable* that, float value) : that(that), value(value) {}
+	void set(float newValue)
 	{
 		value = newValue;
-		that->update(this, value);
+		that->updated(*this);
 	}
-	float get() override
+	float get()
 	{
 		return value;
 	}
 	operator float() { return get(); }
 private:
-	U* that;
+	ParameterUpdateCapable* that;
 	float value;
-};
-
-class PerformanceMode {
-public:
-	virtual bool setup(double ms) = 0;
-	virtual void render(BelaContext*) = 0;
-	virtual void setParameter(size_t idx, float value) {};
 };
 
 class DirectControlMode : public PerformanceMode {
@@ -878,15 +881,17 @@ public:
 				{uint8_t(255), 0, 0},
 				{0, uint8_t(255), 0},
 			};
-			if(!ms)
+			if(ms <= 0)
 			{
 				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
 				gOutMode = kOutModeFollowTouch;
 			}
+			if(ms < 0)
+				return true;
 			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 		} else {
 			rgb_t color = {uint8_t(255), 0, 0};
-			if(!ms)
+			if(ms <= 0)
 			{
 				ledSlidersSetupOneSlider(
 					color,
@@ -894,38 +899,51 @@ public:
 				);
 				gOutMode = kOutModeFollowTouch;
 			}
+			if(ms < 0)
+				return true;;
 			gSecondTouchIsSize = true;
 			return modeChangeBlink(ms, color);
 		}
 	}
 	void render(BelaContext*) override
 	{
-		processLatch(split);
+		processLatch(split, autoLatch);
 	}
-	void update(void* id, uint8_t value)
+	void updated(Parameter& p)
 	{
-
+		if(p.same(split)) {
+			printf("DirectControlMode: updated split: %d\n\r", split.get());
+			setup(-1);
+		}
+		else if (p.same(autoLatch)) {
+			printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get());
+		}
 	}
-	ParameterEnumT<2,DirectControlMode> split{this, false};
-	ParameterEnumT<2,DirectControlMode> autoLatch{this, false};
+	ParameterEnumT<2> split{this, false};
+	ParameterEnumT<2> autoLatch{this, false};
 } gDirectControlMode;
 
 class RecorderMode : public PerformanceMode {
+public:
 	bool setup(double ms) override
 	{
 		gOutMode = kOutModeFollowLeds;
 		if(split)
 		{
 			unsigned int guardPads = 1;
-			if(!ms)
+			if(ms <= 0)
 				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+			if(ms < 0)
+				return true;
 			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 		}
 		else
 		{
-			if(!ms)
+			if(ms <= 0)
 				ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
 			gSecondTouchIsSize = true;
+			if(ms < 0)
+				return true;
 			return modeChangeBlink(ms, colors[0]);
 		}
 	}
@@ -936,10 +954,22 @@ class RecorderMode : public PerformanceMode {
 		else
 			gestureRecorderSingle_loop(retrigger);
 	}
+	void updated(Parameter& p)
+	{
+		if(p.same(split)) {
+			printf("RecorderMode: Updated split: %d\n\r", split.get());
+			setup(-1);
+		}
+		else if (p.same(retrigger)) {
+			printf("RecorderMode: Updated retrigger %d\n\r", retrigger.get());
+		} else if (p.same(inputMode)) {
+			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
+		}
+	}
+	ParameterEnumT<2> split{this, false};
+	ParameterEnumT<2> retrigger{this, false};
+	ParameterEnumT<3> inputMode{this, 0};
 private:
-	bool split = false;
-	bool retrigger = true;
-	unsigned int inputMode = 0;
 	rgb_t colors[2] = {
 			{128, 128, 128},
 			{128, 128, 64},
@@ -951,7 +981,7 @@ public:
 	bool setup(double ms) override
 	{
 		rgb_t color = {uint8_t(127), uint8_t(127), 0};
-		if(!ms)
+		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(
 				color,
@@ -959,6 +989,8 @@ public:
 			);
 			gOutMode = kOutModeFollowLeds;
 		}
+		if(ms < 0)
+			return true;
 		return modeChangeBlink(ms, color);
 	}
 	void render(BelaContext*) override
@@ -980,7 +1012,7 @@ public:
 	{
 		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
 		bool triangle = waveform; // TODO: fix waveforms
-		if(!ms)
+		if(ms <= 0)
 		{
 			for(auto& o : oscillators)
 				o.setup(1, triangle ? Oscillator::triangle : Oscillator::square); // Fs set to 1, so we need to pass normalised frequency later
@@ -992,6 +1024,8 @@ public:
 		}
 		gOutMode = kOutModeManual;
 		unsigned int split = triangle ? kNumLeds * 0.66 : kNumLeds * 0.33;
+		if(ms < 0)
+			return true;
 		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), split, split);
 	}
 	void render(BelaContext* context) override
@@ -1033,7 +1067,7 @@ class ExprButtonsMode : public PerformanceMode
 {
 	bool setup(double ms)
 	{
-		if(!ms)
+		if(ms <= 0)
 		{
 			ledSlidersSetupMultiSlider(
 				ledSliders,
@@ -1049,6 +1083,8 @@ class ExprButtonsMode : public PerformanceMode
 			);
 			gOutMode = kOutModeManual;
 		}
+		if(ms < 0)
+			return true;
 		return modeChangeBlink(ms, {0, 0, uint8_t(255)});
 	}
 	void render(BelaContext*)
@@ -1406,28 +1442,51 @@ public:
 	void process(LedSlider& slider) override {}
 };
 
-class DummyClass{
+class DummyClass : public ParameterUpdateCapable {
 public:
-	void update(void* id, uint8_t value)
+	void updated(Parameter& p) override
 	{
-		printf("Dummy class: %p set to %d\n\r", id, value);
+		printf("Dummy class: %p => ", &p);
+		if(p.same(par))
+			printf("par set to %d\n\r", par.get());
+		else if (p.same(par2))
+			printf("par2 set to %f\n\r", par2.get());
 	}
-	void update(void* id, float value)
-	{
-		printf("Dummy class: float %p set to %f\n\r", id, value);
-	}
-	ParameterEnumT<4,DummyClass> par{this, 2};
-	ParameterContinuousT<DummyClass> par2{this, 0.4};
+	ParameterEnumT<4> par{this, 2};
+	ParameterContinuous par2{this, 0.4};
 } gDummyClassObj;
 
-MenuItemTypeDiscrete zero("0", {0, 0, 255}, &gDummyClassObj.par);
-MenuItemTypeDiscrete one("1", {0, 0, 255}, &gDummyClassObj.par);
-MenuItemTypeDiscrete two("2", {0, 0, 255}, &gDummyClassObj.par);
-MenuItemTypeDiscrete three("3", {0, 0, 255}, &gDummyClassObj.par);
+constexpr size_t kMaxModeParameters = 3;
+static const rgb_t buttonColor {0, 255, 255};
+static MenuItemTypeDisabled disabled;
+
+static MenuItemTypeDiscrete directControlModeSplit("direct control split", buttonColor, &gDirectControlMode.split);
+static MenuItemTypeDiscrete directControlModeLatch("direct control autoLatch", buttonColor, &gDirectControlMode.autoLatch);
+static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
+		&disabled,
+		&directControlModeLatch,
+		&directControlModeSplit,
+};
+
+static MenuItemTypeDiscrete recorderModeSplit("gRecorderModeSplit", buttonColor, &gRecorderMode.split);
+static MenuItemTypeDiscrete recorderModeRetrigger("gRecorderModeRetrigger", buttonColor, &gRecorderMode.retrigger);
+static MenuItemTypeDiscrete recorderModeInputMode("gRecorderModeInputMode", buttonColor, &gRecorderMode.inputMode);
+static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
+		&recorderModeInputMode,
+		&recorderModeRetrigger,
+		&recorderModeSplit,
+};
+static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modesMenuItems = {
+		&directControlModeMenu,
+		&recorderModeMenu,
+		&directControlModeMenu,
+		&directControlModeMenu,
+		&directControlModeMenu,
+};
+
 MenuItemTypeNextMode nextMode("4", {0, 255, 0});
 //MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
-static MenuItemTypeDisabled disabled;
 
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
 static MenuItemTypeEnterContinuous enterContinuousMode("Enter continuous mode", {255, 0, 0}, gDummyClassObj.par2);
@@ -1450,26 +1509,39 @@ static void menu_update()
 	if(!inited)
 	{
 		inited = true;
-		mainMenu.items = {
-			&enterGlobalSettings,
-			&one,
-			&two,
-			&disabled,
-			&nextMode,
-		};
 		globalSettingsMenu.items = {
-			&exitMe,
-			&disabled,
-			&one,
-			&two,
+			&disabled, // TODO
+			&disabled, // TODO
+			&disabled, // TODO
+			&disabled, // TODO
 			&enterContinuousMode,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,
 		};
+		mainMenu.items = {
+			&enterGlobalSettings,
+			&disabled, // mode-dependent
+			&disabled, // mode-dependent
+			&disabled, // mode-dependent
+			&nextMode,
+		};
+	}
+	bool hasChanged = false;
+	for(size_t n = 0; n < kMaxModeParameters; ++n)
+	{
+		// make sure we are displaying the buttons for the current mode
+		// if hasChanged, this will retrigger a new drawing of the buttons below
+		// TODO: when refactoring mode switching, maybe ensure the menu's content and visualisation
+		// gets updated directly when updating mode
+		if(mainMenu.items[1 + n] != (*modesMenuItems[gCurrentMode])[n])
+		{
+			mainMenu.items[1 + n] = (*modesMenuItems[gCurrentMode])[n];
+			hasChanged = true;
+		}
 	}
 	MenuPage* newMenu = menuStack.size() ? menuStack.back() : nullptr;
-	if(newMenu && activeMenu != newMenu)
+	if(newMenu && (activeMenu != newMenu || hasChanged))
 	{
 		activeMenu = newMenu;
 		printf("menu_update: %s\n\r", newMenu ? newMenu->name : "___");
@@ -1515,6 +1587,7 @@ void menu_exit()
 	menuStack.resize(0);
 	activeMenu = nullptr;
 	printf("menu_exit\n\r");
+	np.clear();
 	gAlt = 0;
 }
 
