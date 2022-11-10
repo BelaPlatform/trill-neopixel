@@ -901,6 +901,7 @@ class DirectControlMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		gSecondTouchIsSize = !split;
 		if(split)
 		{
 			unsigned int guardPads = 1;
@@ -928,7 +929,6 @@ public:
 			}
 			if(ms < 0)
 				return true;;
-			gSecondTouchIsSize = true;
 			return modeChangeBlink(ms, color);
 		}
 	}
@@ -955,6 +955,7 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode = kOutModeFollowLeds;
+		gSecondTouchIsSize = !split;
 		if(split)
 		{
 			unsigned int guardPads = 1;
@@ -1007,6 +1008,7 @@ class ScaleMeterMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		gSecondTouchIsSize = false; // TODO: _both_ may have to be positive
 		count = 0;
 		pastIn = 0;
 		rms = 0;
@@ -1104,6 +1106,7 @@ class BalancedOscsMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		gSecondTouchIsSize = false;
 		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
 		if(ms <= 0)
 		{
@@ -1201,6 +1204,7 @@ class ExprButtonsMode : public PerformanceMode
 {
 	bool setup(double ms)
 	{
+		gSecondTouchIsSize = true;
 		if(ms <= 0)
 		{
 			ledSlidersSetupMultiSlider(

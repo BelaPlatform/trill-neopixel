@@ -407,7 +407,6 @@ void tr_render(BelaContext* context)
 	firstRun = false;
 
 	if(!setupDone) {
-		gSecondTouchIsSize = false; // will be set as needed by the call in the next line
 		setupDone = performanceMode_setup(tri.getTimeMs() - setupMs);
 	}
 	if(setupDone)
