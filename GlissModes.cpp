@@ -33,7 +33,7 @@ bool gSecondTouchIsSize;
 // Recording the gesture
 enum { kMaxRecordLength = 1000 };
 const float kSizeScale = 10000;
-const float kFixedCentroidSize = 0.9;
+const float kFixedCentroidSize = 0.1;
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
@@ -1413,7 +1413,7 @@ public:
 			centroid.location = 0.5;
 			// dimmed for "inactive"
 			// full brightness for "active"
-			centroid.size = state ? 1 : 0.1;
+			centroid.size = state ? 0.5 : 0.1;
 			slider.setLedsCentroids(&centroid, 1);
 		}
 		pastState = state;
