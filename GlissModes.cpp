@@ -388,13 +388,20 @@ static void processLatch(bool split, bool autoLatch)
 	}
 	if(autoLatch)
 	{
-		if(!split)
+		static std::array<AutoLatcher,2> autoLatcher;
+		// try to hold without button
+		for(ssize_t n = 0; n < 1 + split; ++n)
 		{
-			static AutoLatcher autoLatcher;
-			TouchFrame touchFrame = {values[0], values[1]};
-			autoLatcher.process(touchFrame, latchStarts[0]);
-			values[0] = touchFrame.pos;
-			values[1] = touchFrame.sz;
+			// use both pos and sz from each slider for detection ...
+			TouchFrame touchFrame = {
+					ledSliders.sliders[n].compoundTouchLocation(),
+					ledSliders.sliders[n].compoundTouchSize(),
+			};
+			autoLatcher[n].process(touchFrame, latchStarts[n]);
+			// ... but, if split, only keep pos
+			values[n] = touchFrame.pos;
+			if(!split) // loop goes only to n = 0
+				values[1] = touchFrame.sz;
 		}
 	}
 	for(ssize_t n = 0; n < 1 + split; ++n)
