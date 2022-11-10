@@ -220,7 +220,7 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 			msb  = value;
 		else if (101 == num) {
 			int lsb = value;
-			gOutMode = kOutModeManual;
+			gOutMode = kOutModeManualBlock;
 			float f = ((msb << 7) | lsb) / 4096.f;
 			gManualAnOut[0] = f;
 			gManualAnOut[1] = f;
@@ -441,11 +441,11 @@ void tr_render(BelaContext* context)
 			else if (2 == sls.size())
 				gManualAnOut[1] = sls[1][0].location;
 			break;
-		case kOutModeManual:
+		case kOutModeManualBlock:
+		case kOutModeManualSample:
 			// everything should have been done already.
 			break;
 	}
-	bool shouldUseAnOutBuffer = true; // TODO: add new modes which set it to false
 	std::array<float, gManualAnOut.size()> anOutBuffer;
 	for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
 	{
@@ -477,7 +477,7 @@ void tr_render(BelaContext* context)
 		// actually write analog outs
 		anOutBuffer[n] = value;
 	}
-	if(shouldUseAnOutBuffer)
+	if(kOutModeManualSample != gOutMode)
 	{
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{

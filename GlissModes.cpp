@@ -5,6 +5,8 @@
 #include <libraries/Oscillator/Oscillator.h>
 #include "LedSliders.h"
 
+static_assert(kNumOutChannels >= 2); // too many things to list depend on this in this file.
+
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 
 extern int gAlt;
@@ -32,16 +34,6 @@ bool gSecondTouchIsSize;
 enum { kMaxRecordLength = 1000 };
 const float kSizeScale = 10000;
 const float kFixedCentroidSize = 0.9;
-
-// LED Flash Event
-double gEndTime = 0; //for pulse length
-double gPulseLength = 40;
-
-float gClockPeriod = 20000; // some initial value so we start oscillating even in the absence of external clock
-// Dual LFOS
-float gDivisionPoint = 0;
-// ------------------
-
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
@@ -81,6 +73,7 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
+float gClockPeriod = 0; // before use, make sure it is valid
 void triggerInToClock(BelaContext* context)
 {
 	const float kTriggerInOnThreshold = 0.6;
@@ -806,7 +799,7 @@ static void gestureRecorderSplit_loop(bool loop)
 
 class Parameter {
 public:
-	bool same(Parameter& p)
+	bool same(Parameter& p) const
 	{
 		return (this == &p);
 	}
@@ -826,7 +819,7 @@ public:
 class ParameterEnum : public Parameter {
 public:
 	virtual void next() = 0;
-	virtual uint8_t get() = 0;
+	virtual uint8_t get() const = 0;
 };
 template <uint8_t T>
 class ParameterEnumT : public ParameterEnum
@@ -842,7 +835,7 @@ public:
 			value = 0;
 		that->updated(*this);
 	}
-	uint8_t get() override
+	uint8_t get() const override
 	{
 		return value;
 	}
@@ -854,13 +847,13 @@ private:
 
 class ParameterContinuous : public Parameter {
 public:
-	ParameterContinuous(ParameterUpdateCapable* that, float value) : that(that), value(value) {}
+	ParameterContinuous(ParameterUpdateCapable* that, float value = 0) : that(that), value(value) {}
 	void set(float newValue)
 	{
 		value = newValue;
 		that->updated(*this);
 	}
-	float get()
+	float get() const
 	{
 		return value;
 	}
@@ -980,6 +973,10 @@ class ScaleMeterMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		count = 0;
+		pastIn = 0;
+		rms = 0;
+		env = 0;
 		rgb_t color = {uint8_t(127), uint8_t(127), 0};
 		if(ms <= 0)
 		{
@@ -987,23 +984,86 @@ public:
 				color,
 				LedSlider::MANUAL_CENTROIDS
 			);
-			gOutMode = kOutModeFollowLeds;
+			gOutMode = kOutModeManualSample;
 		}
 		if(ms < 0)
 			return true;
 		return modeChangeBlink(ms, color);
 	}
-	void render(BelaContext*) override
+	void render(BelaContext* context) override
 	{
-		float in = tri.analogRead();
+		switch (coupling)
+		{
+		case 0: //DC coupling
+			env = 0;
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				env += analogRead(context, n, 0);
+			}
+			env /= context->analogFrames;
+			break;
+		case 1: // AC coupling
+			constexpr size_t window = 1024;
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				float in = analogRead(context, n, 0);
+				// one-pole high-pass
+				float val = in - pastIn;
+				pastIn = in;
+				// RMS
+				rms += val * val;
+				count++;
+				if(count >= window)
+				{
+					env = (context->analogSampleRate * 0.2f) * rms / count;
+					if(env > 1)
+						env = 1;
+					count = 0;
+					rms = 0;
+				}
+			}
+			break;
+		}
+		for(size_t n = 0; n < context->analogFrames; ++n)
+		{
+			// let's trust compiler + branch predictor to do a good job here
+			float outs[kNumOutChannels];
+			switch (outputMode)
+			{
+			case 0: // top pass-through, bottom pass-through
+				outs[0] = outs[1] = analogRead(context, n, 0); // TODO: scale
+				break;
+			case 1: // top pass-through, bottom envelope
+				outs[0] = analogRead(context, n, 0); // TODO: scale
+				outs[1] = env;
+				break;
+			case 2: // top envelope, bottom envelope
+				outs[0] = outs[1] = env;
+				break;
+			}
+			for(size_t c = 0; c < kNumOutChannels; ++c)
+				analogWriteOnce(context, n, c, outs[c]);
+		}
 		LedSlider::centroid_t centroids[1];
-		centroids[0].location = in;
+		centroids[0].location = env;
 		centroids[0].size = kFixedCentroidSize;
 		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 	}
+	void updated(Parameter& p)
+	{
+		if(p.same(cutoff))
+		{
+			printf("Updated cutoff: %.3f\n\r", cutoff.get());
+		}
+	}
+	ParameterEnumT<3> outputMode {this, 0};
+	ParameterEnumT<2> coupling {this, 1};
+	ParameterContinuous cutoff {this, 200};
 private:
-	unsigned int outputMode = 0;
-	float envelopeDetectorCutoff = 200;
+	float pastIn;
+	float env;
+	size_t count;
+	float rms;
 } gScaleMeterMode;
 
 class BalancedOscsMode : public PerformanceMode {
@@ -1011,30 +1071,48 @@ public:
 	bool setup(double ms) override
 	{
 		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
-		bool triangle = waveform; // TODO: fix waveforms
 		if(ms <= 0)
 		{
 			for(auto& o : oscillators)
-				o.setup(1, triangle ? Oscillator::triangle : Oscillator::square); // Fs set to 1, so we need to pass normalised frequency later
+				o.setup(1, Oscillator::Type(waveform.get())); // Fs set to 1, so we need to pass normalised frequency later
 
 			ledSlidersSetupOneSlider(
 				{0, 0, 0}, // dummy
 				LedSlider::MANUAL_CENTROIDS
 			);
 		}
-		gOutMode = kOutModeManual;
-		unsigned int split = triangle ? kNumLeds * 0.66 : kNumLeds * 0.33;
+		gOutMode = kOutModeManualBlock;
 		if(ms < 0)
 			return true;
-		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), split, split);
+		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), 0.5, 0.5);
 	}
 	void render(BelaContext* context) override
 	{
-		float midFreq = context->analogFrames / gClockPeriod; // we process once per block; the oscillator thinks Fs = 1
+		if(!inited)
+		{
+			inited = true;
+			// deferred initialisations ...
+			sampleRate = context->analogSampleRate;
+			clockPeriod = context->analogSampleRate / 5.f; // 5 Hz
+		}
+		switch (inputMode)
+		{
+		case kInputModeTrig:
+			if(gClockPeriod)
+				clockPeriod = gClockPeriod;
+			break;
+		case kInputModeCv:
+			// TODO:
+			break;
+		case kInputModeNone:
+			break;
+		}
+
+		float midFreq = context->analogFrames / clockPeriod; // we process once per block; the oscillator thinks Fs = 1
 		float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
 
 		if (touchPosition > 0.0) {
-			gDivisionPoint = touchPosition;
+			divisionPoint = touchPosition;
 		}
 
 		// limit max brightness. On the one hand, it reduces power consumption,
@@ -1042,14 +1120,14 @@ public:
 		// to discern increased brightness.
 		const float kMaxBrightness = 0.4f;
 		std::array<float,oscillators.size()> freqs = {
-				(0.92f - gDivisionPoint) * midFreq * 2.f,
-				gDivisionPoint * midFreq * 2,
+				(0.92f - divisionPoint) * midFreq * 2.f,
+				divisionPoint * midFreq * 2,
 		};
 		for(size_t n = 0; n < oscillators.size(); ++n) {
 			float out = oscillators[n].process(freqs[n]);
 			gManualAnOut[!n] = map(out, -1, 1, 0, 1); // The ! is so that the CV outs order matches the display. TODO: tidy up
 			float brightness = map(out, -1, 1, 0, kMaxBrightness);
-			unsigned int split = gDivisionPoint > 0 ? kNumLeds * gDivisionPoint : 0;
+			unsigned int split = divisionPoint > 0 ? kNumLeds * divisionPoint : 0;
 			unsigned int start = (0 == n) ? 0 : split;
 			unsigned int stop = (0 == n) ? split : kNumLeds;
 			rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
@@ -1057,10 +1135,32 @@ public:
 				np.setPixelColor(p, color.r, color.g, color.b);
 		}
 	}
+	void updated(Parameter& p)
+	{
+		if(p.same(waveform)) {
+			for(auto& o : oscillators)
+				o.setType(Oscillator::Type(waveform.get()));
+		} else if (p.same(centreFrequency)) {
+				clockPeriod = sampleRate / (centreFrequency * 10.f + 0.1f); // TODO: more useful range? exp mapping?
+//				printf("centreFrequency: %.3f => %.3f samples\n\r", centreFrequency.get(), clockPeriod);
+		} else if (p.same(inputMode)) {
+
+		}
+	}
+	typedef enum {
+		kInputModeTrig,
+		kInputModeCv,
+		kInputModeNone,
+		kNumInputModes,
+	} InputMode;
+	ParameterEnumT<Oscillator::numOscTypes> waveform {this, Oscillator::triangle};
+	ParameterContinuous centreFrequency {this};
+	ParameterEnumT<kNumInputModes> inputMode {this, kInputModeTrig};
 private:
-	unsigned int waveform = 0;
-	float masterClock = 5;
-	unsigned int inputMode = 0;
+	float divisionPoint = 0.5;
+	float clockPeriod; // deferred initialisation
+	float sampleRate; // deferred initialisation
+	bool inited = false;
 } gBalancedOscsMode;
 
 class ExprButtonsMode : public PerformanceMode
@@ -1081,7 +1181,7 @@ class ExprButtonsMode : public PerformanceMode
 				LedSlider::MANUAL_CENTROIDS,
 				true
 			);
-			gOutMode = kOutModeManual;
+			gOutMode = kOutModeManualBlock;
 		}
 		if(ms < 0)
 			return true;
@@ -1158,7 +1258,7 @@ void setup()
 	unconnectedAdc = 0;
 	calibrationState = kCalibrationNoInput;
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
-	gOutMode = kOutModeManual;
+	gOutMode = kOutModeManualBlock;
 }
 
 void process()
@@ -1335,8 +1435,13 @@ private:
 	void event(Event e)
 	{
 		if(kTransitionRising == e)
+		{
 			if(parameter)
+			{
 				parameter->next();
+				printf("%s: set to %d\n\r", name, parameter->get());
+			}
+		}
 	}
 	ParameterEnum* parameter;
 };
@@ -1460,27 +1565,46 @@ constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor {0, 255, 255};
 static MenuItemTypeDisabled disabled;
 
-static MenuItemTypeDiscrete directControlModeSplit("direct control split", buttonColor, &gDirectControlMode.split);
-static MenuItemTypeDiscrete directControlModeLatch("direct control autoLatch", buttonColor, &gDirectControlMode.autoLatch);
+static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.split);
+static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
 
-static MenuItemTypeDiscrete recorderModeSplit("gRecorderModeSplit", buttonColor, &gRecorderMode.split);
-static MenuItemTypeDiscrete recorderModeRetrigger("gRecorderModeRetrigger", buttonColor, &gRecorderMode.retrigger);
-static MenuItemTypeDiscrete recorderModeInputMode("gRecorderModeInputMode", buttonColor, &gRecorderMode.inputMode);
+static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.split);
+static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.retrigger);
+static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&recorderModeInputMode,
 		&recorderModeRetrigger,
 		&recorderModeSplit,
 };
+
+static MenuItemTypeDiscrete scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColor, &gScaleMeterMode.outputMode);
+static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling);
+static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColor, gScaleMeterMode.cutoff);
+static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
+		&scaleMeterModeCutoff,
+		&scaleMeterModeCoupling,
+		&scaleMeterModeOutputMode,
+};
+
+static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform);
+static MenuItemTypeEnterContinuous balancedOscModeCentreFrequency("centreFrequency", buttonColor, gBalancedOscsMode.centreFrequency);
+static MenuItemTypeDiscrete balancedOscModeInputMode("balancedOscModeInputMode", buttonColor, &gBalancedOscsMode.inputMode);
+static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
+		&balancedOscModeInputMode,
+		&balancedOscModeCentreFrequency,
+		&balancedOscModeWaveform,
+};
+
 static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modesMenuItems = {
 		&directControlModeMenu,
 		&recorderModeMenu,
-		&directControlModeMenu,
-		&directControlModeMenu,
+		&scaleMeterModeMenu,
+		&balancedOscsModeMenu,
 		&directControlModeMenu,
 };
 
