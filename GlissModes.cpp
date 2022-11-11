@@ -1233,7 +1233,20 @@ public:
 	void render(BelaContext*)
 	{
 		float scale = 0.1;
-		ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
+		if(pitchBeingAdjusted >= 0)
+		{
+			// if we are adjusting the pitch, output that instead
+			gManualAnOut[0] = offsets[pitchBeingAdjusted];
+			pitchBeingAdjustedCount++;
+			// hold it for a few blocks
+			if(pitchBeingAdjustedCount >= kPitchBeingAdjustedCountMax)
+			{
+				pitchBeingAdjustedCount = 0;
+				pitchBeingAdjusted = -1;
+			}
+		}
+		else
+			ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 	}
 	void updated(Parameter& p)
 	{
@@ -1247,7 +1260,8 @@ public:
 				if(p.same(offsetParameters[n]))
 				{
 					offsets[n] = offsetParameters[n];
-//					printf("Setting cont parameter %d to %f\n\r", n, offsets[n]);
+					pitchBeingAdjusted = n;
+					pitchBeingAdjustedCount = 0;
 					break;
 				}
 			}
@@ -1263,8 +1277,11 @@ public:
 		ParameterContinuous(this, 0.9),
 	};
 private:
-	static constexpr const size_t kNumButtons = 5;
+	static constexpr size_t kNumButtons = 5;
 	std::array<float,kNumButtons> offsets;
+	int pitchBeingAdjusted = -1;
+	unsigned int pitchBeingAdjustedCount = 0;
+	static constexpr unsigned int kPitchBeingAdjustedCountMax = 10;
 } gExprButtonsMode;
 
 static unsigned int gCurrentMode;
