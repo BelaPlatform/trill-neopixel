@@ -509,8 +509,12 @@ public:
 		static sample_t zero = 0;
 		if(current == end)
 		{
-			if(loop)
+			if(loop) {
 				current = start;
+				// make sure we go back to active in case
+				// loop has just become true and we are currently !active
+				active = true;
+			}
 			else
 				active = false;
 		}
