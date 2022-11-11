@@ -1482,32 +1482,6 @@ protected:
 	bool holdNotified = true; // avoid notifying on startup
 };
 
-#if 0 // still TODO
-class MenuItemTypeDiscreteContinuous : public MenuItemTypeEvent
-{
-public:
-	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, uint32_t holdTime, unsigned int& value, unsigned int numValues):
-		MenuItemTypeEvent(name, baseColor, holdTime), value(value), numValues(numValues) {}
-	void event(Event e) override
-	{
-		switch (e)
-		{
-		case kTransitionRising:
-			value++;
-			if(value >= numValues)
-				value = 0;
-			break;
-		case kHoldHigh:
-			break;
-		default:
-			break;
-		}
-	}
-	unsigned int& value;
-	unsigned int numValues;
-};
-#endif
-
 class MenuItemTypeDiscrete : public MenuItemTypeEvent
 {
 public:
@@ -1621,6 +1595,34 @@ public:
 	ParameterContinuous& value;
 };
 
+class MenuItemTypeDiscreteContinuous : public MenuItemTypeEvent
+{
+public:
+	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueCon):
+		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn), valueCon(valueCon) {}
+	void event(Event e) override
+	{
+		switch (e)
+		{
+		case kTransitionFalling:
+			// this one is on release so we avoid a spurious trigger when holding
+			valueEn.next();
+			printf("DiscreteContinuous: next to %d\n\r", valueEn.get());
+			break;
+		case kHoldHigh:
+			printf("DiscreteContinuous: going to slider\n\r");
+			singleSliderMenuItem = MenuItemTypeSlider(baseColor, &valueCon);
+			menu_in(singleSliderMenu);
+			break;
+		default:
+			break;
+		}
+	}
+	ParameterEnum& valueEn;
+	ParameterContinuous& valueCon;
+	MenuItemTypeEnterContinuous enterContinuous {"discreteContinuous", baseColor, valueCon};
+};
+
 class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
 {
 public:
@@ -1732,11 +1734,19 @@ static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modes
 };
 
 MenuItemTypeNextMode nextMode("4", {0, 255, 0});
-//MenuItemTypeDiscreteContinuous disCon("discon", {255, 0, 0}, 2000, gDummies[0], 3);
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
-static MenuItemTypeEnterContinuous enterContinuousMode("Enter continuous mode", {255, 0, 0}, gDummyClassObj.par2);
+class GlobalSettings : public ParameterUpdateCapable {
+public:
+	void updated(Parameter& p)
+	{
+		printf("GlobalSettings updated: %p\n\r", &p);
+	}
+	ParameterEnumT<4> dummyEnum {this, 0};
+	ParameterContinuous dummyCont {this, 0};
+} gGlobalSettings;
+static MenuItemTypeDiscreteContinuous globalSettingsOutRangeTop("globalSettingsOutRangeTop", {255, 0, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.dummyCont);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -1761,7 +1771,7 @@ static void menu_update()
 			&disabled, // TODO
 			&disabled, // TODO
 			&disabled, // TODO
-			&enterContinuousMode,
+			&globalSettingsOutRangeTop,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,
