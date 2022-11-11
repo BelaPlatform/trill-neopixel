@@ -1145,24 +1145,32 @@ public:
 			divisionPoint = touchPosition;
 		}
 
-		// limit max brightness. On the one hand, it reduces power consumption,
-		// on the other hand it attempts to avoid the upper range, where it becomes hard
-		// to discern increased brightness.
-		const float kMaxBrightness = 0.4f;
+
 		std::array<float,oscillators.size()> freqs = {
 				(0.92f - divisionPoint) * midFreq * 2.f,
 				divisionPoint * midFreq * 2,
 		};
+
+		// limit max brightness. On the one hand, it reduces power consumption,
+		// on the other hand it attempts to avoid the upper range, where it becomes hard
+		// to discern increased brightness.
+		const float kMaxBrightness = 0.4f;
 		for(size_t n = 0; n < oscillators.size(); ++n) {
 			float out = oscillators[n].process(freqs[n]);
 			gManualAnOut[!n] = map(out, -1, 1, 0, 1); // The ! is so that the CV outs order matches the display. TODO: tidy up
-			float brightness = map(out, -1, 1, 0, kMaxBrightness);
-			unsigned int split = divisionPoint > 0 ? kNumLeds * divisionPoint : 0;
-			unsigned int start = (0 == n) ? 0 : split;
-			unsigned int stop = (0 == n) ? split : kNumLeds;
-			rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
-			for(unsigned int p = start; p <  stop; ++p)
-				np.setPixelColor(p, color.r, color.g, color.b);
+			if(!gAlt)
+			{
+				// if we are not in menu mode, set the display
+				// TODO: move this to LedSlider so that it obeys to the ledEnabled there
+
+				float brightness = map(out, -1, 1, 0, kMaxBrightness);
+				unsigned int split = divisionPoint > 0 ? kNumLeds * divisionPoint : 0;
+				unsigned int start = (0 == n) ? 0 : split;
+				unsigned int stop = (0 == n) ? split : kNumLeds;
+				rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
+				for(unsigned int p = start; p <  stop; ++p)
+					np.setPixelColor(p, color.r, color.g, color.b);
+			}
 		}
 	}
 	void updated(Parameter& p)
