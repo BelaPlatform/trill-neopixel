@@ -342,11 +342,11 @@ private:
 static void processLatch(bool split, bool autoLatch)
 {
 	static bool pastButton = false;
-	bool buttonOnset = false;
+	bool buttonOffset = false;
 
 	bool button = !tri.digitalRead(0);
-	if(button && !pastButton)
-		buttonOnset = true;
+	if(pastButton && !button)
+		buttonOffset = true;
 
 	static std::array<bool,2> isLatched = {false, false};
 	static std::array<bool,2> unlatchArmed = {false, false};
@@ -370,7 +370,7 @@ static void processLatch(bool split, bool autoLatch)
 
 	std::array<bool,2> latchStarts = {false, false};
 	std::array<bool,2> unlatchStarts = {false, false};
-	if(buttonOnset)
+	if(buttonOffset)
 	{
 		// button latches everything if there is at least one touch
 		// and unlatches everything if there is no touch
