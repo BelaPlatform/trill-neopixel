@@ -1484,6 +1484,8 @@ private:
 	ParameterEnum* parameter;
 };
 
+static void menu_up();
+
 class MenuItemTypeSlider : public MenuItemType {
 public:
 	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
@@ -1492,10 +1494,22 @@ public:
 	void process(LedSlider& slider) override
 	{
 		if(parameter)
-			parameter->set(slider.compoundTouchLocation());
+		{
+			TouchFrame frame {
+				.pos = slider.compoundTouchLocation(),
+				.sz = slider.compoundTouchSize(),
+			};
+			bool latched = false;
+			autoLatcher.process(frame, latched);
+			parameter->set(frame.pos);
+			if(latched)
+				menu_up();
+		}
 	}
 	ParameterContinuous* parameter;
+	static AutoLatcher autoLatcher;
 };
+AutoLatcher MenuItemTypeSlider::autoLatcher;
 
 static int shouldChangeMode = 1;
 class MenuItemTypeNextMode : public MenuItemTypeEvent
@@ -1522,7 +1536,6 @@ public:
 
 int menu_setup(double);
 static void menu_in(MenuPage& menu);
-static void menu_up();
 static MenuPage* activeMenu;
 
 class MenuItemTypeEnterSubmenu : public MenuItemTypeEvent
