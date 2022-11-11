@@ -45,7 +45,8 @@ void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length)
 
 void LedSlider::process(const float* rawData)
 {
-	CentroidDetection::process(rawData);
+	if(touchEnabled)
+		CentroidDetection::process(rawData);
 	if(AUTO_RAW == mode)
 		memcpy(scratch.data(), rawData, sizeof(rawData[0]) * scratch.size());
 	else if(AUTO_CENTROIDS == mode)
@@ -72,6 +73,16 @@ void LedSlider::process(const float* rawData)
 		}
 	}
 	updateLeds();
+}
+
+void LedSlider::enableTouch(bool enable)
+{
+	touchEnabled = enable;
+}
+
+void LedSlider::enableLeds(bool enable)
+{
+	ledsEnabled = enable;
 }
 
 extern void resample(float* out, unsigned int nOut, float* in, unsigned int nIn);
@@ -110,6 +121,8 @@ static void idxToWeights(float idx, float* weights, unsigned int numWeights)
 
 void LedSlider::updateLeds()
 {
+	if(!ledsEnabled)
+		return;
 	if(!ledValues.size())
 		return;
 	if(AUTO_CENTROIDS == mode || MANUAL_CENTROIDS == mode)
@@ -193,4 +206,16 @@ void LedSliders::process(const float* rawData)
 	sort(pads.data(), rawData, s.order.data(), s.order.size());
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].process(pads.data() + s.boundaries[n].firstPad);
+}
+
+void LedSliders::enableTouch(bool enable)
+{
+	for(unsigned int n = 0; n < sliders.size(); ++n)
+		sliders[n].enableTouch(enable);
+}
+
+void LedSliders::enableLeds(bool enable)
+{
+	for(unsigned int n = 0; n < sliders.size(); ++n)
+		sliders[n].enableLeds(enable);
 }

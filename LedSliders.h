@@ -39,6 +39,8 @@ public:
 	void setLedsRaw(const float* values);
 	void setLedsCentroids(const centroid_t* values, unsigned int length);
 	void process(const float* rawData);
+	void enableTouch(bool enable);
+	void enableLeds(bool enable);
 	centroid_t& operator[](size_t i) {return ledCentroids[i];}
 private:
 	void updateLeds();
@@ -50,6 +52,8 @@ private:
 	std::vector<float> ledValues;
 	std::vector<centroid_t> ledCentroids;
 	std::vector<float> scratch;
+	bool touchEnabled = true;
+	bool ledsEnabled = true;
 };
 
 class LedSliders
@@ -75,6 +79,8 @@ public:
 	int setup(const Settings& settings);
 	void process(const float* rawData);
 	std::vector<LedSlider> sliders;
+	void enableTouch(bool enable);
+	void enableLeds(bool enable);
 private:
 	std::vector<float> pads;
 	Settings s;
