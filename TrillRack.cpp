@@ -392,22 +392,26 @@ void tr_render(BelaContext* context)
 		hadTouch = hasTouch;
 	}
 	bool menuActive = (1 == gAlt);
-	{
-		// multiplexer
-		const static ButtonView disBtn = {0};
-		menuBtn = menuActive ? btn : disBtn;
-		ledSlidersAlt.enableTouch(menuActive);
-		ledSlidersAlt.enableLeds(menuActive);
 
-		bool performanceActive = !menuActive;
-		performanceBtn = performanceActive ? btn : disBtn;
-		ledSliders.enableTouch(performanceActive);
-		ledSliders.enableLeds(performanceActive);
-	}
+	// multiplexer part 1
+	const static ButtonView disBtn = {0};
+	menuBtn = menuActive ? btn : disBtn;
+	ledSlidersAlt.enableTouch(menuActive);
+	ledSlidersAlt.enableLeds(menuActive);
+
 	if(menuActive)
 	{
+		// has to run before multiplexer part 2 so
+		// that any slider that gets recreated because of menu action
+		// doesn't lose its enables. TODO: fix this better
 		menu_render(context); // this will set gAlt back to 0 when exiting menu
 	}
+
+	// multiplexer part 2
+	bool performanceActive = !menuActive;
+	performanceBtn = performanceActive ? btn : disBtn;
+	ledSliders.enableTouch(performanceActive);
+	ledSliders.enableLeds(performanceActive);
 
 	static double setupMs = 0;
 	static bool setupDone = false;
