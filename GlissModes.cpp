@@ -33,7 +33,7 @@ bool gSecondTouchIsSize;
 // Recording the gesture
 enum { kMaxRecordLength = 1000 };
 const float kSizeScale = 10000;
-const float kFixedCentroidSize = 0.1;
+const float kFixedCentroidSize = 0.3;
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
@@ -898,10 +898,6 @@ public:
 		if(split)
 		{
 			unsigned int guardPads = 1;
-			rgb_t colors[2] = {
-				{uint8_t(255), 0, 0},
-				{0, uint8_t(255), 0},
-			};
 			if(ms <= 0)
 			{
 				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
@@ -911,18 +907,17 @@ public:
 				return true;
 			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
 		} else {
-			rgb_t color = {uint8_t(255), 0, 0};
 			if(ms <= 0)
 			{
 				ledSlidersSetupOneSlider(
-					color,
+					colors[0],
 					LedSlider::AUTO_CENTROIDS
 				);
 				gOutMode = kOutModeFollowTouch;
 			}
 			if(ms < 0)
 				return true;;
-			return modeChangeBlink(ms, color);
+			return modeChangeBlink(ms, colors[0]);
 		}
 	}
 	void render(BelaContext*) override
@@ -941,6 +936,11 @@ public:
 	}
 	ParameterEnumT<2> split{this, false};
 	ParameterEnumT<2> autoLatch{this, false};
+private:
+	rgb_t colors[2] = {
+		{255, 0, 0},
+		{255, 0, 127},
+	};
 } gDirectControlMode;
 
 class RecorderMode : public PerformanceMode {
@@ -992,8 +992,8 @@ public:
 	ParameterEnumT<3> inputMode{this, 0};
 private:
 	rgb_t colors[2] = {
-			{128, 128, 128},
-			{128, 128, 64},
+			{128, 128, 0},
+			{128, 128, 100},
 	};
 } gRecorderMode;
 
@@ -1006,7 +1006,7 @@ public:
 		pastIn = 0;
 		rms = 0;
 		env = 0;
-		rgb_t color = {uint8_t(127), uint8_t(127), 0};
+		rgb_t color = {0, 160, 160};
 		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(
@@ -1114,7 +1114,7 @@ public:
 		gOutMode = kOutModeManualBlock;
 		if(ms < 0)
 			return true;
-		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), 0.5, 0.5);
+		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), kNumLeds / 2, kNumLeds / 2);
 	}
 	void render(BelaContext* context) override
 	{
@@ -1212,11 +1212,11 @@ public:
 			ledSlidersSetupMultiSlider(
 				ledSliders,
 				{
-					{0, uint8_t(255), 0},
-					{0, uint8_t(200), uint8_t(50)},
-					{0, uint8_t(150), uint8_t(100)},
-					{0, uint8_t(100), uint8_t(150)},
-					{0, uint8_t(50), uint8_t(200)},
+					{0, 255, 0},
+					{0, 200, 50},
+					{0, 150, 100},
+					{0, 100, 150},
+					{0, 50, 200},
 				},
 				LedSlider::MANUAL_CENTROIDS,
 				true
@@ -1228,7 +1228,7 @@ public:
 			updated(o);
 		if(ms < 0)
 			return true;
-		return modeChangeBlink(ms, {0, 0, uint8_t(255)});
+		return modeChangeBlink(ms, {0, 200, 50});
 	}
 	void render(BelaContext*)
 	{
