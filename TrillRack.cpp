@@ -26,6 +26,8 @@ extern void triggerInToClock(BelaContext* context);
 extern int gMtrClkTrigger;
 extern LedSliders ledSliders;
 extern LedSliders ledSlidersAlt;
+extern ButtonView menuBtn;
+extern ButtonView performanceBtn;
 extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates);
 std::array<float,2> gManualAnOut;
 
@@ -351,15 +353,14 @@ void tr_render(BelaContext* context)
 #endif // STM32
 	processMidiMessage();
 	triggerInToClock(context);
-	const float gnd = getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
-	// Read 1st digital in (mode switching)
-	int diIn0 = tri.digitalRead(0);
+
 	// Button LEDs:
 	// First LED follows button
-	tri.buttonLedWrite(0, !diIn0);
+	tri.buttonLedWrite(0, !tri.digitalRead(0));
 	// Second LED displays a clipped version of the input.
 	// The clipping ensures that a small offset (e.g.: due to calibration or lack thereof)
 	// won't cause the LED to be dim the whole time.
+	const float gnd = getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
 	const float kButtonLedThreshold = 0.04;
 	float clippedIn = tri.analogRead() - gnd;
 	if(clippedIn < kButtonLedThreshold)
@@ -367,26 +368,43 @@ void tr_render(BelaContext* context)
 	tri.buttonLedWrite(1, clippedIn);
 	
 	static bool firstRun = true;
-	static bool hadTouch = false;
-	bool hasTouch = false;
-	// TODO: it would be nicer to use globalSlider instead, but that would require calling process()
-	// on it every time, which may be expensive
-	for(auto& s : ledSliders.sliders)
+	static ButtonView btn; // reflects reality
+	static bool wasPressed = !tri.digitalRead(0);
+	btn = {false, false, false, false};
+	bool isPressed = !tri.digitalRead(0);
+	btn.enabled = true;
+	btn.offset = wasPressed && !isPressed;
+	btn.onset = isPressed && !wasPressed;
+	btn.pressed = isPressed;
+	wasPressed = isPressed;
+
+	if(btn.pressed)
 	{
-		if((hasTouch = s.getNumTouches()))
-			break;
-	}
-	if(!diIn0)
-	{
+		static bool hadTouch = false;
+		globalSlider.process(trill.rawData.data());
+		bool hasTouch = globalSlider.getNumTouches();
 		if(hasTouch && !hadTouch)
 		{
 			//button is on + one touch: enter alt mode
 			gAlt = 1;
 			menu_setup(0);
 		}
+		hadTouch = hasTouch;
 	}
-	hadTouch = hasTouch;
-	if(1 == gAlt)
+	bool menuActive = (1 == gAlt);
+	{
+		// multiplexer
+		const static ButtonView disBtn = {0};
+		menuBtn = menuActive ? btn : disBtn;
+		ledSlidersAlt.enableTouch(menuActive);
+		ledSlidersAlt.enableLeds(menuActive);
+
+		bool performanceActive = !menuActive;
+		performanceBtn = performanceActive ? btn : disBtn;
+		ledSliders.enableTouch(performanceActive);
+		ledSliders.enableLeds(performanceActive);
+	}
+	if(menuActive)
 	{
 		menu_render(context); // this will set gAlt back to 0 when exiting menu
 	}

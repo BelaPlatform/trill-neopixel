@@ -37,6 +37,8 @@ const float kFixedCentroidSize = 0.1;
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
+ButtonView menuBtn;
+ButtonView performanceBtn;
 extern CentroidDetection globalSlider;
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
@@ -341,12 +343,7 @@ private:
 
 static void processLatch(bool split, bool autoLatch)
 {
-	static bool pastButton = false;
-	bool buttonOffset = false;
-
-	bool button = !tri.digitalRead(0);
-	if(pastButton && !button)
-		buttonOffset = true;
+	bool buttonOffset = performanceBtn.offset;
 
 	static std::array<bool,2> isLatched = {false, false};
 	static std::array<bool,2> unlatchArmed = {false, false};
@@ -458,7 +455,6 @@ static void processLatch(bool split, bool autoLatch)
 	}
 	else
 		gOutMode = kOutModeFollowTouch;
-	pastButton = button;
 }
 
 template <typename sample_t>
@@ -733,11 +729,9 @@ public:
 		}
 		HalfGesture_t out[2];
 		static bool pastAnalogIn = false;
-		static bool pastButtonIn = false;
 		bool analogIn = tri.analogRead() > 0.5;
-		bool buttonIn = !tri.digitalRead(0);
 		// reset on rising edge on analog or button ins
-		if((analogIn && !pastAnalogIn) || (buttonIn && !pastButtonIn))
+		if((analogIn && !pastAnalogIn) || performanceBtn.onset)
 		{
 			assert(active.size() == rs.size());
 			for(size_t n = 0; n < active.size(); ++n)
@@ -745,7 +739,6 @@ public:
 					rs[n].enable(true);
 		}
 		pastAnalogIn = analogIn;
-		pastButtonIn = buttonIn;
 
 		for(unsigned int n = 0; n < active.size(); ++n)
 		{
@@ -1781,26 +1774,22 @@ static void menu_in(MenuPage& menu)
 	menuStack.emplace_back(&menu);
 }
 
-static bool menuDiIn0Last;
 int menu_setup(double)
 {
 	menuStack.resize(0);
 	menu_in(mainMenu);
 	menu_update(); // TODO: is this needed?
-	menuDiIn0Last = tri.digitalRead(0);
 	return true;
 }
 
 void menu_render(BelaContext*)
 {
 	// if button pressed, go back up
-	bool diIn0 = tri.digitalRead(0);
-	if (!diIn0 && diIn0 != menuDiIn0Last){
+	if (menuBtn.onset){
 		// button onset
 		printf("button when stack is %d\n\r", menuStack.size());
 		menu_up();
 	}
-	menuDiIn0Last = diIn0;
 
 	menu_update();
 	if(!activeMenu)
