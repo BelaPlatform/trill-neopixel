@@ -1203,6 +1203,7 @@ private:
 
 class ExprButtonsMode : public PerformanceMode
 {
+public:
 	bool setup(double ms)
 	{
 		gSecondTouchIsSize = true;
@@ -1222,6 +1223,9 @@ class ExprButtonsMode : public PerformanceMode
 			);
 			gOutMode = kOutModeManualBlock;
 		}
+		// Force initialisation of offsets. Alternatively, always copy them in render()
+		for(auto& o : offsetParameters)
+			updated(o);
 		if(ms < 0)
 			return true;
 		return modeChangeBlink(ms, {0, 0, uint8_t(255)});
@@ -1231,14 +1235,36 @@ class ExprButtonsMode : public PerformanceMode
 		float scale = 0.1;
 		ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 	}
-private:
-	std::array<float,5> offsets = {
-		0.5,
-		0.6,
-		0.7,
-		0.8,
-		0.9,
+	void updated(Parameter& p)
+	{
+		if(p.same(modRange)) {
+
+		} else if(p.same(quantised)) {
+
+		} else {
+			for(size_t n = 0; n < kNumButtons; ++n)
+			{
+				if(p.same(offsetParameters[n]))
+				{
+					offsets[n] = offsetParameters[n];
+//					printf("Setting cont parameter %d to %f\n\r", n, offsets[n]);
+					break;
+				}
+			}
+		}
+	}
+	ParameterContinuous modRange {this, 0.5};
+	ParameterEnumT<2> quantised {this, true};
+	std::array<ParameterContinuous,5> offsetParameters {
+		ParameterContinuous(this, 0.5),
+		ParameterContinuous(this, 0.6),
+		ParameterContinuous(this, 0.7),
+		ParameterContinuous(this, 0.8),
+		ParameterContinuous(this, 0.9),
 	};
+private:
+	static constexpr const size_t kNumButtons = 5;
+	std::array<float,kNumButtons> offsets;
 } gExprButtonsMode;
 
 static unsigned int gCurrentMode;
@@ -1567,7 +1593,7 @@ class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
 {
 public:
 	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, ParameterContinuous& value) :
-		MenuItemTypeEnterSubmenu(name, baseColor, 1000, singleSliderMenu), value(value) {}
+		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), value(value) {}
 	void event(Event e)
 	{
 		if(kHoldHigh == e) {
@@ -1652,12 +1678,40 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 		&balancedOscModeWaveform,
 };
 
+static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised);
+static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange);
+
+static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
+static MenuItemTypeEnterContinuous exprButtonsModeOffset1("gExprButtonsModeOffset1", buttonColor, gExprButtonsMode.offsetParameters[1]);
+static MenuItemTypeEnterContinuous exprButtonsModeOffset2("gExprButtonsModeOffset2", buttonColor, gExprButtonsMode.offsetParameters[2]);
+static MenuItemTypeEnterContinuous exprButtonsModeOffset3("gExprButtonsModeOffset3", buttonColor, gExprButtonsMode.offsetParameters[3]);
+static MenuItemTypeEnterContinuous exprButtonsModeOffset4("gExprButtonsModeOffset4", buttonColor, gExprButtonsMode.offsetParameters[4]);
+
+static MenuPage exprButtonsModeOffsets {
+	"exprButtonsModeOffsets",
+	{
+		&exprButtonsModeOffset0,
+		&exprButtonsModeOffset1,
+		&exprButtonsModeOffset2,
+		&exprButtonsModeOffset3,
+		&exprButtonsModeOffset4,
+	}
+};
+
+static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20, exprButtonsModeOffsets);
+
+static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
+		&exprButtonsModeEnterOffsets,
+		&exprButtonsModeModRange,
+		&exprButtonsModeQuantised,
+};
+
 static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modesMenuItems = {
 		&directControlModeMenu,
 		&recorderModeMenu,
 		&scaleMeterModeMenu,
 		&balancedOscsModeMenu,
-		&directControlModeMenu,
+		&exprButtonsModeMenu,
 };
 
 MenuItemTypeNextMode nextMode("4", {0, 255, 0});
