@@ -429,10 +429,8 @@ void tr_render(BelaContext* context)
 	}
 	if(setupDone)
 	{
-		if(!gAlt) {
-			ledSliders.process(trill.rawData.data());
-			performanceMode_render(context); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
-		}
+		ledSliders.process(trill.rawData.data());
+		performanceMode_render(context); // TODO: we should run the active mode even if we are in alt, but making sure the LEDs don't get set
 	}
 	// actually display the updated LEDs
 	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
