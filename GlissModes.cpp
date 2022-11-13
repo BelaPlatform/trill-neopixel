@@ -122,7 +122,7 @@ void triggerInToClock(BelaContext* context)
 	}
 }
 
-static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial)
+static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids = 1)
 {
 	std::vector<LedSliders::delimiters_t> boundaries;
 	size_t numSplits = colors.size();
@@ -155,7 +155,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 			.order = padsToOrderMap,
 			.sizeScale = kSizeScale,
 			.boundaries = boundaries,
-			.maxNumCentroids = {1},
+			.maxNumCentroids = {maxNumCentroids},
 			.np = &np,
 	};
 	ls.setup(settings);
@@ -307,6 +307,12 @@ struct TouchFrame {
 // of whatever spurious reading we got while releasing the touch
 class AutoLatcher {
 public:
+	void reset()
+	{
+		// TODO: count valid frames so that for short touches
+		// we don't latch on to garbage
+	}
+	// return: sets frame and latchStarts
 	void process(TouchFrame& frame, bool& latchStarts)
 	{
 		size_t pastIdx = (idx - 1 + pastFrames.size()) % pastFrames.size();
@@ -319,10 +325,6 @@ public:
 			// use the oldest frame we have
 			frame = pastFrames[idx];
 			latchStarts = true;
-			static bool happend = false;
-			if(!happend)
-				printf("L\n\r");
-			happend = true;
 			pastFrames[idx].pos = pastFrames[idx].sz = 0;
 		} else {
 			// if we are still touching
@@ -1514,6 +1516,64 @@ public:
 };
 AutoLatcher MenuItemTypeSlider::autoLatcher;
 
+class MenuItemTypeRange : public MenuItemType {
+public:
+	MenuItemTypeRange(): MenuItemType({0, 0, 0}) {}
+	MenuItemTypeRange(const rgb_t& color, ParameterContinuous* paramBottom, ParameterContinuous* paramTop) :
+		MenuItemType(color), parameters({paramBottom, paramTop})
+	{
+		for(auto& al : autoLatchers)
+			al.reset();
+	}
+	void process(LedSlider& slider) override
+	{
+		if(parameters[0] && parameters[1])
+		{
+			size_t numTouches = slider.getNumTouches();
+			std::array<TouchFrame,kNumEnds> frames;
+			bool validTouch = 0;
+			if(1 == numTouches)
+			{
+				// find which existing values this is closest to
+				float current = slider.touchLocation(0);
+				std::array<float,kNumEnds> diffs;
+				for(size_t n = 0; n < kNumEnds; ++n)
+					diffs[n] = std::abs(current - pastFrames[n].pos);
+				// the only touch we have is controlling the one that was closest to it
+				validTouch = (diffs[0] > diffs[1]);
+				// put the good one where it belongs
+				frames[validTouch].pos = slider.touchLocation(0);
+				frames[validTouch].sz = slider.touchSize(0);
+				// and a non-touch on the other one
+				frames[!validTouch].pos = 0;
+				frames[!validTouch].sz = 0;
+			} else if (2 == numTouches)
+			{
+				for(size_t n = 0; n < kNumEnds; ++n)
+				{
+					frames[n].pos = slider.touchLocation(n);
+					frames[n].sz = slider.touchSize(n);
+				}
+			}
+			for(size_t n = 0; n < kNumEnds; ++n)
+			{
+				bool startsLatch;
+				autoLatchers[n].process(frames[n], startsLatch);
+				parameters[n]->set(frames[n].pos);
+				pastFrames[n] = frames[n];
+			}
+			printf("%d %.2f %.2f\n\r", validTouch, pastFrames[0].pos, pastFrames[1].pos);
+			if(0 == numTouches) // both touches released
+				menu_up();
+		}
+	}
+	static constexpr size_t kNumEnds = 2;
+	std::array<ParameterContinuous*,kNumEnds> parameters;
+	std::array<TouchFrame,kNumEnds> pastFrames = {};
+	static std::array<AutoLatcher,kNumEnds> autoLatchers;
+};
+std::array<AutoLatcher,MenuItemTypeRange::kNumEnds> MenuItemTypeRange::autoLatchers;
+
 static int shouldChangeMode = 1;
 class MenuItemTypeNextMode : public MenuItemTypeEvent
 {
@@ -1533,8 +1593,13 @@ public:
 	const char* name;
 	std::vector<MenuItemType*> items;
 	MenuPage(MenuPage&&) = delete;
-	MenuPage(const char* name, const std::vector<MenuItemType*>& items = {}): name(name), items(items) {}
-	MenuPage() {}
+	enum Type {
+		kMenuTypeButtons,
+		kMenuTypeSlider,
+		kMenuTypeRange,
+	};
+	MenuPage(const char* name, const std::vector<MenuItemType*>& items = {}, Type type = kMenuTypeButtons): name(name), items(items), type(type) {}
+	Type type;
 };
 
 int menu_setup(double);
@@ -1562,7 +1627,12 @@ MenuPage globalSettingsMenu("global settings");
 static MenuItemTypeSlider singleSliderMenuItem;
 // this is a submenu consisting of a continuous slider(no buttons). Before entering it,
 // appropriately set the properties of singleSliderMenuItem
-MenuPage singleSliderMenu("single slider", {&singleSliderMenuItem});
+MenuPage singleSliderMenu("single slider", {&singleSliderMenuItem}, MenuPage::kMenuTypeSlider);
+
+static MenuItemTypeRange singleRangeMenuItem;
+// this is a submenu consisting of a continuous slider(no buttons). Before entering it,
+// appropriately set the properties of singleRangeMenuItem
+MenuPage singleRangeMenu("single range", {&singleRangeMenuItem}, MenuPage::kMenuTypeRange);
 
 // If held-press, get into singleSliderMenu to set value
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
@@ -1578,6 +1648,23 @@ public:
 		}
 	}
 	ParameterContinuous& value;
+};
+
+// If held-press, get into singleRangeMenu to set values
+class MenuItemTypeEnterRange : public MenuItemTypeEnterSubmenu
+{
+public:
+	MenuItemTypeEnterRange(const char* name, rgb_t baseColor, ParameterContinuous& bottom, ParameterContinuous& top) :
+		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), bottom(bottom), top(top) {}
+	void event(Event e)
+	{
+		if(kHoldHigh == e) {
+			singleRangeMenuItem = MenuItemTypeRange(baseColor, &bottom, &top);
+			menu_in(singleRangeMenu);
+		}
+	}
+	ParameterContinuous& bottom;
+	ParameterContinuous& top;
 };
 
 class MenuItemTypeDiscreteContinuous : public MenuItemTypeEvent
@@ -1718,7 +1805,7 @@ static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modes
 		&exprButtonsModeMenu,
 };
 
-MenuItemTypeNextMode nextMode("4", {0, 255, 0});
+MenuItemTypeNextMode nextMode("nextMode", {0, 255, 0});
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
@@ -1726,12 +1813,15 @@ class GlobalSettings : public ParameterUpdateCapable {
 public:
 	void updated(Parameter& p)
 	{
-		printf("GlobalSettings updated: %p\n\r", &p);
+//		printf("GlobalSettings updated: %p\n\r", &p);
 	}
 	ParameterEnumT<4> dummyEnum {this, 0};
 	ParameterContinuous dummyCont {this, 0};
+	ParameterContinuous bottom {this, 0.2};
+	ParameterContinuous top {this, 0.8};
 } gGlobalSettings;
 static MenuItemTypeDiscreteContinuous globalSettingsOutRangeTop("globalSettingsOutRangeTop", {255, 0, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.dummyCont);
+static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.bottom, gGlobalSettings.top);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -1755,7 +1845,7 @@ static void menu_update()
 			&disabled, // TODO
 			&disabled, // TODO
 			&disabled, // TODO
-			&disabled, // TODO
+			&globalSettingsOutRange,
 			&globalSettingsOutRangeTop,
 		};
 		singleSliderMenu.items = {
@@ -1790,7 +1880,7 @@ static void menu_update()
 		// clear display
 		np.clear();
 		// TODO: the below is not particularly elegant: add a parameter to MenuPage
-		if(activeMenu->items.size() == 5)
+		if(MenuPage::kMenuTypeButtons == activeMenu->type)
 		{
 			//buttons
 			ledSlidersSetupMultiSlider(
@@ -1806,19 +1896,18 @@ static void menu_update()
 				true
 			);
 			menuJustEntered = true;
-		} else if (1 == activeMenu->items.size()){
-			// single slider
+		} else {
+			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{
 					activeMenu->items[0]->baseColor,
 				},
 				LedSlider::AUTO_CENTROIDS,
-				true
+				true,
+				maxNumCentroids
 			);
 			menuJustEntered = false; // this is immediately interactive
-		} else {
-			printf("Can't handle MenuPage\n\r");
 		}
 		isCalibration = false;
 	}
