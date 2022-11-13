@@ -339,36 +339,19 @@ private:
 	static constexpr size_t kHistoryLength = 5;
 	std::array<TouchFrame,kHistoryLength> pastFrames;
 	size_t idx = 0;
-	// TODO: count valid frames so that for short touches
-	// we don't latch on to garbage
 };
 
-static void processLatch(bool split, bool autoLatch)
+static void processLatch(bool buttonOffset,
+		std::array<bool,2>& hasTouch, bool autoLatch,
+		bool split, std::array<float,2> values,
+		std::array<bool,2>& isLatchedRet, std::array<float,2>& latchedValuesRet)
 {
-	bool buttonOffset = performanceBtn.offset;
-
+	std::array<bool,2> latchStarts = {false, false};
+	std::array<bool,2> unlatchStarts = {false, false};
 	static std::array<bool,2> isLatched = {false, false};
 	static std::array<bool,2> unlatchArmed = {false, false};
 	static std::array<float,2> latchedValues;
 
-	std::array<float,2> values;
-
-	if(split)
-	{
-		values[0] = ledSliders.sliders[0].compoundTouchLocation();
-		values[1] = ledSliders.sliders[1].compoundTouchLocation();
-
-	} else {
-		values[0] = ledSliders.sliders[0].compoundTouchLocation();
-		values[1] = ledSliders.sliders[0].compoundTouchSize();
-	}
-
-	std::array<bool,2> hasTouch = {false, false};
-	for(ssize_t n = 0; n < 1 + split; ++n)
-		hasTouch[n] = ledSliders.sliders[n].compoundTouchSize() > 0;
-
-	std::array<bool,2> latchStarts = {false, false};
-	std::array<bool,2> unlatchStarts = {false, false};
 	if(buttonOffset)
 	{
 		// button latches everything if there is at least one touch
@@ -428,35 +411,8 @@ static void processLatch(bool split, bool autoLatch)
 		if(unlatchStarts[n])
 			isLatched[n] = false;
 	}
-
-	if(isLatched[0] || isLatched[1]) {
-		gOutMode = kOutModeFollowLeds;
-		LedSlider::centroid_t centroid;
-		if(split)
-		{
-			centroid.size = kFixedCentroidSize;
-			for(size_t n = 0; n < isLatched.size(); ++n)
-			{
-				if(isLatched[n])
-				{
-					centroid.location = latchedValues[n];
-					centroid.size = kFixedCentroidSize;
-				} else {
-					// this is not actually latched, but as gOutMode
-					// is not split, we emulate direct control here.
-					centroid.location = values[n];
-					centroid.size = kFixedCentroidSize * hasTouch[n]; // TODO: when bipolar this should send out "nothing"
-				}
-				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
-			}
-		} else {
-			centroid.location = latchedValues[0];
-			centroid.size = latchedValues[1];
-			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-		}
-	}
-	else
-		gOutMode = kOutModeFollowTouch;
+	latchedValuesRet = latchedValues;
+	isLatchedRet = isLatched;
 }
 
 template <typename sample_t>
@@ -909,7 +865,56 @@ public:
 	}
 	void render(BelaContext*) override
 	{
-		processLatch(split, autoLatch);
+		bool buttonOffset = performanceBtn.offset;
+
+		std::array<float,2> values;
+
+		if(split)
+		{
+			values[0] = ledSliders.sliders[0].compoundTouchLocation();
+			values[1] = ledSliders.sliders[1].compoundTouchLocation();
+
+		} else {
+			values[0] = ledSliders.sliders[0].compoundTouchLocation();
+			values[1] = ledSliders.sliders[0].compoundTouchSize();
+		}
+
+		std::array<bool,2> hasTouch = {false, false};
+		for(ssize_t n = 0; n < 1 + split; ++n)
+			hasTouch[n] = ledSliders.sliders[n].compoundTouchSize() > 0;
+
+		std::array<bool,2> isLatched;
+		std::array<float,2> latchedValues;
+		processLatch(buttonOffset, hasTouch, autoLatch, split, values, isLatched, latchedValues);
+
+		if(isLatched[0] || isLatched[1]) {
+			gOutMode = kOutModeFollowLeds;
+			LedSlider::centroid_t centroid;
+			if(split)
+			{
+				centroid.size = kFixedCentroidSize;
+				for(size_t n = 0; n < isLatched.size(); ++n)
+				{
+					if(isLatched[n])
+					{
+						centroid.location = latchedValues[n];
+						centroid.size = kFixedCentroidSize;
+					} else {
+						// this is not actually latched, but as gOutMode
+						// is not split, we emulate direct control here.
+						centroid.location = values[n];
+						centroid.size = kFixedCentroidSize * hasTouch[n]; // TODO: when bipolar this should send out "nothing"
+					}
+					ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
+				}
+			} else {
+				centroid.location = latchedValues[0];
+				centroid.size = latchedValues[1];
+				ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+			}
+		}
+		else
+			gOutMode = kOutModeFollowTouch;
 	}
 	void updated(Parameter& p)
 	{
