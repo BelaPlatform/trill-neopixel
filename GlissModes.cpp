@@ -1976,9 +1976,6 @@ void menu_render(BelaContext*)
 		menuJustEntered = false;
 	}
 	static const size_t numButtons = ledSlidersAlt.sliders.size();
-	static std::vector<bool> altStates(numButtons);
-	static std::vector<size_t> onsets(numButtons);
-	static std::vector<size_t> offsets(numButtons);
 	if(isCalibration)
 	{
 		gCalibrationProcedure.process();
@@ -1991,17 +1988,5 @@ void menu_render(BelaContext*)
 	else {
 		for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 			activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
-
-//		ledSlidersFixedButtonsProcess(ledSlidersAlt, altStates, onsets, offsets, false);
-		// see if a button was pressed
-//		if(onsets.size())
-//		{
-//			// only consider one touch
-//			const unsigned int button = onsets[0];
-////				gCalibrationProcedure.setup();
-////				isCalibration = true;
-//			if(numButtons - 1 == button)
-//				shouldChangeMode = 1;
-//		}
 	}
 }
