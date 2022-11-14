@@ -343,18 +343,20 @@ private:
 
 class LatchProcessor {
 public:
-	void process(bool shouldLatchUnlatch, bool autoLatch, bool split,
+	void process(bool shouldLatchUnlatch, bool autoLatch, size_t numValues,
 			std::array<TouchFrame,2>& values, std::array<bool,2>& isLatchedRet)
 	{
-		std::array<bool,2> hasTouch = { values[0].sz > 0, values[1].sz > 0 };
-		std::array<bool,2> latchStarts = {false, false};
-		std::array<bool,2> unlatchStarts = {false, false};
+		if(numValues > kMaxNumValues)
+			numValues = kMaxNumValues;
+		std::array<bool,kMaxNumValues> hasTouch = { values[0].sz > 0, values[1].sz > 0 };
+		std::array<bool,kMaxNumValues> latchStarts = {false, false};
+		std::array<bool,kMaxNumValues> unlatchStarts = {false, false};
 
 		if(shouldLatchUnlatch)
 		{
 			// button latches everything if there is at least one touch
 			// and unlatches everything if there is no touch
-			for(ssize_t n = 0; n < 1 + split; ++n)
+			for(size_t n = 0; n < numValues; ++n)
 			{
 				if(!isLatched[n] && hasTouch[n])
 					latchStarts[n] = true;
@@ -369,10 +371,10 @@ public:
 		if(autoLatch)
 		{
 			// try to hold without button
-			for(ssize_t n = 0; n < 1 + split; ++n)
+			for(size_t n = 0; n < numValues; ++n)
 				autoLatchers[n].process(values[n], latchStarts[n]);
 		}
-		for(ssize_t n = 0; n < 1 + split; ++n)
+		for(size_t n = 0; n < numValues; ++n)
 		{
 			if(isLatched[n])
 			{
@@ -393,7 +395,7 @@ public:
 			if(unlatchStarts[n])
 				isLatched[n] = false;
 		}
-		for(ssize_t n = 0; n < 1 + split; ++n)
+		for(size_t n = 0; n < numValues; ++n)
 		{
 			if(isLatched[n])
 				values[n] = latchedValues[n];
@@ -402,10 +404,11 @@ public:
 		isLatchedRet = isLatched;
 	}
 private:
-	std::array<bool,2> isLatched = {false, false};
-	std::array<bool,2> unlatchArmed = {false, false};
-	std::array<TouchFrame,2> latchedValues;
-	std::array<AutoLatcher,2> autoLatchers;
+	static constexpr size_t kMaxNumValues = 2;
+	std::array<bool,kMaxNumValues> isLatched = {false, false};
+	std::array<bool,kMaxNumValues> unlatchArmed = {false, false};
+	std::array<TouchFrame,kMaxNumValues> latchedValues = {0, 0};
+	std::array<AutoLatcher,kMaxNumValues> autoLatchers;
 };
 
 template <typename sample_t>
@@ -873,7 +876,7 @@ public:
 		std::array<bool,2> isLatched = {false, false};
 
 		// sets values and isLatched
-		latchProcessor.process(buttonOffset, autoLatch, split, values, isLatched);
+		latchProcessor.process(buttonOffset, autoLatch, 1 + split, values, isLatched);
 
 		if(isLatched[0] || isLatched[1]) {
 			gOutMode = kOutModeFollowLeds;
