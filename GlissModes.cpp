@@ -341,79 +341,72 @@ private:
 	size_t idx = 0;
 };
 
-static void processLatch(bool buttonOffset,
-		std::array<bool,2>& hasTouch, bool autoLatch,
-		bool split, std::array<float,2> values,
-		std::array<bool,2>& isLatchedRet, std::array<float,2>& latchedValuesRet)
-{
-	std::array<bool,2> latchStarts = {false, false};
-	std::array<bool,2> unlatchStarts = {false, false};
-	static std::array<bool,2> isLatched = {false, false};
-	static std::array<bool,2> unlatchArmed = {false, false};
-	static std::array<float,2> latchedValues;
-
-	if(buttonOffset)
+class LatchProcessor {
+public:
+	void process(bool shouldLatchUnlatch, bool autoLatch, bool split,
+			std::array<TouchFrame,2>& values, std::array<bool,2>& isLatchedRet)
 	{
-		// button latches everything if there is at least one touch
-		// and unlatches everything if there is no touch
-		for(size_t n = 0; n < isLatched.size(); ++n)
+		std::array<bool,2> hasTouch = { values[0].sz > 0, values[1].sz > 0 };
+		std::array<bool,2> latchStarts = {false, false};
+		std::array<bool,2> unlatchStarts = {false, false};
+
+		if(shouldLatchUnlatch)
 		{
-			if(!isLatched[n] && hasTouch[n])
-				latchStarts[n] = true;
-			if(!(hasTouch[0] || hasTouch[1]))
+			// button latches everything if there is at least one touch
+			// and unlatches everything if there is no touch
+			for(ssize_t n = 0; n < 1 + split; ++n)
 			{
-				// no touch
-				if(isLatched[n])
-					unlatchStarts[n] = true;
+				if(!isLatched[n] && hasTouch[n])
+					latchStarts[n] = true;
+				if(!(hasTouch[0] || hasTouch[1]))
+				{
+					// no touch
+					if(isLatched[n])
+						unlatchStarts[n] = true;
+				}
 			}
 		}
-	}
-	if(autoLatch)
-	{
-		static std::array<AutoLatcher,2> autoLatcher;
-		// try to hold without button
+		if(autoLatch)
+		{
+			// try to hold without button
+			for(ssize_t n = 0; n < 1 + split; ++n)
+				autoLatchers[n].process(values[n], latchStarts[n]);
+		}
 		for(ssize_t n = 0; n < 1 + split; ++n)
 		{
-			// use both pos and sz from each slider for detection ...
-			TouchFrame touchFrame = {
-					ledSliders.sliders[n].compoundTouchLocation(),
-					ledSliders.sliders[n].compoundTouchSize(),
-			};
-			autoLatcher[n].process(touchFrame, latchStarts[n]);
-			// ... but, if split, only keep pos
-			values[n] = touchFrame.pos;
-			if(!split) // loop goes only to n = 0
-				values[1] = touchFrame.sz;
-		}
-	}
-	for(ssize_t n = 0; n < 1 + split; ++n)
-	{
-		if(isLatched[n])
-		{
-			if(!hasTouch[n])
+			if(isLatched[n])
 			{
-				unlatchArmed[n] = true;
+				// if it's latched (and you have release your finger),
+				// you can unlatch and go back
+				// to direct control simply by touching again
+				if(!hasTouch[n])
+					unlatchArmed[n] = true;
+				if(unlatchArmed[n] && hasTouch[n])
+					unlatchStarts[n] = true;
 			}
-			if(unlatchArmed[n] && hasTouch[n])
+			if(latchStarts[n])
 			{
-				unlatchStarts[n] = true;
+				latchedValues[n] = values[n];
+				isLatched[n] = true;
+				unlatchArmed[n] = false;
 			}
+			if(unlatchStarts[n])
+				isLatched[n] = false;
 		}
-
-		if(latchStarts[n])
+		for(ssize_t n = 0; n < 1 + split; ++n)
 		{
-			latchedValues[n] = values[n];
-			if(!split)
-				latchedValues[1] = values[1];
-			isLatched[n] = true;
-			unlatchArmed[n] = false;
+			if(isLatched[n])
+				values[n] = latchedValues[n];
+			// or leave them untouched
 		}
-		if(unlatchStarts[n])
-			isLatched[n] = false;
+		isLatchedRet = isLatched;
 	}
-	latchedValuesRet = latchedValues;
-	isLatchedRet = isLatched;
-}
+private:
+	std::array<bool,2> isLatched = {false, false};
+	std::array<bool,2> unlatchArmed = {false, false};
+	std::array<TouchFrame,2> latchedValues;
+	std::array<AutoLatcher,2> autoLatchers;
+};
 
 template <typename sample_t>
 class Recorder
@@ -867,49 +860,45 @@ public:
 	{
 		bool buttonOffset = performanceBtn.offset;
 
-		std::array<float,2> values;
+		std::array<TouchFrame,2> values;
 
+		values[0].pos = ledSliders.sliders[0].compoundTouchLocation();
+		values[0].sz = ledSliders.sliders[0].compoundTouchSize();
 		if(split)
 		{
-			values[0] = ledSliders.sliders[0].compoundTouchLocation();
-			values[1] = ledSliders.sliders[1].compoundTouchLocation();
-
-		} else {
-			values[0] = ledSliders.sliders[0].compoundTouchLocation();
-			values[1] = ledSliders.sliders[0].compoundTouchSize();
+			values[1].pos = ledSliders.sliders[1].compoundTouchLocation();
+			values[1].sz = ledSliders.sliders[1].compoundTouchSize();
 		}
 
-		std::array<bool,2> hasTouch = {false, false};
-		for(ssize_t n = 0; n < 1 + split; ++n)
-			hasTouch[n] = ledSliders.sliders[n].compoundTouchSize() > 0;
+		std::array<bool,2> isLatched = {false, false};
 
-		std::array<bool,2> isLatched;
-		std::array<float,2> latchedValues;
-		processLatch(buttonOffset, hasTouch, autoLatch, split, values, isLatched, latchedValues);
+		// sets values and isLatched
+		latchProcessor.process(buttonOffset, autoLatch, split, values, isLatched);
 
 		if(isLatched[0] || isLatched[1]) {
 			gOutMode = kOutModeFollowLeds;
 			LedSlider::centroid_t centroid;
 			if(split)
 			{
-				centroid.size = kFixedCentroidSize;
-				for(size_t n = 0; n < isLatched.size(); ++n)
+				for(ssize_t n = 0; n < 1 + split; ++n)
 				{
 					if(isLatched[n])
 					{
-						centroid.location = latchedValues[n];
+						centroid.location = values[n].pos;
 						centroid.size = kFixedCentroidSize;
 					} else {
 						// this is not actually latched, but as gOutMode
-						// is not split, we emulate direct control here.
-						centroid.location = values[n];
-						centroid.size = kFixedCentroidSize * hasTouch[n]; // TODO: when bipolar this should send out "nothing"
+						// is not latched, we emulate direct control here.
+						// TODO: be able to set gOutMode per-split
+						centroid.location = values[n].pos;
+						bool hasTouch = (ledSliders.sliders[n].compoundTouchSize() > 0);
+						centroid.size = kFixedCentroidSize * hasTouch; // TODO: when bipolar this should send out "nothing"
 					}
 					ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 				}
 			} else {
-				centroid.location = latchedValues[0];
-				centroid.size = latchedValues[1];
+				centroid.location = values[0].pos;
+				centroid.size = values[0].sz;
 				ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 			}
 		}
@@ -933,6 +922,7 @@ private:
 		{255, 0, 0},
 		{255, 0, 127},
 	};
+	LatchProcessor latchProcessor;
 } gDirectControlMode;
 
 class RecorderMode : public PerformanceMode {
@@ -1528,7 +1518,7 @@ public:
 		MenuItemType(color), parameters({paramBottom, paramTop})
 	{
 		for(auto& al : autoLatchers)
-			al.reset();
+			al.reset(); // is this the right place to call this ?
 	}
 	void process(LedSlider& slider) override
 	{
