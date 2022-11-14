@@ -307,6 +307,9 @@ struct TouchFrame {
 // of whatever spurious reading we got while releasing the touch
 class AutoLatcher {
 public:
+	AutoLatcher() {
+		reset();
+	}
 	void reset()
 	{
 		// TODO: count valid frames so that for short touches
@@ -343,6 +346,17 @@ private:
 
 class LatchProcessor {
 public:
+	LatchProcessor() {
+		reset();
+	}
+	void reset()
+	{
+		isLatched = {false, false};
+		unlatchArmed = {false, false};
+		latchedValues = {0, 0};
+		for(auto& al : autoLatchers)
+			al.reset();
+	}
 	void process(bool shouldLatchUnlatch, bool autoLatch, size_t numValues,
 			std::array<TouchFrame,2>& values, std::array<bool,2>& isLatchedRet)
 	{
@@ -405,9 +419,9 @@ public:
 	}
 private:
 	static constexpr size_t kMaxNumValues = 2;
-	std::array<bool,kMaxNumValues> isLatched = {false, false};
-	std::array<bool,kMaxNumValues> unlatchArmed = {false, false};
-	std::array<TouchFrame,kMaxNumValues> latchedValues = {0, 0};
+	std::array<bool,kMaxNumValues> isLatched;
+	std::array<bool,kMaxNumValues> unlatchArmed;
+	std::array<TouchFrame,kMaxNumValues> latchedValues;
 	std::array<AutoLatcher,kMaxNumValues> autoLatchers;
 };
 
@@ -1520,14 +1534,19 @@ public:
 	MenuItemTypeRange(const rgb_t& color, ParameterContinuous* paramBottom, ParameterContinuous* paramTop) :
 		MenuItemType(color), parameters({paramBottom, paramTop})
 	{
-		for(auto& al : autoLatchers)
-			al.reset(); // is this the right place to call this ?
+		latchProcessor.reset();
 	}
 	void process(LedSlider& slider) override
 	{
 		if(parameters[0] && parameters[1])
 		{
 			size_t numTouches = slider.getNumTouches();
+			if(0 == numTouches)
+			{
+				// both touches released: exit
+				menu_up();
+				return;
+			}
 			std::array<TouchFrame,kNumEnds> frames;
 			bool validTouch = 0;
 			if(1 == numTouches)
@@ -1553,24 +1572,23 @@ public:
 					frames[n].sz = slider.touchSize(n);
 				}
 			}
-			for(size_t n = 0; n < kNumEnds; ++n)
+			std::array<bool,2> isLatched;
+			static std::array<TouchFrame,2> preframes;
+			preframes = frames;
+			latchProcessor.process(false, true, frames.size(), frames, isLatched);
+			for(size_t n = 0; n < frames.size(); ++n)
 			{
-				bool startsLatch;
-				autoLatchers[n].process(frames[n], startsLatch);
 				parameters[n]->set(frames[n].pos);
 				pastFrames[n] = frames[n];
 			}
-			printf("%d %.2f %.2f\n\r", validTouch, pastFrames[0].pos, pastFrames[1].pos);
-			if(0 == numTouches) // both touches released
-				menu_up();
 		}
 	}
 	static constexpr size_t kNumEnds = 2;
 	std::array<ParameterContinuous*,kNumEnds> parameters;
 	std::array<TouchFrame,kNumEnds> pastFrames = {};
-	static std::array<AutoLatcher,kNumEnds> autoLatchers;
+	static LatchProcessor latchProcessor;
 };
-std::array<AutoLatcher,MenuItemTypeRange::kNumEnds> MenuItemTypeRange::autoLatchers;
+LatchProcessor MenuItemTypeRange::latchProcessor;
 
 static int shouldChangeMode = 1;
 class MenuItemTypeNextMode : public MenuItemTypeEvent
