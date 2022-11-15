@@ -996,6 +996,9 @@ private:
 	};
 } gRecorderMode;
 
+static void menu_enterGlobalOutRange(const rgb_t& color);
+static void menu_enterGlobalInRange(const rgb_t& color);
+
 class ScaleMeterMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
@@ -1005,7 +1008,6 @@ public:
 		pastIn = 0;
 		rms = 0;
 		env = 0;
-		rgb_t color = {0, 160, 160};
 		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(
@@ -1018,8 +1020,33 @@ public:
 			return true;
 		return modeChangeBlink(ms, color);
 	}
+
 	void render(BelaContext* context) override
 	{
+		// we can quickly get into menu mode from here
+		if(!gAlt)
+		{
+			static std::array<float,26> data = {0};
+			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
+			{
+				// only touch on: set output range
+				menu_enterGlobalOutRange(color);
+				// TODO: line below is just a workaround because we don't have a clean way of
+				// _entering_ menu from here while ignoring the _last_ slider readings
+				ledSliders.sliders[0].process(data.data());
+				return;
+			}
+			if(performanceBtn.onset)
+			{
+				// press button: set input range
+				menu_enterGlobalInRange(color);
+				// TODO: line below is just a workaround because we don't have a clean way of
+				// _exiting_ the menu from here while ignoring the _first_ slider readings
+				ledSliders.sliders[0].process(data.data());
+				return;
+			}
+		}
+
 		switch (coupling)
 		{
 		case 0: //DC coupling
@@ -1088,6 +1115,7 @@ public:
 	ParameterEnumT<2> coupling {this, 1};
 	ParameterContinuous cutoff {this, 200};
 private:
+	const rgb_t color = {0, 160, 160};
 	float pastIn;
 	float env;
 	size_t count;
@@ -1892,6 +1920,7 @@ public:
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 } gGlobalSettings;
+
 //static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsRange", {255, 127, 0}, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", {255, 127, 0}, gGlobalSettings.sizeScaleCoeff);
 static MenuItemTypeDiscreteRange globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
@@ -1904,6 +1933,20 @@ int menuShouldChangeMode()
 	int tmp = shouldChangeMode;
 	shouldChangeMode = 0;
 	return tmp;
+}
+
+static void menu_enterGlobalOutRange(const rgb_t& color)
+{
+	gAlt = 1;
+	singleRangeMenuItem = MenuItemTypeRange(color, &gGlobalSettings.outRangeBottom, &gGlobalSettings.outRangeTop);
+	menu_in(singleRangeMenu);
+}
+
+static void menu_enterGlobalInRange(const rgb_t& color)
+{
+	gAlt = 1;
+	singleRangeMenuItem = MenuItemTypeRange(color, &gGlobalSettings.inRangeBottom, &gGlobalSettings.inRangeTop);
+	menu_in(singleRangeMenu);
 }
 
 static std::vector<MenuPage*> menuStack;
@@ -2012,17 +2055,17 @@ static void menu_in(MenuPage& menu)
 	menuStack.emplace_back(&menu);
 }
 
-int menu_setup(double)
-{
-	return menu_dosetup(menuMain);
-}
-
 int menu_dosetup(MenuPage& menu)
 {
 	menuStack.resize(0);
 	menu_in(menu);
 	menu_update(); // TODO: is this needed?
 	return true;
+}
+
+int menu_setup(double)
+{
+	return menu_dosetup(mainMenu);
 }
 
 void menu_render(BelaContext*)
@@ -2050,7 +2093,6 @@ void menu_render(BelaContext*)
 			return;
 		menuJustEntered = false;
 	}
-	static const size_t numButtons = ledSlidersAlt.sliders.size();
 	if(isCalibration)
 	{
 		gCalibrationProcedure.process();
