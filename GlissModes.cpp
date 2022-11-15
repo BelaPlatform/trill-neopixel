@@ -961,7 +961,6 @@ public:
 		{
 			if(ms <= 0)
 				ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
-			gSecondTouchIsSize = true;
 			if(ms < 0)
 				return true;
 			return modeChangeBlink(ms, colors[0]);
