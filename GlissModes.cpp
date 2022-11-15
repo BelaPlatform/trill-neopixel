@@ -1694,11 +1694,11 @@ public:
 	ParameterContinuous& top;
 };
 
-class MenuItemTypeDiscreteContinuous : public MenuItemTypeEvent
+class MenuItemTypeDiscretePlus : public MenuItemTypeEvent
 {
 public:
-	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueCon):
-		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn), valueCon(valueCon) {}
+	MenuItemTypeDiscretePlus(const char* name, rgb_t baseColor, ParameterEnum& valueEn):
+		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn) {}
 	void event(Event e) override
 	{
 		switch (e)
@@ -1706,20 +1706,46 @@ public:
 		case kTransitionFalling:
 			// this one is on release so we avoid a spurious trigger when holding
 			valueEn.next();
-			printf("DiscreteContinuous: next to %d\n\r", valueEn.get());
+			printf("DiscretePlus: next to %d\n\r", valueEn.get());
 			break;
 		case kHoldHigh:
-			printf("DiscreteContinuous: going to slider\n\r");
-			singleSliderMenuItem = MenuItemTypeSlider(baseColor, &valueCon);
-			menu_in(singleSliderMenu);
+			enterPlus();
 			break;
 		default:
 			break;
 		}
 	}
+	virtual void enterPlus() = 0;
 	ParameterEnum& valueEn;
+};
+
+class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
+{
+public:
+	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueCon):
+		MenuItemTypeDiscretePlus(name, baseColor, valueEn), valueCon(valueCon) {}
+	void enterPlus() override
+	{
+		printf("DiscreteContinuous: going to slider\n\r");
+		singleSliderMenuItem = MenuItemTypeSlider(baseColor, &valueCon);
+		menu_in(singleSliderMenu);
+	}
 	ParameterContinuous& valueCon;
-	MenuItemTypeEnterContinuous enterContinuous {"discreteContinuous", baseColor, valueCon};
+};
+
+class MenuItemTypeDiscreteRange : public MenuItemTypeDiscretePlus
+{
+public:
+	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop):
+		MenuItemTypeDiscretePlus(name, baseColor, valueEn), valueConBottom(valueConBottom), valueConTop(valueConTop) {}
+	void enterPlus() override
+	{
+		printf("DiscreteRange: going to range\n\r");
+		singleRangeMenuItem = MenuItemTypeRange(baseColor, &valueConBottom, &valueConTop);
+		menu_in(singleRangeMenu);
+	}
+	ParameterContinuous& valueConBottom;
+	ParameterContinuous& valueConTop;
 };
 
 class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
@@ -1847,8 +1873,9 @@ public:
 	ParameterContinuous bottom {this, 0.2};
 	ParameterContinuous top {this, 0.8};
 } gGlobalSettings;
-static MenuItemTypeDiscreteContinuous globalSettingsOutRangeTop("globalSettingsOutRangeTop", {255, 0, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.dummyCont);
-static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.bottom, gGlobalSettings.top);
+static MenuItemTypeDiscreteContinuous globalSettingsOutRangeTop("globalSettingsContinuous", {255, 0, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.dummyCont);
+static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsRange", {255, 127, 0}, gGlobalSettings.bottom, gGlobalSettings.top);
+static MenuItemTypeDiscreteRange globalSettingsOutDiscreteRange("globalSettingsDiscreteRange", {255, 127, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.bottom, gGlobalSettings.top);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -1871,7 +1898,7 @@ static void menu_update()
 		globalSettingsMenu.items = {
 			&disabled, // TODO
 			&disabled, // TODO
-			&disabled, // TODO
+			&globalSettingsOutDiscreteRange,
 			&globalSettingsOutRange,
 			&globalSettingsOutRangeTop,
 		};
