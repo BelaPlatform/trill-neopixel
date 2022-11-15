@@ -1535,6 +1535,14 @@ public:
 		MenuItemType(color), parameters({paramBottom, paramTop})
 	{
 		latchProcessor.reset();
+		for(size_t n = 0; n < kNumEnds; ++n)
+		{
+			pastFrames[n].pos = parameters[n]->get();
+			pastFrames[n].sz = 1;
+		}
+		std::array<bool,2> isLatched;
+		// "prime" the latchProcessor. Needed because we'll always start with one touch
+		latchProcessor.process(false, true, pastFrames.size(), pastFrames, isLatched);
 	}
 	void process(LedSlider& slider) override
 	{
@@ -1573,19 +1581,22 @@ public:
 				}
 			}
 			std::array<bool,2> isLatched;
-			static std::array<TouchFrame,2> preframes;
-			preframes = frames;
 			latchProcessor.process(false, true, frames.size(), frames, isLatched);
 			for(size_t n = 0; n < frames.size(); ++n)
 			{
 				parameters[n]->set(frames[n].pos);
 				pastFrames[n] = frames[n];
 			}
+			std::array<LedSlider::centroid_t,2> values = {
+					LedSlider::centroid_t{ frames[0].pos, 0.15 },
+					LedSlider::centroid_t{ frames[1].pos, 0.15 },
+			};
+			slider.setLedsCentroids(values.data(), values.size());
 		}
 	}
 	static constexpr size_t kNumEnds = 2;
 	std::array<ParameterContinuous*,kNumEnds> parameters;
-	std::array<TouchFrame,kNumEnds> pastFrames = {};
+	std::array<TouchFrame,kNumEnds> pastFrames;
 	static LatchProcessor latchProcessor;
 };
 LatchProcessor MenuItemTypeRange::latchProcessor;
@@ -1914,12 +1925,13 @@ static void menu_update()
 			menuJustEntered = true;
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
+			LedSlider::LedMode_t ledMode = MenuPage::kMenuTypeRange == activeMenu->type ? LedSlider::MANUAL_CENTROIDS : LedSlider::AUTO_CENTROIDS;
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{
 					activeMenu->items[0]->baseColor,
 				},
-				LedSlider::AUTO_CENTROIDS,
+				ledMode,
 				true,
 				maxNumCentroids
 			);
