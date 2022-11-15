@@ -408,6 +408,8 @@ void tr_render(BelaContext* context)
 	}
 
 	// multiplexer part 2
+	// TODO "performanceActive" becomes active not immediately when `!gAlt`: if we exited menu with the button,
+	// we are not in `performanceActive` until the button is released once.
 	bool performanceActive = !menuActive;
 	performanceBtn = performanceActive ? btn : disBtn;
 	ledSliders.enableTouch(performanceActive);
