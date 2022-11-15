@@ -1867,15 +1867,35 @@ public:
 	void updated(Parameter& p)
 	{
 //		printf("GlobalSettings updated: %p\n\r", &p);
+		char const* str = "___";
+		if(p.same(outRangeEnum))
+			str = "outRangeEnum";
+		else if(p.same(outRangeBottom))
+			str = "outRangeBottom";
+		else if(p.same(outRangeTop))
+			str = "outRangeTop";
+		else if(p.same(inRangeEnum))
+			str = "inRangeEnum";
+		else if(p.same(inRangeTop))
+			str = "inRangeTop";
+		else if(p.same(inRangeBottom))
+			str = "inRangeBottom";
+		else if(p.same(sizeScaleCoeff))
+			str = "sizeScaleCoeff";
+		printf("%s\n\r", str);
 	}
-	ParameterEnumT<4> dummyEnum {this, 0};
-	ParameterContinuous dummyCont {this, 0};
-	ParameterContinuous bottom {this, 0.2};
-	ParameterContinuous top {this, 0.8};
+	ParameterEnumT<4> outRangeEnum {this, 0};
+	ParameterContinuous outRangeBottom {this, 0.2};
+	ParameterContinuous outRangeTop {this, 0.8};
+	ParameterEnumT<4> inRangeEnum {this, 0};
+	ParameterContinuous inRangeBottom {this, 0.8};
+	ParameterContinuous inRangeTop {this, 0.8};
+	ParameterContinuous sizeScaleCoeff {this, 0.5};
 } gGlobalSettings;
-static MenuItemTypeDiscreteContinuous globalSettingsOutRangeTop("globalSettingsContinuous", {255, 0, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.dummyCont);
-static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsRange", {255, 127, 0}, gGlobalSettings.bottom, gGlobalSettings.top);
-static MenuItemTypeDiscreteRange globalSettingsOutDiscreteRange("globalSettingsDiscreteRange", {255, 127, 0}, gGlobalSettings.dummyEnum, gGlobalSettings.bottom, gGlobalSettings.top);
+//static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsRange", {255, 127, 0}, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
+static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", {255, 127, 0}, gGlobalSettings.sizeScaleCoeff);
+static MenuItemTypeDiscreteRange globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
+static MenuItemTypeDiscreteRange globalSettingsInRange("globalSettingsInRange", {255, 127, 0}, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -1898,9 +1918,9 @@ static void menu_update()
 		globalSettingsMenu.items = {
 			&disabled, // TODO
 			&disabled, // TODO
-			&globalSettingsOutDiscreteRange,
+			&globalSettingsSizeScale,
+			&globalSettingsInRange,
 			&globalSettingsOutRange,
-			&globalSettingsOutRangeTop,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,
