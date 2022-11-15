@@ -2014,8 +2014,13 @@ static void menu_in(MenuPage& menu)
 
 int menu_setup(double)
 {
+	return menu_dosetup(menuMain);
+}
+
+int menu_dosetup(MenuPage& menu)
+{
 	menuStack.resize(0);
-	menu_in(mainMenu);
+	menu_in(menu);
 	menu_update(); // TODO: is this needed?
 	return true;
 }
