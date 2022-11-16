@@ -1733,11 +1733,18 @@ public:
 		switch (e)
 		{
 		case kTransitionFalling:
-			// this one is on release so we avoid a spurious trigger when holding
-			valueEn.next();
-			printf("DiscretePlus: next to %d\n\r", valueEn.get());
+			if(!ignoreNextTransition)
+			{
+				// this one is on release so we avoid a spurious trigger when holding
+				valueEn.next();
+				printf("DiscretePlus: next to %d\n\r", valueEn.get());
+			}
+			ignoreNextTransition = false;
 			break;
 		case kHoldHigh:
+			// avoid transition so that when exiting Plus mode
+			// we don't mistakenly increment the enum
+			ignoreNextTransition = true;
 			enterPlus();
 			break;
 		default:
@@ -1746,6 +1753,7 @@ public:
 	}
 	virtual void enterPlus() = 0;
 	ParameterEnum& valueEn;
+	bool ignoreNextTransition = false;
 };
 
 class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
