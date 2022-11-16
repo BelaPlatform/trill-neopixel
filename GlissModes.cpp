@@ -800,6 +800,7 @@ public:
 
 class ParameterEnum : public Parameter {
 public:
+	virtual void set(unsigned int) = 0;
 	virtual void next() = 0;
 	virtual uint8_t get() const = 0;
 };
@@ -810,6 +811,11 @@ public:
 	ParameterEnumT<T>(ParameterUpdateCapable* that, uint8_t value = 0):
 		that(that), value(value) {}
 
+	void set(unsigned int newValue) override
+	{
+		value = newValue - 1;
+		next();
+	}
 	void next() override
 	{
 		value++;
@@ -1904,24 +1910,29 @@ public:
 	void updated(Parameter& p)
 	{
 //		printf("GlobalSettings updated: %p\n\r", &p);
-		char const* str = "___";
-		if(p.same(outRangeEnum))
+		char const* str = "+++";
+		if(p.same(outRangeEnum)) {
+			gOutRange = outRangeEnum;
 			str = "outRangeEnum";
-		else if(p.same(outRangeBottom))
-			str = "outRangeBottom";
-		else if(p.same(outRangeTop))
-			str = "outRangeTop";
+		}
+		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
+			outRangeEnum.set(kOutRangeCustom);
+			gOutRange = outRangeEnum;
+			gOutRangeBottom = outRangeBottom;
+			gOutRangeTop = outRangeTop;
+			str = "outRangeTop/Bottom";
+		}
 		else if(p.same(inRangeEnum))
 			str = "inRangeEnum";
-		else if(p.same(inRangeTop))
-			str = "inRangeTop";
-		else if(p.same(inRangeBottom))
-			str = "inRangeBottom";
+		else if(p.same(inRangeTop) || p.same(inRangeBottom)) {
+
+			str = "inRangeTop/Bottom";
+		}
 		else if(p.same(sizeScaleCoeff))
 			str = "sizeScaleCoeff";
 		printf("%s\n\r", str);
 	}
-	ParameterEnumT<4> outRangeEnum {this, 0};
+	ParameterEnumT<kOutRangeNum> outRangeEnum {this, 0};
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
 	ParameterEnumT<4> inRangeEnum {this, 0};
