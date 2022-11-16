@@ -1916,7 +1916,7 @@ public:
 			str = "outRangeEnum";
 		}
 		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
-			outRangeEnum.set(kOutRangeCustom);
+			outRangeEnum.set(kCvRangeCustom);
 			gOutRange = outRangeEnum;
 			gOutRangeBottom = outRangeBottom;
 			gOutRangeTop = outRangeTop;
@@ -1932,7 +1932,7 @@ public:
 			str = "sizeScaleCoeff";
 		printf("%s\n\r", str);
 	}
-	ParameterEnumT<kOutRangeNum> outRangeEnum {this, 0};
+	ParameterEnumT<kCvRangeNum> outRangeEnum {this, 0};
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
 	ParameterEnumT<4> inRangeEnum {this, 0};

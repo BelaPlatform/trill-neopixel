@@ -6,13 +6,13 @@ typedef enum {
 } OutMode;
 
 typedef enum {
-	kOutRangeFull,
-	kOutRangeBipolar,
-	kOutRangePositive5,
-	kOutRangePositive10,
-	kOutRangeCustom,
-	kOutRangeNum,
-} OutRange;
+	kCvRangeFull,
+	kCvRangeBipolar,
+	kCvRangePositive5,
+	kCvRangePositive10,
+	kCvRangeCustom,
+	kCvRangeNum,
+} CvRange;
 
 struct ButtonView {
 	 bool onset;

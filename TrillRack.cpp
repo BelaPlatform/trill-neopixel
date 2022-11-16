@@ -309,7 +309,7 @@ void tr_process(BelaContext* ptr)
 }
 
 // C++ doesn't allow myenumvar++, so we need this as an int
-int gOutRange = kOutRangeFull;
+int gOutRange = kCvRangePositive10;
 float gOutRangeTop = 1;
 float gOutRangeBottom = 0;
 
@@ -327,24 +327,24 @@ static float rescaleOutput(size_t idx, float gnd, float value)
 	float top;
 	switch (gOutRange)
 	{
-		case kOutRangeFull:
+		case kCvRangeFull:
 			bottom = 0;
 			top = 1;
 			break;
-		case kOutRangeBipolar:
+		case kCvRangeBipolar:
 			bottom = 0; // -5V TODO: fix
 			top = gnd * 2.f;
 			break;
-		case kOutRangePositive5:
+		case kCvRangePositive5:
 			bottom = gnd;
 			top = gnd * 2.f;
 			break;
-		case kOutRangePositive10:
+		case kCvRangePositive10:
 			bottom = gnd;
 			top = gnd * 3.f;
 			break;
 		default:
-		case kOutRangeCustom:
+		case kCvRangeCustom:
 			bottom = gOutRangeBottom;
 			top = gOutRangeTop;
 			break;
