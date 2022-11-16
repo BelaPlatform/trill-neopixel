@@ -470,12 +470,37 @@ void tr_render(BelaContext* context)
 		menu_render(context); // this will set gAlt back to 0 when exiting menu
 	}
 
+	static bool menuExitWaitingButtonRelease = false;
+	static bool menuExitWaitingTouchRelease = false;
+	static int oldAlt = gAlt;
+	if(oldAlt && !gAlt)
+	{
+		// we just got out of menu mode. We may have done so by pressing the button (with or without a touch)
+		// or by releasing a touch (in which case we won't have any touches here)
+		// If button was pressed and/or touch was active when exiting from menu,
+		// we should wait for each to be released before they get re-enabled for performance
+		if(btn.pressed)
+			menuExitWaitingButtonRelease = true;
+		globalSlider.process(trill.rawData.data()); //TODO: this may be a duplicate as it may have been called above already.
+		if(globalSlider.getNumTouches())
+			menuExitWaitingTouchRelease = true;
+	} else { // else ensures we don't run this uselessly in the same block where they were set
+		if(menuExitWaitingButtonRelease) {
+			if(!btn.pressed && !btn.offset)
+				menuExitWaitingButtonRelease = false;
+		}
+		if(menuExitWaitingTouchRelease) {
+			globalSlider.process(trill.rawData.data()); //TODO: this may be a duplicate as it may have been called above already.
+			if(!globalSlider.getNumTouches())
+				menuExitWaitingTouchRelease = false;
+		}
+	}
+	oldAlt = gAlt;
+
 	// multiplexer part 2
-	// TODO "performanceActive" becomes active not immediately when `!gAlt`: if we exited menu with the button,
-	// we are not in `performanceActive` until the button is released once.
 	bool performanceActive = !menuActive;
-	performanceBtn = performanceActive ? btn : disBtn;
-	ledSliders.enableTouch(performanceActive);
+	performanceBtn = (performanceActive && !menuExitWaitingButtonRelease) ? btn : disBtn;
+	ledSliders.enableTouch(performanceActive && !menuExitWaitingTouchRelease);
 	ledSliders.enableLeds(performanceActive);
 
 	static double setupMs = 0;
