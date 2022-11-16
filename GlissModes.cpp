@@ -1042,7 +1042,8 @@ public:
 				// only touch on: set output range
 				menu_enterGlobalOutRange(color);
 				// TODO: line below is just a workaround because we don't have a clean way of
-				// _entering_ menu from here while ignoring the _last_ slider readings
+				// _entering_ menu from here while ignoring the _last_ slider readings,
+				// resulting in automatically re-entering immediately after exiting
 				ledSliders.sliders[0].process(data.data());
 				return;
 			}
@@ -1949,7 +1950,6 @@ public:
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 } gGlobalSettings;
 
-//static MenuItemTypeEnterRange globalSettingsOutRange("globalSettingsRange", {255, 127, 0}, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", {255, 127, 0}, gGlobalSettings.sizeScaleCoeff);
 static MenuItemTypeDiscreteRange globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
 static MenuItemTypeDiscreteRange globalSettingsInRange("globalSettingsInRange", {255, 127, 0}, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
