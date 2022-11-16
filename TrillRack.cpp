@@ -310,11 +310,52 @@ void tr_process(BelaContext* ptr)
 
 // C++ doesn't allow myenumvar++, so we need this as an int
 int gOutRange = kOutRangeFull;
+float gOutRangeTop = 1;
+float gOutRangeBottom = 0;
 
 static float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
 {
 	float value = map(x, in_min, in_max, out_min, out_max);
 	value = constrain(value, out_min, out_max);
+	return value;
+}
+
+static float rescaleOutput(size_t idx, float gnd, float value)
+{
+	// rescale analog outputs
+	float bottom;
+	float top;
+	switch (gOutRange)
+	{
+		case kOutRangeFull:
+			bottom = 0;
+			top = 1;
+			break;
+		case kOutRangeBipolar:
+			bottom = 0; // -5V TODO: fix
+			top = gnd * 2.f;
+			break;
+		case kOutRangePositive5:
+			bottom = gnd;
+			top = gnd * 2.f;
+			break;
+		case kOutRangePositive10:
+			bottom = gnd;
+			top = gnd * 3.f;
+			break;
+		default:
+		case kOutRangeCustom:
+			bottom = gOutRangeBottom;
+			top = gOutRangeTop;
+			break;
+	}
+	if(gSecondTouchIsSize && 1 == idx) // if this is a size
+		bottom = gnd; // make it always positive
+	// TODO: apply sizeScaleCoeff. Is this the best place for it?
+	value = mapAndConstrain(value, 0, 1, bottom, top);
+	#ifdef REV2
+	value = 1.f - value; // inverting outs
+	#endif // REV2
 	return value;
 }
 
@@ -467,39 +508,24 @@ void tr_render(BelaContext* context)
 			// everything should have been done already.
 			break;
 	}
-	std::array<float, gManualAnOut.size()> anOutBuffer;
-	for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
+	if(kOutModeManualSample == gOutMode)
 	{
-		float value = gManualAnOut[n];
-		// rescale analog outputs
-		switch (gOutRange)
+		constexpr size_t kNumOutChannels = 2; // hardcode to give the compiler room for optimisations
+		assert(kNumOutChannels == context->analogOutChannels);
+
+		// analogOut has already been written. Rescale in-place
+		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{
-			case kOutRangeFull:
-				// nothing to do
-				break;
-			case kOutRangeBipolar:
+			for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
 			{
-				float base = 0; // -5V
-				if(gSecondTouchIsSize && 1 == n) // if this is a size
-					base = gnd; // make it always positive
-				value = mapAndConstrain(value, 0, 1, base, gnd * 2.f);
+				size_t idx = n * kNumOutChannels + channel;
+				context->analogOut[idx] = rescaleOutput(n, gnd, context->analogOut[idx]);
 			}
-				break;
-			case kOutRangePositive5:
-				value = mapAndConstrain(value, 0, 1, gnd, gnd * 2.f);
-				break;
-			case kOutRangePositive10:
-				value = mapAndConstrain(value, 0, 1, gnd, gnd * 3.f);
-				break;
 		}
-#ifdef REV2
-		value = 1.f - value; // inverting outs
-#endif // REV2
-		// actually write analog outs
-		anOutBuffer[n] = value;
-	}
-	if(kOutModeManualSample != gOutMode)
-	{
+	} else {
+		std::array<float, gManualAnOut.size()> anOutBuffer;
+		for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
+			anOutBuffer[n] = rescaleOutput(n, gnd, gManualAnOut[n]);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{
 			for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)

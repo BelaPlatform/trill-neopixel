@@ -10,6 +10,7 @@ typedef enum {
 	kOutRangeBipolar,
 	kOutRangePositive5,
 	kOutRangePositive10,
+	kOutRangeCustom,
 	kOutRangeNum,
 } OutRange;
 
