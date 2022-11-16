@@ -362,8 +362,8 @@ public:
 		for(auto& al : autoLatchers)
 			al.reset();
 	}
-	void process(bool shouldLatchUnlatch, bool autoLatch, size_t numValues,
-			std::array<TouchFrame,2>& values, std::array<bool,2>& isLatchedRet)
+	void process(bool autoLatch, size_t numValues, std::array<TouchFrame,2>& values, std::array<bool,2>& isLatchedRet,
+			bool shouldLatch = false, bool shouldUnlatch = false)
 	{
 		if(numValues > kMaxNumValues)
 			numValues = kMaxNumValues;
@@ -371,15 +371,19 @@ public:
 		std::array<bool,kMaxNumValues> latchStarts = {false, false};
 		std::array<bool,kMaxNumValues> unlatchStarts = {false, false};
 
-		if(shouldLatchUnlatch)
+		// button latches everything if there is at least one touch
+		// and unlatches everything if there is no touch
+		if(shouldLatch)
 		{
-			// button latches everything if there is at least one touch
-			// and unlatches everything if there is no touch
 			for(size_t n = 0; n < numValues; ++n)
 			{
 				if(!isLatched[n] && hasTouch[n])
 					latchStarts[n] = true;
-				if(!(hasTouch[0] || hasTouch[1]))
+			}
+		} else if (shouldUnlatch) {
+			if(!(hasTouch[0] || hasTouch[numValues - 1]))
+			{
+				for(size_t n = 0; n < numValues; ++n)
 				{
 					// no touch
 					if(isLatched[n])
@@ -886,10 +890,7 @@ public:
 	}
 	void render(BelaContext*) override
 	{
-		bool buttonOffset = performanceBtn.offset;
-
 		std::array<TouchFrame,2> values;
-
 		values[0].pos = ledSliders.sliders[0].compoundTouchLocation();
 		values[0].sz = ledSliders.sliders[0].compoundTouchSize();
 		if(split)
@@ -898,10 +899,31 @@ public:
 			values[1].sz = ledSliders.sliders[1].compoundTouchSize();
 		}
 
-		std::array<bool,2> isLatched = {false, false};
-
+		bool shouldLatch = false;
+		bool shouldUnlatch = false;
+		if(performanceBtn.onset)
+		{
+			// at least one VALID and non-latched
+			// (isLatched[split] is same as isLatched[0] if not split)
+			if(!isLatched[0] || !isLatched[split])
+				shouldLatch = true;
+		}
+		if(performanceBtn.offset)
+		{
+			// if it's not the same press that triggered the latch, unlatch
+			if(lastLatchCount != performanceBtn.pressCount)
+			{
+				shouldUnlatch = true;
+				lastLatchCount = ButtonView::kPressCountInvalid;
+			}
+		}
 		// sets values and isLatched
-		latchProcessor.process(buttonOffset, autoLatch, 1 + split, values, isLatched);
+		latchProcessor.process(autoLatch, 1 + split, values, isLatched, shouldLatch, shouldUnlatch);
+		if(shouldLatch && (isLatched[0] || isLatched[split]))
+		{
+			// keep note of current press
+			lastLatchCount = performanceBtn.pressCount;
+		}
 
 		if(isLatched[0] || isLatched[1]) {
 			gOutMode = kOutModeFollowLeds;
@@ -951,6 +973,8 @@ private:
 		{255, 0, 127},
 	};
 	LatchProcessor latchProcessor;
+	std::array<bool,2> isLatched = {false, false};
+	uint32_t lastLatchCount = ButtonView::kPressCountInvalid;
 } gDirectControlMode;
 
 class RecorderMode : public PerformanceMode {
@@ -1581,7 +1605,7 @@ public:
 		}
 		std::array<bool,2> isLatched;
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
-		latchProcessor.process(false, true, pastFrames.size(), pastFrames, isLatched);
+		latchProcessor.process(true, pastFrames.size(), pastFrames, isLatched);
 	}
 	void process(LedSlider& slider) override
 	{
@@ -1620,7 +1644,7 @@ public:
 				}
 			}
 			std::array<bool,2> isLatched;
-			latchProcessor.process(false, true, frames.size(), frames, isLatched);
+			latchProcessor.process(true, frames.size(), frames, isLatched);
 			for(size_t n = 0; n < frames.size(); ++n)
 			{
 				parameters[n]->set(frames[n].pos);
