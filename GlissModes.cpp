@@ -1030,8 +1030,7 @@ private:
 	};
 } gRecorderMode;
 
-static void menu_enterGlobalOutRange(const rgb_t& color);
-static void menu_enterGlobalInRange(const rgb_t& color);
+static void menu_enterRange(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top);
 
 class ScaleMeterMode : public PerformanceMode {
 public:
@@ -1064,7 +1063,7 @@ public:
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
-				menu_enterGlobalOutRange(color);
+				menu_enterRange(color, outRangeBottom, outRangeTop);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
@@ -1074,7 +1073,7 @@ public:
 			if(performanceBtn.onset)
 			{
 				// press button: set input range
-				menu_enterGlobalInRange(color);
+				menu_enterRange(color, inRangeBottom, inRangeTop);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
 				ledSliders.sliders[0].process(data.data());
@@ -1121,10 +1120,10 @@ public:
 			switch (outputMode)
 			{
 			case 0: // top pass-through, bottom pass-through
-				outs[0] = outs[1] = analogRead(context, n, 0); // TODO: scale
+				outs[0] = outs[1] = analogRead(context, n, 0);
 				break;
 			case 1: // top pass-through, bottom envelope
-				outs[0] = analogRead(context, n, 0); // TODO: scale
+				outs[0] = analogRead(context, n, 0);
 				outs[1] = env;
 				break;
 			case 2: // top envelope, bottom envelope
@@ -1132,7 +1131,13 @@ public:
 				break;
 			}
 			for(size_t c = 0; c < kNumOutChannels; ++c)
-				analogWriteOnce(context, n, c, outs[c]);
+			{
+				// TODO: combine this mapping with global mapping in tr_render(),
+				// or at least reduce the number of times it gets called here if the compiler is not smart enough
+				// TODO: should env also be mapped?
+				float value = mapAndConstrain(outs[c], 0, 1, outRangeBottom, outRangeTop);
+				analogWriteOnce(context, n, c, value);
+			}
 		}
 		LedSlider::centroid_t centroids[1];
 		centroids[0].location = env;
@@ -1145,10 +1150,18 @@ public:
 		{
 			printf("Updated cutoff: %.3f\n\r", cutoff.get());
 		}
+		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
+		}
+		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
+		}
 	}
 	ParameterEnumT<3> outputMode {this, 0};
 	ParameterEnumT<2> coupling {this, 0};
-	ParameterContinuous cutoff {this, 200};
+	ParameterContinuous cutoff {this, 1};
+	ParameterContinuous outRangeBottom {this, 0};
+	ParameterContinuous outRangeTop {this, 1};
+	ParameterContinuous inRangeBottom {this, 0};
+	ParameterContinuous inRangeTop {this, 1};
 private:
 	const rgb_t color = {0, 160, 160};
 	float pastIn;
@@ -1987,18 +2000,21 @@ int menuShouldChangeMode()
 	return tmp;
 }
 
-static void menu_enterGlobalOutRange(const rgb_t& color)
+static void menu_enterRange(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top)
 {
 	gAlt = 1;
-	singleRangeMenuItem = MenuItemTypeRange(color, &gGlobalSettings.outRangeBottom, &gGlobalSettings.outRangeTop);
+	singleRangeMenuItem = MenuItemTypeRange(color, &bottom, &top);
 	menu_in(singleRangeMenu);
+}
+
+static void menu_enterGlobalOutRange(const rgb_t& color)
+{
+	menu_enterRange(color, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
 }
 
 static void menu_enterGlobalInRange(const rgb_t& color)
 {
-	gAlt = 1;
-	singleRangeMenuItem = MenuItemTypeRange(color, &gGlobalSettings.inRangeBottom, &gGlobalSettings.inRangeTop);
-	menu_in(singleRangeMenu);
+	menu_enterRange(color, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
 }
 
 static std::vector<MenuPage*> menuStack;

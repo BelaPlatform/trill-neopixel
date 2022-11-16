@@ -316,13 +316,6 @@ int gInRange = kCvRangePositive10;
 float gInRangeTop = 1;
 float gInRangeBottom = 0;
 
-static float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
-{
-	float value = map(x, in_min, in_max, out_min, out_max);
-	value = constrain(value, out_min, out_max);
-	return value;
-}
-
 static inline void getBottomTopRange(int range, bool input, float gnd, float& bottom, float& top)
 {
 	switch (range)
