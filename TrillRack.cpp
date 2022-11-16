@@ -433,11 +433,17 @@ void tr_render(BelaContext* context)
 	static bool firstRun = true;
 	static ButtonView btn; // reflects reality
 	static bool wasPressed = !tri.digitalRead(0);
-	btn = {false, false, false, false};
+	btn = {false, false, false, false, btn.pressCount};
 	bool isPressed = !tri.digitalRead(0);
 	btn.enabled = true;
 	btn.offset = wasPressed && !isPressed;
 	btn.onset = isPressed && !wasPressed;
+	if(btn.onset)
+	{
+		btn.pressCount++;
+		if(ButtonView::kPressCountInvalid == btn.pressCount) // reserved value
+			btn.pressCount = 0;
+	}
 	btn.pressed = isPressed;
 	wasPressed = isPressed;
 
