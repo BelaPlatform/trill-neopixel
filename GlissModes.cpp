@@ -1619,17 +1619,20 @@ public:
 		std::array<bool,2> isLatched;
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
 		latchProcessor.process(true, pastFrames.size(), pastFrames, isLatched);
+		hasHadTouch = false;
 	}
 	void process(LedSlider& slider) override
 	{
 		if(parameters[0] && parameters[1])
 		{
 			size_t numTouches = slider.getNumTouches();
-			if(0 == numTouches)
+			if(0 == numTouches && hasHadTouch)
 			{
 				// both touches released: exit
 				menu_up();
 				return;
+			} else if(numTouches) {
+				hasHadTouch = true;
 			}
 			std::array<TouchFrame,kNumEnds> frames;
 			bool validTouch = 0;
@@ -1674,6 +1677,7 @@ public:
 	std::array<ParameterContinuous*,kNumEnds> parameters;
 	std::array<TouchFrame,kNumEnds> pastFrames;
 	static LatchProcessor latchProcessor;
+	bool hasHadTouch;
 };
 LatchProcessor MenuItemTypeRange::latchProcessor;
 
