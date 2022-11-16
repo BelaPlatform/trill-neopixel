@@ -312,6 +312,9 @@ void tr_process(BelaContext* ptr)
 int gOutRange = kCvRangePositive10;
 float gOutRangeTop = 1;
 float gOutRangeBottom = 0;
+int gInRange = kCvRangePositive10;
+float gInRangeTop = 1;
+float gInRangeBottom = 0;
 
 static float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
 {
@@ -320,12 +323,9 @@ static float mapAndConstrain(float x, float in_min, float in_max, float out_min,
 	return value;
 }
 
-static float rescaleOutput(size_t idx, float gnd, float value)
+static inline void getBottomTopRange(int range, bool input, float gnd, float& bottom, float& top)
 {
-	// rescale analog outputs
-	float bottom;
-	float top;
-	switch (gOutRange)
+	switch (range)
 	{
 		case kCvRangeFull:
 			bottom = 0;
@@ -345,10 +345,26 @@ static float rescaleOutput(size_t idx, float gnd, float value)
 			break;
 		default:
 		case kCvRangeCustom:
-			bottom = gOutRangeBottom;
-			top = gOutRangeTop;
+			bottom = input ? gInRangeBottom : gOutRangeBottom;
+			top = input ? gInRangeTop : gOutRangeTop;
 			break;
 	}
+}
+
+static float rescaleInput(float gnd, float value)
+{
+	float bottom;
+	float top;
+	getBottomTopRange(gInRange, true, gnd, bottom, top);
+	return mapAndConstrain(value, bottom, top, 0, 1);
+}
+
+static float rescaleOutput(size_t idx, float gnd, float value)
+{
+	// rescale analog outputs
+	float bottom;
+	float top;
+	getBottomTopRange(gOutRange, false, gnd, bottom, top);
 	if(gSecondTouchIsSize && 1 == idx) // if this is a size
 		bottom = gnd; // make it always positive
 	// TODO: apply sizeScaleCoeff. Is this the best place for it?
@@ -395,13 +411,19 @@ void tr_render(BelaContext* context)
 	processMidiMessage();
 	triggerInToClock(context);
 
+	const float gnd = getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
+	// rescale analog inputs according to range
+	// TODO: don't do it if we are using this input for trig instead.
+	// TODO: don't do it if we are only using one or 0 frames
+	for(size_t idx = 0; idx < context->analogFrames * context->analogInChannels; ++idx)
+		context->analogIn[idx] = rescaleInput(gnd, context->analogIn[idx]);
+
 	// Button LEDs:
 	// First LED follows button
 	tri.buttonLedWrite(0, !tri.digitalRead(0));
 	// Second LED displays a clipped version of the input.
 	// The clipping ensures that a small offset (e.g.: due to calibration or lack thereof)
 	// won't cause the LED to be dim the whole time.
-	const float gnd = getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
 	const float kButtonLedThreshold = 0.04;
 	float clippedIn = tri.analogRead() - gnd;
 	if(clippedIn < kButtonLedThreshold)

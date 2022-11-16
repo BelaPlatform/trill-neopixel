@@ -16,6 +16,9 @@ extern const unsigned int kNumLeds;
 extern int gOutRange;
 extern float gOutRangeBottom;
 extern float gOutRangeTop;
+extern int gInRange;
+extern float gInRangeBottom;
+extern float gInRangeTop;
 extern std::vector<unsigned int> padsToOrderMap;
 extern NeoPixel np;
 extern Trill trill;
@@ -1922,10 +1925,15 @@ public:
 			gOutRangeTop = outRangeTop;
 			str = "outRangeTop/Bottom";
 		}
-		else if(p.same(inRangeEnum))
+		else if(p.same(inRangeEnum)) {
 			str = "inRangeEnum";
+			gInRange = inRangeEnum;
+		}
 		else if(p.same(inRangeTop) || p.same(inRangeBottom)) {
-
+			inRangeEnum.set(kCvRangeCustom);
+			gInRange = inRangeEnum;
+			gInRangeBottom = inRangeBottom;
+			gInRangeTop = inRangeTop;
 			str = "inRangeTop/Bottom";
 		}
 		else if(p.same(sizeScaleCoeff))
@@ -1935,7 +1943,7 @@ public:
 	ParameterEnumT<kCvRangeNum> outRangeEnum {this, 0};
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
-	ParameterEnumT<4> inRangeEnum {this, 0};
+	ParameterEnumT<kCvRangeNum> inRangeEnum {this, 0};
 	ParameterContinuous inRangeBottom {this, 0.8};
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
