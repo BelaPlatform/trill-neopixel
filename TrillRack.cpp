@@ -441,19 +441,19 @@ void tr_render(BelaContext* context)
 	btn.pressed = isPressed;
 	wasPressed = isPressed;
 
+	static bool hadTouch = false;
+	globalSlider.process(trill.rawData.data());
+	bool hasTouch = globalSlider.getNumTouches();
 	if(btn.pressed)
 	{
-		static bool hadTouch = false;
-		globalSlider.process(trill.rawData.data());
-		bool hasTouch = globalSlider.getNumTouches();
 		if(hasTouch && !hadTouch)
 		{
 			//button is on + one touch: enter alt mode
 			gAlt = 1;
 			menu_setup(0);
 		}
-		hadTouch = hasTouch;
 	}
+	hadTouch = hasTouch;
 	bool menuActive = (1 == gAlt);
 
 	// multiplexer part 1
@@ -481,7 +481,6 @@ void tr_render(BelaContext* context)
 		// we should wait for each to be released before they get re-enabled for performance
 		if(btn.pressed)
 			menuExitWaitingButtonRelease = true;
-		globalSlider.process(trill.rawData.data()); //TODO: this may be a duplicate as it may have been called above already.
 		if(globalSlider.getNumTouches())
 			menuExitWaitingTouchRelease = true;
 	} else { // else ensures we don't run this uselessly in the same block where they were set
@@ -490,7 +489,6 @@ void tr_render(BelaContext* context)
 				menuExitWaitingButtonRelease = false;
 		}
 		if(menuExitWaitingTouchRelease) {
-			globalSlider.process(trill.rawData.data()); //TODO: this may be a duplicate as it may have been called above already.
 			if(!globalSlider.getNumTouches())
 				menuExitWaitingTouchRelease = false;
 		}

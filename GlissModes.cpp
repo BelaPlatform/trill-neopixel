@@ -2114,7 +2114,6 @@ void menu_render(BelaContext*)
 	// update touches
 	if(menuJustEntered)
 	{
-		globalSlider.process(trill.rawData.data());
 		// if we just entered the menu, ensure we have removed
 		// all fingers once before enabling interaction
 		if(globalSlider.getNumTouches())
