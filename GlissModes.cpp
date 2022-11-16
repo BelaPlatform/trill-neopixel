@@ -1123,7 +1123,7 @@ public:
 		}
 	}
 	ParameterEnumT<3> outputMode {this, 0};
-	ParameterEnumT<2> coupling {this, 1};
+	ParameterEnumT<2> coupling {this, 0};
 	ParameterContinuous cutoff {this, 200};
 private:
 	const rgb_t color = {0, 160, 160};
