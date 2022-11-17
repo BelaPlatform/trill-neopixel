@@ -1684,17 +1684,21 @@ public:
 					pastFrames[n] = frames[n];
 				}
 			}
-			std::array<LedSlider::centroid_t,2> values = {
-					LedSlider::centroid_t{ pastFrames[0].pos, 0.15 },
-					LedSlider::centroid_t{ pastFrames[1].pos, 0.15 },
-			};
-			slider.setLedsCentroids(values.data(), values.size());
+			updateDisplay(slider);
 		}
 	}
 protected:
 	static constexpr size_t kNumEnds = 2;
 	std::array<TouchFrame,kNumEnds> pastFrames;
 private:
+	virtual void updateDisplay(LedSlider& slider)
+	{
+		std::array<LedSlider::centroid_t,2> values = {
+				LedSlider::centroid_t{ pastFrames[0].pos, 0.15 },
+				LedSlider::centroid_t{ pastFrames[1].pos, 0.15 },
+		};
+		slider.setLedsCentroids(values.data(), values.size());
+	}
 	std::array<ParameterContinuous*,kNumEnds> parameters;
 	static LatchProcessor latchProcessor;
 	bool hasHadTouch;
@@ -1706,16 +1710,14 @@ public:
 	MenuItemTypeRangeDisplay(){}
 	MenuItemTypeRangeDisplay(const rgb_t& color, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
 		MenuItemTypeRange(color, paramBottom, paramTop), display(&display) {}
-	void process(LedSlider& slider) override
+	void updateDisplay(LedSlider& slider) override
 	{
-		MenuItemTypeRange::process(slider);
 		std::array<LedSlider::centroid_t,3> values = {
 				LedSlider::centroid_t{ pastFrames[0].pos, 0.05 },
 				LedSlider::centroid_t{ pastFrames[1].pos, 0.05 },
 				LedSlider::centroid_t{ *display, 0.15 },
 		};
 		slider.setLedsCentroids(values.data(), values.size());
-
 	}
 private:
 	const float* display;
