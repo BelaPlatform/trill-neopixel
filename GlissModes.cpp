@@ -1030,7 +1030,7 @@ private:
 	};
 } gRecorderMode;
 
-static void menu_enterRange(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top);
+static void menu_enterRangeDisplay(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
 
 class ScaleMeterMode : public PerformanceMode {
 public:
@@ -1063,7 +1063,7 @@ public:
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
-				menu_enterRange(color, outRangeBottom, outRangeTop);
+				menu_enterRangeDisplay(color, outRangeBottom, outRangeTop, outDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
@@ -1073,7 +1073,7 @@ public:
 			if(performanceBtn.onset)
 			{
 				// press button: set input range
-				menu_enterRange(color, inRangeBottom, inRangeTop);
+				menu_enterRangeDisplay(color, inRangeBottom, inRangeTop, inDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
 				ledSliders.sliders[0].process(data.data());
@@ -1087,7 +1087,7 @@ public:
 			env = 0;
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
-				env += analogRead(context, n, 0);
+				env += analogReadMapped(context, n, 0);
 			}
 			env /= context->analogFrames;
 			break;
@@ -1095,7 +1095,7 @@ public:
 			constexpr size_t window = 1024;
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
-				float in = analogRead(context, n, 0);
+				float in = analogReadMapped(context, n, 0);
 				// one-pole high-pass
 				float val = in - pastIn;
 				pastIn = in;
@@ -1120,10 +1120,10 @@ public:
 			switch (outputMode)
 			{
 			case 0: // top pass-through, bottom pass-through
-				outs[0] = outs[1] = analogRead(context, n, 0);
+				outs[0] = outs[1] = analogReadMapped(context, n, 0);
 				break;
 			case 1: // top pass-through, bottom envelope
-				outs[0] = analogRead(context, n, 0);
+				outs[0] = analogReadMapped(context, n, 0);
 				outs[1] = env;
 				break;
 			case 2: // top envelope, bottom envelope
@@ -1139,11 +1139,17 @@ public:
 				analogWriteOnce(context, n, c, value);
 			}
 		}
+		// displays if in In/OutRange mode
+		outDisplay = mapAndConstrain(env, 0, 1, outRangeBottom, outRangeTop);
+		inDisplay = analogReadMapped(context, 0, 0);
+		// displays if in pure performance mode
 		LedSlider::centroid_t centroids[1];
-		centroids[0].location = env;
+		// display actual output range
+		centroids[0].location = outDisplay;
 		centroids[0].size = kFixedCentroidSize;
 		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
 	}
+
 	void updated(Parameter& p)
 	{
 		if(p.same(cutoff))
@@ -1163,6 +1169,13 @@ public:
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
 private:
+	float inDisplay;
+	float outDisplay;
+	float analogReadMapped(BelaContext* context, size_t frame, size_t channel)
+	{
+		float in = analogRead(context, frame, channel);
+		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
+	}
 	const rgb_t color = {0, 160, 160};
 	float pastIn;
 	float env;
@@ -1634,52 +1647,79 @@ public:
 			} else if(numTouches) {
 				hasHadTouch = true;
 			}
-			std::array<TouchFrame,kNumEnds> frames;
-			bool validTouch = 0;
-			if(1 == numTouches)
+			if(hasHadTouch)
 			{
-				// find which existing values this is closest to
-				float current = slider.touchLocation(0);
-				std::array<float,kNumEnds> diffs;
-				for(size_t n = 0; n < kNumEnds; ++n)
-					diffs[n] = std::abs(current - pastFrames[n].pos);
-				// the only touch we have is controlling the one that was closest to it
-				validTouch = (diffs[0] > diffs[1]);
-				// put the good one where it belongs
-				frames[validTouch].pos = slider.touchLocation(0);
-				frames[validTouch].sz = slider.touchSize(0);
-				// and a non-touch on the other one
-				frames[!validTouch].pos = 0;
-				frames[!validTouch].sz = 0;
-			} else if (2 == numTouches)
-			{
-				for(size_t n = 0; n < kNumEnds; ++n)
+				bool validTouch = 0;
+				std::array<TouchFrame,kNumEnds> frames;
+				if(0 == numTouches) {
+					frames = pastFrames;
+				} else if(1 == numTouches)
 				{
-					frames[n].pos = slider.touchLocation(n);
-					frames[n].sz = slider.touchSize(n);
+					// find which existing values this is closest to
+					float current = slider.touchLocation(0);
+					std::array<float,kNumEnds> diffs;
+					for(size_t n = 0; n < kNumEnds; ++n)
+						diffs[n] = std::abs(current - pastFrames[n].pos);
+					// the only touch we have is controlling the one that was closest to it
+					validTouch = (diffs[0] > diffs[1]);
+					// put the good one where it belongs
+					frames[validTouch].pos = slider.touchLocation(0);
+					frames[validTouch].sz = slider.touchSize(0);
+					// and a non-touch on the other one
+					frames[!validTouch].pos = 0;
+					frames[!validTouch].sz = 0;
+				} else if (2 == numTouches)
+				{
+					for(size_t n = 0; n < kNumEnds; ++n)
+					{
+						frames[n].pos = slider.touchLocation(n);
+						frames[n].sz = slider.touchSize(n);
+					}
+				}
+				std::array<bool,2> isLatched;
+				latchProcessor.process(true, frames.size(), frames, isLatched);
+				for(size_t n = 0; n < frames.size(); ++n)
+				{
+					parameters[n]->set(frames[n].pos);
+					pastFrames[n] = frames[n];
 				}
 			}
-			std::array<bool,2> isLatched;
-			latchProcessor.process(true, frames.size(), frames, isLatched);
-			for(size_t n = 0; n < frames.size(); ++n)
-			{
-				parameters[n]->set(frames[n].pos);
-				pastFrames[n] = frames[n];
-			}
 			std::array<LedSlider::centroid_t,2> values = {
-					LedSlider::centroid_t{ frames[0].pos, 0.15 },
-					LedSlider::centroid_t{ frames[1].pos, 0.15 },
+					LedSlider::centroid_t{ pastFrames[0].pos, 0.15 },
+					LedSlider::centroid_t{ pastFrames[1].pos, 0.15 },
 			};
 			slider.setLedsCentroids(values.data(), values.size());
 		}
 	}
+protected:
 	static constexpr size_t kNumEnds = 2;
-	std::array<ParameterContinuous*,kNumEnds> parameters;
 	std::array<TouchFrame,kNumEnds> pastFrames;
+private:
+	std::array<ParameterContinuous*,kNumEnds> parameters;
 	static LatchProcessor latchProcessor;
 	bool hasHadTouch;
 };
 LatchProcessor MenuItemTypeRange::latchProcessor;
+
+class MenuItemTypeRangeDisplay : public MenuItemTypeRange {
+public:
+	MenuItemTypeRangeDisplay(){}
+	MenuItemTypeRangeDisplay(const rgb_t& color, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
+		MenuItemTypeRange(color, paramBottom, paramTop), display(&display) {}
+	void process(LedSlider& slider) override
+	{
+		MenuItemTypeRange::process(slider);
+		std::array<LedSlider::centroid_t,3> values = {
+				LedSlider::centroid_t{ pastFrames[0].pos, 0.05 },
+				LedSlider::centroid_t{ pastFrames[1].pos, 0.05 },
+				LedSlider::centroid_t{ *display, 0.15 },
+		};
+		slider.setLedsCentroids(values.data(), values.size());
+
+	}
+private:
+	const float* display;
+};
 
 static int shouldChangeMode = 1;
 class MenuItemTypeNextMode : public MenuItemTypeEvent
@@ -1737,9 +1777,14 @@ static MenuItemTypeSlider singleSliderMenuItem;
 MenuPage singleSliderMenu("single slider", {&singleSliderMenuItem}, MenuPage::kMenuTypeSlider);
 
 static MenuItemTypeRange singleRangeMenuItem;
-// this is a submenu consisting of a continuous slider(no buttons). Before entering it,
+// this is a submenu consisting of a range slider. Before entering it,
 // appropriately set the properties of singleRangeMenuItem
 MenuPage singleRangeMenu("single range", {&singleRangeMenuItem}, MenuPage::kMenuTypeRange);
+
+static MenuItemTypeRangeDisplay singleRangeDisplayMenuItem;
+// this is a submenu consisting of a range+display (no buttons). Before entering it,
+// appropriately set the properties of singleRangeDisplayMenuItem
+MenuPage singleRangeDisplayMenu("single range", {&singleRangeDisplayMenuItem}, MenuPage::kMenuTypeRange);
 
 // If held-press, get into singleSliderMenu to set value
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
@@ -2004,21 +2049,11 @@ int menuShouldChangeMode()
 	return tmp;
 }
 
-static void menu_enterRange(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top)
+static void menu_enterRangeDisplay(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
-	singleRangeMenuItem = MenuItemTypeRange(color, &bottom, &top);
-	menu_in(singleRangeMenu);
-}
-
-static void menu_enterGlobalOutRange(const rgb_t& color)
-{
-	menu_enterRange(color, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
-}
-
-static void menu_enterGlobalInRange(const rgb_t& color)
-{
-	menu_enterRange(color, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
+	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplay(color, &bottom, &top, display);
+	menu_in(singleRangeDisplayMenu);
 }
 
 static std::vector<MenuPage*> menuStack;
