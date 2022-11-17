@@ -442,17 +442,25 @@ void tr_render(BelaContext* context)
 
 	static bool hadTouch = false;
 	globalSlider.process(trill.rawData.data());
-	bool hasTouch = globalSlider.getNumTouches();
+	size_t numTouches = globalSlider.getNumTouches();
+	static bool preMenuActive = false;
 	if(btn.pressed)
 	{
-		if(hasTouch && !hadTouch)
+		const size_t kTouchesForMenu = 3;
+		if(numTouches && !hadTouch) // we start touching
+			preMenuActive = true;
+		if(!numTouches) // we no longer touch
+			preMenuActive = false;
+		if(numTouches >= kTouchesForMenu && 1 != gAlt)
 		{
-			//button is on + one touch: enter alt mode
+			//button is on + touches: enter alt mode
 			gAlt = 1;
 			menu_setup(0);
+			preMenuActive = false;
 		}
-	}
-	hadTouch = hasTouch;
+	} else
+		preMenuActive = false; // shouldn't be needed, but, you know ...
+	hadTouch = numTouches > 0;
 	bool menuActive = (1 == gAlt);
 
 	// multiplexer part 1
@@ -495,7 +503,7 @@ void tr_render(BelaContext* context)
 	oldAlt = gAlt;
 
 	// multiplexer part 2
-	bool performanceActive = !menuActive;
+	bool performanceActive = !menuActive && !preMenuActive;
 	performanceBtn = (performanceActive && !menuExitWaitingButtonRelease) ? btn : disBtn;
 	ledSliders.enableTouch(performanceActive && !menuExitWaitingTouchRelease);
 	ledSliders.enableLeds(performanceActive);
