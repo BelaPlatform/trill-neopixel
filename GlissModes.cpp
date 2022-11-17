@@ -80,6 +80,7 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
+uint32_t gClockPeriodUpdated = 0;
 float gClockPeriod = 0; // before use, make sure it is valid
 void triggerInToClock(BelaContext* context)
 {
@@ -117,6 +118,7 @@ void triggerInToClock(BelaContext* context)
 				gClockPeriod = averagePeriod;
 #else // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 				gClockPeriod = newPeriod;
+				gClockPeriodUpdated++;
 #endif // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 			}
 			lastTrig = newTrig;
@@ -1218,13 +1220,14 @@ public:
 		switch (inputMode)
 		{
 		case kInputModeTrig:
-			if(gClockPeriod)
+			// after frequency was set by parameter,
+			// we use gClockPeriod only if it gets updated at least once
+			if(gClockPeriodUpdated != lastClockPeriodUpdate)
 				clockPeriod = gClockPeriod;
+			lastClockPeriodUpdate = gClockPeriodUpdated;
 			break;
 		case kInputModeCv:
 			// TODO:
-			break;
-		case kInputModeNone:
 			break;
 		}
 
@@ -1269,6 +1272,7 @@ public:
 			for(auto& o : oscillators)
 				o.setType(Oscillator::Type(waveform.get()));
 		} else if (p.same(centreFrequency)) {
+				lastClockPeriodUpdate = gClockPeriodUpdated;
 				clockPeriod = sampleRate / (centreFrequency * 10.f + 0.1f); // TODO: more useful range? exp mapping?
 //				printf("centreFrequency: %.3f => %.3f samples\n\r", centreFrequency.get(), clockPeriod);
 		} else if (p.same(inputMode)) {
@@ -1278,7 +1282,6 @@ public:
 	typedef enum {
 		kInputModeTrig,
 		kInputModeCv,
-		kInputModeNone,
 		kNumInputModes,
 	} InputMode;
 	ParameterEnumT<Oscillator::numOscTypes> waveform {this, Oscillator::triangle};
@@ -1288,6 +1291,7 @@ private:
 	float divisionPoint = 0.5;
 	float clockPeriod; // deferred initialisation
 	float sampleRate; // deferred initialisation
+	uint32_t lastClockPeriodUpdate = gClockPeriodUpdated;
 	bool inited = false;
 } gBalancedOscsMode;
 
