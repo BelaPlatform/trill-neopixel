@@ -1041,9 +1041,11 @@ public:
 	{
 		gSecondTouchIsSize = false; // TODO: _both_ may have to be positive
 		count = 0;
-		pastIn = 0;
+		x1 = 0;
+		y1 = 0;
 		rms = 0;
 		env = 0;
+		updated(cutoff);
 		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(
@@ -1083,54 +1085,46 @@ public:
 				return;
 			}
 		}
-
-
-		switch (coupling)
-		{
-		case 0: //DC coupling
-			env = 0;
-			for(size_t n = 0; n < context->analogFrames; ++n)
-			{
-				env += analogReadMapped(context, n, 0);
-			}
-			env /= context->analogFrames;
-			break;
-		case 1: // AC coupling
-			constexpr size_t window = 1024;
-			for(size_t n = 0; n < context->analogFrames; ++n)
-			{
-				float in = analogReadMapped(context, n, 0);
-				// one-pole high-pass
-				float val = in - pastIn;
-				pastIn = in;
-				// RMS
-				rms += val * val;
-				count++;
-				if(count >= window)
-				{
-					env = (context->analogSampleRate * 0.2f) * rms / count;
-					if(env > 1)
-						env = 1;
-					count = 0;
-					rms = 0;
-				}
-			}
-			break;
-		}
 		for(size_t n = 0; n < context->analogFrames; ++n)
 		{
+			float input = analogReadMapped(context, n, 0);
 			// let's trust compiler + branch predictor to do a good job here
-			float outs[kNumOutChannels];
+			float envIn;
+			if(kCouplingAc == coupling)
+			{
+				//high pass
+				// [b, a] = butter(1, 10/44250, 'high')
+				const float b0 = 0.999630537400518;
+				const float b1 = -0.999630537400518;
+				const float a1 = -0.999261074801036;
+				float x0 = input;
+				float y = x1 * b1 + x0 * b0 - y1 * a1;
+				x1 = x0;
+				y1 = y;
+				// times 2 to compensate for abs()
+				envIn = abs(y) * 2.f;
+			} else {
+				envIn = input;
+			}
+			// peak envelope detector
+			if(envIn > env)
+			{
+				env = envIn;
+			} else {
+				env = env * decay;
+			}
+
+			float outs[kNumOutChannels] = {0};
 			switch (outputMode)
 			{
-			case 0: // top pass-through, bottom pass-through
-				outs[0] = outs[1] = analogReadMapped(context, n, 0);
+			case kOutputModeNN: // top pass-through, bottom pass-through
+				outs[0] = outs[1] = input;
 				break;
-			case 1: // top pass-through, bottom envelope
-				outs[0] = analogReadMapped(context, n, 0);
+			case kOutputModeNE: // top pass-through, bottom envelope
+				outs[0] = input;
 				outs[1] = env;
 				break;
-			case 2: // top envelope, bottom envelope
+			case kOutputModeEE: // top envelope, bottom envelope
 				outs[0] = outs[1] = env;
 				break;
 			}
@@ -1144,30 +1138,55 @@ public:
 			}
 		}
 		// displays if in In/OutRange mode
-		outDisplay = mapAndConstrain(env, 0, 1, outRangeBottom, outRangeTop);
+		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeBottom, outRangeTop);
 		inDisplay = analogReadMapped(context, 0, 0);
 		// displays if in pure performance mode
-		LedSlider::centroid_t centroids[1];
+		LedSlider::centroid_t centroids[2];
 		// display actual output range
 		centroids[0].location = outDisplay;
 		centroids[0].size = kFixedCentroidSize;
-		ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+		size_t numCentroids = 1;
+		if(kOutputModeNN != outputMode)
+		{
+			centroids[1].location = mapAndConstrain(env, 0, 1, outRangeBottom, outRangeTop);
+			centroids[1].size = kFixedCentroidSize;
+			numCentroids++;
+		}
+		ledSliders.sliders[0].setLedsCentroids(centroids, numCentroids);
 	}
 
 	void updated(Parameter& p)
 	{
 		if(p.same(cutoff))
 		{
-			printf("Updated cutoff: %.3f\n\r", cutoff.get());
+			// wrangling the range to make it somehow useful
+			// TODO: put more method into this
+			float par = cutoff;
+			par *= par;
+			par *= par;
+			par *= par;
+			par = mapAndConstrain(par, 0, 1, 0.000005, 0.08);
+			decay = 1.f - par;
 		}
 		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
 		}
 		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
 		}
 	}
-	ParameterEnumT<3> outputMode {this, 0};
-	ParameterEnumT<2> coupling {this, 0};
-	ParameterContinuous cutoff {this, 1};
+	enum {
+		kCouplingDc,
+		kCouplingAc,
+		kCouplingNum,
+	};
+	enum {
+		kOutputModeNN,
+		kOutputModeNE,
+		kOutputModeEE,
+		kOutputModeNum
+	};
+	ParameterEnumT<kOutputModeNum> outputMode {this, 0};
+	ParameterEnumT<kCouplingNum> coupling {this, kCouplingDc};
+	ParameterContinuous cutoff {this, 0.5};
 	ParameterContinuous outRangeBottom {this, 0};
 	ParameterContinuous outRangeTop {this, 1};
 	ParameterContinuous inRangeBottom {this, 0};
@@ -1175,13 +1194,15 @@ public:
 private:
 	float inDisplay;
 	float outDisplay;
+	float decay;
 	float analogReadMapped(BelaContext* context, size_t frame, size_t channel)
 	{
 		float in = analogRead(context, frame, channel);
 		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
 	}
 	const rgb_t color = {0, 160, 160};
-	float pastIn;
+	float x1;
+	float y1;
 	float env;
 	size_t count;
 	float rms;
