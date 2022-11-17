@@ -1074,7 +1074,6 @@ public:
 			if(performanceBtn.offset)
 			{
 				// press button: set input range
-				settingInputRangePress = performanceBtn.pressCount;
 				menu_enterRangeDisplay(color, false, inRangeBottom, inRangeTop, inDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
@@ -1082,16 +1081,7 @@ public:
 				return;
 			}
 		}
-		if(gAlt)
-		{
-			//get out of settingInputRange mode
-			// TODO: we are accessing menuBtn here but (I guess) we shouldn't
-			if(ButtonView::kPressCountInvalid != settingInputRangePress && menuBtn.offset && menuBtn.pressCount != settingInputRangePress)
-			{
-				settingInputRangePress = ButtonView::kPressCountInvalid;
-				menu_up();
-			}
-		}
+
 
 		switch (coupling)
 		{
@@ -1193,7 +1183,6 @@ private:
 	float env;
 	size_t count;
 	float rms;
-	uint32_t settingInputRangePress = ButtonView::kPressCountInvalid;
 } gScaleMeterMode;
 
 class BalancedOscsMode : public PerformanceMode {
