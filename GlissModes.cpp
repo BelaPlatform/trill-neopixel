@@ -1030,7 +1030,8 @@ private:
 	};
 } gRecorderMode;
 
-static void menu_enterRangeDisplay(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
+static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
+static void menu_up();
 
 class ScaleMeterMode : public PerformanceMode {
 public:
@@ -1063,7 +1064,7 @@ public:
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
-				menu_enterRangeDisplay(color, outRangeBottom, outRangeTop, outDisplay);
+				menu_enterRangeDisplay(color, true, outRangeBottom, outRangeTop, outDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
@@ -1073,7 +1074,7 @@ public:
 			if(performanceBtn.onset)
 			{
 				// press button: set input range
-				menu_enterRangeDisplay(color, inRangeBottom, inRangeTop, inDisplay);
+				menu_enterRangeDisplay(color, true, inRangeBottom, inRangeTop, inDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
 				ledSliders.sliders[0].process(data.data());
@@ -1590,8 +1591,6 @@ private:
 	ParameterEnum* parameter;
 };
 
-static void menu_up();
-
 class MenuItemTypeSlider : public MenuItemType {
 public:
 	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
@@ -1620,8 +1619,8 @@ AutoLatcher MenuItemTypeSlider::autoLatcher;
 class MenuItemTypeRange : public MenuItemType {
 public:
 	MenuItemTypeRange(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeRange(const rgb_t& color, ParameterContinuous* paramBottom, ParameterContinuous* paramTop) :
-		MenuItemType(color), parameters({paramBottom, paramTop})
+	MenuItemTypeRange(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop) :
+		MenuItemType(color), parameters({paramBottom, paramTop}), autoExit(autoExit)
 	{
 		latchProcessor.reset();
 		for(size_t n = 0; n < kNumEnds; ++n)
@@ -1639,7 +1638,7 @@ public:
 		if(parameters[0] && parameters[1])
 		{
 			size_t numTouches = slider.getNumTouches();
-			if(0 == numTouches && hasHadTouch)
+			if(0 == numTouches && hasHadTouch && autoExit)
 			{
 				// both touches released: exit
 				menu_up();
@@ -1701,6 +1700,7 @@ private:
 	}
 	std::array<ParameterContinuous*,kNumEnds> parameters;
 	static LatchProcessor latchProcessor;
+	bool autoExit;
 	bool hasHadTouch;
 };
 LatchProcessor MenuItemTypeRange::latchProcessor;
@@ -1708,8 +1708,8 @@ LatchProcessor MenuItemTypeRange::latchProcessor;
 class MenuItemTypeRangeDisplay : public MenuItemTypeRange {
 public:
 	MenuItemTypeRangeDisplay(){}
-	MenuItemTypeRangeDisplay(const rgb_t& color, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
-		MenuItemTypeRange(color, paramBottom, paramTop), display(&display) {}
+	MenuItemTypeRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
+		MenuItemTypeRange(color, autoExit, paramBottom, paramTop), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
 		std::array<LedSlider::centroid_t,3> values = {
@@ -1813,7 +1813,7 @@ public:
 	void event(Event e)
 	{
 		if(kHoldHigh == e) {
-			singleRangeMenuItem = MenuItemTypeRange(baseColor, &bottom, &top);
+			singleRangeMenuItem = MenuItemTypeRange(baseColor, true, &bottom, &top);
 			menu_in(singleRangeMenu);
 		}
 	}
@@ -1876,7 +1876,7 @@ public:
 	void enterPlus() override
 	{
 		printf("DiscreteRange: going to range\n\r");
-		singleRangeMenuItem = MenuItemTypeRange(baseColor, &valueConBottom, &valueConTop);
+		singleRangeMenuItem = MenuItemTypeRange(baseColor, true, &valueConBottom, &valueConTop);
 		menu_in(singleRangeMenu);
 	}
 	ParameterContinuous& valueConBottom;
@@ -2051,10 +2051,10 @@ int menuShouldChangeMode()
 	return tmp;
 }
 
-static void menu_enterRangeDisplay(const rgb_t& color, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
+static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
-	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplay(color, &bottom, &top, display);
+	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplay(color, autoExit, &bottom, &top, display);
 	menu_in(singleRangeDisplayMenu);
 }
 
