@@ -205,10 +205,11 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 			shouldOverrideDisplay = true;
 		} else if(6 == num) {
 			unsigned int split = value;
+			LedSliders& sliders = (1 == gAlt) ? ledSlidersAlt : ledSliders;
 			// set color currently used by active mode
-			if(split < ledSliders.sliders.size()) {
+			if(split < sliders.sliders.size()) {
 				// for most modes
-				ledSliders.sliders[split].setColor(color);
+				sliders.sliders[split].setColor(color);
 				printf("mode color at split %d: %d %d %d\n\r", split, color.r, color.g, color.b);
 			}
 			if(split < gBalancedLfoColors.size()) // for balanced lfo modes
@@ -480,7 +481,7 @@ void tr_render(BelaContext* context)
 	static bool menuExitWaitingButtonRelease = false;
 	static bool menuExitWaitingTouchRelease = false;
 	static int oldAlt = gAlt;
-	if(oldAlt && !gAlt)
+	if(1 == oldAlt && 0 == gAlt)
 	{
 		// we just got out of menu mode. We may have done so by pressing the button (with or without a touch)
 		// or by releasing a touch (in which case we won't have any touches here)
@@ -503,7 +504,7 @@ void tr_render(BelaContext* context)
 	oldAlt = gAlt;
 
 	// multiplexer part 2
-	bool performanceActive = !menuActive && !preMenuActive;
+	bool performanceActive = (0 == gAlt) && !menuActive && !preMenuActive;
 	performanceBtn = (performanceActive && !menuExitWaitingButtonRelease) ? btn : disBtn;
 	ledSliders.enableTouch(performanceActive && !menuExitWaitingTouchRelease);
 	ledSliders.enableLeds(performanceActive);
