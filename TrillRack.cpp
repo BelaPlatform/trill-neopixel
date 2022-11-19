@@ -40,7 +40,6 @@ TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_A_P
 TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_Pin), 6 /* dummy */);
 #endif // REV2
 
-extern const unsigned int kNumLeds = 23;
 NeoPixel np(kNumLeds, 0, NEO_RGB);
 Trill trill;
 CentroidDetection cd;

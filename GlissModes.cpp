@@ -1033,6 +1033,7 @@ private:
 } gRecorderMode;
 
 static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
+static void menu_enterDisplayRangeRaw(const rgb_t& color, float bottom, float top);
 static void menu_up();
 
 class ScaleMeterMode : public PerformanceMode {
@@ -1940,6 +1941,31 @@ private:
 	const float* display;
 };
 
+class MenuItemTypeDisplayRangeRaw : public MenuItemType {
+public:
+	MenuItemTypeDisplayRangeRaw(): MenuItemType({0, 0, 0}) {}
+	MenuItemTypeDisplayRangeRaw(const rgb_t& color, float bottom, float top) :
+		MenuItemType(color), bottom(bottom), top(top) {}
+	void process(LedSlider& slider) override
+	{
+		std::array<float,kNumLeds> values;
+		for(size_t n = 0; n < values.size(); ++n)
+		{
+			float idx = n / float(values.size());
+			bool active = (idx >= bottom && idx < top);
+			values[n] = active;
+		}
+		slider.setLedsRaw(values.data());
+		if(HAL_GetTick() - startMs >= kMaxMs)
+			menu_up();
+	}
+private:
+	float bottom;
+	float top;
+	static constexpr uint32_t kMaxMs = 300;
+	uint32_t startMs = HAL_GetTick();
+};
+
 static int shouldChangeMode = 1;
 class MenuItemTypeNextMode : public MenuItemTypeEvent
 {
@@ -1963,6 +1989,7 @@ public:
 		kMenuTypeButtons,
 		kMenuTypeSlider,
 		kMenuTypeRange,
+		kMenuTypeRaw,
 	};
 	MenuPage(const char* name, const std::vector<MenuItemType*>& items = {}, Type type = kMenuTypeButtons): name(name), items(items), type(type) {}
 	Type type;
@@ -2107,6 +2134,50 @@ public:
 	}
 	ParameterContinuous& valueConBottom;
 	ParameterContinuous& valueConTop;
+};
+
+class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
+{
+public:
+	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop):
+		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop) {}
+	void event(Event e) override
+	{
+		MenuItemTypeDiscreteRange::event(e);
+		if(Event::kTransitionFalling == e)
+		{
+			float bottom = 0;
+			float top = 0;
+			const float kMinus5 = 0;
+			const float kGnd = 0.33;
+			const float kPlus5 = 0.66;
+			const float kPlus10 = 1;
+			switch(valueEn.get())
+			{
+			case kCvRangeBipolar:
+				bottom = kMinus5;
+				top = kPlus5;
+				break;
+			case kCvRangeCustom:
+				bottom = valueConBottom;
+				top = valueConTop;
+				break;
+			case kCvRangeFull:
+				bottom = kMinus5;
+				top = kPlus10;
+				break;
+			case kCvRangePositive5:
+				bottom = kGnd;
+				top = kPlus5;
+				break;
+			case kCvRangePositive10:
+				bottom = kGnd;
+				top = kPlus10;
+				break;
+			}
+			menu_enterDisplayRangeRaw(baseColor, bottom, top);
+		}
+	}
 };
 
 class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
@@ -2271,9 +2342,15 @@ public:
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 } gGlobalSettings;
 
+static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
+// this is a submenu consisting of a full-screen display of I/O range enum. Before entering it,
+// appropriately set the properties of displayIoRangeMenuItem
+MenuPage displayRangeRawMenu("display io range", {&displayRangeRawMenuItem}, MenuPage::kMenuTypeRaw);
+
+
+static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
+static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", {255, 127, 0}, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", {255, 127, 0}, gGlobalSettings.sizeScaleCoeff);
-static MenuItemTypeDiscreteRange globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
-static MenuItemTypeDiscreteRange globalSettingsInRange("globalSettingsInRange", {255, 127, 0}, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -2289,6 +2366,13 @@ static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterC
 	gAlt = 1;
 	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(color, autoExit, &bottom, &top, display);
 	menu_in(singleRangeDisplayMenu);
+}
+
+static void menu_enterDisplayRangeRaw(const rgb_t& color, float bottom, float top)
+{
+	gAlt = 1;
+	displayRangeRawMenuItem = MenuItemTypeDisplayRangeRaw(color, bottom, top);
+	menu_in(displayRangeRawMenu);
 }
 
 static std::vector<MenuPage*> menuStack;
@@ -2357,7 +2441,20 @@ static void menu_update()
 			menuJustEntered = true;
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
-			LedSlider::LedMode_t ledMode = MenuPage::kMenuTypeRange == activeMenu->type ? LedSlider::MANUAL_CENTROIDS : LedSlider::AUTO_CENTROIDS;
+			LedSlider::LedMode_t ledMode;
+			switch(activeMenu->type)
+			{
+			default:
+				case MenuPage::kMenuTypeRange:
+					ledMode = LedSlider::MANUAL_CENTROIDS;
+					break;
+				case MenuPage::kMenuTypeSlider:
+					ledMode = LedSlider::AUTO_CENTROIDS;
+					break;
+				case MenuPage::kMenuTypeRaw:
+					ledMode = LedSlider::MANUAL_RAW;
+					break;
+			}
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{

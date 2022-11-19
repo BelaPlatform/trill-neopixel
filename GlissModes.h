@@ -1,3 +1,4 @@
+constexpr size_t kNumLeds = 23;
 typedef enum {
 	kOutModeFollowTouch,
 	kOutModeFollowLeds,
