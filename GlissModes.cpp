@@ -1922,10 +1922,10 @@ private:
 };
 LatchProcessor MenuItemTypeRange::latchProcessor;
 
-class MenuItemTypeRangeDisplay : public MenuItemTypeRange {
+class MenuItemTypeRangeDisplayCentroids : public MenuItemTypeRange {
 public:
-	MenuItemTypeRangeDisplay(){}
-	MenuItemTypeRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
+	MenuItemTypeRangeDisplayCentroids(){}
+	MenuItemTypeRangeDisplayCentroids(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
 		MenuItemTypeRange(color, autoExit, paramBottom, paramTop), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
@@ -2000,7 +2000,7 @@ static MenuItemTypeRange singleRangeMenuItem;
 // appropriately set the properties of singleRangeMenuItem
 MenuPage singleRangeMenu("single range", {&singleRangeMenuItem}, MenuPage::kMenuTypeRange);
 
-static MenuItemTypeRangeDisplay singleRangeDisplayMenuItem;
+static MenuItemTypeRangeDisplayCentroids singleRangeDisplayMenuItem;
 // this is a submenu consisting of a range+display (no buttons). Before entering it,
 // appropriately set the properties of singleRangeDisplayMenuItem
 MenuPage singleRangeDisplayMenu("single range", {&singleRangeDisplayMenuItem}, MenuPage::kMenuTypeRange);
@@ -2287,7 +2287,7 @@ int menuShouldChangeMode()
 static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
-	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplay(color, autoExit, &bottom, &top, display);
+	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(color, autoExit, &bottom, &top, display);
 	menu_in(singleRangeDisplayMenu);
 }
 
