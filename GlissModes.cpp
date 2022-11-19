@@ -1546,6 +1546,128 @@ float getGnd(){
 	return gCalibrationProcedure.getGnd();
 }
 
+class ButtonParameterAnimation {
+public:
+	virtual void process(uint32_t ms, LedSlider& ledSlider, float value) = 0;
+};
+
+static float simpleTriangle(unsigned int phase, unsigned int period)
+{
+	phase = phase % period;
+	unsigned int hp = period / 2;
+	float value;
+	if(phase < hp)
+		value = phase / float(hp);
+	else
+		value = (2 * hp - phase) / float(hp);
+	return value;
+}
+
+class ButtonParameterAnimationSplit : public ButtonParameterAnimation {
+public:
+	ButtonParameterAnimationSplit(rgb_t color0, rgb_t color1) :
+		color0(color0), color1(color1) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t color;
+		if(0 == value)
+			color = color0;
+		else {
+			float coeff0 = simpleTriangle(ms, 1000);
+			float coeff1 = 1.f - coeff0;
+			color.r = coeff0 * color0.r + coeff1 * color1.r;
+			color.g = coeff0 * color0.g + coeff1 * color1.g;
+			color.b = coeff0 * color0.b + coeff1 * color1.b;
+		}
+		ledSlider.setColor(color);
+	};
+protected:
+	rgb_t color0;
+	rgb_t color1;
+};
+
+class ButtonParameterAnimationPulsatingStill : public ButtonParameterAnimation {
+public:
+	ButtonParameterAnimationPulsatingStill(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t c;
+		if(0 == value)
+		{
+			// PWM with increasingly longer width
+			const unsigned int period = 600;
+			const unsigned int numPeriods = 5;
+			ms = ms % (period * numPeriods);
+			unsigned int thisPeriod = ms / period;
+			unsigned int pulseWidth = thisPeriod / float(numPeriods - 1) * period;
+			unsigned int idx = ms % period;
+			float coeff = idx < pulseWidth ? 0.3 : 1;
+			c.r = color.r * coeff;
+			c.g = color.g * coeff;
+			c.b = color.b * coeff;
+		} else {
+			c = color;
+		}
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+	unsigned int width = -1;
+};
+
+class ButtonParameterAnimationStillTriangle : public ButtonParameterAnimation {
+public:
+	ButtonParameterAnimationStillTriangle(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t c;
+		if(0 == value)
+		{
+			c = color;
+		} else {
+			const unsigned int period = 600;
+			float coeff = simpleTriangle(ms, period);
+			c.r = color.r * coeff;
+			c.g = color.g * coeff;
+			c.b = color.b * coeff;
+		}
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+	unsigned int width = -1;
+};
+
+class ButtonParameterAnimationSingleRepeatedEnv: public ButtonParameterAnimation {
+public:
+	ButtonParameterAnimationSingleRepeatedEnv(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t c;
+		const unsigned int duration = 600;
+		unsigned int period;
+		if(0 == value)
+		{
+			// largely spaced animation
+			period = duration * 2.5;
+		} else {
+			// tightly looped animations
+			period = duration;
+		}
+		ms %= period;
+		float coeff;
+		if(ms <= duration)
+			coeff = mapAndConstrain((duration - ms) / float(duration), 0, 1, 0.3, 1);
+		else
+			coeff = 0;
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+};
+
 class MenuItemType
 {
 public:
@@ -1600,9 +1722,16 @@ protected:
 class MenuItemTypeDiscrete : public MenuItemTypeEvent
 {
 public:
-	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, ParameterEnum* parameter) :
-		MenuItemTypeEvent(name, baseColor, 0), parameter(parameter) {}
+	MenuItemTypeDiscrete(const char* name, rgb_t baseColor, ParameterEnum* parameter, ButtonParameterAnimation* animation = nullptr) :
+		MenuItemTypeEvent(name, baseColor, 0), parameter(parameter), animation(animation) {}
 private:
+	void process(LedSlider& slider) override
+	{
+		MenuItemTypeEvent::process(slider);
+		if(animation)
+			animation->process(HAL_GetTick(), slider, parameter->get());
+	}
+
 	void event(Event e)
 	{
 		if(kTransitionRising == e)
@@ -1615,6 +1744,7 @@ private:
 		}
 	}
 	ParameterEnum* parameter;
+	ButtonParameterAnimation* animation;
 };
 
 class MenuItemTypeSlider : public MenuItemType {
@@ -1946,18 +2076,22 @@ public:
 
 constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor {0, 255, 255};
+static const rgb_t buttonColorSimilar {0, 0, 255};
 static MenuItemTypeDisabled disabled;
 
-static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.split);
-static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch);
+static ButtonParameterAnimationSplit animationSplit(buttonColor, buttonColorSimilar);
+static ButtonParameterAnimationPulsatingStill animationPulsatingStill(buttonColor);
+static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.split, &animationSplit);
+static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
 
-static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.split);
-static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.retrigger);
+static ButtonParameterAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColor};
+static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.split, &animationSplit);
+static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.retrigger, &animationSingleRepeatedPulse);
 static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&recorderModeInputMode,
@@ -1965,8 +2099,9 @@ static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&recorderModeSplit,
 };
 
+static ButtonParameterAnimationStillTriangle animationSingleStillTriangle{buttonColor};
 static MenuItemTypeDiscrete scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColor, &gScaleMeterMode.outputMode);
-static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling);
+static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling, &animationSingleStillTriangle);
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColor, gScaleMeterMode.cutoff);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
