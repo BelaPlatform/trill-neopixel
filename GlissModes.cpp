@@ -1668,6 +1668,67 @@ protected:
 	rgb_t color;
 };
 
+#include <math.h>
+
+class ButtonParameterAnimationWaveform: public ButtonParameterAnimation {
+public:
+	ButtonParameterAnimationWaveform(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t c;
+		const unsigned int period = 800;
+		ms %= period;
+		unsigned int type = int(value + 0.5f);
+		if(type >= Oscillator::numOscTypes)
+			type = 0;
+		osc.setType(Oscillator::Type(type));
+		float phase = float(ms) / float(period) * 2.f * float(M_PI);
+		if(phase > float(M_PI))
+			phase -= 2.f * float(M_PI);
+		osc.setPhase(phase);
+		float coeff = osc.process();
+		coeff = mapAndConstrain(coeff, -1, 1, 0, 1);
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+	Oscillator osc {1};
+};
+
+class ButtonParameterAnimationSpeedUpDown: public ButtonParameterAnimation {
+public:
+	ButtonParameterAnimationSpeedUpDown(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t c;
+		// over duration, show pulses with ramp up-ramp down period(constant width),
+		// to give the idea of frequency control
+		phase += (ms - lastMs); // this has to be uint to be deterministic on overflow.
+		lastMs = ms;
+		ms %= duration;
+		float triangle = simpleTriangle(ms, duration);
+		float period = initialPeriod + (sqrt(triangle)) * (finalPeriod - initialPeriod);
+		if(phase > period)
+			phase -= period;
+		float coeff = mapAndConstrain(phase < onTime, 0, 1, 0.3, 1);
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	static constexpr float initialPeriod = 300;
+	static constexpr float finalPeriod = 80;
+	static constexpr unsigned int duration = 3000;
+	static constexpr float onTime = 40;
+	float phase = 0;
+	uint32_t lastMs;
+	rgb_t color;
+};
+
 class MenuItemType
 {
 public:
@@ -1948,8 +2009,16 @@ MenuPage singleRangeDisplayMenu("single range", {&singleRangeDisplayMenuItem}, M
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
 {
 public:
-	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, ParameterContinuous& value) :
-		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), value(value) {}
+	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, ParameterContinuous& value, ButtonParameterAnimation* animation = nullptr) :
+		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), value(value), animation(animation) {}
+	void process(LedSlider& slider)
+	{
+		MenuItemTypeEnterSubmenu::process(slider);
+		if(animation)
+		{
+			animation->process(HAL_GetTick(), slider, value);
+		}
+	}
 	void event(Event e)
 	{
 		if(kHoldHigh == e) {
@@ -1958,6 +2027,7 @@ public:
 		}
 	}
 	ParameterContinuous& value;
+	ButtonParameterAnimation* animation;
 };
 
 // If held-press, get into singleRangeMenu to set values
@@ -2109,8 +2179,10 @@ static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeOutputMode,
 };
 
-static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform);
-static MenuItemTypeEnterContinuous balancedOscModeCentreFrequency("centreFrequency", buttonColor, gBalancedOscsMode.centreFrequency);
+static ButtonParameterAnimationWaveform animationWaveform{buttonColor};
+static ButtonParameterAnimationSpeedUpDown animationSpeedup(buttonColor);
+static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform, &animationWaveform);
+static MenuItemTypeEnterContinuous balancedOscModeCentreFrequency("centreFrequency", buttonColor, gBalancedOscsMode.centreFrequency, &animationSpeedup);
 static MenuItemTypeDiscrete balancedOscModeInputMode("balancedOscModeInputMode", buttonColor, &gBalancedOscsMode.inputMode);
 static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 		&balancedOscModeInputMode,
