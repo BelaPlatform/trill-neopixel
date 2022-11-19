@@ -2337,7 +2337,7 @@ public:
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
 	ParameterEnumT<kCvRangeNum> inRangeEnum {this, 0};
-	ParameterContinuous inRangeBottom {this, 0.8};
+	ParameterContinuous inRangeBottom {this, 0.2};
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 } gGlobalSettings;
