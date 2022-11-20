@@ -506,8 +506,16 @@ public:
 
 	size_t size()
 	{
-		return (start - end + data.size()) % data.size();
+		size_t size = data.size();
+		size_t i = (end - start + size) % size;
+		return i;
 	}
+
+	const std::array<sample_t, kMaxRecordLength>& getData()
+	{
+		return data;
+	}
+
 protected:
 	template<typename T> void increment(T& idx)
 	{
@@ -530,13 +538,13 @@ class TimestampedRecorder : public Recorder<uint32_t>
 private:
 	typedef Recorder<uint32_t> Base;
 	enum { kRepsBits = 10, kSampleBits = 22 };
+public:
 	struct timedData_t
 	{
 		uint32_t reps : kRepsBits;
 		uint32_t sample : kSampleBits;
 	};
 	static_assert(sizeof(timedData_t) <= 4); // if you change field values to be larger than 4 bytes, be well aware of that
-public:
 	static uint32_t inToSample(const sample_t& in)
 	{
 		uint32_t r = in / max * kSampleMax + 0.5f;
@@ -979,7 +987,18 @@ private:
 	uint32_t lastLatchCount = ButtonView::kPressCountInvalid;
 } gDirectControlMode;
 
+static float linearInterpolation(float frac, float pastValue, float value)
+{
+	return (1.f - frac) * pastValue + frac * value;
+}
+
 class RecorderMode : public PerformanceMode {
+	enum {
+		kInputModeTrigger,
+		kInputModeCv,
+		kInputModePhasor,
+		kInputModeNum,
+	};
 public:
 	bool setup(double ms) override
 	{
@@ -1003,12 +1022,112 @@ public:
 			return modeChangeBlink(ms, colors[0]);
 		}
 	}
-	void render(BelaContext*) override
+	void render(BelaContext* context) override
 	{
-		if(split)
-			gestureRecorderSplit_loop(retrigger);
-		else
-			gestureRecorderSingle_loop(retrigger);
+		bool hasTouch = globalSlider.getNumTouches();
+		if(kInputModeTrigger == inputMode || hasTouch || hadTouch)
+		{
+			printf(".");
+			if(split)
+				gestureRecorderSplit_loop(retrigger);
+			else
+				gestureRecorderSingle_loop(retrigger);
+		}
+		if(kInputModeTrigger != inputMode)
+		{
+
+			if(hadTouch && !hasTouch)
+				updateTable();
+			else
+				processTable(context);
+		}
+		hadTouch = hasTouch;
+	}
+	void processTable(BelaContext* context)
+	{
+//		if(kInputModeCv == inputMode)
+		{
+			 // TODO
+//		} else if (kInputModePhasor == inputMode) {
+			gOutMode = kOutModeManualSample;
+			float vizOuts[2];
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				float idx = analogRead(context, n, 0);
+				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
+				{
+					float out = tables[c][idx * tables[c].size()];
+					analogWriteOnce(context, n, c, out);
+					if(0 == n)
+						vizOuts[c] = out;
+				}
+			}
+			// do visualisation
+			std::array<LedSlider::centroid_t,2> centroids;
+			if(split)
+			{
+				centroids[0].location = vizOuts[0];
+				centroids[0].size = kFixedCentroidSize;
+				centroids[1].location = vizOuts[1];
+				centroids[1].size = kFixedCentroidSize;
+			} else {
+				centroids[0].location = vizOuts[0];
+				centroids[0].size = vizOuts[0];
+			}
+			ledSliders.sliders[0].setLedsCentroids(centroids.data(), 1);
+			if(split)
+				ledSliders.sliders[1].setLedsCentroids(centroids.data() + 1, 1);
+		}
+	}
+	void updateTable()
+	{
+		// std::array<TimestampedRecorder<sample_t,1>, 2>
+		auto& recorders = gGestureRecorder.rs;
+		for(size_t c = 0; c < recorders.size() && c < tables.size(); ++c)
+		{
+			auto& data = recorders[c].getData();
+			size_t srcEntries = recorders[c].size();
+			// go through the whole recording first to compute its length
+			size_t srcSize = 0;
+			for(size_t n = 0; n < srcEntries; ++n)
+			{
+				TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
+				timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData(data[n]);
+				srcSize += timedData.reps;
+			}
+			printf("srcSize: %u frames in %u entries\n\r", srcSize, srcEntries);
+			// go through the whole recording again and fit it into the fixed-size table
+			size_t srcIdx = 0;
+			size_t dstIdx = 0;
+			size_t dstSize = tables[c].size();
+			size_t pastDstIdx = 0;
+			float value = 0;
+			float pastValue = 0;
+			for(size_t n = 0; n < srcEntries; ++n)
+			{
+				TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
+				timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData(data[n]);
+				value = TimestampedRecorder<GestureRecorder::sample_t,1>::sampleToOut(timedData.sample);
+				dstIdx = float(srcIdx) / float(srcSize) * dstSize;
+				for(size_t i = pastDstIdx; i < dstIdx && i < dstSize; ++i)
+				{
+					float den = dstIdx - pastDstIdx - 1;
+					float interp;
+					float frac = 0;
+					if(den) {
+						frac = (i - pastDstIdx) / den;
+						interp = linearInterpolation(frac, pastValue, value);
+					} else {
+						interp = value;
+					}
+					tables[c][i] = interp;
+//					printf("[%u] frac: %.4f, pastValue: %.4f, value: %.3f, interp %.4f \n\r", i, frac, pastValue, value, interp);
+				}
+				pastValue = value;;
+				srcIdx += timedData.reps;
+				pastDstIdx = dstIdx;
+			}
+		}
 	}
 	void updated(Parameter& p)
 	{
@@ -1024,12 +1143,16 @@ public:
 	}
 	ParameterEnumT<2> split{this, false};
 	ParameterEnumT<2> retrigger{this, true};
-	ParameterEnumT<3> inputMode{this, 0};
+	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
 private:
 	rgb_t colors[2] = {
 			{128, 128, 0},
 			{128, 128, 100},
 	};
+	static constexpr size_t kTableSize = 1024;
+	static constexpr size_t kNumSplits = 2;
+	std::array<std::array<float,kTableSize>,kNumSplits> tables;
+	bool hadTouch = false;
 } gRecorderMode;
 
 static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
