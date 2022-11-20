@@ -129,7 +129,7 @@ ssize_t GpNeoPixels::rgbToClk(const uint8_t* rgb, size_t numRgb, uint8_t* out, s
 	// data[2] = 0x3;
 	// data[3] = 11;
 	// data[4] = data[5] = data[6] = data[7] = 0;
-	ssize_t numBytes = ((clk + wordLength - 1) / wordLength) * wordLength / kBitsPerByte; // round up to the next word
+	size_t numBytes = ((clk + wordLength - 1) / wordLength) * wordLength / kBitsPerByte; // round up to the next word
 	if(numBytes > numOut) // just in case numOut was not a multiple, we now no longer fit
 		return -1;
 	// TODO: add write zeros to the end
