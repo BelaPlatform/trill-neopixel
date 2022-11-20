@@ -1226,7 +1226,7 @@ public:
 				LedSlider::MANUAL_CENTROIDS
 			);
 		}
-		gOutMode = kOutModeManualBlock;
+		gOutMode = kOutModeManualSample;
 		if(ms < 0)
 			return true;
 		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), kNumLeds / 2, kNumLeds / 2);
@@ -1254,38 +1254,37 @@ public:
 			break;
 		}
 
-		float midFreq = context->analogFrames / clockPeriod; // we process once per block; the oscillator thinks Fs = 1
+		float midFreq = 1.f / clockPeriod; // we process once per block; the oscillator thinks Fs = 1
 		float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
 
 		if (touchPosition > 0.0) {
 			divisionPoint = touchPosition;
 		}
-
-
 		std::array<float,oscillators.size()> freqs = {
 				(0.92f - divisionPoint) * midFreq * 2.f,
 				divisionPoint * midFreq * 2,
 		};
 
-		// limit max brightness. On the one hand, it reduces power consumption,
-		// on the other hand it attempts to avoid the upper range, where it becomes hard
-		// to discern increased brightness.
-		const float kMaxBrightness = 0.4f;
-		for(size_t n = 0; n < oscillators.size(); ++n) {
-			float out = oscillators[n].process(freqs[n]);
-			gManualAnOut[!n] = map(out, -1, 1, 0, 1); // The ! is so that the CV outs order matches the display. TODO: tidy up
-			if(!gAlt)
-			{
-				// if we are not in menu mode, set the display
-				// TODO: move this to LedSlider so that it obeys to the ledEnabled there
-
-				float brightness = map(out, -1, 1, 0, kMaxBrightness);
-				unsigned int split = divisionPoint > 0 ? kNumLeds * divisionPoint : 0;
-				unsigned int start = (0 == n) ? 0 : split;
-				unsigned int stop = (0 == n) ? split : kNumLeds;
-				rgb_t color = {uint8_t(brightness * gBalancedLfoColors[n].r), uint8_t(brightness * gBalancedLfoColors[n].g), uint8_t(brightness * gBalancedLfoColors[n].b)};
-				for(unsigned int p = start; p <  stop; ++p)
-					np.setPixelColor(p, color.r, color.g, color.b);
+		for(size_t n = 0; n < context->analogFrames; ++n) {
+			for(size_t c = 0; c < oscillators.size() && c < context->analogOutChannels; ++c) {
+				float out = oscillators[c].process(freqs[c]);
+				analogWriteOnce(context, n, !c, map(out, -1, 1, 0, 1)); // The ! is so that the CV outs order matches the display. TODO: tidy up
+				if(0 == n && !gAlt)
+				{
+					// limit max brightness. On the one hand, it reduces power consumption,
+					// on the other hand it attempts to avoid the upper range, where it becomes hard
+					// to discern increased brightness.
+					const float kMaxBrightness = 0.4f;
+					// TODO: move this to LedSlider so that it obeys to the ledEnabled there an we don't need the !gAlt here
+					// if we are not in menu mode, set the display
+					float brightness = map(out, -1, 1, 0, kMaxBrightness);
+					unsigned int split = divisionPoint > 0 ? kNumLeds * divisionPoint : 0;
+					unsigned int start = (0 == c) ? 0 : split;
+					unsigned int stop = (0 == c) ? split : kNumLeds;
+					rgb_t color = {uint8_t(brightness * gBalancedLfoColors[c].r), uint8_t(brightness * gBalancedLfoColors[c].g), uint8_t(brightness * gBalancedLfoColors[c].b)};
+					for(unsigned int p = start; p <  stop; ++p)
+						np.setPixelColor(p, color.r, color.g, color.b);
+				}
 			}
 		}
 	}
