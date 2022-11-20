@@ -1636,7 +1636,23 @@ public:
 	};
 protected:
 	rgb_t color;
-	unsigned int width = -1;
+};
+
+class ButtonAnimationTriangle : public ButtonAnimation {
+public:
+	ButtonAnimationTriangle(rgb_t color, uint32_t period) :
+		color(color), period(period) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float) override {
+		rgb_t c;
+		float coeff = simpleTriangle(ms, period);
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+	uint32_t period;
 };
 
 class ButtonAnimationSingleRepeatedEnv: public ButtonAnimation {
@@ -2432,9 +2448,11 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 // appropriately set the properties of displayScaleMeterOutputMode
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
-static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRange", {255, 127, 0}, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
-static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", {255, 127, 0}, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
-static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", {255, 127, 0}, gGlobalSettings.sizeScaleCoeff);
+static constexpr rgb_t globalSettingsColor = {255, 127, 0};
+static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRange", globalSettingsColor, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
+static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
+static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
+static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 
 static bool isCalibration;
 static bool menuJustEntered;
