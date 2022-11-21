@@ -440,11 +440,13 @@ template <typename sample_t>
 class Recorder
 {
 public:
-	void enable(bool restart)
+	void enable()
 	{
 		active = true;
-		if(restart)
-			current = start;
+	}
+	void restart()
+	{
+		current = start;
 	}
 	void disable()
 	{
@@ -702,39 +704,45 @@ public:
 		if(sliders.size() < 1)
 			return Gesture_t();
 		bool single = (1 == sliders.size());
-		std::array<unsigned int, 2> active;
-		active[0] = sliders[0].getNumTouches();
+		std::array<unsigned int, 2> hasTouch;
+		hasTouch[0] = sliders[0].getNumTouches();
 		if(single)
-			active[1] = active[0];
+			hasTouch[1] = hasTouch[0];
 		else
 		{
-			active[1] = sliders[1].getNumTouches();
+			hasTouch[1] = sliders[1].getNumTouches();
 		}
 		HalfGesture_t out[2];
 		static bool pastAnalogIn = false;
+		// TODO: ignore when recording
+		// TODO: obey trigger level
 		bool analogIn = tri.analogRead() > 0.5;
-		// reset on rising edge on analog or button ins
 		if((analogIn && !pastAnalogIn) || performanceBtn.onset)
 		{
-			assert(active.size() == rs.size());
-			for(size_t n = 0; n < active.size(); ++n)
-				if(!active[n])
-					rs[n].enable(true);
+			assert(hasTouch.size() == rs.size());
+			// when playing back or paused,
+			// reset on rising edge on analog or button ins
+			for(size_t n = 0; n < hasTouch.size(); ++n)
+				if(!hasTouch[n])
+				{
+					rs[n].enable();
+					rs[n].restart();
+				}
 		}
 		pastAnalogIn = analogIn;
 
-		for(unsigned int n = 0; n < active.size(); ++n)
+		for(unsigned int n = 0; n < hasTouch.size(); ++n)
 		{
-			if(active[n] != pastActive[n]) //state change
+			if(hasTouch[n] != hadTouch[n]) //state change
 			{
-				printf("[%d] newAc: %d, pastAc: %d\n\r", n, active[n], pastActive[n]);
-				if(1 == active[n] && 0 == pastActive[n]) { // going from 0 to 1 touch: start recording (and enable)
+				printf("[%d] hasTouch: %d, hadTouch: %d\n\r", n, hasTouch[n], hadTouch[n]);
+				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording (and enable)
 					rs[n].startRecording();
-				} else if(0 == active[n]) // going to 0 touches: start playing back (unless disabled)
+				} else if(0 == hasTouch[n]) // going to 0 touches: start playing back (unless disabled)
 					rs[n].stopRecording();
 			}
-			pastActive[n] = active[n];
-			if(active[n])
+			hadTouch[n] = hasTouch[n];
+			if(hasTouch[n])
 			{
 				sample_t val;
 				if(0 == n)
@@ -757,7 +765,7 @@ public:
 	}
 	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
 private:
-	unsigned int pastActive[2];
+	unsigned int hadTouch[2];
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
