@@ -1009,6 +1009,13 @@ static float linearInterpolation(float frac, float pastValue, float value)
 
 #include <math.h>
 
+static inline float vToFreq(float volts, float baseFreq)
+{
+	float semitones = volts * 12.f; // 1V/oct
+	//TODO: use an optimised version of powf() so it can run more often cheaper
+	return powf(2, semitones / 12.f) * baseFreq;
+}
+
 template <typename T>
 static float interpolatedRead(const T& table, float idx)
 {
@@ -1083,10 +1090,8 @@ public:
 		{
 			//TODO: disable input scaling, use it as CV offset for tuning
 			float volts = analogRead(context, 0, 0) * 15.f - 5.f;
-			float semitones = volts * 12.f; // 1V/oct
 			float baseFreq = 50;
-			//TODO: use an optimised version so it can run per-sample
-			float freq = powf(2, semitones / 12.f) * baseFreq;
+			float freq = vToFreq(volts, baseFreq);
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
