@@ -1009,8 +1009,8 @@ static float linearInterpolation(float frac, float pastValue, float value)
 
 #include <math.h>
 
-//template <typename T>
-static float interpolatedRead(const std::array<float,1024>& table, float idx)
+template <typename T>
+static float interpolatedRead(const T& table, float idx)
 {
 	float n = table.size() * idx;
 	size_t prev = size_t(n);
@@ -1872,6 +1872,44 @@ protected:
 	rgb_t color;
 };
 
+class ButtonAnimationRecorderInputMode: public ButtonAnimation {
+public:
+	ButtonAnimationRecorderInputMode(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		float coeff;
+		if(0 == value)
+		{
+			const unsigned int periodicDuration = 400;
+			// input mode: trigger. Show evenly spaced brief pulses
+			ms %= periodicDuration;
+			coeff = (ms / float(periodicDuration)) < 0.1;
+		} else if (1 == value){
+			// input mode: CV in
+			// show a few smooth transitions
+			const unsigned int duration = 3000;
+			ms %= duration;
+			std::array<float,12> data = {
+					0.1, 0.3, 0.5, 0.3, 0.4, 0.7, 1.0, 0.8, 0.6, 0.3, 0.3, 0.3
+			};
+			coeff = interpolatedRead(data, ms / float(duration));
+		} else {
+			// input mode: phasor
+			// show a phasor
+			const unsigned int duration = 1000;
+			ms %= duration;
+			coeff = ms / float(duration);
+		}
+		rgb_t c;
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+};
+
 class ButtonAnimationWaveform: public ButtonAnimation {
 public:
 	ButtonAnimationWaveform(rgb_t color) :
@@ -2513,7 +2551,8 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColor};
 static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.split, &animationSplit);
 static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.retrigger, &animationSingleRepeatedPulse);
-static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode);
+static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColor};
+static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&recorderModeInputMode,
 		&recorderModeRetrigger,
