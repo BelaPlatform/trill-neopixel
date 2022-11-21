@@ -352,13 +352,13 @@ static float rescaleInput(float gnd, float value)
 	return mapAndConstrain(value, bottom, top, 0, 1);
 }
 
-static float rescaleOutput(size_t idx, float gnd, float value)
+static float rescaleOutput(size_t channel, float gnd, float value)
 {
 	// rescale analog outputs
 	float bottom;
 	float top;
 	getBottomTopRange(gOutRange, false, gnd, bottom, top);
-	if(gSecondTouchIsSize && 1 == idx) // if this is a size
+	if(gSecondTouchIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 	// TODO: apply sizeScaleCoeff. Is this the best place for it?
 	value = mapAndConstrain(value, 0, 1, bottom, top);
@@ -571,7 +571,7 @@ void tr_render(BelaContext* context)
 			for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
 			{
 				size_t idx = n * kNumOutChannels + channel;
-				context->analogOut[idx] = rescaleOutput(n, gnd, context->analogOut[idx]);
+				context->analogOut[idx] = rescaleOutput(channel, gnd, context->analogOut[idx]);
 			}
 		}
 	} else {
