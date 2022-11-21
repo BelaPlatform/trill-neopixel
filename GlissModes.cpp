@@ -36,7 +36,7 @@ int gSubMode = 0;
 bool gSecondTouchIsSize;
 
 // Recording the gesture
-enum { kMaxRecordLength = 1000 };
+enum { kMaxRecordLength = 10000 };
 const float kSizeScale = 10000;
 const float kFixedCentroidSize = 0.3;
 
@@ -992,6 +992,23 @@ static float linearInterpolation(float frac, float pastValue, float value)
 	return (1.f - frac) * pastValue + frac * value;
 }
 
+#include <math.h>
+
+//template <typename T>
+static float interpolatedRead(const std::array<float,1024>& table, float idx)
+{
+	float n = table.size() * idx;
+	size_t prev = size_t(n);
+	size_t next = size_t(n + 1);
+	if(prev >= table.size()) // idx was out of range
+		prev = table.size() - 1;
+	if(next >= table.size())
+		next = 0; // could be we are at the end of table
+	float frac = n - prev;
+	float value = linearInterpolation(frac, table[prev], table[next]);
+	return value;
+}
+
 class RecorderMode : public PerformanceMode {
 	enum {
 		kInputModeTrigger,
@@ -1024,18 +1041,19 @@ public:
 	}
 	void render(BelaContext* context) override
 	{
-		bool hasTouch = globalSlider.getNumTouches();
+		bool hasTouch = ledSliders.sliders[0].getNumTouches();
 		if(kInputModeTrigger == inputMode || hasTouch || hadTouch)
 		{
-			printf(".");
 			if(split)
 				gestureRecorderSplit_loop(retrigger);
 			else
 				gestureRecorderSingle_loop(retrigger);
 		}
-		if(kInputModeTrigger != inputMode)
+		if(kInputModeTrigger == inputMode)
 		{
-
+			gOutMode = kOutModeFollowLeds;
+		} else {
+			gOutMode = kOutModeManualSample;
 			if(hadTouch && !hasTouch)
 				updateTable();
 			else
@@ -1043,20 +1061,36 @@ public:
 		}
 		hadTouch = hasTouch;
 	}
+
 	void processTable(BelaContext* context)
 	{
-//		if(kInputModeCv == inputMode)
+		if(kInputModeCv == inputMode)
 		{
-			 // TODO
-//		} else if (kInputModePhasor == inputMode) {
-			gOutMode = kOutModeManualSample;
+			//TODO: disable input scaling, use it as CV offset for tuning
+			float volts = analogRead(context, 0, 0) * 15.f - 5.f;
+			float semitones = volts * 12.f; // 1V/oct
+			float baseFreq = 50;
+			//TODO: use an optimised version so it can run per-sample
+			float freq = powf(2, semitones / 12.f) * baseFreq;
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
+				{
+					if(1 ==c)
+						continue;
+					float idx = map(osc.process(freq / context->analogSampleRate), -1, 1, 0, 1);
+					float value = interpolatedRead(tables[c], idx);
+					analogWriteOnce(context, n, c, value);
+				}
+			}
+		} else if (kInputModePhasor == inputMode) {
 			float vizOuts[2];
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 				float idx = analogRead(context, n, 0);
 				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
 				{
-					float out = tables[c][idx * tables[c].size()];
+					float out = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, out);
 					if(0 == n)
 						vizOuts[c] = out;
@@ -1101,16 +1135,29 @@ public:
 			size_t dstIdx = 0;
 			size_t dstSize = tables[c].size();
 			size_t pastDstIdx = 0;
-			float value = 0;
 			float pastValue = 0;
-			for(size_t n = 0; n < srcEntries; ++n)
+			for(size_t n = 0; n <= srcEntries; ++n)
 			{
-				TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
-				timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData(data[n]);
-				value = TimestampedRecorder<GestureRecorder::sample_t,1>::sampleToOut(timedData.sample);
-				dstIdx = float(srcIdx) / float(srcSize) * dstSize;
+				float value;
+				size_t srcInc;
+				if(n < srcEntries)
+				{
+					TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
+					timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData(data[n]);
+					value = TimestampedRecorder<GestureRecorder::sample_t,1>::sampleToOut(timedData.sample);
+					dstIdx = float(srcIdx) / float(srcSize) * dstSize;
+					srcInc = timedData.reps;
+				} else {
+					// if we are at the end, interpolate back towards the first value
+					value = tables[c][0];
+					dstIdx = dstSize;
+					srcInc = 0;
+				}
+				if(0 == n)
+					pastValue = value;
 				for(size_t i = pastDstIdx; i < dstIdx && i < dstSize; ++i)
 				{
+					// TODO: smooth sharp edges to reduce nasty aliasing
 					float den = dstIdx - pastDstIdx - 1;
 					float interp;
 					float frac = 0;
@@ -1121,10 +1168,11 @@ public:
 						interp = value;
 					}
 					tables[c][i] = interp;
-//					printf("[%u] frac: %.4f, pastValue: %.4f, value: %.3f, interp %.4f \n\r", i, frac, pastValue, value, interp);
+//					if(0 == c)
+//						printf("%u %.2f %.2f \n\r", i, value, interp);
 				}
 				pastValue = value;;
-				srcIdx += timedData.reps;
+				srcIdx += srcInc;
 				pastDstIdx = dstIdx;
 			}
 		}
@@ -1152,6 +1200,7 @@ private:
 	static constexpr size_t kTableSize = 1024;
 	static constexpr size_t kNumSplits = 2;
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
+	Oscillator osc {1, Oscillator::sawtooth};
 	bool hadTouch = false;
 } gRecorderMode;
 
@@ -1807,8 +1856,6 @@ public:
 protected:
 	rgb_t color;
 };
-
-#include <math.h>
 
 class ButtonAnimationWaveform: public ButtonAnimation {
 public:
