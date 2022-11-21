@@ -619,7 +619,7 @@ public:
 		{
 			unsigned int idx = n % data.size();
 			timedData_t d = recordToTimedData(data[n]);
-			printf("[%u] %lu %5.2f %s\n\r", idx, d.reps, sampleToOut(d.sample), idx == start ? "start" : (idx == end ? "end" : ""));
+			printf("[%u] %lu %5.2f %s\n\r", idx, uint32_t(d.reps), sampleToOut(d.sample), idx == start ? "start" : (idx == end ? "end" : ""));
 			if(idx == end)
 				break;
 		}
