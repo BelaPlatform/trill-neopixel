@@ -595,6 +595,13 @@ public:
 		// flush whatever we haven't recorded yet
 		pushSample();
 		Base::stopRecording();
+		restart();
+	}
+
+	void restart()
+	{
+		playData.reps = 0;
+		Recorder::restart();
 	}
 
 	sample_t play(bool loop)
