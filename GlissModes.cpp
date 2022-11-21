@@ -457,7 +457,7 @@ public:
 	virtual void startRecording()
 	{
 		active = true;
-		start = current;
+		start = current = 0;
 		full = false;
 	}
 	sample_t& record(const sample_t& in)
