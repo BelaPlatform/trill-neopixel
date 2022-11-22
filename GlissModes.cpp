@@ -1453,8 +1453,8 @@ public:
 			divisionPoint = touchPosition;
 		}
 		std::array<float,oscillators.size()> freqs = {
-				(0.92f - divisionPoint) * midFreq * 2.f,
-				divisionPoint * midFreq * 2,
+				(1.f - divisionPoint) * midFreq * 2.f,
+				divisionPoint * midFreq * 2.f,
 		};
 
 		for(size_t n = 0; n < context->analogFrames; ++n) {
