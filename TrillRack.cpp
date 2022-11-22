@@ -455,7 +455,7 @@ void tr_render(BelaContext* context)
 	static bool preMenuActive = false;
 	if(btn.pressed)
 	{
-		const size_t kTouchesForMenu = 3;
+		const size_t kTouchesForMenu = 2;
 		if(numTouches && !hadTouch) // we start touching
 			preMenuActive = true;
 		if(!numTouches) // we no longer touch
