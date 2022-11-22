@@ -2635,7 +2635,7 @@ class GlobalSettings : public ParameterUpdateCapable {
 public:
 	void updated(Parameter& p)
 	{
-//		printf("GlobalSettings updated: %p\n\r", &p);
+		bool verbose = false;
 		char const* str = "+++";
 		if(p.same(outRangeEnum)) {
 			gOutRange = outRangeEnum;
@@ -2661,7 +2661,8 @@ public:
 		}
 		else if(p.same(sizeScaleCoeff))
 			str = "sizeScaleCoeff";
-		printf("%s\n\r", str);
+		if(verbose)
+			printf("%s\n\r", str);
 	}
 	ParameterEnumT<kCvRangeNum> outRangeEnum {this, 0};
 	ParameterContinuous outRangeBottom {this, 0.2};
