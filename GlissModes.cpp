@@ -1442,7 +1442,12 @@ public:
 			lastClockPeriodUpdate = gClockPeriodUpdated;
 			break;
 		case kInputModeCv:
-			// TODO:
+		{
+			// TODO: fix CV in: disable global rescale
+			float volts = analogRead(context, 0, 0) * 15.f - 5.f;
+			float freq = vToFreq(volts, 3);
+			clockPeriod = sampleRate / freq;
+		}
 			break;
 		}
 
