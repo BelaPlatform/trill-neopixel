@@ -1890,7 +1890,7 @@ public:
 		float coeff;
 		if(0 == value)
 		{
-			const unsigned int periodicDuration = 400;
+			const unsigned int periodicDuration = 800;
 			// input mode: trigger. Show evenly spaced brief pulses
 			ms %= periodicDuration;
 			coeff = (ms / float(periodicDuration)) < 0.1;
@@ -1926,7 +1926,7 @@ public:
 		color(color) {}
 	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
 		rgb_t c;
-		const unsigned int period = 800;
+		const unsigned int period = 1200;
 		ms %= period;
 		unsigned int type = int(value + 0.5f);
 		if(type >= Oscillator::numOscTypes)
@@ -1963,14 +1963,14 @@ public:
 		float period = initialPeriod + (sqrt(triangle)) * (finalPeriod - initialPeriod);
 		if(phase > period)
 			phase -= period;
-		float coeff = mapAndConstrain(phase < onTime, 0, 1, 0.3, 1);
+		float coeff = (phase < onTime);
 		c.r = color.r * coeff;
 		c.g = color.g * coeff;
 		c.b = color.b * coeff;
 		ledSlider.setColor(c);
 	};
 protected:
-	static constexpr float initialPeriod = 300;
+	static constexpr float initialPeriod = 600;
 	static constexpr float finalPeriod = 80;
 	static constexpr unsigned int duration = 3000;
 	static constexpr float onTime = 40;
