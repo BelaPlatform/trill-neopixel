@@ -2583,7 +2583,8 @@ static ButtonAnimationWaveform animationWaveform{buttonColor};
 static ButtonAnimationSpeedUpDown animationSpeedup(buttonColor);
 static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform, &animationWaveform);
 static MenuItemTypeEnterContinuous balancedOscModeCentreFrequency("centreFrequency", buttonColor, gBalancedOscsMode.centreFrequency, &animationSpeedup);
-static MenuItemTypeDiscrete balancedOscModeInputMode("balancedOscModeInputMode", buttonColor, &gBalancedOscsMode.inputMode);
+static ButtonAnimationRecorderInputMode animationBalancedOscsInputMode{buttonColor};
+static MenuItemTypeDiscrete balancedOscModeInputMode("balancedOscModeInputMode", buttonColor, &gBalancedOscsMode.inputMode, &animationBalancedOscsInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 		&balancedOscModeInputMode,
 		&balancedOscModeCentreFrequency,
