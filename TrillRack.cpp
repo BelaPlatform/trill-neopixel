@@ -363,6 +363,15 @@ static float rescaleOutput(size_t channel, float gnd, float value)
 	// TODO: apply sizeScaleCoeff. Is this the best place for it?
 	value = mapAndConstrain(value, 0, 1, bottom, top);
 	#ifdef REV2
+	// hard-limit the ranges to avoid the nasty edges
+	// (note: this does _not_ clip the output, actually it does just the opposite)
+	// TODO: validate these values across several units, or possibly via
+	// the calibration procedure. Better play it safe and end up slightly short of the
+	// nominal range, but keep an unclipped waveform.
+	if(bottom < 0.001)
+		bottom = 0.001;
+	if(top > 0.99)
+		top = 0.99;
 	value = 1.f - value; // inverting outs
 	#endif // REV2
 	return value;
