@@ -1525,11 +1525,6 @@ public:
 			ledSlidersSetupMultiSlider(
 				ledSliders,
 				{
-					{0, 255, 0},
-					{0, 200, 50},
-					{0, 150, 100},
-					{0, 100, 150},
-					{0, 50, 200},
 				},
 				LedSlider::MANUAL_CENTROIDS,
 				true
@@ -1557,10 +1552,159 @@ public:
 				pitchBeingAdjustedCount = 0;
 				pitchBeingAdjusted = -1;
 			}
+			return;
 		}
-		else
-			ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
+		// normal processing
+		LedSlider::centroid_t centroid = {
+				.location = ledSliders.sliders[0].touchLocation(0),
+				.size = ledSliders.sliders[0].touchSize(0),
+		};
+		if(!centroid.size)
+		{
+			// touch is removed
+			touch.state = kDisabled;
+		}
+		// if it is a new touch, or we are bending and have been long enough in the
+		// dead spot of the target key, assign this touch to a key, store location as impact location,
+		// mark it as unmoved
+		if(kDisabled == touch.state || kBendingDead == touch.state)
+		{
+			ssize_t key = getKeyFromLocation(centroid.location);
+			if(key >= 0)
+			{
+				touch = Touch();
+				touch.key = key;
+				touch.state = kInitial;
+				touch.startingPoint = centroid.location;
+			}
+		}
+		// if it is not a new touch and it has moved enough, mark it as moved
+		if(kInitial == touch.state)
+		{
+			if(fabsf(centroid.location - touch.startingPoint))
+			{
+				touch.state = kMoved;
+				touch.filt = {0};
+			}
+		}
+		// if it is a moved touch, apply high-pass to get modulation amount
+		if(kMoved == touch.state)
+		{
+			// if a moved touch gets 'far enough' from initial position
+			// and getting 'close' to another button, we are bending towards it.
+			float diff = touch.startingPoint - centroid.location;
+			if(fabsf(diff)> kBendThreshold)
+			{
+				size_t dest = diff > 0 ? touch.key + 1 : touch.key - 1;
+				// do not bend if moving towards end of keyboard
+				if(dest < kNumButtons)
+				{
+					touch.state = kBending;
+					touch.bendDestKey = dest;
+					touch.bendDeadTime = 0;
+				}
+			} else {
+				float x0 = centroid.location - touch.startingPoint;
+				float y0 = x0 * b0 + touch.filt.x1 * b1 - touch.filt.y1 * a1;
+				touch.mod = y0;
+				touch.filt.x1 = x0;
+				touch.filt.y1 = y0;
+			}
+		}
+		// if we are bending, apply a special mapping to frequency so that there
+		// is a "dead" spot close to the center of the target key
+		if(kBending == touch.state || kBendingDead == touch.state)
+		{
+			float midPoint = getMidLocationFromKey(touch.bendDestKey);
+			float bottom = midPoint - kBendDeadSpot;
+			float top = midPoint + kBendDeadSpot;
+			if(centroid.location > bottom && centroid.location < top)
+			{
+				// we are in the dead spot
+				touch.bendDeadTime++;
+				if(touch.bendDeadTime >= kBendDeadSpotMaxCount)
+				{
+					// if we are here long enough, we are candidate to become a new touch
+					touch.bendDeadTime = kBendingDead;
+				}
+			} else {
+				if(touch.bendDeadTime)
+				{
+					// we are no longer in the dead spot, reset
+					touch.state = kBending;
+					touch.bendDeadTime = 0;
+				}
+			}
+		}
+		// TODO:
+		// - compute bend curve(starting from point at kBending, considering current mod)
+		// - compute outputs
+		// - go back from bend to moved
+		// - display
+//		ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 	}
+private:
+	static ssize_t getMidLocationFromKey(size_t key)
+	{
+		return key * step - step * 0.5f;
+	}
+
+	static ssize_t getKeyFromLocation(float location)
+	{
+		size_t key;
+		// identify candidate key
+		for(key = 0; key < kNumButtons; ++key)
+		{
+			float top = key * (step + 1);
+			if(location <= top)
+				break;
+		}
+		if(kNumButtons == key)
+			return -1; // weird ...
+		// validate that we are not _too far_ from the center
+		float centre = getMidLocationFromKey(key);
+		if(fabsf(location - centre) > kMaxDistanceFromCenter)
+			return -1;
+		return key;
+	}
+	static constexpr size_t kNumButtons = 5;
+	static constexpr float step = 1.f / kNumButtons;
+	static constexpr float kMaxDistanceFromCenter = step * 0.85f;
+	static constexpr float kMoveThreshold = step * 0.2f;
+	static constexpr float kBendThreshold = step * 0.9f; // could be same as kMaxDistanceFromCenter?
+	static constexpr float kBendDeadSpot = step * 0.2f;
+	static constexpr size_t kBendDeadSpotMaxCount = 20;
+	static constexpr float b0 = float(0.9922070637080485);
+	static constexpr float b1 = float(-0.9922070637080485);
+	static constexpr float a1 = float(-0.9844141274160969);
+	typedef enum {
+		kInitial,
+		kMoved,
+		kBending,
+		kBendingDead,
+		kDisabled,
+	} TouchState;
+	struct Touch {
+		TouchState state = kDisabled;
+		size_t key = 0;
+		size_t bendDestKey = 0;
+		float startingPoint = 0;
+		float mod = 0;
+		struct {
+			float y1 = 0;
+			float x1 = 0;
+		} filt;
+		size_t bendDeadTime = 0;
+	} touch;
+	std::array<LedSlider::centroid_t,kNumButtons> buttons;
+	std::array<rgb_t,kNumButtons> colors = {{
+		{0, 255, 0},
+		{0, 200, 50},
+		{0, 150, 100},
+		{0, 100, 150},
+		{0, 50, 200},
+	}};
+public:
 	void updated(Parameter& p)
 	{
 		if(p.same(modRange)) {
@@ -1590,7 +1734,6 @@ public:
 		ParameterContinuous(this, 0.9),
 	};
 private:
-	static constexpr size_t kNumButtons = 5;
 	std::array<float,kNumButtons> offsets;
 	int pitchBeingAdjusted = -1;
 	unsigned int pitchBeingAdjustedCount = 0;
