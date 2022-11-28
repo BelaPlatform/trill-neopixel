@@ -9,6 +9,10 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 
+// pick one of the two for more or less debugging printf and memory usage
+//#define S(a) a
+#define S(a)
+
 extern int gAlt;
 extern TrillRackInterface tri;
 extern const unsigned int kNumPads;
@@ -181,6 +185,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		}
 	}
 }
+#if 0
 template <size_t T>
 static void ledSlidersExpButtonsProcess(LedSliders& sl, std::array<float,2>& outs, float scale, std::array<float,T>const& offsets = {})
 {
@@ -212,7 +217,6 @@ static void ledSlidersExpButtonsProcess(LedSliders& sl, std::array<float,2>& out
 		sl.sliders[n].setLedsCentroids(&centroid, 1);
 	}
 }
-
 void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates)
 {
 	onsets.resize(0);
@@ -245,6 +249,7 @@ void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, st
 		states[n] = state;
 	}
 }
+#endif
 
 static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 {
@@ -1530,6 +1535,7 @@ public:
 				true
 			);
 			gOutMode = kOutModeManualBlock;
+			changeState(kDisabled, {0, 0});
 		}
 		// Force initialisation of offsets. Alternatively, always copy them in render()
 		for(auto& o : offsetParameters)
@@ -1540,11 +1546,11 @@ public:
 	}
 	void render(BelaContext*)
 	{
-		float scale = 0.1;
 		if(pitchBeingAdjusted >= 0)
 		{
 			// if we are adjusting the pitch, output that instead
 			gManualAnOut[0] = offsets[pitchBeingAdjusted];
+			gManualAnOut[1] = 1;
 			pitchBeingAdjustedCount++;
 			// hold it for a few blocks
 			if(pitchBeingAdjustedCount >= kPitchBeingAdjustedCountMax)
@@ -1562,91 +1568,239 @@ public:
 		if(!centroid.size)
 		{
 			// touch is removed
-			touch.state = kDisabled;
-		}
-		// if it is a new touch, or we are bending and have been long enough in the
-		// dead spot of the target key, assign this touch to a key, store location as impact location,
-		// mark it as unmoved
-		if(kDisabled == touch.state || kBendingDead == touch.state)
-		{
-			ssize_t key = getKeyFromLocation(centroid.location);
-			if(key >= 0)
-			{
-				touch = Touch();
-				touch.key = key;
-				touch.state = kInitial;
-				touch.startingPoint = centroid.location;
-			}
+			if(kDisabled != touch.state)
+				changeState(kDisabled, centroid);
+		} else {
+			// if it is a new touch, assign this touch to a key, store location as impact location,
+			// mark it as unmoved
+			if(kDisabled == touch.state)
+				changeState(kInitial, centroid); // note that this may fail and we go back to kDisabled
 		}
 		// if it is not a new touch and it has moved enough, mark it as moved
 		if(kInitial == touch.state)
 		{
-			if(fabsf(centroid.location - touch.startingPoint))
-			{
-				touch.state = kMoved;
-				touch.filt = {0};
-			}
+			if(fabsf(centroid.location - touch.initialLocation) > kMoveThreshold)
+				changeState(kMoved, centroid);
 		}
 		// if it is a moved touch, apply high-pass to get modulation amount
 		if(kMoved == touch.state)
 		{
 			// if a moved touch gets 'far enough' from initial position
 			// and getting 'close' to another button, we are bending towards it.
-			float diff = touch.startingPoint - centroid.location;
-			if(fabsf(diff)> kBendThreshold)
+			if(shouldBend(centroid))
+				changeState(kBending, centroid);
+		}
+		// if we are bending, there is a "dead" spot close to the center of the target key
+		if(kBending == touch.state)
+		{
+			// ensure we leave the dead spot that we may (probably) be in when the bending
+			// starts
+			// TODO: add hysteresis?
+			if(fabsf(centroid.location - getMidLocationFromKey(touch.key)) > kBendDeadSpot)
+				touch.bendHasLeftStartKeyDeadSpot = true;
+			size_t key;
+			// check each key: are we in its dead spot?
+			for(key = 0; key < kNumButtons; ++key)
 			{
-				size_t dest = diff > 0 ? touch.key + 1 : touch.key - 1;
-				// do not bend if moving towards end of keyboard
-				if(dest < kNumButtons)
+				float range = kBendDeadSpot;
+				float midPoint = getMidLocationFromKey(key);
+				if(fabsf(centroid.location - midPoint) < range)
 				{
-					touch.state = kBending;
-					touch.bendDestKey = dest;
-					touch.bendDeadTime = 0;
+					if(key == touch.key && !touch.bendHasLeftStartKeyDeadSpot) {
+						continue;
+					}
+					break;
+				}
+			}
+			if(key == kNumButtons) {
+				// we are not in a dead spot
+				touch.bendDeadTime = 0;
+				if(fabsf(centroid.location - getMidLocationFromKey(touch.key)) < step - kBendDeadSpot)
+				{
+					// we are between the initial key and a neighbour's dead spot
+					// nothing to do
+				} else {
+					// we went past the dead zone towards the next key.
+					// Start a new bending towards that.
+					changeState(kInitial, centroid);
+					changeState(kBending, centroid);
 				}
 			} else {
-				float x0 = centroid.location - touch.startingPoint;
-				float y0 = x0 * b0 + touch.filt.x1 * b1 - touch.filt.y1 * a1;
-				touch.mod = y0;
-				touch.filt.x1 = x0;
-				touch.filt.y1 = y0;
-			}
-		}
-		// if we are bending, apply a special mapping to frequency so that there
-		// is a "dead" spot close to the center of the target key
-		if(kBending == touch.state || kBendingDead == touch.state)
-		{
-			float midPoint = getMidLocationFromKey(touch.bendDestKey);
-			float bottom = midPoint - kBendDeadSpot;
-			float top = midPoint + kBendDeadSpot;
-			if(centroid.location > bottom && centroid.location < top)
-			{
-				// we are in the dead spot
-				touch.bendDeadTime++;
+				// we are in the dead spot of a key
+				// make sure it's the same key as the previous frames
+				if(touch.bendDeadKey == key)
+					touch.bendDeadTime++;
+				else
+					touch.bendDeadTime = 1;
+				touch.bendDeadKey = key;
 				if(touch.bendDeadTime >= kBendDeadSpotMaxCount)
 				{
-					// if we are here long enough, we are candidate to become a new touch
-					touch.bendDeadTime = kBendingDead;
+					// if we are here long enough, start a new touch here
+					changeState(kInitial, centroid);
+					changeState(kMoved, centroid);
 				}
+			}
+		}
+		// mode-specific processing
+		switch(touch.state)
+		{
+		case kInitial:
+			break;
+		case kMoved:
+		{
+			// printf("%.5f\n\r", touch.mod);
+			// apply high-pass
+			float x0 = centroid.location - touch.initialLocation;
+			float y0 = x0 * b0 + touch.filt.x1 * b1 - touch.filt.y1 * a1;
+			touch.mod = y0;
+			touch.filt.x1 = x0;
+			touch.filt.y1 = y0;
+		}
+			break;
+		case kBending:
+			break;
+		case kDisabled:
+		case kNumStates:
+			break;
+		}
+
+		// now set output
+		switch(touch.state)
+		{
+		case kInitial:
+			out = offsets[touch.key];
+			break;
+		case kMoved:
+			out = offsets[touch.key] + touch.mod * modRange * 2.f;
+			break;
+		case kBending:
+		{
+			float bendIdx;
+			float bendRange;
+
+			float diff = centroid.location - touch.initialLocation;
+			float bendSign = (diff > 0) ? 1 : -1;
+			size_t bendDestKey = touch.key + bendSign * 1;
+			if(bendDestKey >= kNumButtons) {
+				// if at edge of keyboard, no bending
+				bendIdx = 0;
+				bendRange = 0;
 			} else {
-				if(touch.bendDeadTime)
-				{
-					// we are no longer in the dead spot, reset
-					touch.state = kBending;
-					touch.bendDeadTime = 0;
-				}
+				float destLoc = getMidLocationFromKey(bendDestKey) - bendSign * kBendDeadSpot;
+				if(bendSign * centroid.location < destLoc * bendSign)
+					// outside the dead spot
+					bendIdx = (centroid.location - touch.initialLocation) / (destLoc - touch.initialLocation);
+				else // in the dead spot
+					bendIdx = 1;
+				float destOut = offsets[bendDestKey];
+				bendRange = destOut - touch.initialOut;
+			}
+#if 0
+			static int n = 0;
+			if(0 == (n % 10))
+			{
+				printf("%+1.0f %.2f %.2f %.2f|", bendSign, centroid.location, touch.initialLocation, destLoc);
+				printf("%.2f\n\r", bendIdx);
+			}
+			++n;
+#endif
+			out = touch.initialOut + bendIdx * bendRange;
+		}
+			break;
+		case kDisabled:
+		case kNumStates:
+			break;
+		}
+		gManualAnOut[0] = out;
+		gManualAnOut[1] = centroid.size;
+		if(((uint32_t*)(&gManualAnOut[0]))[0] == 0x7fc00000) // is nan
+		{
+			gManualAnOut[0] = 0;
+			printf("GOT ONE %s\n\r", touchStateNames[touch.state]);
+		}
+
+		// display
+		for(size_t n = 0; n < kNumButtons; ++n)
+		{
+			if(!gAlt)
+			{
+				//TODO: have setPixelColor obey "enabled"
+				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
+				float coeff = (n == touch.key) ? 1 : 0.1;
+				np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
 			}
 		}
 		// TODO:
-		// - compute bend curve(starting from point at kBending, considering current mod)
-		// - compute outputs
-		// - go back from bend to moved
-		// - display
 //		ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 	}
 private:
-	static ssize_t getMidLocationFromKey(size_t key)
+	typedef enum {
+		kInitial,
+		kMoved,
+		kBending,
+		kDisabled,
+		kNumStates,
+	} TouchState;
+	const std::array<const char*,kNumStates> touchStateNames {
+			"kInitial",
+			"kMoved",
+			"kBending",
+			"kDisabled",
+	};
+//	template <typename T = size_t>
+	void changeState(TouchState newState, const LedSlider::centroid_t& centroid, size_t arg0 = 0)
 	{
-		return key * step - step * 0.5f;
+		S(printf("%s, {%.2f} %.2f_", touchStateNames[newState], centroid.location, out));
+		switch(newState)
+		{
+		case kInitial:
+		{
+			touch = Touch();
+			ssize_t key = getKeyFromLocation(centroid.location);
+			if(key >= 0)
+				touch.key = key;
+			else
+				changeState(kDisabled, centroid);
+		}
+			break;
+		case kMoved:
+			touch.filt = {0};
+			break;
+		case kBending:
+			touch.bendStartLocation = centroid.location;
+			touch.bendDeadTime = 0;
+			touch.bendHasLeftStartKeyDeadSpot = false;
+			break;
+		case kDisabled:
+			touch.key = -1;
+			break;
+		case kNumStates:
+			break;
+		}
+		S(printf("\n\r"));
+		touch.state = newState;
+		touch.initialLocation = centroid.location;
+		touch.initialOut = out;
+	}
+	bool shouldBend(const LedSlider::centroid_t& centroid)
+	{
+		float diff = centroid.location - touch.initialLocation;
+		// check that we are far enough from the initial position
+		if(fabsf(diff)> kBendStartThreshold)
+		{
+			size_t key = touch.key;
+			// and that we are not bending towards the outer edges of the keyboard
+			if(
+				(diff < 0 && key > 0)
+				|| (diff > 0 && key < (kNumButtons - 1))
+				)
+				return true;
+		}
+		return false;
+	}
+	static float getMidLocationFromKey(size_t key)
+	{
+		return key * step + step * 0.5f;
 	}
 
 	static ssize_t getKeyFromLocation(float location)
@@ -1655,7 +1809,7 @@ private:
 		// identify candidate key
 		for(key = 0; key < kNumButtons; ++key)
 		{
-			float top = key * (step + 1);
+			float top = (key + 1) * step;
 			if(location <= top)
 				break;
 		}
@@ -1670,31 +1824,27 @@ private:
 	static constexpr size_t kNumButtons = 5;
 	static constexpr float step = 1.f / kNumButtons;
 	static constexpr float kMaxDistanceFromCenter = step * 0.85f;
-	static constexpr float kMoveThreshold = step * 0.2f;
-	static constexpr float kBendThreshold = step * 0.9f; // could be same as kMaxDistanceFromCenter?
+	static constexpr float kMoveThreshold = step * 0.1f;
+	static constexpr float kBendStartThreshold = step * 0.4f; // could be same as kMaxDistanceFromCenter?
 	static constexpr float kBendDeadSpot = step * 0.2f;
-	static constexpr size_t kBendDeadSpotMaxCount = 20;
+	static constexpr size_t kBendDeadSpotMaxCount = 40;
 	static constexpr float b0 = float(0.9922070637080485);
 	static constexpr float b1 = float(-0.9922070637080485);
 	static constexpr float a1 = float(-0.9844141274160969);
-	typedef enum {
-		kInitial,
-		kMoved,
-		kBending,
-		kBendingDead,
-		kDisabled,
-	} TouchState;
 	struct Touch {
 		TouchState state = kDisabled;
 		size_t key = 0;
-		size_t bendDestKey = 0;
-		float startingPoint = 0;
+		float initialLocation = 0;
+		float initialOut = 0;
+		float bendStartLocation = 0;
 		float mod = 0;
 		struct {
 			float y1 = 0;
 			float x1 = 0;
 		} filt;
 		size_t bendDeadTime = 0;
+		size_t bendDeadKey = -1;
+		bool bendHasLeftStartKeyDeadSpot = false;
 	} touch;
 	std::array<LedSlider::centroid_t,kNumButtons> buttons;
 	std::array<rgb_t,kNumButtons> colors = {{
@@ -1724,9 +1874,9 @@ public:
 			}
 		}
 	}
-	ParameterContinuous modRange {this, 0.5};
 	ParameterEnumT<2> quantised {this, true};
-	std::array<ParameterContinuous,5> offsetParameters {
+	ParameterContinuous modRange {this, 0.5};
+	std::array<ParameterContinuous,kNumButtons> offsetParameters {
 		ParameterContinuous(this, 0.5),
 		ParameterContinuous(this, 0.6),
 		ParameterContinuous(this, 0.7),
@@ -1734,6 +1884,7 @@ public:
 		ParameterContinuous(this, 0.9),
 	};
 private:
+	float out = 0;
 	std::array<float,kNumButtons> offsets;
 	int pitchBeingAdjusted = -1;
 	unsigned int pitchBeingAdjustedCount = 0;
