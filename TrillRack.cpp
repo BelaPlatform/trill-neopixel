@@ -598,6 +598,8 @@ void tr_render(BelaContext* context)
 				analogWriteOnce(context, n, channel, out);
 				pastOut[channel] = out;
 			}
+		// TODO: could check for nan and clean filter in that case
+		// (((uint32_t*)(&floatValue))[0] == 0x7fc00000) // is nan
 		}
 	}
 }
