@@ -1713,12 +1713,6 @@ public:
 		}
 		gManualAnOut[0] = out;
 		gManualAnOut[1] = centroid.size;
-		if(((uint32_t*)(&gManualAnOut[0]))[0] == 0x7fc00000) // is nan
-		{
-			gManualAnOut[0] = 0;
-			printf("GOT ONE %s\n\r", touchStateNames[touch.state]);
-		}
-
 		// display
 		for(size_t n = 0; n < kNumButtons; ++n)
 		{
@@ -1730,8 +1724,6 @@ public:
 				np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
 			}
 		}
-		// TODO:
-//		ledSlidersExpButtonsProcess(ledSliders, gManualAnOut, scale, offsets);
 	}
 private:
 	typedef enum {
