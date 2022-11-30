@@ -1091,6 +1091,7 @@ public:
 
 	void processTable(BelaContext* context)
 	{
+		float vizOuts[2];
 		if(kInputModeCv == inputMode)
 		{
 			//TODO: disable input scaling, use it as CV offset for tuning
@@ -1101,15 +1102,14 @@ public:
 			{
 				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
 				{
-					if(1 ==c)
-						continue;
 					float idx = map(osc.process(freq / context->analogSampleRate), -1, 1, 0, 1);
 					float value = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, value);
+					if(0 == n)
+						vizOuts[c] = value;
 				}
 			}
 		} else if (kInputModePhasor == inputMode) {
-			float vizOuts[2];
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 				float idx = analogRead(context, n, 0);
@@ -1121,22 +1121,22 @@ public:
 						vizOuts[c] = out;
 				}
 			}
-			// do visualisation
-			std::array<LedSlider::centroid_t,2> centroids;
-			if(split)
-			{
-				centroids[0].location = vizOuts[0];
-				centroids[0].size = kFixedCentroidSize;
-				centroids[1].location = vizOuts[1];
-				centroids[1].size = kFixedCentroidSize;
-			} else {
-				centroids[0].location = vizOuts[0];
-				centroids[0].size = vizOuts[0];
-			}
-			ledSliders.sliders[0].setLedsCentroids(centroids.data(), 1);
-			if(split)
-				ledSliders.sliders[1].setLedsCentroids(centroids.data() + 1, 1);
 		}
+		// do visualisation
+		std::array<LedSlider::centroid_t,2> centroids;
+		if(split)
+		{
+			centroids[0].location = vizOuts[0];
+			centroids[0].size = kFixedCentroidSize;
+			centroids[1].location = vizOuts[1];
+			centroids[1].size = kFixedCentroidSize;
+		} else {
+			centroids[0].location = vizOuts[0];
+			centroids[0].size = vizOuts[0];
+		}
+		ledSliders.sliders[0].setLedsCentroids(centroids.data(), 1);
+		if(split)
+			ledSliders.sliders[1].setLedsCentroids(centroids.data() + 1, 1);
 	}
 	void updateTable()
 	{
