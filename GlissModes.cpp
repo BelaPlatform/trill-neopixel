@@ -1498,6 +1498,8 @@ public:
 		} else if (p.same(centreFrequency)) {
 				lastClockPeriodUpdate = gClockPeriodUpdated;
 				clockPeriod = sampleRate / (centreFrequency * 10.f + 0.1f); // TODO: more useful range? exp mapping?
+				// force us to go into ModeTrig, or the ModeCv would make this change useless
+				inputMode.set(kInputModeTrig);
 //				printf("centreFrequency: %.3f => %.3f samples\n\r", centreFrequency.get(), clockPeriod);
 		} else if (p.same(inputMode)) {
 
@@ -2691,8 +2693,16 @@ public:
 class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
 {
 public:
-	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueCon):
-		MenuItemTypeDiscretePlus(name, baseColor, valueEn), valueCon(valueCon) {}
+	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueCon, ButtonAnimation* animation = nullptr):
+		MenuItemTypeDiscretePlus(name, baseColor, valueEn), valueCon(valueCon), animation(animation) {}
+	void process(LedSlider& slider) override
+	{
+		MenuItemTypeDiscretePlus::process(slider);
+		if(animation)
+		{
+			animation->process(HAL_GetTick(), slider, valueEn.get());
+		}
+	}
 	void enterPlus() override
 	{
 		printf("DiscreteContinuous: going to slider\n\r");
@@ -2700,6 +2710,7 @@ public:
 		menu_in(singleSliderMenu);
 	}
 	ParameterContinuous& valueCon;
+	ButtonAnimation* animation;
 };
 
 class MenuItemTypeDiscreteRange : public MenuItemTypeDiscretePlus
@@ -2870,10 +2881,11 @@ static ButtonAnimationSpeedUpDown animationSpeedup(buttonColor);
 static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform, &animationWaveform);
 static MenuItemTypeEnterContinuous balancedOscModeCentreFrequency("centreFrequency", buttonColor, gBalancedOscsMode.centreFrequency, &animationSpeedup);
 static ButtonAnimationRecorderInputMode animationBalancedOscsInputMode{buttonColor};
-static MenuItemTypeDiscrete balancedOscModeInputMode("balancedOscModeInputMode", buttonColor, &gBalancedOscsMode.inputMode, &animationBalancedOscsInputMode);
+static MenuItemTypeDiscreteContinuous balancedOscModeInputModeAndFrequency("balancedOscModeInputModeAndFrequency", buttonColor,
+		gBalancedOscsMode.inputMode, gBalancedOscsMode.centreFrequency, &animationBalancedOscsInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
-		&balancedOscModeInputMode,
-		&balancedOscModeCentreFrequency,
+		&disabled,
+		&balancedOscModeInputModeAndFrequency,
 		&balancedOscModeWaveform,
 };
 
