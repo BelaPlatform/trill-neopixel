@@ -1081,8 +1081,10 @@ public:
 			gOutMode = kOutModeFollowLeds;
 		} else {
 			gOutMode = kOutModeManualSample;
-			if(hadTouch && !hasTouch)
+			if((hadTouch && !hasTouch) || inputModeShouldUpdateTable){
 				updateTable();
+				inputModeShouldUpdateTable = false;
+			}
 			else
 				processTable(context);
 		}
@@ -1212,6 +1214,8 @@ public:
 			printf("RecorderMode: Updated retrigger %d\n\r", retrigger.get());
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
+			if(inputMode != kInputModeTrigger)
+				inputModeShouldUpdateTable = true;
 		}
 	}
 	ParameterEnumT<2> split{this, false};
@@ -1227,6 +1231,7 @@ private:
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
 	Oscillator osc {1, Oscillator::sawtooth};
 	bool hadTouch = false;
+	bool inputModeShouldUpdateTable = false;
 } gRecorderMode;
 
 static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
