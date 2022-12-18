@@ -888,6 +888,69 @@ private:
 	float value;
 };
 
+static float simpleTriangle(unsigned int phase, unsigned int period)
+{
+	phase = phase % period;
+	unsigned int hp = period / 2;
+	float value;
+	if(phase < hp)
+		value = phase / float(hp);
+	else
+		value = (2 * hp - phase) / float(hp);
+	return value;
+}
+
+#ifdef TEST_MODE
+class TestMode: public PerformanceMode {
+public:
+	bool setup(double ms) override
+	{
+		gOutMode = kOutModeFollowLeds;
+		ledSlidersSetupTwoSliders(1, colorDefs[0], LedSlider::MANUAL_CENTROIDS);
+		for(unsigned int n = 0; n < kNumLeds; ++n)
+			np.setPixelColor(n, 0, 0, 0);
+		return true;
+	}
+	void render(BelaContext* context)
+	{
+		bool hasTouch = (globalSlider.compoundTouchSize() > 0);
+		if(hasTouch  & !hadTouch)
+		{
+			count = 0;
+			nextState();
+		}
+		hadTouch = hasTouch;
+		const uint32_t period = 1024;
+		float pos = 0.8 * simpleTriangle(count, period) + 0.1;
+		count++;
+		count %= period;
+
+		LedSlider::centroid_t centroid = { location: pos, size: 1};
+		for(auto& s : ledSliders.sliders)
+			s.setLedsCentroids(&centroid, 1);
+	}
+private:
+	void nextState(){
+		state = !state;
+		ledSliders.sliders[0].setColor(colorDefs[state][0]);
+		ledSliders.sliders[1].setColor(colorDefs[state][1]);
+	}
+	rgb_t colorDefs[2][2] = {
+			{
+				{192, 128, 64},
+				{145, 110, 0},
+			},
+			{
+				{32, 64, 96},
+				{0, 55, 72},
+			}
+	};
+	uint32_t count = 0;
+	bool hadTouch = false;
+	bool state = 0;
+} gTestMode;
+#endif // TEST_MODE
+
 class DirectControlMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
@@ -1892,6 +1955,9 @@ private:
 
 static unsigned int gCurrentMode;
 static std::array<PerformanceMode*,kNumModes> performanceModes = {
+#ifdef TEST_MODE
+	&gTestMode,
+#endif // TEST_MODE
 	&gDirectControlMode,
 	&gRecorderMode,
 	&gScaleMeterMode,
@@ -2041,18 +2107,6 @@ class ButtonAnimation {
 public:
 	virtual void process(uint32_t ms, LedSlider& ledSlider, float value) = 0;
 };
-
-static float simpleTriangle(unsigned int phase, unsigned int period)
-{
-	phase = phase % period;
-	unsigned int hp = period / 2;
-	float value;
-	if(phase < hp)
-		value = phase / float(hp);
-	else
-		value = (2 * hp - phase) / float(hp);
-	return value;
-}
 
 class ButtonAnimationSplit : public ButtonAnimation {
 public:
@@ -2922,7 +2976,18 @@ static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&exprButtonsModeQuantised,
 };
 
+#ifdef TEST_MODE
+static std::array<MenuItemType*,kMaxModeParameters> testModeMenu = {
+		&disabled,
+		&disabled,
+		&disabled,
+};
+#endif // TEST_MODE
+
 static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modesMenuItems = {
+#ifdef TEST_MODE
+		&testModeMenu,
+#endif // TEST_MODE
 		&directControlModeMenu,
 		&recorderModeMenu,
 		&scaleMeterModeMenu,

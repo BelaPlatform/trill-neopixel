@@ -23,7 +23,13 @@ struct ButtonView {
 	 uint32_t pressCount;
 	 static constexpr uint32_t kPressCountInvalid = -1;
 };
-enum { kNumModes = 5 };
+//#define TEST_MODE
+#ifdef TEST_MODE
+constexpr size_t kNumModes = 6;
+#else // TEST_MODE
+constexpr size_t kNumModes = 5;
+#endif // TEST_MODE
+
 constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
 
 #include <Utilities.h>
