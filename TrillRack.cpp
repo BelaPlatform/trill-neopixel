@@ -548,6 +548,14 @@ void tr_render(BelaContext* context)
 				analogWriteOnce(context, n, c, 0);
 		}
 	}
+	if(gJacksOnTop)
+	{
+		const size_t kNumChannels = 3;
+		const size_t len = np.numPixels();
+		for(size_t n = 0; n < len / 2; ++n)
+			for(size_t c = 0; c < kNumChannels; ++c)
+				std::swap(np.pixels[kNumChannels * n + c], np.pixels[kNumChannels * (len - n - 1) + c]);
+	}
 	// actually display the updated LEDs
 	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
 	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.

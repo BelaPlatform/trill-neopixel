@@ -204,6 +204,12 @@ static void sort(T* out, U* in, unsigned int* order, unsigned int size)
 void LedSliders::process(const float* rawData)
 {
 	sort(pads.data(), rawData, s.order.data(), s.order.size());
+	extern bool gJacksOnTop; // TODO: handle this globally at trill.newData() instead
+	if(gJacksOnTop)
+	{
+		for(size_t n = 0; n < pads.size() / 2; ++n)
+			std::swap(pads[n], pads[pads.size() - n - 1]);
+	}
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].process(pads.data() + s.boundaries[n].firstPad);
 }

@@ -38,6 +38,7 @@ OutMode gOutMode = kOutModeFollowTouch;
 int gCounter = 0;
 int gSubMode = 0;
 bool gSecondTouchIsSize;
+bool gJacksOnTop = false;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
@@ -2198,6 +2199,22 @@ protected:
 	uint32_t period;
 };
 
+class ButtonAnimationBrightDimmed: public ButtonAnimation {
+public:
+	ButtonAnimationBrightDimmed(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float rampUp) override {
+		rgb_t c;
+		float coeff = rampUp > 0.5 ? 1 : 0.3;
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+};
+
 class ButtonAnimationSingleRepeatedEnv: public ButtonAnimation {
 public:
 	ButtonAnimationSingleRepeatedEnv(rgb_t color) :
@@ -3026,6 +3043,9 @@ public:
 			gInRangeBottom = inRangeBottom;
 			gInRangeTop = inRangeTop;
 			str = "inRangeTop/Bottom";
+		} else if(p.same(jacksOnTop)) {
+			gJacksOnTop = jacksOnTop;
+			str = "jacksOnTop";
 		}
 		else if(p.same(sizeScaleCoeff))
 			str = "sizeScaleCoeff";
@@ -3039,6 +3059,7 @@ public:
 	ParameterContinuous inRangeBottom {this, 0.2};
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
+	ParameterEnumT<2> jacksOnTop {this, false};
 } gGlobalSettings;
 
 static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
@@ -3056,6 +3077,8 @@ static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRang
 static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
+static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
+static MenuItemTypeDiscrete globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, &gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -3098,7 +3121,7 @@ static void menu_update()
 		inited = true;
 		globalSettingsMenu.items = {
 			&disabled, // TODO
-			&disabled, // TODO
+			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
 			&globalSettingsInRange,
 			&globalSettingsOutRange,

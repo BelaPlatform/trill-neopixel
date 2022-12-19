@@ -39,3 +39,5 @@ static inline float mapAndConstrain(float x, float in_min, float in_max, float o
 	value = constrain(value, out_min, out_max);
 	return value;
 }
+
+extern bool gJacksOnTop;
