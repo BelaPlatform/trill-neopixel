@@ -1,8 +1,25 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
+
 #include <stdint.h>
-#include "stm32h7xx_hal.h" // FLASH_SECTOR_SIZE
-enum { kStorageSectorSize = FLASH_SECTOR_SIZE }; // the size of a flash sector, i.e.: the minimum unit that can be erased at once
+#include "stm32g4xx_hal.h" // FLASH_PAGE_SIZE
+
+#ifdef FLASH_SECTOR_SIZE
+#define FLASH_HAS_SECTORS
+#elif !defined(FLASH_PAGE_SIZE)
+#error FLASH has neither sectors nor pages
+#endif
+
+enum { kStorageSectorSize = // the size of a flash sector/page, i.e.: the minimum unit that can be erased at once
+#ifdef FLASH_HAS_SECTORS
+	FLASH_SECTOR_SIZE
+#else
+	FLASH_PAGE_SIZE
+#endif // FLASH_HAS_SECTORS
+};
 enum { kStorageSlotSize = 512 }; // the amount of flash that will be managed at a time
 enum { kStorageNumSlots = kStorageSectorSize / kStorageSlotSize };
 
@@ -63,3 +80,11 @@ StorageWord_t* storageGetData();
  * Notify the storage object that data in memory has been modified through the pointer returned by storageGetData().
  */
 void storageWasSet();
+/**
+ * Test storage. "static method". Returns 0 on success
+ */
+int storageTest(size_t sector, size_t slot, int verbose);
+
+#ifdef __cplusplus
+}
+#endif //__cplusplus

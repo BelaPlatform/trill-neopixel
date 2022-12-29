@@ -1,7 +1,6 @@
 #include "storage.h"
 #include <stdio.h>
 #include <string.h>
-#include "stm32h7xx_hal.h"
 
 typedef struct {
 	uint32_t baseAddress;
@@ -11,7 +10,7 @@ typedef struct {
 
 static Storage storage = {0};
 
-static const uint32_t kFlashBase = 0x08000000;
+static const uint32_t kFlashBase = FLASH_BASE;
 
 static void* getSectorStart(uint32_t sector)
 {
@@ -50,11 +49,17 @@ int storageErase(uint32_t sector)
 {
 	FLASH_EraseInitTypeDef eraseInit;
 	uint32_t errorLoc;
-	eraseInit.TypeErase = FLASH_TYPEERASE_SECTORS;
 	eraseInit.Banks = FLASH_BANK_1;
+#ifdef FLASH_HAS_SECTORS
+	eraseInit.TypeErase = FLASH_TYPEERASE_SECTORS;
 	eraseInit.Sector = sector;
 	eraseInit.NbSectors = 1;
 	eraseInit.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+#else
+	eraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
+	eraseInit.Page = sector;
+	eraseInit.NbPages = 1;
+#endif // FLASH_HAS_SECTORS
 	HAL_FLASH_Unlock();
 	HAL_StatusTypeDef ret = HAL_FLASHEx_Erase(&eraseInit, &errorLoc);
 	HAL_FLASH_Lock();
@@ -77,15 +82,36 @@ int storageWrite()
 	size_t count = countNonErasedBytes((void*)storage.baseAddress, kStorageSlotSize);
 	if(count)
 	{
-		printf("Cannot write to flash because the destination has %zu non-erased bytes in the slot stargin at %p\n\r", count, ptr);
+		printf("Cannot write to flash because the destination has %zu non-erased bytes in the slot starting at %p\n\r", count, ptr);
 	}
 	HAL_FLASH_Unlock();
 	uint32_t address = storage.baseAddress;
+#ifdef FLASH_HAS_SECTORS
 	const size_t kFlashWordSize = FLASH_NB_32BITWORD_IN_FLASHWORD * sizeof(uint32_t);
+	const int kFlashProgramType = FLASH_TYPEPROGRAM_FLASHWORD;
+#else
+	const size_t kFlashWordSize = sizeof(uint64_t);
+	const int kFlashProgramType = FLASH_TYPEPROGRAM_DOUBLEWORD;
+#endif
 	for(unsigned int idx = 0; idx < kStorageSlotSize; idx += kFlashWordSize)
 	{
 		// writes one flash word at a time
-		HAL_StatusTypeDef ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, (uint32_t)(storage.data + idx));
+		HAL_StatusTypeDef ret = HAL_FLASH_Program(kFlashProgramType, address,
+#ifdef FLASH_HAS_SECTORS
+#ifndef STM32H7xx_HAL_FLASH_H
+#error HAL_FLASH_Program(): check meaning of third argument
+#endif
+				// "conveniently", the third argument to HAL_FLASH_Program()
+				// is a pointer on the H7 ...
+				(uint32_t)(storage.data + idx)
+#else
+#ifndef STM32G4xx_HAL_FLASH_H
+#error HAL_FLASH_Program(): check meaning of third argument
+#endif
+				// ... and it's actual data on the G4
+				((uint64_t*)(storage.data  + idx))[0]
+#endif
+		);
 		if(HAL_OK != ret) {
 			printError("write", HAL_FLASH_GetError(), address);
 			return -2;
@@ -138,4 +164,81 @@ uint32_t storageGetLength()
 void storageWasSet()
 {
 	storage.synced = 0;
+}
+
+static void storagePrint()
+{
+	StorageWord_t* data = storageGetData();
+	size_t size = storageGetLength();
+	for(size_t n = 0; n < size; ++n)
+	{
+		printf("%02x ", data[n]);
+		if((n % 64) == 63)
+			printf("\n\r");
+	}
+}
+
+int storageTest(size_t sector, size_t slot, int verbose)
+{
+	StorageWord_t* data = storageGetData();
+	size_t size = storageGetLength();
+	storageInit(sector, slot);
+	storageRead();
+	if(verbose)
+	{
+		printf("read\n\r");
+		storagePrint();
+		printf("erase\n\r ");
+	}
+	int ret = storageErase(sector);
+	if(ret)
+		return ret;
+	storageRead();
+	for(size_t n = 0; n < size; ++n)
+	{
+		const uint8_t exp = 0xff;
+		if(data[n] != exp)
+		{
+			if(verbose)
+			{
+				printf("storage error: should be %#02x at %d, is %#02x\n\r", exp, n, data[n]);
+				storagePrint();
+			}
+			return 1;
+		}
+	}
+	if(verbose)
+	{
+		printf("read\n\r");
+		storagePrint();
+	}
+	for(size_t n = 0; n < size; ++n)
+		data[n] = n;
+	storageWasSet();
+	storageWrite();
+	if(verbose)
+	{
+		printf("set\n\r");
+		storagePrint();
+	}
+	storageRead();
+	for(size_t n = 0; n < size; ++n)
+	{
+		const uint8_t exp = (n & 255);
+		if(exp != data[n])
+		{
+			if(verbose)
+			{
+				printf("storage error: should be %#02x at %d, is %#02x\n\r", exp, n, data[n]);
+				storagePrint();
+			}
+			return 1;
+		}
+	}
+	if(verbose)
+	{
+		printf("read\n\r");
+		storagePrint();
+	}
+	return 0;
 }
