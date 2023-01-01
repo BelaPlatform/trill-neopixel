@@ -215,6 +215,7 @@ int presetLoad()
 	return 0;
 }
 
+#define makeNegative(a) (a > 0 ? -a : a)
 int presetSave()
 {
 	// open the next page in flash
@@ -229,7 +230,9 @@ int presetSave()
 	}
 	storageInit(kPresetSector, p.slot);
 	// write to flash
-	storageWrite();
+	int ret = storageWrite();
+	if(ret)
+		return makeNegative(ret);
 	storageRead();
 	return getPresetNumber();
 }
