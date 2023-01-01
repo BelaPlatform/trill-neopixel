@@ -1499,20 +1499,18 @@ public:
 	}
 	void render(BelaContext* context) override
 	{
-		if(!inited)
-		{
-			inited = true;
-			// deferred initialisations ...
-			sampleRate = context->analogSampleRate;
-			clockPeriod = context->analogSampleRate / 5.f; // 5 Hz
-		}
+		float clockPeriod;
+		float sampleRate = context->analogSampleRate;
 		switch (inputMode)
 		{
+		default:
 		case kInputModeTrig:
 			// after frequency was set by parameter,
 			// we use gClockPeriod only if it gets updated at least once
 			if(gClockPeriodUpdated != lastClockPeriodUpdate)
 				clockPeriod = gClockPeriod;
+			else
+				clockPeriod = sampleRate / (centreFrequency * 10.f + 0.1f); // TODO: more useful range? exp mapping?
 			lastClockPeriodUpdate = gClockPeriodUpdated;
 			break;
 		case kInputModeCv:
@@ -1545,7 +1543,7 @@ public:
 					// limit max brightness. On the one hand, it reduces power consumption,
 					// on the other hand it attempts to avoid the upper range, where it becomes hard
 					// to discern increased brightness.
-					const float kMaxBrightness = 0.4f;
+					const float kMaxBrightness = 0.3f;
 					// TODO: move this to LedSlider so that it obeys to the ledEnabled there an we don't need the !gAlt here
 					// if we are not in menu mode, set the display
 					float brightness = map(out, -1, 1, 0, kMaxBrightness);
@@ -1565,11 +1563,9 @@ public:
 			for(auto& o : oscillators)
 				o.setType(Oscillator::Type(waveform.get()));
 		} else if (p.same(centreFrequency)) {
-				lastClockPeriodUpdate = gClockPeriodUpdated;
-				clockPeriod = sampleRate / (centreFrequency * 10.f + 0.1f); // TODO: more useful range? exp mapping?
-				// force us to go into ModeTrig, or the ModeCv would make this change useless
-				inputMode.set(kInputModeTrig);
-//				printf("centreFrequency: %.3f => %.3f samples\n\r", centreFrequency.get(), clockPeriod);
+			lastClockPeriodUpdate = gClockPeriodUpdated;
+			// force us to go into ModeTrig, or the ModeCv would make this change useless
+			inputMode.set(kInputModeTrig);
 		} else if (p.same(inputMode)) {
 
 		}
@@ -1584,10 +1580,7 @@ public:
 	ParameterEnumT<kNumInputModes> inputMode {this, kInputModeTrig};
 private:
 	float divisionPoint = 0.5;
-	float clockPeriod; // deferred initialisation
-	float sampleRate; // deferred initialisation
 	uint32_t lastClockPeriodUpdate = gClockPeriodUpdated;
-	bool inited = false;
 } gBalancedOscsMode;
 
 class ExprButtonsMode : public PerformanceMode
