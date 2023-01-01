@@ -1,15 +1,15 @@
 #include <TrillRackApplication_bsp.h>
 #include "TrillRackInterface.h"
 #include "GlissModes.h"
+#include "preset.h"
 #include <libraries/Trill/Trill.h> // include this above NeoPixel or "HEX" gets screwed up
 #include <libraries/Trill/CentroidDetection.h> // include this above NeoPixel or "HEX" gets screwed up
 #include "NeoPixel.h"
 #include "LedSliders.h"
 #include <cmath>
 #include <assert.h>
-extern "C" {
 #include "usbd_midi_if.h"
-};
+
 extern bool gSecondTouchIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_update(unsigned int mode);
@@ -295,7 +295,19 @@ int tr_setup()
 	modeAlt_setup();
 	setHdlCtlChange(midiCtlCallback);
 	setHdlAll(midiInputCallback);
+	int ret = presetInit(kPresetInit_LoadLatest, 2000, HAL_GetTick);
+	printf("presetInit() loaded %d\n\r", ret);
 	return foundAddress;
+}
+
+void tr_mainLoop()
+{
+	if(!gAlt)
+	{
+		int ret = presetCheckSave();
+		if(ret >= 0)
+			printf("presetCheckSave: %d\n\r", ret);
+	}
 }
 
 void tr_newData(const uint8_t* newData, size_t len)
