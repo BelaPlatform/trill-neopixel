@@ -1,19 +1,33 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif //  __cplusplus
 #include <stdint.h>
+#include <stddef.h>
 
-typedef enum {
-	kCalibration,
-	kNoteThresholds,
-	kVelocityCurve,
-	kTransmissionOptions,
-	kEnableLeds,
-	kIrReceiverGain,
-	kIrEmitterBrightness,
-	kNumPresets,
-} PresetField_t;
-
+typedef void* PresetField_t;
 typedef uint8_t PresetFieldSize_t;
+/**
+ * A callback that sets the preset data to its default value.
+ */
+typedef void (*PresetDefaulter_t)(PresetField_t field, PresetFieldSize_t size, void* data);
+/**
+ * A callback called when the content of a field is loaded from storage.
+ */
+typedef void (*PresetLoadCallback_t)(PresetField_t field, PresetFieldSize_t size, const void* data);
+
+typedef struct
+{
+	PresetField_t field;
+	PresetFieldSize_t size; // field size expressed in StorageWord_t units
+	PresetDefaulter_t defaulter;
+	PresetLoadCallback_t loadCallback;
+	// the below are set automatically by presetInit()
+	uint32_t offset;
+} PresetDesc_t;
+
+enum { kNumPresets  = 6 };
 
 typedef enum {
 	kPresetInit_LoadDefault,
@@ -30,6 +44,10 @@ typedef enum {
  * @return -1 if the defaults are loaded, or the index of the block that was loaded
  */
 int presetInit(PresetInitOptions_t option, uint32_t checkSaveTimeout, uint32_t (*getTime)());
+/**
+ * Set a description for a preset.
+ */
+void presetDescSet(size_t idx, PresetDesc_t* desc);
 /**
  * Load the default preset.
  */
@@ -69,11 +87,6 @@ PresetFieldSize_t presetGetFieldSize(PresetField_t field);
  */
 uint8_t presetIsSynced();
 
-/**
- * A callback that sets the preset data to its default value.
- */
-typedef void (*PresetDefaulter_t)(PresetField_t field, PresetFieldSize_t size, void* data);
-/**
- * A callback called when the content of a field is loaded from storage.
- */
-typedef void (*PresetLoadCallback_t)(PresetField_t field, PresetFieldSize_t size, const void* data);
+#ifdef __cplusplus
+}
+#endif //  __cplusplus

@@ -4,10 +4,12 @@
 #include <string.h>
 #include <stdio.h>
 
-// we have an STM32H733VGT6: 1024k of flash, divided in 8 128k sectors.
-// we use the last sector
-static const uint32_t kPresetSector = 7;
-static const uint32_t kPresetHeader = 0x1234568;
+
+// we have an STM32G4KEU6: 512k of flash, divided in 256 2k pages.
+// For presets, we use the space that starts 384k into flash at 0x08060000
+static const uint32_t kPresetStarts = 0x08060000;
+static const uint32_t kPresetSector = (kPresetStarts - FLASH_BASE) / FLASH_PAGE_SIZE;;
+static const uint32_t kPresetHeader = 0x1234569;
 
 static struct {
 	uint32_t slot;
@@ -16,69 +18,16 @@ static struct {
 	uint32_t (*getTime)();
 } p;
 
-typedef struct
-{
-	PresetField_t field;
-	PresetFieldSize_t size; // field size expressed in StorageWord_t units
-	uint32_t offset;
-	PresetDefaulter_t defaulter;
-	PresetLoadCallback_t loadCallback;
-} PresetDesc_t;
+static PresetDesc_t presetDescs[kNumPresets];
 
-// includes containing PresetDefaulter and PresetLoadCallbacks
-#include "keymotion.h"
-#include "irReceiver.h"
-#include "irEmitter.h"
-static PresetDesc_t presetDescs[kNumPresets] = {
-#ifdef USE_ANALOG
-	{
-		.field = kCalibration,
-		.size = sizeof(KeyMotionCalibration_t),
-		.defaulter = keymotionPresetDefaulter,
-		.loadCallback = keymotionPresetLoadCallback,
-	},
-	{
-		.field = kNoteThresholds,
-		.size = 8,
-		.defaulter = keymotionPresetDefaulter,
-		.loadCallback = keymotionPresetLoadCallback
-	},
-	{
-		.field = kVelocityCurve,
-		.size = 3,
-		.defaulter = keymotionPresetDefaulter,
-		.loadCallback = keymotionPresetLoadCallback,
-	},
-	{
-		.field = kTransmissionOptions,
-		.size = 4,
-		.defaulter = keymotionPresetDefaulter,
-		.loadCallback = keymotionPresetLoadCallback,
-	},
-#endif // USE_ANALOG
-#ifdef USE_RGB
-	{
-		.field = kEnableLeds,
-		.size = 1,
-		.defaulter = keymotionPresetDefaulter,
-		.loadCallback = keymotionPresetLoadCallback,
-	},
-#endif // USE_RGB
-#ifdef USE_ANALOG
-	{
-		.field = kIrReceiverGain,
-		.size = 3,
-		.defaulter = irReceiverPresetDefaulter,
-		.loadCallback = irReceiverPresetLoadCallback,
-	},
-	{
-		.field = kIrEmitterBrightness,
-		.size = 4,
-		.defaulter = irEmitterPresetDefaulter,
-		.loadCallback = irEmitterPresetLoadCallback,
+void presetDescSet(size_t idx, PresetDesc_t* desc)
+{
+	if(idx < kNumPresets)
+		presetDescs[idx] = *desc;
+	else {
+		printf("presetDescSet %d out of %d\n\r", idx, kNumPresets);
 	}
-#endif // USE_ANALOG
-};
+}
 
 static PresetDesc_t* getPresetDesc(const PresetField_t field)
 {
