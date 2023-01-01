@@ -4,7 +4,7 @@
 #include <libraries/Trill/Trill.h> // include this above NeoPixel or "HEX" gets screwed up
 #include <libraries/Oscillator/Oscillator.h>
 #include "LedSliders.h"
-
+#include "preset.h"
 static_assert(kNumOutChannels >= 2); // too many things to list depend on this in this file.
 
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
@@ -828,6 +828,7 @@ public:
 class ParameterUpdateCapable {
 public:
 	virtual void updated(Parameter&) {};
+	virtual void updatePreset() = 0;
 };
 
 class PerformanceMode : public ParameterUpdateCapable {
@@ -952,6 +953,194 @@ private:
 } gTestMode;
 #endif // TEST_MODE
 
+#define genericDefaulter2(CLASS,A,B) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	pfd->A = that->A; \
+	pfd->B = that->B; \
+}
+
+#define genericDefaulter3(CLASS,A,B,C) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	pfd->A = that->A; \
+	pfd->B = that->B; \
+	pfd->C = that->C; \
+}
+
+#define genericDefaulter2PlusArray(CLASS,A,B,C) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	pfd->A = that->A; \
+	pfd->B = that->B; \
+	for(size_t n = 0; n < that->C.size(); ++n) \
+		pfd->C[n] = that->C[n]; \
+}
+
+#define genericDefaulter7(CLASS,A,B,C,D,E,F,G) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	pfd->A = that->A; \
+	pfd->B = that->B; \
+	pfd->C = that->C; \
+	pfd->D = that->D; \
+	pfd->E = that->E; \
+	pfd->F = that->F; \
+	pfd->G = that->G; \
+}
+
+#define genericDefaulter8(CLASS,A,B,C,D,E,F,G,H) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	pfd->A = that->A; \
+	pfd->B = that->B; \
+	pfd->C = that->C; \
+	pfd->D = that->D; \
+	pfd->E = that->E; \
+	pfd->F = that->F; \
+	pfd->G = that->G; \
+	pfd->H = that->H; \
+}
+
+#define genericLoadCallback2(CLASS,A,B) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
+	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+}
+
+#define genericLoadCallback3(CLASS,A,B,C) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
+	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
+}
+
+#define genericLoadCallback2PlusArray(CLASS,A,B,C) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
+	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	for(size_t n = 0; n < that->C.size(); ++n) { \
+		that->C[n].set(pfd->C[n]); that->presetFieldData.C[n] = pfd->C[n]; \
+	} \
+}
+
+#define genericLoadCallback7(CLASS,A,B,C,D,E,F,G) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
+	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
+	that->D.set(pfd->D); that->presetFieldData.D = pfd->D; \
+	that->E.set(pfd->E); that->presetFieldData.E = pfd->E; \
+	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
+	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
+}
+
+#define genericLoadCallback8(CLASS,A,B,C,D,E,F,G,H) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
+	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
+	that->D.set(pfd->D); that->presetFieldData.D = pfd->D; \
+	that->E.set(pfd->E); that->presetFieldData.E = pfd->E; \
+	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
+	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
+	that->H.set(pfd->H); that->presetFieldData.H = pfd->H; \
+}
+
+template <typename T>
+static bool areEqual(const T& a, const T& b)
+{
+	return !memcmp(&a, &b, sizeof(T));
+}
+
+#define UPDATE_PRESET_FIELD2(A,B) \
+{ \
+	PresetFieldData_t bak = presetFieldData; \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
+}
+
+#define UPDATE_PRESET_FIELD3(A,B,C) \
+{ \
+	PresetFieldData_t bak = presetFieldData; \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	presetFieldData.C = C; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
+}
+
+#define UPDATE_PRESET_FIELD2PlusArray(A,B,C) \
+{ \
+	bool same = true; \
+	for(size_t n = 0; n < C.size(); ++n) \
+	{ \
+		if(C[n] != presetFieldData.C[n]) \
+		{ \
+			same = false; \
+			break; \
+		} \
+	} \
+	if(presetFieldData.A != A || presetFieldData.B != B || !same) { \
+		presetFieldData.A = A; \
+		presetFieldData.B = B; \
+		for(size_t n = 0; n < C.size(); ++n) \
+			presetFieldData.C[n] = C[n]; \
+		presetSetField(this, &presetFieldData); \
+	} \
+}
+
+#define UPDATE_PRESET_FIELD7(A,B,C,D,E,F,G) \
+{ \
+	PresetFieldData_t bak = presetFieldData; \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	presetFieldData.C = C; \
+	presetFieldData.D = D; \
+	presetFieldData.E = E; \
+	presetFieldData.F = F; \
+	presetFieldData.G = G; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
+}
+
+#define UPDATE_PRESET_FIELD8(A,B,C,D,E,F,G,H) \
+{ \
+	PresetFieldData_t bak = presetFieldData; \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	presetFieldData.C = C; \
+	presetFieldData.D = D; \
+	presetFieldData.E = E; \
+	presetFieldData.F = F; \
+	presetFieldData.G = G; \
+	presetFieldData.H = H; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
+}
+
 class DirectControlMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
@@ -1059,8 +1248,30 @@ public:
 			printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get());
 		}
 	}
+	void updatePreset()
+	{
+		UPDATE_PRESET_FIELD2(split, autoLatch);
+	}
+	DirectControlMode() :
+		presetFieldData{
+			.split = split,
+			.autoLatch = autoLatch,
+		}
+	{
+		PresetDesc_t presetDesc = {
+			.field = this,
+			.size = sizeof(PresetFieldData_t),
+			.defaulter = genericDefaulter2(DirectControlMode, split, autoLatch),
+			.loadCallback = genericLoadCallback2(DirectControlMode, split, autoLatch),
+		};
+		presetDescSet(0, &presetDesc);
+	}
 	ParameterEnumT<2> split{this, false};
 	ParameterEnumT<2> autoLatch{this, false};
+	struct PresetFieldData_t {
+		uint8_t split;
+		uint8_t autoLatch;
+	} presetFieldData;
 private:
 	rgb_t colors[2] = {
 		{255, 0, 0},
@@ -1282,9 +1493,33 @@ public:
 				inputModeShouldUpdateTable = true;
 		}
 	}
+	void updatePreset()
+	{
+		UPDATE_PRESET_FIELD3(split, retrigger, inputMode);
+	}
+	RecorderMode() :
+		presetFieldData {
+			.split = split,
+			.retrigger = retrigger,
+			.inputMode = inputMode,
+		}
+	{
+		PresetDesc_t presetDesc = {
+			.field = this,
+			.size = sizeof(PresetFieldData_t),
+			.defaulter = genericDefaulter3(RecorderMode, split, retrigger, inputMode),
+			.loadCallback = genericLoadCallback3(RecorderMode, split, retrigger, inputMode),
+		};
+		presetDescSet(1, &presetDesc);
+	}
 	ParameterEnumT<2> split{this, false};
 	ParameterEnumT<2> retrigger{this, true};
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
+	struct PresetFieldData_t {
+		uint8_t split;
+		uint8_t retrigger ;
+		uint8_t inputMode;
+	} presetFieldData;
 private:
 	rgb_t colors[2] = {
 			{128, 128, 0},
@@ -1441,6 +1676,10 @@ public:
 		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
 		}
 	}
+	void updatePreset()
+	{
+		UPDATE_PRESET_FIELD7(outputMode, coupling, cutoff, outRangeBottom, outRangeTop, inRangeBottom, inRangeTop);
+	}
 	enum {
 		kCouplingDc,
 		kCouplingAc,
@@ -1452,6 +1691,25 @@ public:
 		kOutputModeEE,
 		kOutputModeNum
 	};
+	ScaleMeterMode() :
+		presetFieldData{
+			.outputMode = outputMode,
+			.coupling = coupling,
+			.cutoff = cutoff,
+			.outRangeBottom = outRangeBottom,
+			.outRangeTop = outRangeTop,
+			.inRangeBottom = inRangeBottom,
+			.inRangeTop = inRangeTop,
+		}
+	{
+		PresetDesc_t presetDesc = {
+			.field = this,
+			.size = sizeof(PresetFieldData_t),
+			.defaulter = genericDefaulter7(ScaleMeterMode, outputMode, coupling, cutoff, outRangeBottom, outRangeTop, inRangeBottom, inRangeTop),
+			.loadCallback = genericLoadCallback7(ScaleMeterMode, outputMode, coupling, cutoff, outRangeBottom, outRangeTop, inRangeBottom, inRangeTop),
+		};
+		presetDescSet(2, &presetDesc);
+	}
 	ParameterEnumT<kOutputModeNum> outputMode {this, 0};
 	ParameterEnumT<kCouplingNum> coupling {this, kCouplingDc};
 	ParameterContinuous cutoff {this, 0.5};
@@ -1459,6 +1717,15 @@ public:
 	ParameterContinuous outRangeTop {this, 1};
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
+	struct PresetFieldData_t {
+		int outputMode;
+		int coupling;
+		float cutoff;
+		float outRangeBottom;
+		float outRangeTop;
+		float inRangeBottom;
+		float inRangeTop;
+	} presetFieldData;
 private:
 	float inDisplay;
 	float outDisplay;
@@ -1570,6 +1837,25 @@ public:
 
 		}
 	}
+	void updatePreset()
+	{
+		UPDATE_PRESET_FIELD3(waveform, centreFrequency, inputMode);
+	}
+	BalancedOscsMode() :
+		presetFieldData {
+			.centreFrequency = centreFrequency,
+			.waveform = waveform,
+			.inputMode = inputMode,
+		}
+	{
+		PresetDesc_t presetDesc = {
+			.field = this,
+			.size = sizeof(PresetFieldData_t),
+			.defaulter = genericDefaulter3(BalancedOscsMode, waveform, centreFrequency, inputMode),
+			.loadCallback = genericLoadCallback3(BalancedOscsMode, waveform, centreFrequency, inputMode),
+		};
+		presetDescSet(3, &presetDesc);
+	}
 	typedef enum {
 		kInputModeTrig,
 		kInputModeCv,
@@ -1578,6 +1864,11 @@ public:
 	ParameterEnumT<Oscillator::numOscTypes> waveform {this, Oscillator::triangle};
 	ParameterContinuous centreFrequency {this};
 	ParameterEnumT<kNumInputModes> inputMode {this, kInputModeTrig};
+	struct PresetFieldData_t {
+		float centreFrequency = centreFrequency;
+		uint8_t waveform = waveform;
+		uint8_t inputMode = inputMode;
+	} presetFieldData;
 private:
 	float divisionPoint = 0.5;
 	uint32_t lastClockPeriodUpdate = gClockPeriodUpdated;
@@ -1930,6 +2221,31 @@ public:
 			}
 		}
 	}
+	void updatePreset()
+	{
+		UPDATE_PRESET_FIELD2PlusArray(quantised, modRange, offsetParameters);
+	}
+	ExprButtonsMode():
+		presetFieldData {
+			.modRange = modRange,
+			.offsetParameters = {
+				offsetParameters[0],
+				offsetParameters[1],
+				offsetParameters[2],
+				offsetParameters[3],
+				offsetParameters[4],
+			},
+			.quantised = quantised,
+		}
+	{
+		PresetDesc_t presetDesc = {
+			.field = this,
+			.size = sizeof(PresetFieldData_t),
+			.defaulter = genericDefaulter2PlusArray(ExprButtonsMode, quantised, modRange, offsetParameters),
+			.loadCallback = genericLoadCallback2PlusArray(ExprButtonsMode, quantised, modRange, offsetParameters),
+		};
+		presetDescSet(4, &presetDesc);
+	}
 	ParameterEnumT<2> quantised {this, true};
 	ParameterContinuous modRange {this, 0.5};
 	std::array<ParameterContinuous,kNumButtons> offsetParameters {
@@ -1939,6 +2255,11 @@ public:
 		ParameterContinuous(this, 0.8),
 		ParameterContinuous(this, 0.9),
 	};
+	struct PresetFieldData_t {
+		float modRange;
+		std::array<float,kNumButtons> offsetParameters;
+		uint8_t quantised;
+	} presetFieldData;
 private:
 	float out = 0;
 	std::array<float,kNumButtons> offsets;
@@ -2895,20 +3216,6 @@ public:
 	void process(LedSlider& slider) override {}
 };
 
-class DummyClass : public ParameterUpdateCapable {
-public:
-	void updated(Parameter& p) override
-	{
-		printf("Dummy class: %p => ", &p);
-		if(p.same(par))
-			printf("par set to %d\n\r", par.get());
-		else if (p.same(par2))
-			printf("par2 set to %f\n\r", par2.get());
-	}
-	ParameterEnumT<4> par{this, 2};
-	ParameterContinuous par2{this, 0.4};
-} gDummyClassObj;
-
 constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor {0, 255, 255};
 static const rgb_t buttonColorSimilar {0, 0, 255};
@@ -3045,6 +3352,41 @@ public:
 		if(verbose)
 			printf("%s\n\r", str);
 	}
+	void updatePreset()
+	{
+		UPDATE_PRESET_FIELD8(outRangeBottom, outRangeTop, outRangeEnum,
+				inRangeBottom, inRangeTop, inRangeEnum,
+					sizeScaleCoeff, jacksOnTop);
+	}
+	GlobalSettings() :
+		presetFieldData {
+			.outRangeBottom = outRangeBottom,
+			.outRangeTop = outRangeTop,
+			.inRangeBottom = inRangeBottom,
+			.inRangeTop = inRangeTop,
+			.sizeScaleCoeff = sizeScaleCoeff,
+			.outRangeEnum = outRangeEnum,
+			.inRangeEnum = inRangeEnum,
+			.jacksOnTop = jacksOnTop,
+		}
+	{
+		PresetDesc_t presetDesc = {
+			.field = this,
+			.size = sizeof(PresetFieldData_t),
+			.defaulter = genericDefaulter8(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
+					inRangeBottom, inRangeTop, inRangeEnum,
+						sizeScaleCoeff, jacksOnTop),
+			// currently the {out,in}RangeEnums have to go after the corresponding
+			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
+			// reset the enum
+			// TODO: make this more future-proof
+			.loadCallback =
+					genericLoadCallback8(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
+							inRangeBottom, inRangeTop, inRangeEnum,
+								sizeScaleCoeff, jacksOnTop),
+		};
+		presetDescSet(5, &presetDesc);
+	}
 	ParameterEnumT<kCvRangeNum> outRangeEnum {this, 0};
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
@@ -3053,6 +3395,16 @@ public:
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
+	struct PresetFieldData_t {
+		float outRangeBottom;
+		float outRangeTop;
+		float inRangeBottom;
+		float inRangeTop;
+		float sizeScaleCoeff;
+		uint8_t outRangeEnum;
+		uint8_t inRangeEnum;
+		uint8_t jacksOnTop;
+	} presetFieldData;
 } gGlobalSettings;
 
 static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
@@ -3200,6 +3552,13 @@ static void menu_update()
 
 void menu_exit()
 {
+	// when exiting menu, ensure any changes
+	// to parameters are reflected in the presets
+	// so that presetCheckSave() can write them soon thereafter
+	for(auto& p : performanceModes)
+		p->updatePreset();
+	gGlobalSettings.updatePreset();
+
 	menuStack.resize(0);
 	activeMenu = nullptr;
 	printf("menu_exit\n\r");
