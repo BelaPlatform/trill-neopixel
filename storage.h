@@ -20,7 +20,7 @@ enum { kStorageSectorSize = // the size of a flash sector/page, i.e.: the minimu
 	FLASH_PAGE_SIZE
 #endif // FLASH_HAS_SECTORS
 };
-enum { kStorageSlotSize = 512 }; // the amount of flash that will be managed at a time
+enum { kStorageSlotSize = 128 }; // the amount of flash that will be managed at a time
 #ifdef FLASH_HAS_SECTORS
 // we have enough space in one of these sectors that we only use one
 enum { kStorageNumSlots = kStorageSectorSize / kStorageSlotSize };
