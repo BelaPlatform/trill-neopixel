@@ -47,6 +47,11 @@ static void printError(const char* id, uint32_t error, uint32_t loc)
 
 int storageErase(uint32_t sector)
 {
+	if(0 == countNonErasedBytes(getSectorStart(sector), kStorageSectorSize))
+	{
+		printf("No need to erase sector %lu: already erased\n\r", sector);
+		return 0;
+	}
 	FLASH_EraseInitTypeDef eraseInit;
 	uint32_t errorLoc;
 	eraseInit.Banks = FLASH_BANK_1;
