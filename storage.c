@@ -10,8 +10,6 @@ typedef struct {
 
 static Storage storage = {0};
 
-static const uint32_t kFlashBase = FLASH_BASE;
-
 static void* getSectorStart(uint32_t sector)
 {
 	return (void*)(kFlashBase + sector * kStorageSectorSize);
