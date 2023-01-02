@@ -5,6 +5,8 @@
 #include <libraries/Oscillator/Oscillator.h>
 #include "LedSliders.h"
 #include "preset.h"
+#include "packed.h"
+
 static_assert(kNumOutChannels >= 2); // too many things to list depend on this in this file.
 
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
@@ -1268,10 +1270,10 @@ public:
 	}
 	ParameterEnumT<2> split{this, false};
 	ParameterEnumT<2> autoLatch{this, false};
-	struct PresetFieldData_t {
+	PACKED_STRUCT(PresetFieldData_t {
 		uint8_t split;
 		uint8_t autoLatch;
-	} presetFieldData;
+	}) presetFieldData;
 private:
 	rgb_t colors[2] = {
 		{255, 0, 0},
@@ -1515,11 +1517,11 @@ public:
 	ParameterEnumT<2> split{this, false};
 	ParameterEnumT<2> retrigger{this, true};
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
-	struct PresetFieldData_t {
+	PACKED_STRUCT(PresetFieldData_t {
 		uint8_t split;
 		uint8_t retrigger ;
 		uint8_t inputMode;
-	} presetFieldData;
+	}) presetFieldData;
 private:
 	rgb_t colors[2] = {
 			{128, 128, 0},
@@ -1717,7 +1719,7 @@ public:
 	ParameterContinuous outRangeTop {this, 1};
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
-	struct PresetFieldData_t {
+	PACKED_STRUCT(PresetFieldData_t {
 		int outputMode;
 		int coupling;
 		float cutoff;
@@ -1725,7 +1727,7 @@ public:
 		float outRangeTop;
 		float inRangeBottom;
 		float inRangeTop;
-	} presetFieldData;
+	}) presetFieldData;
 private:
 	float inDisplay;
 	float outDisplay;
@@ -1864,11 +1866,11 @@ public:
 	ParameterEnumT<Oscillator::numOscTypes> waveform {this, Oscillator::triangle};
 	ParameterContinuous centreFrequency {this};
 	ParameterEnumT<kNumInputModes> inputMode {this, kInputModeTrig};
-	struct PresetFieldData_t {
+	PACKED_STRUCT(PresetFieldData_t {
 		float centreFrequency = centreFrequency;
 		uint8_t waveform = waveform;
 		uint8_t inputMode = inputMode;
-	} presetFieldData;
+	}) presetFieldData;
 private:
 	float divisionPoint = 0.5;
 	uint32_t lastClockPeriodUpdate = gClockPeriodUpdated;
@@ -2255,11 +2257,11 @@ public:
 		ParameterContinuous(this, 0.8),
 		ParameterContinuous(this, 0.9),
 	};
-	struct PresetFieldData_t {
+	PACKED_STRUCT(PresetFieldData_t {
 		float modRange;
 		std::array<float,kNumButtons> offsetParameters;
 		uint8_t quantised;
-	} presetFieldData;
+	}) presetFieldData;
 private:
 	float out = 0;
 	std::array<float,kNumButtons> offsets;
@@ -3395,7 +3397,7 @@ public:
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
-	struct PresetFieldData_t {
+	PACKED_STRUCT(PresetFieldData_t {
 		float outRangeBottom;
 		float outRangeTop;
 		float inRangeBottom;
@@ -3404,7 +3406,7 @@ public:
 		uint8_t outRangeEnum;
 		uint8_t inRangeEnum;
 		uint8_t jacksOnTop;
-	} presetFieldData;
+	}) presetFieldData;
 } gGlobalSettings;
 
 static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
