@@ -10,6 +10,12 @@
 static const uint32_t kPresetStarts = 0x08060000;
 static const uint32_t kPresetSector = (kPresetStarts - FLASH_BASE) / FLASH_PAGE_SIZE;;
 static const uint32_t kPresetHeader = 0x1234569;
+// Signature used to recognise a valid preset slot.
+// this gets shifted left by however many places needed to fit the actual
+// preset length into a uint32_t. If you want to force a change and invalidate
+// all currently stored presets, edit the rightmost part of it.
+static const uint32_t kPresetHeader = 0x234567;
+static uint32_t gPresetSignature; // computed at runtime based on kPresetHeader and actual size
 
 static struct {
 	uint32_t slot;
@@ -77,7 +83,22 @@ int presetInit(PresetInitOptions_t option, uint32_t checkSaveTimeout, uint32_t (
 	if(offset > kStorageSlotSize)
 	{
 		printf("Error: the preset structure is larger than kStorageSlotSize\n\r");
+		return -1;
+	} else {
+		printf("preset structure size: %u\n\r", offset);
 	}
+	uint32_t bit = 0;
+	for(unsigned int n = 0; n < sizeof(bit) * 8; ++n)
+	{
+		if((1 << n) >= kStorageSlotSize)
+		{
+			bit = n;
+			break;
+		}
+	}
+	// a unique signature
+	gPresetSignature = offset | (kPresetHeader << bit);
+	printf("gPresetSignature: %lx\n\r", gPresetSignature);
 	enum { kNotFound = -1 };
 	int32_t found = kNotFound;
 	if(kPresetInit_LoadDefault != option) {
@@ -90,7 +111,7 @@ int presetInit(PresetInitOptions_t option, uint32_t checkSaveTimeout, uint32_t (
 			// signature at the beginning of the slot)
 			storageRead();
 			uint32_t* ptr = (uint32_t*)storageGetData();
-			if(kPresetHeader == ptr[0]) {
+			if(gPresetSignature == ptr[0]) {
 				// if we find a valid slot, remember it
 				found = s;
 			} else {
@@ -109,7 +130,7 @@ int presetInit(PresetInitOptions_t option, uint32_t checkSaveTimeout, uint32_t (
 		storageInit(kPresetSector, slot);
 		uint32_t* ptr = (uint32_t*)storageGetData();
 		presetLoadDefaults();
-		ptr[0] = kPresetHeader;
+		ptr[0] = gPresetSignature;
 	} else {
 		slot = found;
 		storageInit(kPresetSector, slot);
