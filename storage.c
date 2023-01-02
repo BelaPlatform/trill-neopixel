@@ -87,7 +87,8 @@ int storageWrite()
 	size_t count = countNonErasedBytes((void*)storage.baseAddress, kStorageSlotSize);
 	if(count)
 	{
-		printf("Cannot write to flash because the destination has %zu non-erased bytes in the slot starting at %p\n\r", count, ptr);
+		printf("Cannot write to flash because the destination has %u non-erased bytes in the slot starting at %p\n\r", count, ptr);
+		return -3;
 	}
 	HAL_FLASH_Unlock();
 	uint32_t address = storage.baseAddress;
