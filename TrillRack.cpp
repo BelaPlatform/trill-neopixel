@@ -12,7 +12,6 @@
 
 extern bool gSecondTouchIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
-extern bool performanceMode_update(unsigned int mode);
 extern bool performanceMode_setup(double);
 extern void performanceMode_render(BelaContext*);
 extern bool menu_setup(double);
@@ -20,7 +19,6 @@ extern void menu_render(BelaContext*);
 extern bool menuShouldChangeMode();
 extern float getGnd();
 extern OutMode gOutMode;
-extern int gMode;
 extern bool modeAlt_setup();
 extern void triggerInToClock(BelaContext* context);
 extern int gMtrClkTrigger;
@@ -444,7 +442,6 @@ void tr_render(BelaContext* context)
 		clippedIn = 0;
 	tri.buttonLedWrite(1, clippedIn);
 	
-	static bool firstRun = true;
 	static ButtonView btn; // reflects reality
 	static bool wasPressed = !tri.digitalRead(0);
 	btn = {false, false, false, false, btn.pressCount};
@@ -529,20 +526,15 @@ void tr_render(BelaContext* context)
 	ledSliders.enableTouch(performanceActive && !menuExitWaitingTouchRelease);
 	ledSliders.enableLeds(performanceActive);
 
-	static double setupMs = 0;
+	static double setupMs;
 	static bool setupDone = false;
-	int shouldChangeMode = menuShouldChangeMode();
-	if(shouldChangeMode) {
+	static int lastMode = -1;
+	if(lastMode != gNewMode) {
 		setupMs = tri.getTimeMs();
-		if(!firstRun)
-		{
-			gMode = (gMode + shouldChangeMode + kNumModes) % kNumModes;
-			performanceMode_update(gMode);
-		}
-		printf("mode: %d\n\r", gMode);
+		printf("new mode: %d\n\r", lastMode);
+		lastMode = gNewMode;
 		setupDone = false;
 	}
-	firstRun = false;
 
 	if(!setupDone) {
 		setupDone = performanceMode_setup(tri.getTimeMs() - setupMs);

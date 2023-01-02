@@ -34,8 +34,6 @@ std::array<Oscillator, 2> oscillators;
 const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{{0, 0, 255}, {0, 255, 0}}};
 std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MIDI without changing defaults
 
-// Mode switching
-int gMode = 0;
 OutMode gOutMode = kOutModeFollowTouch;
 int gCounter = 0;
 int gSubMode = 0;
@@ -2270,7 +2268,8 @@ private:
 	static constexpr unsigned int kPitchBeingAdjustedCountMax = 10;
 } gExprButtonsMode;
 
-static unsigned int gCurrentMode;
+uint8_t gNewMode = 0; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
+
 static std::array<PerformanceMode*,kNumModes> performanceModes = {
 #ifdef TEST_MODE
 	&gTestMode,
@@ -2282,20 +2281,14 @@ static std::array<PerformanceMode*,kNumModes> performanceModes = {
 	&gExprButtonsMode,
 };
 
-void performanceMode_update(unsigned int newMode)
-{
-	if(newMode < performanceModes.size())
-		gCurrentMode = newMode;
-}
-
 bool performanceMode_setup(double ms)
 {
-	return performanceModes[gCurrentMode]->setup(ms);
+	return performanceModes[gNewMode]->setup(ms);
 }
 
 void performanceMode_render(BelaContext* context)
 {
-	performanceModes[gCurrentMode]->render(context);
+	performanceModes[gNewMode]->render(context);
 }
 
 class CalibrationProcedure {
@@ -2941,7 +2934,15 @@ private:
 	std::array<bool,kNumSplits> isEnv;
 };
 
-static int shouldChangeMode = 1;
+static void requestNewMode(int mode);
+
+static void requestIncMode(int inc)
+{
+	while(inc < 0)
+		inc += kNumModes;
+	requestNewMode((gNewMode + inc) % kNumModes);
+}
+
 class MenuItemTypeNextMode : public MenuItemTypeEvent
 {
 public:
@@ -2951,7 +2952,7 @@ private:
 	void event(Event e) override
 	{
 		if(kTransitionRising == e)
-			shouldChangeMode = 1;
+			requestIncMode(1);
 	}
 };
 
@@ -3409,6 +3410,11 @@ public:
 	}) presetFieldData;
 } gGlobalSettings;
 
+static void requestNewMode(int mode)
+{
+	gNewMode = mode;
+}
+
 static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
 // this is a submenu consisting of a full-screen display of a range. Before entering it,
 // appropriately set the properties of displayIoRangeMenuItem
@@ -3429,12 +3435,6 @@ static MenuItemTypeDiscrete globalSettingsJacksOnTop("globalSettingsJacksOnTop",
 
 static bool isCalibration;
 static bool menuJustEntered;
-int menuShouldChangeMode()
-{
-	int tmp = shouldChangeMode;
-	shouldChangeMode = 0;
-	return tmp;
-}
 
 static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
@@ -3491,9 +3491,9 @@ static void menu_update()
 		// if hasChanged, this will retrigger a new drawing of the buttons below
 		// TODO: when refactoring mode switching, maybe ensure the menu's content and visualisation
 		// gets updated directly when updating mode
-		if(mainMenu.items[1 + n] != (*modesMenuItems[gCurrentMode])[n])
+		if(mainMenu.items[1 + n] != (*modesMenuItems[gNewMode])[n])
 		{
-			mainMenu.items[1 + n] = (*modesMenuItems[gCurrentMode])[n];
+			mainMenu.items[1 + n] = (*modesMenuItems[gNewMode])[n];
 			hasChanged = true;
 		}
 	}
