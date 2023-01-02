@@ -4,12 +4,15 @@
 #include <string.h>
 #include <stdio.h>
 
+#define getSectorFromSlot(slot) \
+		((kPresetStarts - kFlashBase + kStorageSlotSize * slot) / kStorageSectorSize)
+
 
 // we have an STM32G4KEU6: 512k of flash, divided in 256 2k pages.
 // For presets, we use the space that starts 384k into flash at 0x08060000
 static const uint32_t kPresetStarts = 0x08060000;
-static const uint32_t kPresetSector = (kPresetStarts - FLASH_BASE) / FLASH_PAGE_SIZE;;
-static const uint32_t kPresetHeader = 0x1234569;
+static const uint32_t kPresetSectorStarts = getSectorFromSlot(0);
+static const uint32_t kPresetSectorStops = getSectorFromSlot(kStorageNumSlots);
 // Signature used to recognise a valid preset slot.
 // this gets shifted left by however many places needed to fit the actual
 // preset length into a uint32_t. If you want to force a change and invalidate
@@ -105,7 +108,7 @@ int presetInit(PresetInitOptions_t option, uint32_t checkSaveTimeout, uint32_t (
 		// go through the available slots in flash and keep the last good one
 		// we find
 		for(uint32_t s = 0; s < kStorageNumSlots; ++s) {
-			storageInit(kPresetSector, s);
+			storageInit(kPresetSectorStarts, s);
 			// TODO: add checksum to ensure a slot is actually valid.
 			// (currently we are just checking that it contains a valid
 			// signature at the beginning of the slot)
@@ -127,13 +130,13 @@ int presetInit(PresetInitOptions_t option, uint32_t checkSaveTimeout, uint32_t (
 		printf("no preset found\n\r");
 		// select the last slot so upon writing we will write the first one
 		slot = getPrevSlot(0);
-		storageInit(kPresetSector, slot);
+		storageInit(kPresetSectorStarts, slot);
 		uint32_t* ptr = (uint32_t*)storageGetData();
 		presetLoadDefaults();
 		ptr[0] = gPresetSignature;
 	} else {
 		slot = found;
-		storageInit(kPresetSector, slot);
+		storageInit(kPresetSectorStarts, slot);
 		storageRead();
 		printf("preset found at %lu\n\r", slot);
 	}
@@ -198,7 +201,7 @@ int presetSave()
 		// have no valid preset in memory.
 		storageErase(kPresetSector);
 	}
-	storageInit(kPresetSector, p.slot);
+	storageInit(kPresetSectorStarts, p.slot);
 	// write to flash
 	int ret = storageWrite();
 	if(ret)
