@@ -1681,7 +1681,7 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD7(outputMode, coupling, cutoff, outRangeBottom, outRangeTop, inRangeBottom, inRangeTop);
+		UPDATE_PRESET_FIELD3(outputMode, coupling, cutoff);
 	}
 	enum {
 		kCouplingDc,
@@ -1699,17 +1699,13 @@ public:
 			.outputMode = outputMode,
 			.coupling = coupling,
 			.cutoff = cutoff,
-			.outRangeBottom = outRangeBottom,
-			.outRangeTop = outRangeTop,
-			.inRangeBottom = inRangeBottom,
-			.inRangeTop = inRangeTop,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter7(ScaleMeterMode, outputMode, coupling, cutoff, outRangeBottom, outRangeTop, inRangeBottom, inRangeTop),
-			.loadCallback = genericLoadCallback7(ScaleMeterMode, outputMode, coupling, cutoff, outRangeBottom, outRangeTop, inRangeBottom, inRangeTop),
+			.defaulter = genericDefaulter3(ScaleMeterMode, outputMode, coupling, cutoff),
+			.loadCallback = genericLoadCallback3(ScaleMeterMode, outputMode, coupling, cutoff),
 		};
 		presetDescSet(2, &presetDesc);
 	}
@@ -1724,10 +1720,6 @@ public:
 		int outputMode;
 		int coupling;
 		float cutoff;
-		float outRangeBottom;
-		float outRangeTop;
-		float inRangeBottom;
-		float inRangeTop;
 	}) presetFieldData;
 private:
 	float inDisplay;
