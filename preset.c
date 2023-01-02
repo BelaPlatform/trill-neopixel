@@ -192,20 +192,27 @@ int presetLoad()
 int presetSave()
 {
 	// open the next page in flash
+	uint32_t oldSector = getSectorFromSlot(p.slot);
 	uint32_t oldSlot = p.slot;
 	p.slot = getNextSlot(p.slot);
-	if(p.slot < oldSlot)
+	uint32_t newSector = getSectorFromSlot(p.slot);
+	// if we moved to a new sector or going back to an earlier slot in current sector
+	// we need to erase the sector so we can write to it
+	if(oldSector != newSector || p.slot < oldSlot)
 	{
-		// we wrapped around, so we need to erase the full sector in order to
-		// write to it. If a reset happens here, we are out of luck and we may
-		// have no valid preset in memory.
-		storageErase(kPresetSector);
+		storageErase(newSector);
 	}
 	storageInit(kPresetSectorStarts, p.slot);
 	// write to flash
 	int ret = storageWrite();
 	if(ret)
 		return makeNegative(ret);
+	if(newSector < oldSector)
+	{
+		// we wrapped around: erase all other sectors
+		for(size_t s = newSector + 1; s < kPresetSectorStops; ++s)
+			storageErase(s);
+	}
 	storageRead();
 	return getPresetNumber();
 }
