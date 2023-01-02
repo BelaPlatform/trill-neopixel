@@ -997,7 +997,7 @@ private:
 	pfd->G = that->G; \
 }
 
-#define genericDefaulter8(CLASS,A,B,C,D,E,F,G,H) \
+#define genericDefaulter9(CLASS,A,B,C,D,E,F,G,H,I) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
@@ -1010,6 +1010,7 @@ private:
 	pfd->F = that->F; \
 	pfd->G = that->G; \
 	pfd->H = that->H; \
+	pfd->I = that->I; \
 }
 
 #define genericLoadCallback2(CLASS,A,B) \
@@ -1053,7 +1054,7 @@ private:
 	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
 }
 
-#define genericLoadCallback8(CLASS,A,B,C,D,E,F,G,H) \
+#define genericLoadCallback9(CLASS,A,B,C,D,E,F,G,H,I) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
@@ -1065,6 +1066,7 @@ private:
 	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
 	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
 	that->H.set(pfd->H); that->presetFieldData.H = pfd->H; \
+	that->I.set(pfd->I); that->presetFieldData.I = pfd->I; \
 }
 
 template <typename T>
@@ -1126,7 +1128,7 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-#define UPDATE_PRESET_FIELD8(A,B,C,D,E,F,G,H) \
+#define UPDATE_PRESET_FIELD9(A,B,C,D,E,F,G,H,I) \
 { \
 	PresetFieldData_t bak = presetFieldData; \
 	presetFieldData.A = A; \
@@ -1137,6 +1139,7 @@ static bool areEqual(const T& a, const T& b)
 	presetFieldData.F = F; \
 	presetFieldData.G = G; \
 	presetFieldData.H = H; \
+	presetFieldData.I = I; \
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
@@ -3352,14 +3355,18 @@ public:
 		}
 		else if(p.same(sizeScaleCoeff))
 			str = "sizeScaleCoeff";
+		else if(p.same(newMode)) {
+			str = "newMode";
+			requestNewMode(newMode);
+		}
 		if(verbose)
 			printf("%s\n\r", str);
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD8(outRangeBottom, outRangeTop, outRangeEnum,
+		UPDATE_PRESET_FIELD9(outRangeBottom, outRangeTop, outRangeEnum,
 				inRangeBottom, inRangeTop, inRangeEnum,
-					sizeScaleCoeff, jacksOnTop);
+					sizeScaleCoeff, jacksOnTop, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
@@ -3371,22 +3378,22 @@ public:
 			.outRangeEnum = outRangeEnum,
 			.inRangeEnum = inRangeEnum,
 			.jacksOnTop = jacksOnTop,
+			.newMode = newMode,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter8(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
+			.defaulter = genericDefaulter9(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
 					inRangeBottom, inRangeTop, inRangeEnum,
-						sizeScaleCoeff, jacksOnTop),
+						sizeScaleCoeff, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback =
-					genericLoadCallback8(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
+			.loadCallback = genericLoadCallback9(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
 							inRangeBottom, inRangeTop, inRangeEnum,
-								sizeScaleCoeff, jacksOnTop),
+								sizeScaleCoeff, jacksOnTop, newMode),
 		};
 		presetDescSet(5, &presetDesc);
 	}
@@ -3398,6 +3405,7 @@ public:
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
+	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
 		float outRangeBottom;
 		float outRangeTop;
@@ -3407,12 +3415,18 @@ public:
 		uint8_t outRangeEnum;
 		uint8_t inRangeEnum;
 		uint8_t jacksOnTop;
+		uint8_t newMode;
 	}) presetFieldData;
 } gGlobalSettings;
 
 static void requestNewMode(int mode)
 {
+	bool different = (gNewMode != mode);
 	gNewMode = mode;
+	// notify the setting that is stored to disk,
+	// but avoid the set() to trigger a circular call to requestNewMode()
+	if(different)
+		gGlobalSettings.newMode.set(mode);
 }
 
 static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
