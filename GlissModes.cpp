@@ -842,7 +842,9 @@ public:
 	virtual void set(unsigned int) = 0;
 	virtual void next() = 0;
 	virtual uint8_t get() const = 0;
+	virtual uint8_t getMax() const = 0;
 };
+
 template <uint8_t T>
 class ParameterEnumT : public ParameterEnum
 {
@@ -865,6 +867,10 @@ public:
 	uint8_t get() const override
 	{
 		return value;
+	}
+	uint8_t getMax() const override
+	{
+		return T;
 	}
 	operator uint8_t() { return value; }
 private:
