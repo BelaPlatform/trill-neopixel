@@ -2758,6 +2758,49 @@ public:
 	ParameterContinuous* parameter;
 };
 
+class MenuItemTypeQuantised : public MenuItemType {
+public:
+	MenuItemTypeQuantised(): MenuItemType({0, 0, 0}) {}
+	MenuItemTypeQuantised(const rgb_t& color, ParameterEnum* parameter) :
+		MenuItemType(color), parameter(parameter) {
+		gMenuAutoLatcher.reset();
+	}
+	void process(LedSlider& slider) override
+	{
+		if(parameter)
+		{
+			unsigned int quantised = parameter->getMax();
+			TouchFrame frame {
+				.pos = slider.compoundTouchLocation(),
+				.sz = slider.compoundTouchSize(),
+			};
+			bool latched = false;
+			gMenuAutoLatcher.process(frame, latched);
+			float pos = fix(frame.pos);
+			unsigned int n = (unsigned int)(pos * quantised);
+			pos = n / float(quantised);
+			if(latched)
+			{
+				parameter->set(n);
+				menu_up();
+			}
+			LedSlider::centroid_t centroid = {
+					.location = fix(int(pos * quantised) / float(quantised - 1)),
+					.size = kFixedCentroidSize,
+			};
+			slider.setLedsCentroids(&centroid, 1);
+		}
+	}
+	float fix(float pos)
+	{
+		if(orientationAgnostic)
+			return gJacksOnTop ? 1.f - pos : pos;
+		return pos;
+	}
+	ParameterEnum* parameter;
+	bool orientationAgnostic = true;
+};
+
 class MenuItemTypeRange : public MenuItemType {
 public:
 	MenuItemTypeRange(): MenuItemType({0, 0, 0}) {}
@@ -2966,6 +3009,7 @@ public:
 	enum Type {
 		kMenuTypeButtons,
 		kMenuTypeSlider,
+		kMenuTypeQuantised,
 		kMenuTypeRange,
 		kMenuTypeRaw,
 	};
@@ -3010,6 +3054,11 @@ static MenuItemTypeRangeDisplayCentroids singleRangeDisplayMenuItem;
 // appropriately set the properties of singleRangeDisplayMenuItem
 MenuPage singleRangeDisplayMenu("single range", {&singleRangeDisplayMenuItem}, MenuPage::kMenuTypeRange);
 
+static MenuItemTypeQuantised singleQuantisedMenuItem;
+// this is a submenu consisting of a quantised slider(no buttons). Before entering it,
+// appropriately set the properties of singleQuantisedMenuItem
+MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, MenuPage::kMenuTypeQuantised);
+
 // If held-press, get into singleSliderMenu to set value
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
 {
@@ -3032,6 +3081,31 @@ public:
 		}
 	}
 	ParameterContinuous& value;
+	ButtonAnimation* animation;
+};
+
+// If held-press, get into singleQuantisedMenu to set value as if it was a big toggle
+class MenuItemTypeEnterQuantised : public MenuItemTypeEnterSubmenu
+{
+public:
+	MenuItemTypeEnterQuantised(const char* name, rgb_t baseColor, ParameterEnum& value, ButtonAnimation* animation = nullptr) :
+		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleQuantisedMenu), value(value), animation(animation) {}
+	void process(LedSlider& slider)
+	{
+		MenuItemTypeEnterSubmenu::process(slider);
+		if(animation)
+		{
+			animation->process(HAL_GetTick(), slider, value.get());
+		}
+	}
+	void event(Event e) override
+	{
+		if(kHoldHigh == e) {
+			singleQuantisedMenuItem = MenuItemTypeQuantised(baseColor, &value);
+			menu_in(singleQuantisedMenu);
+		}
+	}
+	ParameterEnum& value;
 	ButtonAnimation* animation;
 };
 
@@ -3444,7 +3518,7 @@ static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange"
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
-static MenuItemTypeDiscrete globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, &gGlobalSettings.jacksOnTop, &animationBrightDimmed);
+static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 
 static bool isCalibration;
 static bool menuJustEntered;
@@ -3545,6 +3619,9 @@ static void menu_update()
 					break;
 				case MenuPage::kMenuTypeSlider:
 					ledMode = LedSlider::AUTO_CENTROIDS;
+					break;
+				case MenuPage::kMenuTypeQuantised:
+					ledMode = LedSlider::MANUAL_CENTROIDS;
 					break;
 				case MenuPage::kMenuTypeRaw:
 					ledMode = LedSlider::MANUAL_RAW;
