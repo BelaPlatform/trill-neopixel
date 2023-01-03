@@ -2732,11 +2732,14 @@ protected:
 	ButtonAnimation* animation;
 };
 
+AutoLatcher gMenuAutoLatcher;
 class MenuItemTypeSlider : public MenuItemType {
 public:
 	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
 	MenuItemTypeSlider(const rgb_t& color, ParameterContinuous* parameter) :
-		MenuItemType(color), parameter(parameter) {}
+		MenuItemType(color), parameter(parameter) {
+		gMenuAutoLatcher.reset();
+	}
 	void process(LedSlider& slider) override
 	{
 		if(parameter)
@@ -2746,16 +2749,14 @@ public:
 				.sz = slider.compoundTouchSize(),
 			};
 			bool latched = false;
-			autoLatcher.process(frame, latched);
+			gMenuAutoLatcher.process(frame, latched);
 			parameter->set(frame.pos);
 			if(latched)
 				menu_up();
 		}
 	}
 	ParameterContinuous* parameter;
-	static AutoLatcher autoLatcher;
 };
-AutoLatcher MenuItemTypeSlider::autoLatcher;
 
 class MenuItemTypeRange : public MenuItemType {
 public:
