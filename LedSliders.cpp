@@ -210,6 +210,11 @@ void LedSliders::process(const float* rawData)
 		for(size_t n = 0; n < pads.size() / 2; ++n)
 			std::swap(pads[n], pads[pads.size() - n - 1]);
 	}
+	if(ledsEnabled)
+	{
+		//TODO: only clear unused LEDs
+		memset(s.np->pixels, 0, s.np->getPixelBufferSize());
+	}
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].process(pads.data() + s.boundaries[n].firstPad);
 }
@@ -222,6 +227,7 @@ void LedSliders::enableTouch(bool enable)
 
 void LedSliders::enableLeds(bool enable)
 {
+	ledsEnabled = enable;
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].enableLeds(enable);
 }

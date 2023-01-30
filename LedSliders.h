@@ -84,4 +84,5 @@ public:
 private:
 	std::vector<float> pads;
 	Settings s;
+	bool ledsEnabled = true;
 };
