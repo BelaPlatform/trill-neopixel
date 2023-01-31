@@ -10,7 +10,7 @@
 #include <assert.h>
 #include "usbd_midi_if.h"
 
-extern bool gSecondTouchIsSize;
+extern bool gBottomOutIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_setup(double);
 extern void performanceMode_render(BelaContext*);
@@ -368,7 +368,7 @@ static float rescaleOutput(size_t channel, float gnd, float value)
 	float bottom;
 	float top;
 	getBottomTopRange(gOutRange, false, gnd, bottom, top);
-	if(gSecondTouchIsSize && 1 == channel) // if this is a size
+	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 	// TODO: apply sizeScaleCoeff. Is this the best place for it?
 	value = mapAndConstrain(value, 0, 1, bottom, top);

@@ -37,7 +37,7 @@ std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MID
 OutMode gOutMode = kOutModeFollowTouch;
 int gCounter = 0;
 int gSubMode = 0;
-bool gSecondTouchIsSize;
+bool gBottomOutIsSize;
 bool gJacksOnTop = false;
 
 // Recording the gesture
@@ -1154,7 +1154,7 @@ class DirectControlMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gSecondTouchIsSize = !split;
+		gBottomOutIsSize = !split;
 		if(split)
 		{
 			unsigned int guardPads = 1;
@@ -1331,7 +1331,7 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode = kOutModeFollowLeds;
-		gSecondTouchIsSize = !split;
+		gBottomOutIsSize = !split;
 		if(split)
 		{
 			unsigned int guardPads = 1;
@@ -1551,7 +1551,7 @@ class ScaleMeterMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gSecondTouchIsSize = false; // TODO: _both_ may have to be positive
+		gBottomOutIsSize = false; // TODO: _both_ may have to be positive
 		count = 0;
 		x1 = 0;
 		y1 = 0;
@@ -1748,7 +1748,7 @@ class BalancedOscsMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gSecondTouchIsSize = false;
+		gBottomOutIsSize = false;
 		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
 		if(ms <= 0)
 		{
@@ -1880,7 +1880,7 @@ class ExprButtonsMode : public PerformanceMode
 public:
 	bool setup(double ms)
 	{
-		gSecondTouchIsSize = true;
+		gBottomOutIsSize = true;
 		if(ms <= 0)
 		{
 			ledSlidersSetupMultiSlider(
