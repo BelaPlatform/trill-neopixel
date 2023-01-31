@@ -119,6 +119,13 @@ static void idxToWeights(float idx, float* weights, unsigned int numWeights)
 	}
 }
 
+static uint8_t clipLed(float val)
+{
+	if(val > 255)
+		val = 255;
+	return val + 0.5f;
+}
+
 void LedSlider::updateLeds()
 {
 	if(!ledsEnabled)
@@ -161,8 +168,8 @@ void LedSlider::updateLeds()
 	// MANUAL_RAW will have set ledValues elsewhere
 	// so at this point ledValues is all set and we use it to set the LEDs
 	for(unsigned int n = 0; n < ledValues.size(); ++n)
-		np->setPixelColor(ledOffset + n, color.r * ledValues[n],
-				color.g * ledValues[n], color.b * ledValues[n]);
+		np->setPixelColor(ledOffset + n, clipLed(color.r * ledValues[n]),
+				clipLed(color.g * ledValues[n]), clipLed(color.b * ledValues[n]));
 }
 
 LedSliders::LedSliders(const Settings& settings)
