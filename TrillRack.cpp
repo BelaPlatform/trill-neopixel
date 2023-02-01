@@ -362,6 +362,16 @@ static float rescaleInput(float gnd, float value)
 	return mapAndConstrain(value, bottom, top, 0, 1);
 }
 
+static float finalise(float value)
+{
+#ifdef REV2
+	//
+	return 1.f - value;
+#else // REV2
+	return value;
+#endif // REV2
+}
+
 static float rescaleOutput(size_t channel, float gnd, float value)
 {
 	// rescale analog outputs
@@ -371,8 +381,6 @@ static float rescaleOutput(size_t channel, float gnd, float value)
 	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 	// TODO: apply sizeScaleCoeff. Is this the best place for it?
-	value = mapAndConstrain(value, 0, 1, bottom, top);
-	#ifdef REV2
 	// hard-limit the ranges to avoid the nasty edges
 	// (note: this does _not_ clip the output, actually it does just the opposite)
 	// TODO: validate these values across several units, or possibly via
@@ -382,9 +390,8 @@ static float rescaleOutput(size_t channel, float gnd, float value)
 		bottom = 0.001;
 	if(top > 0.99)
 		top = 0.99;
-	value = 1.f - value; // inverting outs
-	#endif // REV2
-	return value;
+	value = mapAndConstrain(value, 0, 1, bottom, top);
+	return finalise(value);
 }
 
 void tr_render(BelaContext* context)
