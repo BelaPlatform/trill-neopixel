@@ -446,6 +446,10 @@ template <typename sample_t>
 class Recorder
 {
 public:
+	struct ValidSample {
+		sample_t sample;
+		bool valid;
+	};
 	void enable()
 	{
 		active = true;
@@ -468,7 +472,7 @@ public:
 		start = current = 0;
 		full = false;
 	}
-	sample_t& record(const sample_t& in)
+	ValidSample record(const sample_t& in)
 	{
 		data[current] = in;
 		sample_t& ret = data[current];
@@ -476,7 +480,7 @@ public:
 		// if the circular buffer becomes full, make a note of it
 		if(current == start)
 			full = true;
-		return ret;
+		return {ret, true};
 	}
 	virtual void stopRecording()
 	{
@@ -491,9 +495,8 @@ public:
 		current = start;
 	}
 
-	sample_t& play(bool loop)
+	ValidSample play(bool loop)
 	{
-		static sample_t zero = 0;
 		if(current == end)
 		{
 			if(loop) {
@@ -506,10 +509,10 @@ public:
 				active = false;
 		}
 		if(!active)
-			return zero;
+			return {0, false};
 		auto& ret = data[current];
 		increment(current);
-		return ret;
+		return {ret, true};
 	}
 
 	size_t size()
@@ -551,8 +554,16 @@ public:
 	{
 		uint32_t reps : kRepsBits;
 		uint32_t sample : kSampleBits;
+		bool valid = false;
 	};
-	static_assert(sizeof(timedData_t) <= 4); // if you change field values to be larger than 4 bytes, be well aware of that
+	struct sampleData_t{
+		sample_t value;
+		bool valid;
+	};
+	// sanity checks to ensure the uint32_t is enough
+	static_assert(kRepsBits + kSampleBits <= sizeof(ValidSample::sample) * 8); // if you change field values to be larger than 4 bytes, be well aware that it can't fit in a uint32_t
+	static_assert(std::is_same<decltype(timedData_t::reps), decltype(ValidSample::sample)>::value);
+	static_assert(std::is_same<decltype(timedData_t::sample), decltype(ValidSample::sample)>::value);
 	static uint32_t inToSample(const sample_t& in)
 	{
 		uint32_t r = in / max * kSampleMax + 0.5f;
@@ -562,9 +573,13 @@ public:
 	{
 		return sample * max / sample_t(kSampleMax);
 	}
-	static struct timedData_t recordToTimedData(uint32_t d)
+	static struct timedData_t recordToTimedData(const ValidSample& d)
 	{
-		return *(struct timedData_t*)&d;
+		timedData_t ret;
+		ret.reps = (d.sample & ((1 << kRepsBits) - 1));
+		ret.sample = (d.sample >> kRepsBits);
+		ret.valid = d.valid;
+		return ret;
 	}
 	static uint32_t timedDataToRecord(const struct timedData_t t)
 	{
@@ -610,21 +625,21 @@ public:
 		Recorder::restart();
 	}
 
-	sample_t play(bool loop)
+	sampleData_t play(bool loop)
 	{
-		if(playData.reps)
+		if(playData.valid && playData.reps)
 			--playData.reps;
 		else {
 			playData = recordToTimedData(Base::play(loop));
 		}
-		return sampleToOut(playData.sample);
+		return { sampleToOut(playData.sample), playData.valid };
 	}
 	void printData()
 	{
 		for(unsigned int n = start; n < data.size() + end; ++n)
 		{
 			unsigned int idx = n % data.size();
-			timedData_t d = recordToTimedData(data[n]);
+			timedData_t d = recordToTimedData({data[n], true});
 			printf("[%u] %lu %5.2f %s\n\r", idx, uint32_t(d.reps), sampleToOut(d.sample), idx == start ? "start" : (idx == end ? "end" : ""));
 			if(idx == end)
 				break;
@@ -704,13 +719,10 @@ class GestureRecorder
 {
 public:
 	typedef float sample_t;
-	struct HalfGesture_t{
-		sample_t value;
-		bool valid = false;
-	};
+	typedef TimestampedRecorder<sample_t,1>::sampleData_t HalfGesture_t;
 	struct Gesture_t {
-		struct HalfGesture_t first;
-		struct HalfGesture_t second;
+		HalfGesture_t first;
+		HalfGesture_t second;
 	};
 	Gesture_t process(const std::vector<LedSlider>& sliders, bool loop)
 	{
@@ -770,8 +782,10 @@ public:
 			}
 			else {
 				if(rs[n].size())
-					out[n] = { rs[n].play(loop), true };
-
+					out[n] = rs[n].play(loop);
+				else {
+					out[n] = {0, false};
+				}
 			}
 		}
 		return {out[0], out[1]};
@@ -795,26 +809,35 @@ static void gestureRecorderSingle_loop(bool loop)
 	{
 		centroid.location = g.first.value;
 		centroid.size = g.second.value;
-		ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+	} else {
+		centroid.location = kNoOutput;
+		centroid.size = kNoOutput;
 	}
+	ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 }
 
 static void gestureRecorderSplit_loop(bool loop)
 {
 	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
-	LedSlider::centroid_t centroid;
+	LedSlider::centroid_t centroids[2];
 	if(g.first.valid)
 	{
-		centroid.location = g.first.value;
-		centroid.size = kFixedCentroidSize;
-		ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+		centroids[0].location = g.first.value;
+		centroids[0].size = kFixedCentroidSize;
+	} else {
+		centroids[0].location = kNoOutput;
+		centroids[0].size = kNoOutput;
 	}
 	if(g.second.valid)
 	{
-		centroid.location = g.second.value;
-		centroid.size = kFixedCentroidSize;
-		ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
+		centroids[1].location = g.second.value;
+		centroids[1].size = kFixedCentroidSize;
+	} else {
+		centroids[1].location = kNoOutput;
+		centroids[1].size = kNoOutput;
 	}
+	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
+	ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
 }
 
 class Parameter {
@@ -1437,7 +1460,7 @@ public:
 			for(size_t n = 0; n < srcEntries; ++n)
 			{
 				TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
-				timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData(data[n]);
+				timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData({data[n], true});
 				srcSize += timedData.reps;
 			}
 			printf("srcSize: %u frames in %u entries\n\r", srcSize, srcEntries);
@@ -1454,7 +1477,7 @@ public:
 				if(n < srcEntries)
 				{
 					TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
-					timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData(data[n]);
+					timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData({data[n], true});
 					value = TimestampedRecorder<GestureRecorder::sample_t,1>::sampleToOut(timedData.sample);
 					dstIdx = float(srcIdx) / float(srcSize) * dstSize;
 					srcInc = timedData.reps;
