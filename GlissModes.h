@@ -14,6 +14,7 @@ typedef enum {
 	kCvRangeCustom,
 	kCvRangeNum,
 } CvRange;
+const float kNoOutput = -12345.6;
 
 struct ButtonView {
 	 bool onset;

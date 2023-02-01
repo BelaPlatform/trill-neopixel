@@ -374,6 +374,8 @@ static float finalise(float value)
 
 static float rescaleOutput(size_t channel, float gnd, float value)
 {
+	if(kNoOutput == value)
+		return finalise(gnd);
 	// rescale analog outputs
 	float bottom;
 	float top;
@@ -392,6 +394,11 @@ static float rescaleOutput(size_t channel, float gnd, float value)
 		top = 0.99;
 	value = mapAndConstrain(value, 0, 1, bottom, top);
 	return finalise(value);
+}
+
+static float touchOrNot(float val, bool hasTouch)
+{
+	return hasTouch ? val : kNoOutput;
 }
 
 void tr_render(BelaContext* context)
@@ -575,26 +582,40 @@ void tr_render(BelaContext* context)
 	
 	// write analog outputs
 	auto& sls = ledSliders.sliders;
-	switch (gOutMode)
+	if(kOutModeFollowTouch == gOutMode || kOutModeFollowLeds == gOutMode)
 	{
-		case kOutModeFollowTouch:
-			gManualAnOut[0] = sls[0].compoundTouchLocation();
-			if(1 == sls.size())
-				gManualAnOut[1] = sls[0].compoundTouchSize();
-			else if (2 == sls.size())
-				gManualAnOut[1] = sls[1].compoundTouchLocation();
-			break;
-		case kOutModeFollowLeds:
-			gManualAnOut[0] = sls[0][0].location;
-			if(1 == sls.size())
-				gManualAnOut[1] = sls[0][0].size;
-			else if (2 == sls.size())
-				gManualAnOut[1] = sls[1][0].location;
-			break;
-		case kOutModeManualBlock:
-		case kOutModeManualSample:
-			// everything should have been done already.
-			break;
+		std::array<LedSlider::centroid_t,kNumOutChannels> centroids;
+		size_t numCentroids = 1;
+		switch (gOutMode)
+		{
+			case kOutModeFollowTouch:
+				centroids[0].location = sls[0].compoundTouchLocation();
+				centroids[0].size = sls[0].compoundTouchSize();
+				if(2 == sls.size()) {
+					numCentroids = 2;
+					centroids[1].location = sls[1].compoundTouchLocation();
+					centroids[1].size = sls[1].compoundTouchSize();
+				}
+				break;
+			case kOutModeFollowLeds:
+				centroids[0] = sls[0][0];
+				if (2 == sls.size())
+				{
+					numCentroids = 2;
+					centroids[1] = sls[1][0];
+				}
+				break;
+			default:
+				assert(false);
+				break;
+		}
+		gManualAnOut[0] = touchOrNot(centroids[0].location, centroids[0].size);
+		if(1 == numCentroids)
+			gManualAnOut[1] = touchOrNot(centroids[0].size, centroids[0].size);
+		else if (2 == numCentroids)
+			gManualAnOut[1] = touchOrNot(centroids[1].location, centroids[1].size);
+		else
+			assert(false);
 	}
 	if(kOutModeManualSample == gOutMode)
 	{
