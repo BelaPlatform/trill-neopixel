@@ -492,7 +492,6 @@ public:
 			start = end;
 			increment(start);
 		}
-		current = start;
 	}
 
 	ValidSample play(bool loop)
@@ -617,7 +616,7 @@ public:
 		// flush whatever we haven't recorded yet
 		pushSample();
 		Base::stopRecording();
-		restart();
+		playData.reps = 0;
 	}
 
 	void restart()
@@ -764,8 +763,11 @@ public:
 				printf("[%d] hasTouch: %d, hadTouch: %d\n\r", n, hasTouch[n], hadTouch[n]);
 				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording (and enable)
 					rs[n].startRecording();
-				} else if(0 == hasTouch[n]) // going to 0 touches: start playing back (unless disabled)
+				} else if(0 == hasTouch[n]) { // going to 0 touches: start playing back (unless disabled)
 					rs[n].stopRecording();
+					if(loop)
+						rs[n].restart();
+				}
 			}
 			hadTouch[n] = hasTouch[n];
 			if(hasTouch[n])
