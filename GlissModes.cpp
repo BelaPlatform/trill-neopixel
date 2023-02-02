@@ -543,12 +543,13 @@ protected:
 	bool full = false; // whether during recording the buffer becomes full
 };
 
-template <typename sample_t, unsigned int max>
+template <typename sample_t>
 class TimestampedRecorder : public Recorder<uint32_t>
 {
 private:
 	typedef Recorder<uint32_t> Base;
 	enum { kRepsBits = 10, kSampleBits = 22 };
+	enum { max = 1 }; // TODO: not sure what this was introduced for
 public:
 	struct timedData_t
 	{
@@ -719,7 +720,7 @@ class GestureRecorder
 {
 public:
 	typedef float sample_t;
-	typedef TimestampedRecorder<sample_t,1>::sampleData_t HalfGesture_t;
+	typedef TimestampedRecorder<sample_t>::sampleData_t HalfGesture_t;
 	struct Gesture_t {
 		HalfGesture_t first;
 		HalfGesture_t second;
@@ -790,7 +791,7 @@ public:
 		}
 		return {out[0], out[1]};
 	}
-	std::array<TimestampedRecorder<sample_t,1>, 2> rs;
+	std::array<TimestampedRecorder<sample_t>, 2> rs;
 private:
 	unsigned int hadTouch[2];
 	bool lastStateChangeWasToggling = false;
@@ -1449,7 +1450,7 @@ public:
 	}
 	void updateTable()
 	{
-		// std::array<TimestampedRecorder<sample_t,1>, 2>
+		// std::array<TimestampedRecorder<sample_t>, 2>
 		auto& recorders = gGestureRecorder.rs;
 		for(size_t c = 0; c < recorders.size() && c < tables.size(); ++c)
 		{
@@ -1459,8 +1460,8 @@ public:
 			size_t srcSize = 0;
 			for(size_t n = 0; n < srcEntries; ++n)
 			{
-				TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
-				timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData({data[n], true});
+				TimestampedRecorder<GestureRecorder::sample_t>::timedData_t timedData;
+				timedData = TimestampedRecorder<GestureRecorder::sample_t>::recordToTimedData({data[n], true});
 				srcSize += timedData.reps;
 			}
 			printf("srcSize: %u frames in %u entries\n\r", srcSize, srcEntries);
@@ -1476,9 +1477,9 @@ public:
 				size_t srcInc;
 				if(n < srcEntries)
 				{
-					TimestampedRecorder<GestureRecorder::sample_t,1>::timedData_t timedData;
-					timedData = TimestampedRecorder<GestureRecorder::sample_t,1>::recordToTimedData({data[n], true});
-					value = TimestampedRecorder<GestureRecorder::sample_t,1>::sampleToOut(timedData.sample);
+					TimestampedRecorder<GestureRecorder::sample_t>::timedData_t timedData;
+					timedData = TimestampedRecorder<GestureRecorder::sample_t>::recordToTimedData({data[n], true});
+					value = TimestampedRecorder<GestureRecorder::sample_t>::sampleToOut(timedData.sample);
 					dstIdx = float(srcIdx) / float(srcSize) * dstSize;
 					srcInc = timedData.reps;
 				} else {
