@@ -26,7 +26,7 @@ extern int gInRange;
 extern float gInRangeBottom;
 extern float gInRangeTop;
 extern std::vector<unsigned int> padsToOrderMap;
-extern NeoPixel np;
+extern NeoPixelT<kNumLeds> np;
 extern Trill trill;
 extern std::array<float,2> gManualAnOut;
 

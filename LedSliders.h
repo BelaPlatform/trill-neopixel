@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-#include <libraries/Trill/CentroidDetection.h> // include this above NeoPixel or "HEX" gets screwed up
-#include "NeoPixel.h"
+#include <libraries/Trill/CentroidDetection.h>
+#include "Stm32NeoPixel.h"
 
 typedef struct {
 	uint8_t r;

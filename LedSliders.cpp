@@ -220,7 +220,7 @@ void LedSliders::process(const float* rawData)
 	if(ledsEnabled)
 	{
 		//TODO: only clear unused LEDs
-		memset(s.np->pixels, 0, s.np->getPixelBufferSize());
+		s.np->clear();
 	}
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].process(pads.data() + s.boundaries[n].firstPad);

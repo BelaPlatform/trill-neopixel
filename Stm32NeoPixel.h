@@ -3,13 +3,14 @@
 #include <stdint.h>
 #include <unistd.h> // ssize_t
 #include "main.h"
-
+#include <string.h> // memset
 #include <algorithm>
 
 class Stm32NeoPixel
 {
 public:
   virtual ssize_t send(const uint8_t* rgb, size_t length) = 0;
+  enum { kNumBytesPerPixel = 3 }; // GRB
 };
 
 template <typename clkPwmDurType_t, size_t maxPixels>
@@ -117,9 +118,54 @@ private:
   // alternatively, one could try to throttle requests based on timestamps
   enum { kTrailingZeros = 1 + 400 };
   enum { kNumBitsPerByte = 8 };
-  enum { kNumBytesPerPixel = 3 }; // GRB
   TIM_HandleTypeDef* htim;
   uint32_t TIM_CHANNEL_x;
   size_t lastDataEnd;
   std::array<clkPwmDurType_t, (maxPixels) * kNumBitsPerByte * kNumBytesPerPixel + kTrailingZeros + kLeadingZeros> pwmData;
+};
+
+class NeoPixel{
+public:
+	void setSnp(Stm32NeoPixel* snp)
+	{
+		this->snp = snp;
+	}
+	virtual void show() = 0;
+	virtual void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) = 0;
+	virtual void clear() = 0;
+protected:
+	Stm32NeoPixel* snp = nullptr;
+};
+
+template <size_t kNumLeds>
+class NeoPixelT : public NeoPixel
+{
+	enum {kNumBytesPerPixel = Stm32NeoPixel::kNumBytesPerPixel};
+public:
+	void reverse()
+	{
+		for(size_t n = 0; n < kNumLeds / 2; ++n)
+			for(size_t c = 0; c < kNumBytesPerPixel; ++c)
+				std::swap(buffer[kNumBytesPerPixel * n + c], buffer[kNumBytesPerPixel * ( kNumLeds - n - 1) + c]);
+	}
+	void show() override
+	{
+		if(snp)
+			snp->send(buffer.data(), buffer.size());
+	}
+	void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) override
+	{
+		if(n < kNumLeds)
+		{
+			buffer[kNumBytesPerPixel * n + 0] = r;
+			buffer[kNumBytesPerPixel * n + 1] = g;
+			buffer[kNumBytesPerPixel * n + 2] = b;
+		}
+	}
+	void clear() override
+	{
+		memset(buffer.data(), 0, buffer.size() * sizeof(buffer[0]));
+	}
+private:
+	std::array<uint8_t,kNumLeds * 3> buffer;
 };

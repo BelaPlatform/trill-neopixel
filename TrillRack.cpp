@@ -4,7 +4,6 @@
 #include "preset.h"
 #include <libraries/Trill/Trill.h> // include this above NeoPixel or "HEX" gets screwed up
 #include <libraries/Trill/CentroidDetection.h> // include this above NeoPixel or "HEX" gets screwed up
-#include "NeoPixel.h"
 #include "LedSliders.h"
 #include <cmath>
 #include <assert.h>
@@ -29,6 +28,7 @@ extern ButtonView performanceBtn;
 extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates);
 std::array<float,2> gManualAnOut;
 
+#define STM32_NEOPIXEL
 #define REV2
 //#define TRILL_BAR // whether to use an external Trill Bar
 
@@ -38,7 +38,7 @@ TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_A_P
 TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_Pin), 6 /* dummy */);
 #endif // REV2
 
-NeoPixel np(kNumLeds, 0, NEO_RGB);
+NeoPixelT<kNumLeds> np;
 Trill trill;
 CentroidDetection cd;
 
@@ -250,7 +250,6 @@ int tr_setup()
 {
 	assert(kNumPads == padsToOrderMap.size());
 	globalSlider.setup(padsToOrderMap, 4, 1);
-	np.begin();
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL
@@ -567,13 +566,7 @@ void tr_render(BelaContext* context)
 		}
 	}
 	if(gJacksOnTop)
-	{
-		const size_t kNumChannels = 3;
-		const size_t len = np.numPixels();
-		for(size_t n = 0; n < len / 2; ++n)
-			for(size_t c = 0; c < kNumChannels; ++c)
-				std::swap(np.pixels[kNumChannels * n + c], np.pixels[kNumChannels * (len - n - 1) + c]);
-	}
+		np.reverse();
 	// actually display the updated LEDs
 	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
 	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.
