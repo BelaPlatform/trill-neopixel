@@ -39,6 +39,7 @@ int gCounter = 0;
 int gSubMode = 0;
 bool gBottomOutIsSize;
 bool gJacksOnTop = false;
+Override gOverride;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
@@ -3466,6 +3467,8 @@ public:
 			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
 			float coeff = kSizeScale / (tmp * tmp * tmp);
 			setAllSizeScales(coeff);
+			gOverride.started = HAL_GetTick();
+			gOverride.out = globalSlider.compoundTouchSize();
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";
