@@ -165,7 +165,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	}
 	LedSliders::Settings settings = {
 			.order = padsToOrderMap,
-			.sizeScale = kSizeScale,
+			.sizeScale = 1,
 			.boundaries = boundaries,
 			.maxNumCentroids = {maxNumCentroids},
 			.np = &np,
@@ -3420,6 +3420,15 @@ static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modes
 MenuItemTypeNextMode nextMode("nextMode", {0, 255, 0});
 MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 
+static void setAllSizeScales(float coeff)
+{
+	globalSlider.setSizeScale(coeff);
+	for(auto& ls : ledSliders)
+		ls.setSizeScale(coeff);
+	for(auto& ls : ledSlidersAlt)
+		ls.setSizeScale(coeff);
+}
+
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
 class GlobalSettings : public ParameterUpdateCapable {
 public:
@@ -3452,8 +3461,12 @@ public:
 			gJacksOnTop = jacksOnTop;
 			str = "jacksOnTop";
 		}
-		else if(p.same(sizeScaleCoeff))
+		else if(p.same(sizeScaleCoeff)) {
 			str = "sizeScaleCoeff";
+			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
+			float coeff = kSizeScale / (tmp * tmp * tmp);
+			setAllSizeScales(coeff);
+		}
 		else if(p.same(newMode)) {
 			str = "newMode";
 			requestNewMode(newMode);

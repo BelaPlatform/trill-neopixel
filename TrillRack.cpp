@@ -381,7 +381,7 @@ static float rescaleOutput(size_t channel, float gnd, float value)
 	getBottomTopRange(gOutRange, false, gnd, bottom, top);
 	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
-	// TODO: apply sizeScaleCoeff. Is this the best place for it?
+
 	// hard-limit the ranges to avoid the nasty edges
 	// (note: this does _not_ clip the output, actually it does just the opposite)
 	// TODO: validate these values across several units, or possibly via
