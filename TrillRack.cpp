@@ -626,8 +626,8 @@ void tr_render(BelaContext* context)
 		}
 	} else {
 		std::array<float, gManualAnOut.size()> anOutBuffer;
-		for(unsigned int n = 0; n < gManualAnOut.size(); ++n)
-			anOutBuffer[n] = rescaleOutput(n, gnd, gManualAnOut[n]);
+		for(unsigned int c = 0; c < gManualAnOut.size(); ++c)
+			anOutBuffer[c] = rescaleOutput(c, gnd, gManualAnOut[c]);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{
 			for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
