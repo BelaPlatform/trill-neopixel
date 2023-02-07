@@ -81,6 +81,14 @@ public:
 	std::vector<LedSlider> sliders;
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
+	auto begin()
+	{
+		return sliders.begin();
+	}
+	auto end()
+	{
+		return sliders.end();
+	}
 private:
 	std::vector<float> pads;
 	Settings s;
