@@ -2782,6 +2782,7 @@ public:
 				tracking = false;
 				initialPos = frame.pos;
 				hasDoneSetup = true;
+				initialTime = HAL_GetTick();
 			}
 			if(!tracking)
 			{
@@ -2796,15 +2797,20 @@ public:
 			}
 			bool latched = false;
 			gMenuAutoLatcher.process(frame, latched);
-			// only track the slider if we have at some point crossed the initial point
-			if(tracking)
-				parameter->set(frame.pos);
-			// set the centroid to whatever the current value is
-			LedSlider::centroid_t centroid {
-				.location = parameter->get(),
-				.size = kFixedCentroidSize / 2,
+			// set the centroid position to whatever the current parameter value is
+			LedSlider::centroid_t centroid = {
+					.location = parameter->get(),
+					.size = kFixedCentroidSize / 2,
 			};
+			if(tracking) {
+				// only track the slider if we have at some point crossed the initial point
+				parameter->set(frame.pos);
+			} else {
+				// or show a pulsating centroid
+				centroid.size *= simpleTriangle(HAL_GetTick() - initialTime, 130);
+			}
 			ledSlidersAlt.sliders[0].setLedsCentroids(&centroid, 1);
+
 			if(latched)
 				menu_up();
 		}
@@ -2812,6 +2818,7 @@ public:
 	ParameterContinuous* parameter;
 	//below are init'd to avoid warning
 	float initialPos = 0;
+	uint32_t initialTime = 0;
 	bool tracking = false;
 	bool hasDoneSetup = false;
 };
