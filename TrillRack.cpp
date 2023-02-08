@@ -292,19 +292,27 @@ int tr_setup()
 	modeAlt_setup();
 	setHdlCtlChange(midiCtlCallback);
 	setHdlAll(midiInputCallback);
-	int ret = presetInit(kPresetInit_LoadLatest, 2000, HAL_GetTick);
+	PresetInitOptions_t presetType;
+#ifdef TEST_MODE
+	presetType = kPresetInit_LoadDefault;
+#else // TEST_MODE
+	presetType = kPresetInit_LoadLatest;
+#endif // TEST_MODE
+	int ret = presetInit(presetType, 2000, HAL_GetTick);
 	printf("presetInit() loaded %d\n\r", ret);
 	return foundAddress;
 }
 
 void tr_mainLoop()
 {
+#ifndef TEST_MODE
 	if(!gAlt)
 	{
 		int ret = presetCheckSave();
 		if(ret >= 0)
 			printf("presetCheckSave: %d\n\r", ret);
 	}
+#endif // TEST_MODE
 }
 
 void tr_newData(const uint8_t* newData, size_t len)
