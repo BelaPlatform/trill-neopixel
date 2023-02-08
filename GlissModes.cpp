@@ -2775,14 +2775,45 @@ public:
 				.pos = slider.compoundTouchLocation(),
 				.sz = slider.compoundTouchSize(),
 			};
+			if(!hasDoneSetup)
+			{
+				// this can't be moved to constructor because
+				// we don't have the slider there.
+				tracking = false;
+				initialPos = frame.pos;
+				hasDoneSetup = true;
+			}
+			if(!tracking)
+			{
+				// check if we crossed the initial point
+				float refPos = parameter->get();
+				float current = frame.pos;
+				if(
+						(initialPos <= refPos && current >= refPos) ||
+						(initialPos >= refPos && current <= refPos)
+					)
+					tracking = true;
+			}
 			bool latched = false;
 			gMenuAutoLatcher.process(frame, latched);
-			parameter->set(frame.pos);
+			// only track the slider if we have at some point crossed the initial point
+			if(tracking)
+				parameter->set(frame.pos);
+			// set the centroid to whatever the current value is
+			LedSlider::centroid_t centroid {
+				.location = parameter->get(),
+				.size = kFixedCentroidSize / 2,
+			};
+			ledSlidersAlt.sliders[0].setLedsCentroids(&centroid, 1);
 			if(latched)
 				menu_up();
 		}
 	}
 	ParameterContinuous* parameter;
+	//below are init'd to avoid warning
+	float initialPos = 0;
+	bool tracking = false;
+	bool hasDoneSetup = false;
 };
 
 class MenuItemTypeQuantised : public MenuItemType {
@@ -3676,7 +3707,7 @@ static void menu_update()
 					ledMode = LedSlider::MANUAL_CENTROIDS;
 					break;
 				case MenuPage::kMenuTypeSlider:
-					ledMode = LedSlider::AUTO_CENTROIDS;
+					ledMode = LedSlider::MANUAL_CENTROIDS;
 					break;
 				case MenuPage::kMenuTypeQuantised:
 					ledMode = LedSlider::MANUAL_CENTROIDS;
