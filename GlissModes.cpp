@@ -952,25 +952,77 @@ public:
 		if(hasTouch  & !hadTouch)
 		{
 			count = 0;
+			setColor();
+		}
+		if(performanceBtn.onset)
+		{
 			nextState();
 		}
 		hadTouch = hasTouch;
-		const uint32_t period = 1024;
-		float pos = 0.8 * simpleTriangle(count, period) + 0.1;
-		count++;
-		count %= period;
 
-		LedSlider::centroid_t centroid = { location: pos, size: 1};
-		for(auto& s : ledSliders.sliders)
-			s.setLedsCentroids(&centroid, 1);
+		// update global states
+
+		bool shouldScan;
+		switch(state)
+		{
+		case kStateLedsOnly:
+			shouldScan = false;
+			break;
+		case kStateTouchOnly:
+		case kStateBoth:
+		default:
+			shouldScan = true;
+		}
+		tr_requestScan(shouldScan);
+		LedSlider::centroid_t centroid;
+		if(kStateTouchOnly == state)
+		{
+			centroid.location = 0;
+			centroid.size = 0;
+			// nothing on LEDs
+			for(auto& s : ledSliders.sliders)
+				s.setLedsCentroids(&centroid, 1);
+		} else {
+			const uint32_t period = 1024;
+			float pos = 0.8 * simpleTriangle(count, period) + 0.1;
+			centroid.location = pos;
+			centroid.size = 1;
+			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+			if(kStateBoth == state)
+			{
+				// if both touch and LEDs are active, the two dots
+				// always _both_ move in the same direction
+				ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
+			} else if (kStateLedsOnly == state){
+				// if only LEDs are active, the two dots
+				// always move in opposite directions
+				centroid.location = 1.f - pos;
+				ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
+			}
+			count++;
+			count %= period;
+		}
+	}
+	void updatePreset() override
+	{
 	}
 private:
-	void nextState(){
-		state = !state;
-		ledSliders.sliders[0].setColor(colorDefs[state][0]);
-		ledSliders.sliders[1].setColor(colorDefs[state][1]);
+	void nextState() {
+		state = state + 1;
+		if(kNumStates == state)
+			state = 0;
+		count = 0;
 	}
-	rgb_t colorDefs[2][2] = {
+	void setColor(int n = -1){
+		if(n == -1)
+			colorState = !colorState;
+		else
+			colorState = size_t(n) >= kNumColors ? 0 : n;
+		ledSliders.sliders[0].setColor(colorDefs[colorState][0]);
+		ledSliders.sliders[1].setColor(colorDefs[colorState][1]);
+	}
+	static constexpr size_t kNumColors = 2;
+	rgb_t colorDefs[kNumColors][2] = {
 			{
 				{192, 128, 64},
 				{145, 110, 0},
@@ -978,11 +1030,18 @@ private:
 			{
 				{32, 64, 96},
 				{0, 55, 72},
-			}
+			},
 	};
 	uint32_t count = 0;
+	enum {
+		kStateBoth,
+		kStateTouchOnly,
+		kStateLedsOnly,
+		kNumStates,
+	};
+	unsigned int state = kStateBoth;
+	unsigned int colorState = 0;
 	bool hadTouch = false;
-	bool state = 0;
 } gTestMode;
 #endif // TEST_MODE
 
