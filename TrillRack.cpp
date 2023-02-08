@@ -315,6 +315,18 @@ void tr_mainLoop()
 #endif // TEST_MODE
 }
 
+static int gShouldScan = 1;
+
+void tr_requestScan(int val)
+{
+	gShouldScan = val;
+}
+
+int tr_scanRequested()
+{
+	return gShouldScan;
+}
+
 void tr_newData(const uint8_t* newData, size_t len)
 {
 	trill.newData(newData, len);
