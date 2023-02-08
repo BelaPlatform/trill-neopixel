@@ -3156,8 +3156,8 @@ public:
 class MenuItemTypeDiscretePlus : public MenuItemTypeEvent
 {
 public:
-	MenuItemTypeDiscretePlus(const char* name, rgb_t baseColor, ParameterEnum& valueEn):
-		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn) {}
+	MenuItemTypeDiscretePlus(const char* name, rgb_t baseColor, ParameterEnum& valueEn, uint32_t displayOldValueTimeout = 0):
+		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn), displayOldValueTimeout(displayOldValueTimeout) {}
 	void event(Event e) override
 	{
 		switch (e)
@@ -3166,8 +3166,22 @@ public:
 			if(!ignoreNextTransition)
 			{
 				// this one is on release so we avoid a spurious trigger when holding
-				valueEn.next();
-				printf("DiscretePlus: next to %d\n\r", valueEn.get());
+				bool shouldUpdate = true;
+				if(displayOldValueTimeout)
+				{
+					// if we haven't been tapped in a while, do nothing.
+					// An inheriting class can leverage this to display
+					// the current value
+					uint32_t tick = HAL_GetTick();
+					if(tick - lastTick > displayOldValueTimeout)
+						shouldUpdate = false;
+					lastTick = tick;
+				}
+				if(shouldUpdate)
+				{
+					valueEn.next();
+					printf("DiscretePlus: next to %d\n\r", valueEn.get());
+				}
 			}
 			ignoreNextTransition = false;
 			break;
@@ -3183,6 +3197,8 @@ public:
 	}
 	virtual void enterPlus() = 0;
 	ParameterEnum& valueEn;
+	uint32_t lastTick = 0;
+	uint32_t displayOldValueTimeout;
 	bool ignoreNextTransition = false;
 };
 
@@ -3212,8 +3228,8 @@ public:
 class MenuItemTypeDiscreteRange : public MenuItemTypeDiscretePlus
 {
 public:
-	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop):
-		MenuItemTypeDiscretePlus(name, baseColor, valueEn), valueConBottom(valueConBottom), valueConTop(valueConTop) {}
+	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, uint32_t doNotUpdateTimeout = 0):
+		MenuItemTypeDiscretePlus(name, baseColor, valueEn, doNotUpdateTimeout), valueConBottom(valueConBottom), valueConTop(valueConTop) {}
 	void enterPlus() override
 	{
 		printf("DiscreteRange: going to range\n\r");
@@ -3228,7 +3244,7 @@ class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
 {
 public:
 	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop):
-		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop) {}
+		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop, 5000) {}
 	void event(Event e) override
 	{
 		MenuItemTypeDiscreteRange::event(e);
