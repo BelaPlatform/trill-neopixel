@@ -16,6 +16,8 @@ void tr_newData(const uint8_t* newData, size_t len);
 void tr_process(BelaContext* ptr);
 void tr_requestScan(int);
 int tr_scanRequested(void);
+void tr_requestUpdateLeds(int);
+int tr_ledsUpdateRequested(void);
 void tr_snpDone(void);
 }
 class TrillRackInterface

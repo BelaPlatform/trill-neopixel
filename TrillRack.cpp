@@ -327,6 +327,18 @@ int tr_scanRequested()
 	return gShouldScan;
 }
 
+static int gShouldUpdateLeds = 1;
+
+void tr_requestUpdateLeds(int val)
+{
+	gShouldUpdateLeds = val;
+}
+
+int tr_ledsUpdateRequested()
+{
+	return gShouldUpdateLeds;
+}
+
 void tr_newData(const uint8_t* newData, size_t len)
 {
 	trill.newData(newData, len);
@@ -590,7 +602,8 @@ void tr_render(BelaContext* context)
 	// actually display the updated LEDs
 	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
 	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.
-	np.show();
+	if(tr_ledsUpdateRequested())
+		np.show();
 //	tri.buttonLedWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
