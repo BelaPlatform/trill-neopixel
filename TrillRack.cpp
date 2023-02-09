@@ -477,7 +477,9 @@ void tr_render(BelaContext* context)
 
 	// Button LEDs:
 	// First LED follows button
+#ifndef TEST_MODE
 	tri.buttonLedWrite(0, !tri.digitalRead(0));
+#endif // TEST_MODE
 	// Second LED displays a clipped version of the input.
 	// The clipping ensures that a small offset (e.g.: due to calibration or lack thereof)
 	// won't cause the LED to be dim the whole time.
@@ -485,7 +487,9 @@ void tr_render(BelaContext* context)
 	float clippedIn = tri.analogRead() - gnd;
 	if(clippedIn < kButtonLedThreshold)
 		clippedIn = 0;
+#ifndef TEST_MODE
 	tri.buttonLedWrite(1, clippedIn);
+#endif // TEST_MODE
 	
 	static ButtonView btn; // reflects reality
 	static bool wasPressed = !tri.digitalRead(0);
