@@ -944,104 +944,233 @@ public:
 		ledSlidersSetupTwoSliders(1, colorDefs[0], LedSlider::MANUAL_CENTROIDS);
 		for(unsigned int n = 0; n < kNumLeds; ++n)
 			np.setPixelColor(n, 0, 0, 0);
+		state = kNumStates - 1;
+		nextState();
 		return true;
 	}
 	void render(BelaContext* context)
 	{
 		bool hasTouch = (globalSlider.compoundTouchSize() > 0);
-		if(hasTouch  & !hadTouch)
-		{
-			count = 0;
-			setColor();
-		}
 		if(performanceBtn.onset)
-		{
 			nextState();
+
+		if(hasTouch && !hadTouch)
+		{
+			if(shouldLeds)
+			{
+				// toggle leds colors
+				count = 0;
+				setColor();
+			} else {
+
+			}
+		}
+		if(hasTouch)
+		{
+			tri.buttonLedWrite(kGreenBtnIdx, 0);
+			tri.buttonLedWrite(kRedBtnIdx, 0);
+		} else {
+			float gn = 0;
+			float rd = 0;
+			switch(buttonMode)
+			{
+			case kButtonCycle:
+			{
+				constexpr size_t kPeriod = 1000;
+				bool which = ((HAL_GetTick() - startTime) % kPeriod) > kPeriod / 2;
+				gn = which;
+				rd = !which;
+			}
+				break;
+			case kButtonManual:
+				gn = greenButton;
+				rd = redButton;
+				break;
+			}
+			tri.buttonLedWrite(kGreenBtnIdx, gn);
+			tri.buttonLedWrite(kRedBtnIdx, rd);
 		}
 		hadTouch = hasTouch;
-
-		// update global states
-
-		bool shouldScan;
-		switch(state)
+		LedSlider::centroid_t centroids[2];
+		switch(ledMode)
 		{
-		case kStateLedsOnly:
-			shouldScan = false;
+		case kLedsOff:
+			for(unsigned int n = 0; n < 2; ++n)
+			{
+				centroids[n].location = 0;
+				centroids[n].size = 0;
+			}
 			break;
-		case kStateTouchOnly:
-		case kStateBoth:
-		default:
-			shouldScan = true;
-		}
-		tr_requestScan(shouldScan);
-		LedSlider::centroid_t centroid;
-		if(kStateTouchOnly == state)
+		case kLedsMoveOpposite:
+		case kLedsMoveSame:
 		{
-			centroid.location = 0;
-			centroid.size = 0;
-			// nothing on LEDs
-			for(auto& s : ledSliders.sliders)
-				s.setLedsCentroids(&centroid, 1);
-		} else {
 			const uint32_t period = 1024;
 			float pos = 0.8 * simpleTriangle(count, period) + 0.1;
-			centroid.location = pos;
-			centroid.size = 1;
-			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-			if(kStateBoth == state)
+			centroids[0].location = pos;
+			centroids[0].size = 1;
+			centroids[1].size = 1;
+			if(kLedsMoveSame == ledMode)
 			{
-				// if both touch and LEDs are active, the two dots
-				// always _both_ move in the same direction
-				ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
-			} else if (kStateLedsOnly == state){
-				// if only LEDs are active, the two dots
-				// always move in opposite directions
-				centroid.location = 1.f - pos;
-				ledSliders.sliders[1].setLedsCentroids(&centroid, 1);
+				// both move in the same direction
+				centroids[1].location = pos;
+			} else {
+				// they move in opposite directions
+				centroids[1].location = 1.f - pos;
 			}
 			count++;
 			count %= period;
 		}
+			break;
+		case kLedsStillTop:
+		case kLedsStillBottom:
+			for(unsigned int n = 0; n < 2; ++n)
+			{
+				centroids[n].location = (kLedsStillTop == ledMode ? 0.8 : 0.2);
+				centroids[n].size = 1;
+			}
+			break;
+		}
+		for(unsigned int n = 0; n < 2; ++n)
+			ledSliders.sliders[n].setLedsCentroids(centroids + n, 1);
+
+		bool justStarted = (HAL_GetTick() - startTime < 500);
+		if(justStarted)
+		{
+			// make sure when we start we are actually updating the leds
+			// so they can be set to the values the mode will need them in later on
+			tr_requestUpdateLeds(true);
+		} else {
+			tr_requestUpdateLeds(shouldPwm);
+		}
+		tr_requestScan(shouldTouch);
 	}
+
 	void updatePreset() override
-	{
-	}
+	{}
 private:
 	void nextState() {
-		state = state + 1;
+		state++;
 		if(kNumStates == state)
 			state = 0;
 		count = 0;
+		initState();
+	}
+	void initState()
+	{
+		startTime = HAL_GetTick();
+		// update global states
+		shouldLeds = false;
+		shouldTouch = false;
+		shouldPwm = false;
+		ledMode = kLedsOff;
+		buttonMode = kButtonManual;
+		greenButton = 0;
+		redButton = 0;
+		switch(State(state))
+		{
+		case kState_Leds_Pwm_Touch: // slider LEDs moving together
+			shouldLeds = true;
+			shouldPwm = true;
+			shouldTouch = true;
+			ledMode = kLedsMoveSame;
+			break;
+		case kState_Leds_Pwm_x:  // slider LEDs moving opposite
+			shouldLeds = true;
+			shouldPwm = true;
+			ledMode = kLedsMoveOpposite;
+			break;
+		case kState_Leds_x_Touch: // slider LEDs still at top
+			shouldLeds = true;
+			shouldTouch = true;
+			ledMode = kLedsStillTop;
+			break;
+		case kState_Leds_x_x_: // slider LEDs still at bottom
+			shouldLeds = true;
+			ledMode = kLedsStillBottom;
+			break;
+		case kState_x_Pwm_Touch: // sliderLEDs off, LED button is red, when touching slider, button goes dark
+			shouldPwm = true;
+			shouldTouch = true;
+			redButton = 1;
+			ledMode = kLedsOff;
+			break;
+		case kState_x_Pwm_x_: // slider LEDs off, LED button cycles automatically
+			shouldPwm = true;
+			ledMode = kLedsOff;
+			buttonMode = kButtonCycle;
+			break;
+		case kState_x_x_Touch: // slider LEDs off, LED button is green, when touching slider button goes dark
+			shouldTouch = true;
+			greenButton = 1;
+			ledMode = kLedsOff;
+			break;
+		case kState_x_x_x: // slider LEDs off, no LED button
+		case kNumStates:
+			break;
+		}
 	}
 	void setColor(int n = -1){
 		if(n == -1)
-			colorState = !colorState;
+			colorState++;
 		else
-			colorState = size_t(n) >= kNumColors ? 0 : n;
+			colorState = n;
+		if(colorState >= kNumColors)
+			colorState = 0;
 		ledSliders.sliders[0].setColor(colorDefs[colorState][0]);
 		ledSliders.sliders[1].setColor(colorDefs[colorState][1]);
+		// re-init state so that if shouldPwm is off at least it gets
+		// retriggered briefly and displayed color is updated
+		initState();
 	}
-	static constexpr size_t kNumColors = 2;
+	static constexpr size_t kNumColors = 3;
 	rgb_t colorDefs[kNumColors][2] = {
 			{
-				{192, 128, 64},
-				{145, 110, 0},
+				{192, 58, 40},
+				{160, 70, 50},
 			},
 			{
-				{32, 64, 96},
-				{0, 55, 72},
+				{192, 58, 40},
+				{0, 0, 0},
+			},
+			{
+				{255, 255, 255},
+				{255, 255, 255},
 			},
 	};
 	uint32_t count = 0;
-	enum {
-		kStateBoth,
-		kStateTouchOnly,
-		kStateLedsOnly,
+	enum State {
+		kState_Leds_Pwm_Touch,
+		kState_Leds_Pwm_x,
+		kState_Leds_x_Touch,
+		kState_Leds_x_x_,
+		kState_x_Pwm_Touch,
+		kState_x_Pwm_x_,
+		kState_x_x_Touch,
+		kState_x_x_x,
 		kNumStates,
 	};
-	unsigned int state = kStateBoth;
+	enum LedMode {
+		kLedsOff,
+		kLedsMoveSame,
+		kLedsMoveOpposite,
+		kLedsStillTop,
+		kLedsStillBottom,
+	} ledMode;
+	enum ButtonMode {
+		kButtonManual,
+		kButtonCycle,
+	} buttonMode;
+	unsigned int state = kState_Leds_Pwm_Touch;
 	unsigned int colorState = 0;
+	uint32_t startTime = 0;
+	float greenButton = 0;
+	float redButton = 0;
+	static constexpr size_t kGreenBtnIdx = 1;
+	static constexpr size_t kRedBtnIdx = 0;
 	bool hadTouch = false;
+	bool shouldLeds = true;
+	bool shouldTouch = true;
+	bool shouldPwm = true;
 } gTestMode;
 #endif // TEST_MODE
 
