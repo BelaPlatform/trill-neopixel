@@ -2507,12 +2507,12 @@ void performanceMode_render(BelaContext* context)
 	performanceModes[gNewMode]->render(context);
 }
 
-static constexpr float codeToOut(uint16_t code)
+static constexpr float fromCode(uint16_t code)
 {
 	return code / 4096.f;
 }
 
-static constexpr uint16_t outToCode(float out)
+static constexpr uint16_t toCode(float out)
 {
 	return 4096.f * out;
 }
@@ -2538,16 +2538,16 @@ float unconnectedAdc;
 float connectedAdc;
 float minDiff;
 uint16_t minCode;
-uint16_t anOut;
-float gnd = 0.333447;  // some reasonable default, for my board at least
+uint16_t outCode;
+float outGnd = 0.333447; // some reasonable default, for my board at least
 static constexpr unsigned kCalibrationNoInputCount = 2000;
 static constexpr unsigned kCalibrationConnectedStepCount = 20;
 static constexpr unsigned kCalibrationDoneCount = 2000;
 static constexpr unsigned kCalibrationWaitPostThreshold = 100;
 static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
 static constexpr float kStep = 1;
-static constexpr float kRangeStart = outToCode(0.30);
-static constexpr float kRangeStop = outToCode(0.35);
+static constexpr float kRangeStart = toCode(0.30);
+static constexpr float kRangeStop = toCode(0.35);
 
 public:
 void setup()
@@ -2575,7 +2575,7 @@ void process()
 				calibrationState = kCalibrationWaitConnect;
 				unconnectedAdc /= count;
 				printf("unconnectedAdc: %.5f, connect an input\n\r", unconnectedAdc);
-				anOut = 0; // set this as a test value so we can detect when DAC is connected to ADC
+				outCode = 0; // set this as a test value so we can detect when DAC is connected to ADC
 				count = 0;
 			}
 			break;
@@ -2596,14 +2596,14 @@ void process()
 				minDiff = 1000000000;
 				minCode = 4096;
 				count = 0;
-				anOut = kRangeStart;
+				outCode = kRangeStart;
 			}
 			break;
 		case kCalibrationConnected:
 		{
-			if(anOut >= kRangeStop)
+			if(outCode >= kRangeStop)
 			{
-				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, codeToOut(minCode), minDiff);
+				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
 				count = 0;
 				calibrationState = kCalibrationDone;
 				break;
@@ -2615,10 +2615,10 @@ void process()
 				if(diff < minDiff)
 				{
 					minDiff = diff;
-					minCode = anOut;
+					minCode = outCode;
 				}
 				count = 0;
-				anOut += kStep;
+				outCode += kStep;
 			}
 			if(0 == count)
 			{
@@ -2631,15 +2631,15 @@ void process()
 		}
 			break;
 		case kCalibrationDone:
-			gnd = codeToOut(minCode);
+			outGnd = fromCode(minCode);
 			// NOBREAK
 		case kCalibrationDoneLow:
 		case kCalibrationDoneGnd:
 		case kCalibrationDoneHigh:
-			anOut = processPostCalibrationDone();
+			outCode = processPostCalibrationDone();
 			break;
 	}
-	gOverride.out = codeToOut(anOut);
+	gOverride.out = fromCode(outCode);
 	gOverride.ch = 0;
 }
 void start(){
@@ -2647,7 +2647,7 @@ void start(){
 }
 float getGnd()
 {
-	return gnd;
+	return outGnd;
 }
 bool valid()
 {
