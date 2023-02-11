@@ -2508,13 +2508,16 @@ void performanceMode_render(BelaContext* context)
 }
 
 class CalibrationProcedure {
-private:
+public:
 typedef enum {
+	kCalibrationWaitToStart,
 	kCalibrationNoInput,
 	kCalibrationWaitConnect,
 	kCalibrationConnected,
 	kCalibrationDone,
 } Calibration_t;
+Calibration_t getState() { return calibrationState; }
+private:
 Calibration_t calibrationState;
 size_t count;
 float unconnectedAdc;
@@ -2533,10 +2536,9 @@ static constexpr float kRangeStop = 0.35;
 public:
 void setup()
 {
-	calibrationState = kCalibrationNoInput;
 	count = 0;
 	unconnectedAdc = 0;
-	calibrationState = kCalibrationNoInput;
+	calibrationState = kCalibrationWaitToStart;
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
 	gOutMode = kOutModeManualBlock;
 }
@@ -2544,8 +2546,11 @@ void setup()
 void process()
 {
 	float anIn = tri.analogRead();
+	gOverride.started = HAL_GetTick();
 	switch (calibrationState)
 	{
+		case kCalibrationWaitToStart:
+			break;
 		case kCalibrationNoInput:
 			unconnectedAdc += anIn;
 			count++;
@@ -2612,7 +2617,11 @@ void process()
 			anOut = minValue;
 			break;
 	}
-	gManualAnOut[0] = anOut;
+	gOverride.out = anOut;
+	gOverride.ch = 0;
+}
+void start(){
+	calibrationState = kCalibrationNoInput;
 }
 float getGnd()
 {
