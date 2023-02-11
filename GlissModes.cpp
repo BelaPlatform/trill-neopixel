@@ -3814,7 +3814,6 @@ static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeSc
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 
-static bool isCalibration;
 static bool menuJustEntered;
 
 static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
@@ -3932,7 +3931,6 @@ static void menu_update()
 			);
 			menuJustEntered = false; // this is immediately interactive
 		}
-		isCalibration = false;
 	}
 }
 
@@ -4004,17 +4002,6 @@ void menu_render(BelaContext*)
 			return;
 		menuJustEntered = false;
 	}
-	if(isCalibration)
-	{
-		gCalibrationProcedure.process();
-		if(gCalibrationProcedure.valid())
-		{
-			// once done, let's get out of calibration
-			isCalibration = false;
-		}
-	}
-	else {
-		for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
-			activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
-	}
+	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
+		activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
 }
