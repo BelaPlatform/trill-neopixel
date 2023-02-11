@@ -2507,6 +2507,16 @@ void performanceMode_render(BelaContext* context)
 	performanceModes[gNewMode]->render(context);
 }
 
+static constexpr float codeToOut(uint16_t code)
+{
+	return code / 4096.f;
+}
+
+static constexpr uint16_t outToCode(float out)
+{
+	return 4096.f * out;
+}
+
 class CalibrationProcedure {
 public:
 typedef enum {
@@ -2515,23 +2525,29 @@ typedef enum {
 	kCalibrationWaitConnect,
 	kCalibrationConnected,
 	kCalibrationDone,
+	kCalibrationDoneLow,
+	kCalibrationDoneGnd,
+	kCalibrationDoneHigh,
 } Calibration_t;
 Calibration_t getState() { return calibrationState; }
+
 private:
 Calibration_t calibrationState;
 size_t count;
 float unconnectedAdc;
 float connectedAdc;
-float anOut;
 float minDiff;
-float minValue = 0.333447; // some resonable default, for my board at least
-static constexpr unsigned kCalibrationNoInputCount = 50;
+uint16_t minCode;
+uint16_t anOut;
+float gnd = 0.333447;  // some reasonable default, for my board at least
+static constexpr unsigned kCalibrationNoInputCount = 2000;
 static constexpr unsigned kCalibrationConnectedStepCount = 20;
-static constexpr unsigned kCalibrationWaitPostThreshold = 50;
+static constexpr unsigned kCalibrationDoneCount = 2000;
+static constexpr unsigned kCalibrationWaitPostThreshold = 100;
 static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
-static constexpr float kStep = 1.0 / 4096;
-static constexpr float kRangeStart = 0.30;
-static constexpr float kRangeStop = 0.35;
+static constexpr float kStep = 1;
+static constexpr float kRangeStart = outToCode(0.30);
+static constexpr float kRangeStop = outToCode(0.35);
 
 public:
 void setup()
@@ -2578,7 +2594,7 @@ void process()
 				printf(", started\n\r");
 				calibrationState = kCalibrationConnected;
 				minDiff = 1000000000;
-				minValue = 1000000000;
+				minCode = 4096;
 				count = 0;
 				anOut = kRangeStart;
 			}
@@ -2587,18 +2603,19 @@ void process()
 		{
 			if(anOut >= kRangeStop)
 			{
-				printf("Gotten a minimum at %f (diff %f)\n\r", minValue, minDiff);
+				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, codeToOut(minCode), minDiff);
+				count = 0;
 				calibrationState = kCalibrationDone;
 				break;
 			}
 			if (count == kCalibrationConnectedStepCount) {
 				connectedAdc /= (count - 1);
 				float diff = connectedAdc - unconnectedAdc;
-				diff = diff > 0 ? diff : -diff; // abs
+				diff = std::abs(diff);
 				if(diff < minDiff)
 				{
 					minDiff = diff;
-					minValue = anOut;
+					minCode = anOut;
 				}
 				count = 0;
 				anOut += kStep;
@@ -2614,10 +2631,15 @@ void process()
 		}
 			break;
 		case kCalibrationDone:
-			anOut = minValue;
+			gnd = codeToOut(minCode);
+			// NOBREAK
+		case kCalibrationDoneLow:
+		case kCalibrationDoneGnd:
+		case kCalibrationDoneHigh:
+			anOut = processPostCalibrationDone();
 			break;
 	}
-	gOverride.out = anOut;
+	gOverride.out = codeToOut(anOut);
 	gOverride.ch = 0;
 }
 void start(){
@@ -2625,12 +2647,42 @@ void start(){
 }
 float getGnd()
 {
-	return minValue;
+	return gnd;
 }
 bool valid()
 {
-	return kCalibrationDone == calibrationState;
+	return calibrationState >= kCalibrationDone;
 }
+private:
+uint16_t processPostCalibrationDone()
+{
+	Calibration_t wouldBeNextState;
+	uint16_t outCode;
+	// loop through three states showing the -5V, 0V, 10V output range of the module
+	switch(calibrationState)
+	{
+	default:
+	case kCalibrationDoneLow:
+		outCode = 0;
+		wouldBeNextState = kCalibrationDoneGnd;
+		break;
+	case kCalibrationDone:
+	case kCalibrationDoneGnd:
+		outCode = minCode;
+		wouldBeNextState = kCalibrationDoneHigh;
+		break;
+	case kCalibrationDoneHigh:
+		outCode = 4095;
+		wouldBeNextState = kCalibrationDoneLow;
+	}
+	if(count++ >= kCalibrationDoneCount)
+	{
+		count = 0;
+		calibrationState = wouldBeNextState;
+	}
+	return outCode;
+}
+
 
 } gCalibrationProcedure;
 
@@ -3259,6 +3311,7 @@ class MenuItemTypeCalibration : public MenuItemType {
 	enum Animation {
 		kBlink,
 		kStatic,
+		kStaticDot,
 		kMorph,
 	};
 	uint32_t startTime;
@@ -3287,7 +3340,9 @@ public:
 
 		Animation animation;
 		rgb_t color;
-		switch(gCalibrationProcedure.getState())
+		constexpr rgb_t kDoneColor = {0, 127 , 0};
+		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
+		switch(calibrationState)
 		{
 		default:
 		case CalibrationProcedure::kCalibrationWaitToStart:
@@ -3307,8 +3362,14 @@ public:
 			animation = kMorph;
 			break;
 		case CalibrationProcedure::kCalibrationDone:
-			color = {0, 127, 0};
+			color = kDoneColor;
 			animation = kStatic;
+			break;
+		case CalibrationProcedure::kCalibrationDoneLow:
+		case CalibrationProcedure::kCalibrationDoneGnd:
+		case CalibrationProcedure::kCalibrationDoneHigh:
+			color = kDoneColor;
+			animation = kStaticDot;
 			break;
 		}
 		float gain;
@@ -3326,12 +3387,25 @@ public:
 			otherColor = MenuItemType::baseColor;
 			break;
 		case kStatic:
+		case kStaticDot:
 			gain = 1;
 			break;
 		}
 		color = crossfade(otherColor, color, gain);
 		np.clear();
-		for(size_t n = 5; n < np.getNumPixels() && n < 15; ++n)
+		size_t begin = 8;
+		size_t end = 16;
+		if(calibrationState >= CalibrationProcedure::kCalibrationDoneLow)
+		{
+			if(CalibrationProcedure::kCalibrationDoneLow == calibrationState)
+				begin = 0;
+			else if(CalibrationProcedure::kCalibrationDoneGnd == calibrationState)
+				begin = np.getNumPixels() * 1.f / 3.f + 0.5f;
+			else if (CalibrationProcedure::kCalibrationDoneHigh == calibrationState)
+				begin = np.getNumPixels() - 1;
+			end = begin + 1;
+		}
+		for(size_t n = begin; n < np.getNumPixels() && n < end; ++n)
 			np.setPixelColor(n, color.r, color.g, color.b);
 	}
 };
