@@ -2514,6 +2514,10 @@ static constexpr float fromCode(uint16_t code)
 
 static constexpr uint16_t toCode(float out)
 {
+	if(out >= 4095.f)
+		return 4095;
+	if(out <= 0)
+		return 0;
 	return 4096.f * out;
 }
 
@@ -2525,9 +2529,6 @@ typedef enum {
 	kCalibrationWaitConnect,
 	kCalibrationConnected,
 	kCalibrationDone,
-	kCalibrationDoneLow,
-	kCalibrationDoneGnd,
-	kCalibrationDoneHigh,
 } Calibration_t;
 Calibration_t getState() { return calibrationState; }
 
@@ -2548,6 +2549,9 @@ static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
 static constexpr float kStep = 1;
 static constexpr float kRangeStart = toCode(0.30);
 static constexpr float kRangeStop = toCode(0.35);
+uint16_t gndCode = toCode(outGnd);
+uint16_t bottomCode = toCode(0);
+uint16_t topCode = toCode(1);
 
 public:
 void setup()
@@ -2606,6 +2610,8 @@ void process()
 				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
 				count = 0;
 				calibrationState = kCalibrationDone;
+				gndCode = minCode;
+				outGnd = fromCode(gndCode);
 				break;
 			}
 			if (count == kCalibrationConnectedStepCount) {
@@ -2631,12 +2637,19 @@ void process()
 		}
 			break;
 		case kCalibrationDone:
-			outGnd = fromCode(minCode);
-			// NOBREAK
-		case kCalibrationDoneLow:
-		case kCalibrationDoneGnd:
-		case kCalibrationDoneHigh:
-			outCode = processPostCalibrationDone();
+			// loop through three states showing the -5V, 0V, 10V output range of the module
+			if(outCode != gndCode && outCode != bottomCode && outCode != topCode)
+				outCode = gndCode;
+			if(count++ >= kCalibrationDoneCount)
+			{
+				count = 0;
+				if(gndCode == outCode)
+					outCode = topCode;
+				else if(topCode == outCode)
+					outCode = bottomCode;
+				else if(bottomCode == outCode)
+					outCode = gndCode;
+			}
 			break;
 	}
 	gOverride.out = fromCode(outCode);
@@ -2653,37 +2666,10 @@ bool valid()
 {
 	return calibrationState >= kCalibrationDone;
 }
-private:
-uint16_t processPostCalibrationDone()
+uint16_t getCode()
 {
-	Calibration_t wouldBeNextState;
-	uint16_t outCode;
-	// loop through three states showing the -5V, 0V, 10V output range of the module
-	switch(calibrationState)
-	{
-	default:
-	case kCalibrationDoneLow:
-		outCode = 0;
-		wouldBeNextState = kCalibrationDoneGnd;
-		break;
-	case kCalibrationDone:
-	case kCalibrationDoneGnd:
-		outCode = minCode;
-		wouldBeNextState = kCalibrationDoneHigh;
-		break;
-	case kCalibrationDoneHigh:
-		outCode = 4095;
-		wouldBeNextState = kCalibrationDoneLow;
-	}
-	if(count++ >= kCalibrationDoneCount)
-	{
-		count = 0;
-		calibrationState = wouldBeNextState;
-	}
 	return outCode;
 }
-
-
 } gCalibrationProcedure;
 
 float getGnd(){
@@ -3311,7 +3297,6 @@ class MenuItemTypeCalibration : public MenuItemType {
 	enum Animation {
 		kBlink,
 		kStatic,
-		kStaticDot,
 		kMorph,
 	};
 	uint32_t startTime;
@@ -3332,7 +3317,6 @@ public:
 		{
 			if(CalibrationProcedure::kCalibrationWaitToStart == gCalibrationProcedure.getState())
 				gCalibrationProcedure.start();
-			printf("STARTING CALIBRATION\n\r");
 		}
 		hadTouch = hasTouch;
 
@@ -3342,6 +3326,8 @@ public:
 		rgb_t color;
 		constexpr rgb_t kDoneColor = {0, 127 , 0};
 		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
+		size_t begin = 8;
+		size_t end = 16;
 		switch(calibrationState)
 		{
 		default:
@@ -3364,12 +3350,8 @@ public:
 		case CalibrationProcedure::kCalibrationDone:
 			color = kDoneColor;
 			animation = kStatic;
-			break;
-		case CalibrationProcedure::kCalibrationDoneLow:
-		case CalibrationProcedure::kCalibrationDoneGnd:
-		case CalibrationProcedure::kCalibrationDoneHigh:
-			color = kDoneColor;
-			animation = kStaticDot;
+			begin = fromCode(gCalibrationProcedure.getCode()) * (np.getNumPixels() - 1);
+			end = begin + 1;
 			break;
 		}
 		float gain;
@@ -3387,24 +3369,11 @@ public:
 			otherColor = MenuItemType::baseColor;
 			break;
 		case kStatic:
-		case kStaticDot:
 			gain = 1;
 			break;
 		}
 		color = crossfade(otherColor, color, gain);
 		np.clear();
-		size_t begin = 8;
-		size_t end = 16;
-		if(calibrationState >= CalibrationProcedure::kCalibrationDoneLow)
-		{
-			if(CalibrationProcedure::kCalibrationDoneLow == calibrationState)
-				begin = 0;
-			else if(CalibrationProcedure::kCalibrationDoneGnd == calibrationState)
-				begin = np.getNumPixels() * 1.f / 3.f + 0.5f;
-			else if (CalibrationProcedure::kCalibrationDoneHigh == calibrationState)
-				begin = np.getNumPixels() - 1;
-			end = begin + 1;
-		}
 		for(size_t n = begin; n < np.getNumPixels() && n < end; ++n)
 			np.setPixelColor(n, color.r, color.g, color.b);
 	}
