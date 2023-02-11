@@ -130,6 +130,7 @@ public:
 	{
 		this->snp = snp;
 	}
+	virtual size_t getNumPixels() = 0;
 	virtual void show() = 0;
 	virtual void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) = 0;
 	virtual void clear() = 0;
@@ -142,6 +143,7 @@ class NeoPixelT : public NeoPixel
 {
 	enum {kNumBytesPerPixel = Stm32NeoPixel::kNumBytesPerPixel};
 public:
+	size_t getNumPixels() override { return kNumLeds; }
 	void reverse()
 	{
 		for(size_t n = 0; n < kNumLeds / 2; ++n)
