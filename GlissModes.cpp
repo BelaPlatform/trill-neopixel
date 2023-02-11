@@ -3241,6 +3241,101 @@ private:
 	std::array<bool,kNumSplits> isEnv;
 };
 
+// crossfadeRgbChannel
+static uint8_t crg(uint8_t a, uint8_t b, float idx)
+{
+	return a * (1.f - idx) + b * idx;
+}
+static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx)
+{
+	return rgb_t{
+		.r = crg(a.r, b.r, idx),
+		.g = crg(a.g, b.g, idx),
+		.b = crg(a.b, b.b, idx),
+	};
+}
+
+class MenuItemTypeCalibration : public MenuItemType {
+	enum Animation {
+		kBlink,
+		kStatic,
+		kMorph,
+	};
+	uint32_t startTime;
+	bool hadTouch = false;
+	bool hasRemovedTouch = false;
+public:
+//	MenuItemTypeCalibration(): MenuItemType({0, 0, 0}) {}
+	MenuItemTypeCalibration(const rgb_t& color) :
+		MenuItemType(color), startTime(HAL_GetTick()) {
+		gCalibrationProcedure.setup();
+	}
+	void process(LedSlider& slider) override
+	{
+		bool hasTouch = slider.getNumTouches();
+		if(hadTouch && !hasTouch)
+			hasRemovedTouch = true;
+		if(hasRemovedTouch && hasTouch && !hadTouch)
+		{
+			if(CalibrationProcedure::kCalibrationWaitToStart == gCalibrationProcedure.getState())
+				gCalibrationProcedure.start();
+			printf("STARTING CALIBRATION\n\r");
+		}
+		hadTouch = hasTouch;
+
+		gCalibrationProcedure.process();
+
+		Animation animation;
+		rgb_t color;
+		switch(gCalibrationProcedure.getState())
+		{
+		default:
+		case CalibrationProcedure::kCalibrationWaitToStart:
+			color = {0, 0, 120};
+			animation = kBlink;
+			break;
+		case CalibrationProcedure::kCalibrationNoInput:
+			color = {0, 0, 120};
+			animation = kMorph;
+			break;
+		case CalibrationProcedure::kCalibrationWaitConnect:
+			color = {60, 0, 60};
+			animation = kBlink;
+			break;
+		case CalibrationProcedure::kCalibrationConnected:
+			color = {60, 0, 60};
+			animation = kMorph;
+			break;
+		case CalibrationProcedure::kCalibrationDone:
+			color = {0, 127, 0};
+			animation = kStatic;
+			break;
+		}
+		float gain;
+		constexpr size_t kPeriod = 500;
+		uint32_t tick = HAL_GetTick();
+		rgb_t otherColor = {0, 0, 0};
+		switch(animation)
+		{
+		default:
+		case kBlink:
+			gain = ((tick - startTime) % kPeriod) > kPeriod / 2;
+			break;
+		case kMorph:
+			gain = simpleTriangle(tick, kPeriod);
+			otherColor = MenuItemType::baseColor;
+			break;
+		case kStatic:
+			gain = 1;
+			break;
+		}
+		color = crossfade(otherColor, color, gain);
+		np.clear();
+		for(size_t n = 5; n < np.getNumPixels() && n < 15; ++n)
+			np.setPixelColor(n, color.r, color.g, color.b);
+	}
+};
+
 static void requestNewMode(int mode);
 
 static void requestIncMode(int inc)
@@ -3320,6 +3415,9 @@ static MenuItemTypeQuantised singleQuantisedMenuItem;
 // this is a submenu consisting of a quantised slider(no buttons). Before entering it,
 // appropriately set the properties of singleQuantisedMenuItem
 MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, MenuPage::kMenuTypeQuantised);
+static constexpr rgb_t kCalibrationColor = {255, 255, 255};
+static MenuItemTypeCalibration calibrationMenuItem(kCalibrationColor);
+MenuPage calibrationMenu("calibration", {&calibrationMenuItem}, MenuPage::kMenuTypeRaw);
 
 // If held-press, get into singleSliderMenu to set value
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
@@ -3369,6 +3467,25 @@ public:
 	}
 	ParameterEnum& value;
 	ButtonAnimation* animation;
+};
+
+class MenuItemTypeEnterCalibration : public MenuItemTypeEnterSubmenu
+{
+public:
+	MenuItemTypeEnterCalibration(const char* name, rgb_t baseColor, ParameterEnum& state) :
+		MenuItemTypeEnterSubmenu(name, baseColor, 1000, calibrationMenu), value(state) {}
+	void process(LedSlider& slider)
+	{
+		MenuItemTypeEnterSubmenu::process(slider);
+	}
+	void event(Event e) override
+	{
+		if(kHoldHigh == e) {
+			calibrationMenuItem = MenuItemTypeCalibration(kCalibrationColor);
+			menu_in(calibrationMenu);
+		}
+	}
+	ParameterEnum& value;
 };
 
 // If held-press, get into singleRangeMenu to set values
@@ -3712,6 +3829,8 @@ public:
 		} else if(p.same(jacksOnTop)) {
 			gJacksOnTop = jacksOnTop;
 			str = "jacksOnTop";
+		} else if(p.same(calibration)) {
+			str = "calibration";
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			str = "sizeScaleCoeff";
@@ -3772,6 +3891,7 @@ public:
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
+	ParameterEnumT<2> calibration {this, false};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
 		float outRangeBottom;
@@ -3813,6 +3933,7 @@ static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
+static MenuItemTypeEnterCalibration globalSettingsCalibration("globalSettingsCalibration", kCalibrationColor, gGlobalSettings.calibration);
 
 static bool menuJustEntered;
 
@@ -3847,7 +3968,7 @@ static void menu_update()
 	{
 		inited = true;
 		globalSettingsMenu.items = {
-			&disabled, // TODO
+			&globalSettingsCalibration,
 			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
 			&globalSettingsInRange,
