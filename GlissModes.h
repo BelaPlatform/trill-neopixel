@@ -45,5 +45,6 @@ extern bool gJacksOnTop;
 extern uint8_t gNewMode;
 extern struct Override {
 	uint32_t started;
+	size_t ch;
 	float out;
 } gOverride;

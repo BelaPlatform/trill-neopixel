@@ -680,17 +680,16 @@ void tr_render(BelaContext* context)
 		// (((uint32_t*)(&floatValue))[0] == 0x7fc00000) // is nan
 		}
 	}
-	bool overrideBottomOutput = tick - gOverride.started < 10;
-	if(overrideBottomOutput)
+	bool overrideOutput = tick - gOverride.started < 10;
+	if(overrideOutput)
 	{
 		bool bottomOutIsSizeStash = gBottomOutIsSize;
-		gBottomOutIsSize = true;
-		unsigned int c = 1;
+		if(1 == gOverride.ch)
+			gBottomOutIsSize = true; // TODO: make it more generic
+		unsigned int c = gOverride.ch;
 		float value = rescaleOutput(c, gnd, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
-		{
 			analogWriteOnce(context, n, c, value);
-		}
 		gBottomOutIsSize = bottomOutIsSizeStash;
 	}
 }

@@ -3711,6 +3711,7 @@ public:
 			setAllSizeScales(coeff);
 			gOverride.started = HAL_GetTick();
 			gOverride.out = globalSlider.compoundTouchSize();
+			gOverride.ch = 1;
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";
