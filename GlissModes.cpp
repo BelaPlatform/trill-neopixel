@@ -17,7 +17,6 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 
 extern int gAlt;
 extern TrillRackInterface tri;
-extern const unsigned int kNumPads;
 extern const unsigned int kNumLeds;
 extern int gOutRange;
 extern float gOutRangeBottom;
@@ -1791,7 +1790,7 @@ public:
 		// we can quickly get into menu mode from here
 		if(!gAlt)
 		{
-			static std::array<float,26> data = {0};
+			static std::array<float,kNumPads> data = {0};
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range

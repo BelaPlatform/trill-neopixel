@@ -42,7 +42,6 @@ NeoPixelT<kNumLeds> np;
 Trill trill;
 CentroidDetection cd;
 
-extern const unsigned int kNumPads = 26;
 std::vector<unsigned int> padsToOrderMap = {
 #ifdef REV2
 	29,
