@@ -2540,17 +2540,16 @@ float minDiff;
 uint16_t minCode;
 uint16_t outCode;
 float outGnd = 0.333447; // some reasonable default, for my board at least
+float outBottom = 0; // some reasonable default, for my board at least
+float outTop = 1; // some reasonable default, for my board at least
 static constexpr unsigned kCalibrationNoInputCount = 2000;
 static constexpr unsigned kCalibrationConnectedStepCount = 20;
-static constexpr unsigned kCalibrationDoneCount = 2000;
+static constexpr unsigned kCalibrationDoneCount = 3000;
 static constexpr unsigned kCalibrationWaitPostThreshold = 100;
 static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
 static constexpr float kStep = 1;
 static constexpr float kRangeStart = toCode(0.30);
 static constexpr float kRangeStop = toCode(0.35);
-uint16_t gndCode = toCode(outGnd);
-uint16_t bottomCode = toCode(0);
-uint16_t topCode = toCode(1);
 
 public:
 void setup()
@@ -2609,8 +2608,14 @@ void process()
 				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
 				count = 0;
 				calibrationState = kCalibrationDone;
-				gndCode = minCode;
-				outGnd = fromCode(gndCode);
+				outGnd = fromCode(minCode);
+				// now that outGnd is set, we can use fromVolt()
+				outTop = fromVolt(10);
+				outBottom = fromVolt(-5);
+				printf("-5V: %f(%d), 0V: %f(%d), 10V: %f(%d)\n\r",
+						outBottom, toCode(outBottom),
+						outGnd, toCode(outGnd),
+						outTop, toCode(outTop));
 				break;
 			}
 			if (count == kCalibrationConnectedStepCount) {
@@ -2637,6 +2642,10 @@ void process()
 			break;
 		case kCalibrationDone:
 			// loop through three states showing the -5V, 0V, 10V output range of the module
+		{
+			uint16_t bottomCode = toCode(outBottom);
+			uint16_t topCode = toCode(outTop);
+			uint16_t gndCode = toCode(outGnd);
 			if(outCode != gndCode && outCode != bottomCode && outCode != topCode)
 				outCode = gndCode;
 			if(count++ >= kCalibrationDoneCount)
@@ -2649,6 +2658,7 @@ void process()
 				else if(bottomCode == outCode)
 					outCode = gndCode;
 			}
+		}
 			break;
 	}
 	gOverride.out = fromCode(outCode);
@@ -2668,6 +2678,32 @@ bool valid()
 uint16_t getCode()
 {
 	return outCode;
+}
+float fromVolt(float Vo)
+{
+	// full range DAC is Vdfs = 3.3V
+	// output gain after the DAC can be assumed fixed at Ro/Ri
+	// as we are using .1% resistors  (it's an inverting amp,
+	// but there is an inversion in sw elsewhere). This gives a nominal
+	// analog out of 3.3 * 127/27 = 15.52V
+	// The offset is such that
+	// when gndCode is sent out, the output voltage is 0V.
+	//
+	// So, at the net of an offset (which we compensate for at
+	// the end), we have:
+	//   Vo = out * Vdfs * Ga
+	// where out is the dac out relative to full scale and
+	//   Ga = Ro/Ri // analog gain
+	// so:
+	//   out = Vo / (Vdfs * Ga)
+	constexpr float Vdfs = 3.3;
+	constexpr float Ro = 125;
+	constexpr float Ri = 27;
+	constexpr float Ga = Ro / Ri;
+	float out = Vo / (Vdfs * Ga);
+	// compensate for offset:
+	out += outGnd;
+	return out;
 }
 } gCalibrationProcedure;
 
