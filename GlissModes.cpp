@@ -2618,7 +2618,7 @@ void process()
 						outTop, toCode(outTop));
 				break;
 			}
-			if (count == kConnectedStepCount) {
+			if (kConnectedStepCount == count) {
 				connectedAdc /= (count - 1);
 				float diff = connectedAdc - unconnectedAdc;
 				diff = std::abs(diff);
