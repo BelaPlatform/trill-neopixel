@@ -2523,11 +2523,11 @@ static constexpr uint16_t toCode(float out)
 class CalibrationProcedure {
 public:
 typedef enum {
-	kCalibrationWaitToStart,
-	kCalibrationNoInput,
-	kCalibrationWaitConnect,
-	kCalibrationConnected,
-	kCalibrationDone,
+	kWaitToStart,
+	kNoInput,
+	kWaitConnect,
+	kConnected,
+	kDone,
 } Calibration_t;
 Calibration_t getState() { return calibrationState; }
 
@@ -2542,11 +2542,11 @@ uint16_t outCode;
 float outGnd = 0.333447; // some reasonable default, for my board at least
 float outBottom = 0; // some reasonable default, for my board at least
 float outTop = 1; // some reasonable default, for my board at least
-static constexpr unsigned kCalibrationNoInputCount = 2000;
-static constexpr unsigned kCalibrationConnectedStepCount = 20;
-static constexpr unsigned kCalibrationDoneCount = 3000;
-static constexpr unsigned kCalibrationWaitPostThreshold = 100;
-static constexpr float kCalibrationAdcConnectedThreshold = 0.1;
+static constexpr unsigned kNoInputCount = 2000;
+static constexpr unsigned kConnectedStepCount = 20;
+static constexpr unsigned kDoneCount = 3000;
+static constexpr unsigned kWaitPostThreshold = 100;
+static constexpr float kAdcConnectedThreshold = 0.1;
 static constexpr float kStep = 1;
 static constexpr float kRangeStart = toCode(0.30);
 static constexpr float kRangeStop = toCode(0.35);
@@ -2556,7 +2556,7 @@ void setup()
 {
 	count = 0;
 	unconnectedAdc = 0;
-	calibrationState = kCalibrationWaitToStart;
+	calibrationState = kWaitToStart;
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
 	gOutMode = kOutModeManualBlock;
 }
@@ -2567,23 +2567,23 @@ void process()
 	gOverride.started = HAL_GetTick();
 	switch (calibrationState)
 	{
-		case kCalibrationWaitToStart:
+		case kWaitToStart:
 			break;
-		case kCalibrationNoInput:
+		case kNoInput:
 			unconnectedAdc += anIn;
 			count++;
-			if(kCalibrationNoInputCount == count)
+			if(kNoInputCount == count)
 			{
-				calibrationState = kCalibrationWaitConnect;
+				calibrationState = kWaitConnect;
 				unconnectedAdc /= count;
 				printf("unconnectedAdc: %.5f, connect an input\n\r", unconnectedAdc);
 				outCode = 0; // set this as a test value so we can detect when DAC is connected to ADC
 				count = 0;
 			}
 			break;
-		case kCalibrationWaitConnect:
+		case kWaitConnect:
 			// wait for ADC to be connected, then wait some more to avoid any spurious transients
-			if(anIn < kCalibrationAdcConnectedThreshold)
+			if(anIn < kAdcConnectedThreshold)
 			{
 				if(0 == count)
 					printf("Jack connected");
@@ -2591,23 +2591,23 @@ void process()
 			} else {
 				count = 0;
 			}
-			if(kCalibrationWaitPostThreshold == count)
+			if(kWaitPostThreshold == count)
 			{
 				printf(", started\n\r");
-				calibrationState = kCalibrationConnected;
+				calibrationState = kConnected;
 				minDiff = 1000000000;
 				minCode = 4096;
 				count = 0;
 				outCode = kRangeStart;
 			}
 			break;
-		case kCalibrationConnected:
+		case kConnected:
 		{
 			if(outCode >= kRangeStop)
 			{
 				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
 				count = 0;
-				calibrationState = kCalibrationDone;
+				calibrationState = kDone;
 				outGnd = fromCode(minCode);
 				// now that outGnd is set, we can use fromVolt()
 				outTop = fromVolt(10);
@@ -2618,7 +2618,7 @@ void process()
 						outTop, toCode(outTop));
 				break;
 			}
-			if (count == kCalibrationConnectedStepCount) {
+			if (count == kConnectedStepCount) {
 				connectedAdc /= (count - 1);
 				float diff = connectedAdc - unconnectedAdc;
 				diff = std::abs(diff);
@@ -2640,7 +2640,7 @@ void process()
 			count++;
 		}
 			break;
-		case kCalibrationDone:
+		case kDone:
 			// loop through three states showing the -5V, 0V, 10V output range of the module
 		{
 			uint16_t bottomCode = toCode(outBottom);
@@ -2648,7 +2648,7 @@ void process()
 			uint16_t gndCode = toCode(outGnd);
 			if(outCode != gndCode && outCode != bottomCode && outCode != topCode)
 				outCode = gndCode;
-			if(count++ >= kCalibrationDoneCount)
+			if(count++ >= kDoneCount)
 			{
 				count = 0;
 				if(gndCode == outCode)
@@ -2665,7 +2665,7 @@ void process()
 	gOverride.ch = 0;
 }
 void start(){
-	calibrationState = kCalibrationNoInput;
+	calibrationState = kNoInput;
 }
 float getGnd()
 {
@@ -2673,7 +2673,7 @@ float getGnd()
 }
 bool valid()
 {
-	return calibrationState >= kCalibrationDone;
+	return calibrationState >= kDone;
 }
 uint16_t getCode()
 {
@@ -3350,7 +3350,7 @@ public:
 			hasRemovedTouch = true;
 		if(hasRemovedTouch && hasTouch && !hadTouch)
 		{
-			if(CalibrationProcedure::kCalibrationWaitToStart == gCalibrationProcedure.getState())
+			if(CalibrationProcedure::kWaitToStart == gCalibrationProcedure.getState())
 				gCalibrationProcedure.start();
 		}
 		hadTouch = hasTouch;
@@ -3366,23 +3366,23 @@ public:
 		switch(calibrationState)
 		{
 		default:
-		case CalibrationProcedure::kCalibrationWaitToStart:
+		case CalibrationProcedure::kWaitToStart:
 			color = {0, 0, 120};
 			animation = kBlink;
 			break;
-		case CalibrationProcedure::kCalibrationNoInput:
+		case CalibrationProcedure::kNoInput:
 			color = {0, 0, 120};
 			animation = kMorph;
 			break;
-		case CalibrationProcedure::kCalibrationWaitConnect:
+		case CalibrationProcedure::kWaitConnect:
 			color = {60, 0, 60};
 			animation = kBlink;
 			break;
-		case CalibrationProcedure::kCalibrationConnected:
+		case CalibrationProcedure::kConnected:
 			color = {60, 0, 60};
 			animation = kMorph;
 			break;
-		case CalibrationProcedure::kCalibrationDone:
+		case CalibrationProcedure::kDone:
 			color = kDoneColor;
 			animation = kStatic;
 			begin = fromCode(gCalibrationProcedure.getCode()) * (np.getNumPixels() - 1);
