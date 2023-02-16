@@ -238,3 +238,8 @@ void LedSliders::enableLeds(bool enable)
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].enableLeds(enable);
 }
+
+bool LedSliders::areLedsEnabled()
+{
+	return ledsEnabled;
+}
