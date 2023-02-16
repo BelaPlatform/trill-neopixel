@@ -3906,17 +3906,15 @@ static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&exprButtonsModeQuantised,
 };
 
-#ifdef TEST_MODE
-static std::array<MenuItemType*,kMaxModeParameters> testModeMenu = {
+static std::array<MenuItemType*,kMaxModeParameters> emptyModeMenu = {
 		&disabled,
 		&disabled,
 		&disabled,
 };
-#endif // TEST_MODE
 
 static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modesMenuItems = {
 #ifdef TEST_MODE
-		&testModeMenu,
+		&emptyModeMenu,
 #endif // TEST_MODE
 		&directControlModeMenu,
 		&recorderModeMenu,
