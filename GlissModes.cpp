@@ -4123,15 +4123,25 @@ static void menu_update()
 		};
 	}
 	bool hasChanged = false;
+	std::array<MenuItemType*,kMaxModeParameters>* menuItems;
+	if(gNewMode <= modesMenuItems.size() && modesMenuItems[gNewMode])
+		menuItems = modesMenuItems[gNewMode];
+	else
+		menuItems = &emptyModeMenu;
 	for(size_t n = 0; n < kMaxModeParameters; ++n)
 	{
 		// make sure we are displaying the buttons for the current mode
 		// if hasChanged, this will retrigger a new drawing of the buttons below
 		// TODO: when refactoring mode switching, maybe ensure the menu's content and visualisation
 		// gets updated directly when updating mode
-		if(mainMenu.items[1 + n] != (*modesMenuItems[gNewMode])[n])
+
+		if(mainMenu.items[1 + n] != (*menuItems)[n])
 		{
-			mainMenu.items[1 + n] = (*modesMenuItems[gNewMode])[n];
+			MenuItemType* newItem = (*menuItems)[n];
+			// validate all items before adding them
+			if(!newItem)
+				newItem = &disabled;
+			mainMenu.items[1 + n] = newItem;
 			hasChanged = true;
 		}
 	}
