@@ -2533,29 +2533,42 @@ Calibration_t getState() { return calibrationState; }
 
 private:
 Calibration_t calibrationState;
+typedef enum {
+	kFindingDacGnd,
+	kFindingAdcVals,
+	kFindingDone,
+} Connected_t;
+Connected_t connectedState;
+unsigned int findingAdcIdx;
 size_t count;
-float unconnectedAdc;
-float connectedAdc;
+float adcAccu;
 float minDiff;
 uint16_t minCode;
 uint16_t outCode;
-float outGnd = 0.333447; // some reasonable default, for my board at least
-float outBottom = 0; // some reasonable default, for my board at least
-float outTop = 1; // some reasonable default, for my board at least
-static constexpr unsigned kNoInputCount = 2000;
+// some reasonable defaults
+float outGnd = 0.333447;
+float outBottom = 0;
+float outTop = 1;
+float inGnd = 0.365818;
+float inBottom = 0;
+float inTop = 1;
+static constexpr unsigned kAverageCount = 2000;
 static constexpr unsigned kConnectedStepCount = 20;
+static constexpr unsigned kWaitAfterSetting = 5;
 static constexpr unsigned kDoneCount = 3000;
 static constexpr unsigned kWaitPostThreshold = 100;
 static constexpr float kAdcConnectedThreshold = 0.1;
 static constexpr float kStep = 1;
 static constexpr float kRangeStart = toCode(0.30);
 static constexpr float kRangeStop = toCode(0.35);
+static constexpr float kIoTopV = 10;
+static constexpr float kIoGndV = 0;
+static constexpr float kIoBottomV = -5;
 
 public:
 void setup()
 {
 	count = 0;
-	unconnectedAdc = 0;
 	calibrationState = kWaitToStart;
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
 	gOutMode = kOutModeManualBlock;
@@ -2570,13 +2583,13 @@ void process()
 		case kWaitToStart:
 			break;
 		case kNoInput:
-			unconnectedAdc += anIn;
+			adcAccu += anIn;
 			count++;
-			if(kNoInputCount == count)
+			if(kAverageCount == count)
 			{
 				calibrationState = kWaitConnect;
-				unconnectedAdc /= count;
-				printf("unconnectedAdc: %.5f, connect an input\n\r", unconnectedAdc);
+				inGnd = adcAccu / count;
+				printf("inGnd: %.5f, connect an input\n\r", inGnd);
 				outCode = 0; // set this as a test value so we can detect when DAC is connected to ADC
 				count = 0;
 			}
@@ -2599,45 +2612,91 @@ void process()
 				minCode = 4096;
 				count = 0;
 				outCode = kRangeStart;
+				connectedState = kFindingDacGnd;
 			}
 			break;
 		case kConnected:
 		{
-			if(outCode >= kRangeStop)
+			switch(connectedState)
 			{
-				printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
-				count = 0;
-				calibrationState = kDone;
-				outGnd = fromCode(minCode);
-				// now that outGnd is set, we can use fromVolt()
-				outTop = fromVolt(10);
-				outBottom = fromVolt(-5);
-				printf("-5V: %f(%d), 0V: %f(%d), 10V: %f(%d)\n\r",
-						outBottom, toCode(outBottom),
-						outGnd, toCode(outGnd),
-						outTop, toCode(outTop));
-				break;
-			}
-			if (kConnectedStepCount == count) {
-				connectedAdc /= (count - 1);
-				float diff = connectedAdc - unconnectedAdc;
-				diff = std::abs(diff);
-				if(diff < minDiff)
+				case kFindingDacGnd:
 				{
-					minDiff = diff;
-					minCode = outCode;
+					if(outCode >= kRangeStop)
+					{
+						printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
+						outGnd = fromCode(minCode);
+						// now that outGnd is set, we can use fromVolt()
+						outTop = fromVolt(kIoTopV);
+						outBottom = fromVolt(kIoBottomV);
+						printf("DAC calibration: %.2fV: %f(%d), %.2fV: %f(%d), %.2fV: %f(%d)\n\r",
+								kIoBottomV, outBottom, toCode(outBottom),
+								kIoGndV, outGnd, toCode(outGnd),
+								kIoTopV, outTop, toCode(outTop));
+						count = 0;
+						connectedState = kFindingAdcVals;
+						findingAdcIdx = 0;
+						break;
+					}
+					if (kConnectedStepCount == count) {
+						float average = adcAccu - (count - kWaitAfterSetting);
+						float diff = average - inGnd;
+						diff = std::abs(diff);
+						if(diff < minDiff)
+						{
+							minDiff = diff;
+							minCode = outCode;
+						}
+						count = 0;
+						outCode += kStep;
+					}
+					if(0 == count)
+						adcAccu = 0;
+					 else if (count >= kWaitAfterSetting)
+						adcAccu += anIn;
+					count++;
 				}
-				count = 0;
-				outCode += kStep;
+					break;
+				case kFindingAdcVals:
+				{
+//					float adcGnd = adcAccu;
+					if(0 == findingAdcIdx)
+						outCode = toCode(outBottom);
+					else if (1 == findingAdcIdx)
+						outCode = toCode(outTop);
+					else {
+						connectedState = kFindingDone;
+						break;
+					}
+					if(0 == count)
+						adcAccu = 0;
+					else if(count >= kWaitAfterSetting)
+						adcAccu += anIn;
+					++count;
+					if(kAverageCount == count) {
+						float value = adcAccu / (count - kWaitAfterSetting);
+						switch(findingAdcIdx)
+						{
+						case 0:
+							inBottom = value;
+							break;
+						case 1:
+							inTop = value;
+							break;
+						}
+						findingAdcIdx++;
+						count = 0;
+					}
+				}
+					break;
+				case kFindingDone:
+					calibrationState = kDone;
+					count = 0;
+					printf("ADC calibration: %.2fV: %f, %.2fV: %f, %.2fV: %f\n\r",
+							kIoBottomV, inBottom,
+							kIoGndV, inGnd,
+							kIoTopV, inTop);
+					break;
 			}
-			if(0 == count)
-			{
-				connectedAdc = 0;
-			}
-			 else if (count >= 1) {
-				connectedAdc += anIn;
-			}
-			count++;
 		}
 			break;
 		case kDone:
@@ -2648,7 +2707,7 @@ void process()
 			uint16_t gndCode = toCode(outGnd);
 			if(outCode != gndCode && outCode != bottomCode && outCode != topCode)
 				outCode = gndCode;
-			if(count++ >= kDoneCount)
+			if(count >= kDoneCount)
 			{
 				count = 0;
 				if(gndCode == outCode)
@@ -2658,6 +2717,7 @@ void process()
 				else if(bottomCode == outCode)
 					outCode = gndCode;
 			}
+			count++;
 		}
 			break;
 	}
@@ -2666,6 +2726,7 @@ void process()
 }
 void start(){
 	calibrationState = kNoInput;
+	adcAccu = 0;
 }
 float getGnd()
 {
