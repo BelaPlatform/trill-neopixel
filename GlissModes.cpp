@@ -2483,28 +2483,6 @@ private:
 	static constexpr unsigned int kPitchBeingAdjustedCountMax = 10;
 } gExprButtonsMode;
 
-uint8_t gNewMode = 0; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
-
-static std::array<PerformanceMode*,kNumModes> performanceModes = {
-#ifdef TEST_MODE
-	&gTestMode,
-#endif // TEST_MODE
-	&gDirectControlMode,
-	&gRecorderMode,
-	&gScaleMeterMode,
-	&gBalancedOscsMode,
-	&gExprButtonsMode,
-};
-
-bool performanceMode_setup(double ms)
-{
-	return performanceModes[gNewMode]->setup(ms);
-}
-
-void performanceMode_render(BelaContext* context)
-{
-	performanceModes[gNewMode]->render(context);
-}
 
 static constexpr float fromCode(uint16_t code)
 {
@@ -2770,6 +2748,155 @@ float fromVolt(float Vo)
 
 float getGnd(){
 	return gCalibrationProcedure.getGnd();
+}
+
+// crossfadeRgbChannel
+static uint8_t crg(uint8_t a, uint8_t b, float idx)
+{
+	return a * (1.f - idx) + b * idx;
+}
+static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx)
+{
+	return rgb_t{
+		.r = crg(a.r, b.r, idx),
+		.g = crg(a.g, b.g, idx),
+		.b = crg(a.b, b.b, idx),
+	};
+}
+
+static constexpr rgb_t kCalibrationColor = {255, 255, 255};
+class CalibrationMode : public PerformanceMode {
+	enum Animation {
+		kBlink,
+		kStatic,
+		kMorph,
+	};
+	rgb_t baseColor;
+	uint32_t startTime;
+	bool hadTouch = false;
+public:
+	CalibrationMode(const rgb_t& color) :
+		baseColor(color),
+		startTime(HAL_GetTick())
+	{}
+	bool setup(double ms){
+		gCalibrationProcedure.setup();
+		return true;
+	}
+	void render(BelaContext*) override
+	{
+		LedSlider& slider = ledSliders.sliders[0];
+		bool hasTouch = slider.getNumTouches();
+		if(hasTouch && !hadTouch)
+		{
+			if(CalibrationProcedure::kWaitToStart == gCalibrationProcedure.getState())
+				gCalibrationProcedure.start();
+		}
+		hadTouch = hasTouch;
+
+		gCalibrationProcedure.process();
+
+		Animation animation;
+		rgb_t color;
+		constexpr rgb_t kDoneColor = {0, 127 , 0};
+		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
+		size_t begin = 8;
+		size_t end = 16;
+		switch(calibrationState)
+		{
+		default:
+		case CalibrationProcedure::kWaitToStart:
+			color = {0, 0, 120};
+			animation = kBlink;
+			break;
+		case CalibrationProcedure::kNoInput:
+			color = {0, 0, 120};
+			animation = kMorph;
+			break;
+		case CalibrationProcedure::kWaitConnect:
+			color = {60, 0, 60};
+			animation = kBlink;
+			break;
+		case CalibrationProcedure::kConnected:
+			color = {60, 0, 60};
+			animation = kMorph;
+			break;
+		case CalibrationProcedure::kDone:
+			color = kDoneColor;
+			animation = kStatic;
+			begin = fromCode(gCalibrationProcedure.getCode()) * (np.getNumPixels() - 1);
+			end = begin + 1;
+			break;
+		}
+		float gain;
+		constexpr size_t kPeriod = 500;
+		uint32_t tick = HAL_GetTick();
+		rgb_t otherColor = {0, 0, 0};
+		switch(animation)
+		{
+		default:
+		case kBlink:
+			gain = ((tick - startTime) % kPeriod) > kPeriod / 2;
+			break;
+		case kMorph:
+			gain = simpleTriangle(tick, kPeriod);
+			otherColor = baseColor;
+			break;
+		case kStatic:
+			gain = 1;
+			break;
+		}
+		color = crossfade(otherColor, color, gain);
+		if(ledSliders.areLedsEnabled())
+		{
+			np.clear();
+			for(size_t n = begin; n < np.getNumPixels() && n < end; ++n)
+				np.setPixelColor(n, color.r, color.g, color.b);
+		}
+	}
+	void updatePreset() override
+	{
+		//TODO: here is where we write calibration results to storage
+	}
+} gCalibrationMode(kCalibrationColor);
+
+uint8_t gNewMode = 0; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
+
+static std::array<PerformanceMode*,kNumModes> performanceModes = {
+#ifdef TEST_MODE
+	&gTestMode,
+#endif // TEST_MODE
+	&gDirectControlMode,
+	&gRecorderMode,
+	&gScaleMeterMode,
+	&gBalancedOscsMode,
+	&gExprButtonsMode,
+	&gCalibrationMode,
+};
+static const ssize_t kCalibrationModeIdx = []{
+		auto it = std::find(performanceModes.begin(), performanceModes.end(), &gCalibrationMode);
+		int idx = -1;
+		if(it != performanceModes.end())
+			idx = it - performanceModes.begin();
+		assert(idx >= 0);
+		// while we are at it, a sanity check that all modes have been init'ed
+		for(auto& m : performanceModes)
+			assert(m);
+		return idx;
+}();
+
+bool performanceMode_setup(double ms)
+{
+	if(gNewMode < kNumModes && performanceModes[gNewMode])
+		return performanceModes[gNewMode]->setup(ms);
+	else
+		return true;
+}
+
+void performanceMode_render(BelaContext* context)
+{
+	if(gNewMode < kNumModes && performanceModes[gNewMode])
+		performanceModes[gNewMode]->render(context);
 }
 
 class ButtonAnimation {
@@ -3375,126 +3502,39 @@ private:
 	std::array<bool,kNumSplits> isEnv;
 };
 
-// crossfadeRgbChannel
-static uint8_t crg(uint8_t a, uint8_t b, float idx)
-{
-	return a * (1.f - idx) + b * idx;
-}
-static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx)
-{
-	return rgb_t{
-		.r = crg(a.r, b.r, idx),
-		.g = crg(a.g, b.g, idx),
-		.b = crg(a.b, b.b, idx),
-	};
-}
-
-class MenuItemTypeCalibration : public MenuItemType {
-	enum Animation {
-		kBlink,
-		kStatic,
-		kMorph,
-	};
-	uint32_t startTime;
-	bool hadTouch = false;
-	bool hasRemovedTouch = false;
-public:
-//	MenuItemTypeCalibration(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeCalibration(const rgb_t& color) :
-		MenuItemType(color), startTime(HAL_GetTick()) {
-		gCalibrationProcedure.setup();
-	}
-	void process(LedSlider& slider) override
-	{
-		bool hasTouch = slider.getNumTouches();
-		if(hadTouch && !hasTouch)
-			hasRemovedTouch = true;
-		if(hasRemovedTouch && hasTouch && !hadTouch)
-		{
-			if(CalibrationProcedure::kWaitToStart == gCalibrationProcedure.getState())
-				gCalibrationProcedure.start();
-		}
-		hadTouch = hasTouch;
-
-		gCalibrationProcedure.process();
-
-		Animation animation;
-		rgb_t color;
-		constexpr rgb_t kDoneColor = {0, 127 , 0};
-		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
-		size_t begin = 8;
-		size_t end = 16;
-		switch(calibrationState)
-		{
-		default:
-		case CalibrationProcedure::kWaitToStart:
-			color = {0, 0, 120};
-			animation = kBlink;
-			break;
-		case CalibrationProcedure::kNoInput:
-			color = {0, 0, 120};
-			animation = kMorph;
-			break;
-		case CalibrationProcedure::kWaitConnect:
-			color = {60, 0, 60};
-			animation = kBlink;
-			break;
-		case CalibrationProcedure::kConnected:
-			color = {60, 0, 60};
-			animation = kMorph;
-			break;
-		case CalibrationProcedure::kDone:
-			color = kDoneColor;
-			animation = kStatic;
-			begin = fromCode(gCalibrationProcedure.getCode()) * (np.getNumPixels() - 1);
-			end = begin + 1;
-			break;
-		}
-		float gain;
-		constexpr size_t kPeriod = 500;
-		uint32_t tick = HAL_GetTick();
-		rgb_t otherColor = {0, 0, 0};
-		switch(animation)
-		{
-		default:
-		case kBlink:
-			gain = ((tick - startTime) % kPeriod) > kPeriod / 2;
-			break;
-		case kMorph:
-			gain = simpleTriangle(tick, kPeriod);
-			otherColor = MenuItemType::baseColor;
-			break;
-		case kStatic:
-			gain = 1;
-			break;
-		}
-		color = crossfade(otherColor, color, gain);
-		np.clear();
-		for(size_t n = begin; n < np.getNumPixels() && n < end; ++n)
-			np.setPixelColor(n, color.r, color.g, color.b);
-	}
-};
-
 static void requestNewMode(int mode);
 
-static void requestIncMode(int inc)
+static void requestIncMode()
 {
-	while(inc < 0)
-		inc += kNumModes;
-	requestNewMode((gNewMode + inc) % kNumModes);
+	int newMode = (gNewMode + 1) % kNumModes;
+	if(kCalibrationModeIdx == newMode)
+		 // calibration mode is skipped when incrementing
+		newMode = (newMode + 1) % kNumModes;
+	requestNewMode(newMode);
 }
 
 class MenuItemTypeNextMode : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeNextMode(const char* name, rgb_t baseColor) :
-		MenuItemTypeEvent(name, baseColor, 0) {}
+		MenuItemTypeEvent(name, baseColor, 3000) {}
 private:
 	void event(Event e) override
 	{
-		if(kTransitionRising == e)
-			requestIncMode(1);
+		if(kTransitionFalling == e)
+		{
+			if(!ignoreNextRelease)
+				requestIncMode();
+			ignoreNextRelease = false;
+		}
+		if(kHoldHigh == e) {
+			ignoreNextRelease = true;
+			requestNewMode(kCalibrationModeIdx);
+			// as a special case, exit menu when entering calibration
+			menu_up();
+		}
 	}
+	bool ignoreNextRelease = false;
 };
 
 class MenuPage { //todo: make non-copyable
@@ -3554,9 +3594,6 @@ static MenuItemTypeQuantised singleQuantisedMenuItem;
 // this is a submenu consisting of a quantised slider(no buttons). Before entering it,
 // appropriately set the properties of singleQuantisedMenuItem
 MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, MenuPage::kMenuTypeQuantised);
-static constexpr rgb_t kCalibrationColor = {255, 255, 255};
-static MenuItemTypeCalibration calibrationMenuItem(kCalibrationColor);
-MenuPage calibrationMenu("calibration", {&calibrationMenuItem}, MenuPage::kMenuTypeRaw);
 
 // If held-press, get into singleSliderMenu to set value
 class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
@@ -3606,25 +3643,6 @@ public:
 	}
 	ParameterEnum& value;
 	ButtonAnimation* animation;
-};
-
-class MenuItemTypeEnterCalibration : public MenuItemTypeEnterSubmenu
-{
-public:
-	MenuItemTypeEnterCalibration(const char* name, rgb_t baseColor, ParameterEnum& state) :
-		MenuItemTypeEnterSubmenu(name, baseColor, 1000, calibrationMenu), value(state) {}
-	void process(LedSlider& slider)
-	{
-		MenuItemTypeEnterSubmenu::process(slider);
-	}
-	void event(Event e) override
-	{
-		if(kHoldHigh == e) {
-			calibrationMenuItem = MenuItemTypeCalibration(kCalibrationColor);
-			menu_in(calibrationMenu);
-		}
-	}
-	ParameterEnum& value;
 };
 
 // If held-press, get into singleRangeMenu to set values
@@ -3914,13 +3932,14 @@ static std::array<MenuItemType*,kMaxModeParameters> emptyModeMenu = {
 
 static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modesMenuItems = {
 #ifdef TEST_MODE
-		&emptyModeMenu,
+		&emptyModeMenu, // test mode
 #endif // TEST_MODE
 		&directControlModeMenu,
 		&recorderModeMenu,
 		&scaleMeterModeMenu,
 		&balancedOscsModeMenu,
 		&exprButtonsModeMenu,
+		&emptyModeMenu, // calibration mode
 };
 
 MenuItemTypeNextMode nextMode("nextMode", {0, 255, 0});
@@ -3966,8 +3985,6 @@ public:
 		} else if(p.same(jacksOnTop)) {
 			gJacksOnTop = jacksOnTop;
 			str = "jacksOnTop";
-		} else if(p.same(calibration)) {
-			str = "calibration";
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			str = "sizeScaleCoeff";
@@ -4028,7 +4045,6 @@ public:
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
-	ParameterEnumT<2> calibration {this, false};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
 		float outRangeBottom;
@@ -4047,9 +4063,9 @@ static void requestNewMode(int mode)
 {
 	bool different = (gNewMode != mode);
 	gNewMode = mode;
-	// notify the setting that is stored to disk,
+	// notify the setting that is stored to disk (unless calibration),
 	// but avoid the set() to trigger a circular call to requestNewMode()
-	if(different)
+	if(different && mode != kCalibrationModeIdx)
 		gGlobalSettings.newMode.set(mode);
 }
 
@@ -4070,7 +4086,6 @@ static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
-static MenuItemTypeEnterCalibration globalSettingsCalibration("globalSettingsCalibration", kCalibrationColor, gGlobalSettings.calibration);
 
 static bool menuJustEntered;
 
@@ -4105,7 +4120,7 @@ static void menu_update()
 	{
 		inited = true;
 		globalSettingsMenu.items = {
-			&globalSettingsCalibration,
+			&disabled,
 			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
 			&globalSettingsInRange,

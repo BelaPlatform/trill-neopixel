@@ -27,9 +27,9 @@ struct ButtonView {
 };
 //#define TEST_MODE
 #ifdef TEST_MODE
-constexpr size_t kNumModes = 6;
+constexpr size_t kNumModes = 7;
 #else // TEST_MODE
-constexpr size_t kNumModes = 5;
+constexpr size_t kNumModes = 6;
 #endif // TEST_MODE
 
 constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
