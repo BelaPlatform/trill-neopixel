@@ -29,21 +29,26 @@ extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& sta
 std::array<float,2> gManualAnOut;
 
 #define STM32_NEOPIXEL
-#define REV2
+
+// Gliss revs:
+// 1: no logo, exposed copper, non-inverting I/O, only used internally
+// 2: logo, exposed copper, inverting I/O, first beta testing
+// 3: logo, transparent solder mask, inverting I/O, rc1
+#define GLISS_HW_REV 3
 //#define TRILL_BAR // whether to use an external Trill Bar
 
-#ifdef REV2
+#if GLISS_HW_REV >= 2
 TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_A_Pin), __builtin_ctz(SW_LED_B_Pin));
-#else // REV2
+#else
 TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_Pin), 6 /* dummy */);
-#endif // REV2
+#endif
 
 NeoPixelT<kNumLeds> np;
 Trill trill;
 CentroidDetection cd;
 
 std::vector<unsigned int> padsToOrderMap = {
-#ifdef REV2
+#if GLISS_HW_REV >= 2
 	29,
 	28,
 	27,
@@ -70,7 +75,7 @@ std::vector<unsigned int> padsToOrderMap = {
 	13,
 	14,
 	15,
-#else // REV2
+#else
 #ifdef OLD
 	0,
 	1,
@@ -137,7 +142,7 @@ std::vector<unsigned int> padsToOrderMap = {
 	15,
 	16,
 #endif // OLD
-#endif // REV2
+#endif
 };
 CentroidDetection globalSlider;
 int gAlt = 0;
@@ -274,13 +279,16 @@ int tr_setup()
 	trill.printDetails();
 	if(trill.setMode(Trill::DIFF))
 		return false;
+	int prescaler;
 #ifdef TRILL_BAR
-	if(trill.setPrescaler(2))
+	prescaler = 2;
+#elif GLISS_HW_REV >= 3
+	prescaler = 3;
+#else
+	prescaler = 5;
+#endif
+	if(trill.setPrescaler(prescaler))
 		return false;
-#else // TRILL_BAR
-	if(trill.setPrescaler(5))
-		return false;
-#endif // TRILL_BAR
 	if(trill.setNoiseThreshold(0.06))
 		return false;
 	if(trill.updateBaseline())
@@ -394,12 +402,12 @@ static float rescaleInput(float gnd, float value)
 
 static float finalise(float value)
 {
-#ifdef REV2
-	//
+#if GLISS_HW_REV >= 2
+	// inverting output
 	return 1.f - value;
-#else // REV2
+#else
 	return value;
-#endif // REV2
+#endif
 }
 
 static float rescaleOutput(size_t channel, float gnd, float value)
