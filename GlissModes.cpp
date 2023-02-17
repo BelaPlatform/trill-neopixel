@@ -42,7 +42,8 @@ Override gOverride;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
-const float kSizeScale = 10000;
+const float kSizeScale = 10000; // value used internally for rescaling the slider
+static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 const float kFixedCentroidSize = 0.3;
 
 LedSliders ledSliders;
@@ -165,7 +166,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	}
 	LedSliders::Settings settings = {
 			.order = padsToOrderMap,
-			.sizeScale = 1,
+			.sizeScale = gSizeScale,
 			.boundaries = boundaries,
 			.maxNumCentroids = {maxNumCentroids},
 			.np = &np,
@@ -3947,11 +3948,14 @@ MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
 
 static void setAllSizeScales(float coeff)
 {
+	// adjust size on current sliders
 	globalSlider.setSizeScale(coeff);
 	for(auto& ls : ledSliders)
 		ls.setSizeScale(coeff);
 	for(auto& ls : ledSlidersAlt)
 		ls.setSizeScale(coeff);
+	// adjust size on future slider
+	gSizeScale = coeff;
 }
 
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
