@@ -18,12 +18,12 @@ typedef enum {
 const float kNoOutput = -12345.6;
 
 struct ButtonView {
-	 bool onset;
-	 bool offset;
-	 bool pressed;
-	 bool enabled;
-	 uint32_t pressCount;
-	 static constexpr uint32_t kPressCountInvalid = -1;
+	bool onset;
+	bool offset;
+	bool pressed;
+	bool enabled;
+	uint32_t pressCount;
+	static constexpr uint32_t kPressCountInvalid = -1;
 };
 //#define TEST_MODE
 #ifdef TEST_MODE
