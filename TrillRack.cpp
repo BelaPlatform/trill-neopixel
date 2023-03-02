@@ -9,6 +9,8 @@
 #include <assert.h>
 #include "usbd_midi_if.h"
 
+constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
+
 extern bool gBottomOutIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_setup(double);
@@ -392,11 +394,30 @@ static inline void getBottomTopRange(int range, bool input, float gnd, float& bo
 	}
 }
 
-static float rescaleInput(float gnd, float value)
+static float processRawThroughCalibration(const CalibrationData& cal, bool input, float raw)
+{
+	float value = 1;
+	for(size_t n = 1; n < cal.points.size(); ++n)
+	{
+		// linear interpolation between the two nearest calibration points
+		if(raw <= cal.points[n])
+		{
+			if(input)
+				value = map(raw, cal.values[n - 1], cal.values[n], cal.points[n - 1], cal.points[n]);
+			else
+				value = map(raw, cal.points[n - 1], cal.points[n], cal.values[n - 1], cal.values[n]);
+			break;
+		}
+	}
+	return value;
+}
+
+static float rescaleInput(const CalibrationData& inCal, float value)
 {
 	float bottom;
 	float top;
-	getBottomTopRange(gInRange, true, gnd, bottom, top);
+	value = processRawThroughCalibration(inCal, true, value);
+	getBottomTopRange(gInRange, true, 0.3333333f, bottom, top);
 	return mapAndConstrain(value, bottom, top, 0, 1);
 }
 
@@ -410,27 +431,19 @@ static float finalise(float value)
 #endif
 }
 
-static float rescaleOutput(size_t channel, float gnd, float value)
+static float rescaleOutput(size_t channel, const CalibrationData& cal, float value)
 {
+	float gnd = cal.values[1];
 	if(kNoOutput == value)
 		return finalise(gnd);
-	// rescale analog outputs
 	float bottom;
 	float top;
 	getBottomTopRange(gOutRange, false, gnd, bottom, top);
 	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 
-	// hard-limit the ranges to avoid the nasty edges
-	// (note: this does _not_ clip the output, actually it does just the opposite)
-	// TODO: validate these values across several units, or possibly via
-	// the calibration procedure. Better play it safe and end up slightly short of the
-	// nominal range, but keep an unclipped waveform.
-	if(bottom < 0.001)
-		bottom = 0.001;
-	if(top > 0.99)
-		top = 0.99;
 	value = mapAndConstrain(value, 0, 1, bottom, top);
+	value = processRawThroughCalibration(cal, false, value);
 	return finalise(value);
 }
 
@@ -475,26 +488,27 @@ void tr_render(BelaContext* context)
 	processMidiMessage();
 	triggerInToClock(context);
 
-	const float gnd = getGnd(); // TODO: probably the `gnd` value is not the same for input and output?
+	const CalibrationData inCal = getCalibrationInput();
 	// rescale analog inputs according to range
 	// TODO: don't do it if we are using this input for trig instead.
 	// TODO: don't do it if we are only using one or 0 frames
 	for(size_t idx = 0; idx < context->analogFrames * context->analogInChannels; ++idx)
-		context->analogIn[idx] = rescaleInput(gnd, context->analogIn[idx]);
+		context->analogIn[idx] = rescaleInput(inCal, context->analogIn[idx]);
 
+#ifndef TEST_MODE
 	// Button LEDs:
 	// First LED follows button
-#ifndef TEST_MODE
 	tri.buttonLedWrite(0, !tri.digitalRead(0));
-#endif // TEST_MODE
 	// Second LED displays a clipped version of the input.
 	// The clipping ensures that a small offset (e.g.: due to calibration or lack thereof)
 	// won't cause the LED to be dim the whole time.
+	// We don't use the calibrated input here, as we want the display to be independent
+	// of the input range
 	const float kButtonLedThreshold = 0.04;
-	float clippedIn = tri.analogRead() - gnd;
+	static_assert(inCal.points[1] == float(0.333333333)); // we assume points[1] represents gnd
+	float clippedIn = tri.analogRead() - inCal.values[1]; // positive voltages
 	if(clippedIn < kButtonLedThreshold)
 		clippedIn = 0;
-#ifndef TEST_MODE
 	tri.buttonLedWrite(1, clippedIn);
 #endif // TEST_MODE
 	
@@ -654,6 +668,7 @@ void tr_render(BelaContext* context)
 		else
 			assert(false);
 	}
+	const CalibrationData outCal = getCalibrationOutput();
 	if(kOutModeManualSample == gOutMode)
 	{
 		constexpr size_t kNumOutChannels = 2; // hardcode to give the compiler room for optimisations
@@ -665,13 +680,13 @@ void tr_render(BelaContext* context)
 			for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
 			{
 				size_t idx = n * kNumOutChannels + channel;
-				context->analogOut[idx] = rescaleOutput(channel, gnd, context->analogOut[idx]);
+				context->analogOut[idx] = rescaleOutput(channel, outCal, context->analogOut[idx]);
 			}
 		}
 	} else {
 		std::array<float, gManualAnOut.size()> anOutBuffer;
 		for(unsigned int c = 0; c < gManualAnOut.size(); ++c)
-			anOutBuffer[c] = rescaleOutput(c, gnd, gManualAnOut[c]);
+			anOutBuffer[c] = rescaleOutput(c, outCal, gManualAnOut[c]);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{
 			for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
@@ -694,7 +709,7 @@ void tr_render(BelaContext* context)
 		if(1 == gOverride.ch)
 			gBottomOutIsSize = true; // TODO: make it more generic
 		unsigned int c = gOverride.ch;
-		float value = rescaleOutput(c, gnd, gOverride.out);
+		float value = rescaleOutput(c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 			analogWriteOnce(context, n, c, value);
 		gBottomOutIsSize = bottomOutIsSizeStash;

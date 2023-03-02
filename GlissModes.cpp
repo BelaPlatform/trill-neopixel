@@ -39,6 +39,8 @@ int gSubMode = 0;
 bool gBottomOutIsSize;
 bool gJacksOnTop = false;
 Override gOverride;
+static bool gInUsesCalibration;
+static bool gOutUsesCalibration;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
@@ -2512,6 +2514,8 @@ Calibration_t getState() { return calibrationState; }
 
 private:
 Calibration_t calibrationState;
+CalibrationData calibrationIn;
+CalibrationData calibrationOut;
 typedef enum {
 	kFindingDacGnd,
 	kFindingAdcVals,
@@ -2544,11 +2548,21 @@ static constexpr float kIoTopV = 10;
 static constexpr float kIoGndV = 0;
 static constexpr float kIoBottomV = -5;
 
+void updateCalibrationData()
+{
+	calibrationIn = CalibrationData({
+		.values = {inBottom, inGnd, inTop},
+	});
+	calibrationOut = CalibrationData({
+		.values = {outBottom, outGnd, outTop},
+	});
+}
 public:
 void setup()
 {
 	count = 0;
 	calibrationState = kWaitToStart;
+	updateCalibrationData();
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
 	gOutMode = kOutModeManualBlock;
 }
@@ -2707,9 +2721,13 @@ void start(){
 	calibrationState = kNoInput;
 	adcAccu = 0;
 }
-float getGnd()
+const CalibrationData& getIn() const
 {
-	return outGnd;
+	return calibrationIn;
+}
+const CalibrationData& getOut() const
+{
+	return calibrationOut;
 }
 bool valid()
 {
@@ -2747,8 +2765,24 @@ float fromVolt(float Vo)
 }
 } gCalibrationProcedure;
 
-float getGnd(){
-	return gCalibrationProcedure.getGnd();
+static constexpr CalibrationData kNoCalibration = {
+	.values = {CalibrationData::points}, // passthrough
+};
+
+CalibrationData getCalibrationInput()
+{
+	if(gInUsesCalibration)
+		return gCalibrationProcedure.getIn();
+	else
+		return kNoCalibration;
+}
+
+CalibrationData getCalibrationOutput()
+{
+	if(gOutUsesCalibration)
+		return gCalibrationProcedure.getOut();
+	else
+		return kNoCalibration;
 }
 
 // crossfadeRgbChannel
@@ -2782,10 +2816,13 @@ public:
 	{}
 	bool setup(double ms){
 		gCalibrationProcedure.setup();
+		gOutMode = kOutModeManualBlock;
 		return true;
 	}
 	void render(BelaContext*) override
 	{
+		gOutUsesCalibration = false;
+		gInUsesCalibration = false;
 		LedSlider& slider = ledSliders.sliders[0];
 		bool hasTouch = slider.getNumTouches();
 		if(hasTouch && !hadTouch)
@@ -2896,6 +2933,9 @@ bool performanceMode_setup(double ms)
 
 void performanceMode_render(BelaContext* context)
 {
+	// these are set here but may be overridden by render() below
+	gOutUsesCalibration = true;
+	gInUsesCalibration = true;
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 		performanceModes[gNewMode]->render(context);
 }

@@ -1,3 +1,4 @@
+#include <array>
 constexpr size_t kNumPads = 26;
 constexpr size_t kNumLeds = 23;
 typedef enum {
@@ -25,6 +26,15 @@ struct ButtonView {
 	uint32_t pressCount;
 	static constexpr uint32_t kPressCountInvalid = -1;
 };
+
+struct CalibrationData {
+	static constexpr size_t kNumPoints = 3;
+	static constexpr std::array<float,kNumPoints> points = {{0, float(0.333333333), 1}};
+	std::array<float,kNumPoints> values;
+};
+CalibrationData getCalibrationInput();
+CalibrationData getCalibrationOutput();
+
 //#define TEST_MODE
 #ifdef TEST_MODE
 constexpr size_t kNumModes = 7;
