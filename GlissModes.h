@@ -32,8 +32,8 @@ struct CalibrationData {
 	static constexpr std::array<float,kNumPoints> points = {{0, float(0.333333333), 1}};
 	std::array<float,kNumPoints> values;
 };
-CalibrationData getCalibrationInput();
-CalibrationData getCalibrationOutput();
+CalibrationData const& getCalibrationInput();
+CalibrationData const& getCalibrationOutput();
 
 //#define TEST_MODE
 #ifdef TEST_MODE

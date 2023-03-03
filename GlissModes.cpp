@@ -2769,7 +2769,7 @@ static constexpr CalibrationData kNoCalibration = {
 	.values = {CalibrationData::points}, // passthrough
 };
 
-CalibrationData getCalibrationInput()
+CalibrationData const& getCalibrationInput()
 {
 	if(gInUsesCalibration)
 		return gCalibrationProcedure.getIn();
@@ -2777,7 +2777,7 @@ CalibrationData getCalibrationInput()
 		return kNoCalibration;
 }
 
-CalibrationData getCalibrationOutput()
+CalibrationData const& getCalibrationOutput()
 {
 	if(gOutUsesCalibration)
 		return gCalibrationProcedure.getOut();

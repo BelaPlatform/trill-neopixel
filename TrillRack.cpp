@@ -488,7 +488,7 @@ void tr_render(BelaContext* context)
 	processMidiMessage();
 	triggerInToClock(context);
 
-	const CalibrationData inCal = getCalibrationInput();
+	const CalibrationData& inCal = getCalibrationInput();
 	// rescale analog inputs according to range
 	// TODO: don't do it if we are using this input for trig instead.
 	// TODO: don't do it if we are only using one or 0 frames
@@ -668,7 +668,7 @@ void tr_render(BelaContext* context)
 		else
 			assert(false);
 	}
-	const CalibrationData outCal = getCalibrationOutput();
+	const CalibrationData& outCal = getCalibrationOutput();
 	if(kOutModeManualSample == gOutMode)
 	{
 		constexpr size_t kNumOutChannels = 2; // hardcode to give the compiler room for optimisations
