@@ -27,7 +27,7 @@ typedef struct
 	uint32_t offset;
 } PresetDesc_t;
 
-enum { kNumPresets  = 6 };
+enum { kNumPresets  = 7 };
 
 typedef enum {
 	kPresetInit_LoadDefault,

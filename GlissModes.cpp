@@ -2501,7 +2501,7 @@ static constexpr uint16_t toCode(float out)
 	return 4096.f * out;
 }
 
-class CalibrationProcedure {
+class CalibrationProcedure : public ParameterUpdateCapable {
 public:
 typedef enum {
 	kWaitToStart,
@@ -2513,9 +2513,20 @@ typedef enum {
 Calibration_t getState() { return calibrationState; }
 
 private:
+class CalibrationDataParameter : public CalibrationData, public Parameter {
+public:
+	CalibrationDataParameter(ParameterUpdateCapable* that) : that(that) {}
+	void set(const CalibrationData& cal) {
+		values = cal.values;
+		that->updated(*this);
+	}
+private:
+	ParameterUpdateCapable* that;
+};
 Calibration_t calibrationState;
-CalibrationData calibrationIn;
-CalibrationData calibrationOut;
+CalibrationDataParameter calibrationOut {this};
+CalibrationDataParameter calibrationIn {this};
+
 typedef enum {
 	kFindingDacGnd,
 	kFindingAdcVals,
@@ -2550,14 +2561,41 @@ static constexpr float kIoBottomV = -5;
 
 void updateCalibrationData()
 {
-	calibrationIn = CalibrationData({
-		.values = {inBottom, inGnd, inTop},
-	});
-	calibrationOut = CalibrationData({
-		.values = {outBottom, outGnd, outTop},
-	});
+	calibrationOut.values = {outBottom, outGnd, outTop};
+	calibrationIn.values = {inBottom, inGnd, inTop};
 }
 public:
+CalibrationProcedure() :
+	presetFieldData({
+		.calibrationOut = calibrationOut,
+		.calibrationIn = calibrationIn,
+	})
+{
+	PresetDesc_t presetDesc = {
+		.field = this,
+		.size = sizeof(PresetFieldData_t),
+		.defaulter = genericDefaulter2(CalibrationProcedure, calibrationOut, calibrationIn),
+		.loadCallback = genericLoadCallback2(CalibrationProcedure, calibrationOut, calibrationIn),
+	};
+	presetDescSet(5, &presetDesc);
+}
+void updated(Parameter& p)
+{
+	if(p.same(calibrationOut)) {
+		printf("CalibrationProcedure: updated calibration out %f %f %f\n\r", calibrationOut.values[0], calibrationOut.values[1], calibrationOut.values[2]);
+	}
+	else if (p.same(calibrationIn)) {
+		printf("CalibrationProcedure: updated calibration in %f %f %f\n\r", calibrationIn.values[0], calibrationIn.values[1], calibrationIn.values[2]);
+	}
+}
+void updatePreset() override
+{
+	UPDATE_PRESET_FIELD2(calibrationOut, calibrationIn);
+}
+struct PresetFieldData_t { // no "PACKED" because of misleading warning from gcc
+	CalibrationDataParameter calibrationOut;
+	CalibrationDataParameter calibrationIn;
+} presetFieldData;
 void setup()
 {
 	count = 0;
@@ -2688,6 +2726,7 @@ void process()
 							kIoBottomV, inBottom,
 							kIoGndV, inGnd,
 							kIoTopV, inTop);
+					updateCalibrationData();
 					break;
 			}
 		}
@@ -2894,7 +2933,7 @@ public:
 	}
 	void updatePreset() override
 	{
-		//TODO: here is where we write calibration results to storage
+		gCalibrationProcedure.updatePreset();
 	}
 } gCalibrationMode(kCalibrationColor);
 
@@ -4079,7 +4118,7 @@ public:
 							inRangeBottom, inRangeTop, inRangeEnum,
 								sizeScaleCoeff, jacksOnTop, newMode),
 		};
-		presetDescSet(5, &presetDesc);
+		presetDescSet(6, &presetDesc);
 	}
 	ParameterEnumT<kCvRangeNum> outRangeEnum {this, 0};
 	ParameterContinuous outRangeBottom {this, 0.2};
