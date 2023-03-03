@@ -35,6 +35,7 @@ void presetDescSet(size_t idx, PresetDesc_t* desc)
 		presetDescs[idx] = *desc;
 	else {
 		printf("presetDescSet %d out of %d\n\r", idx, kNumPresets);
+		assert(0);
 	}
 }
 
