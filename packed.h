@@ -22,8 +22,7 @@
  * SOFTWARE.
  *
  */
-
-
+#pragma once
 
 #ifdef __GNUC__
     #define PACKED_STRUCT(...) struct __attribute__((packed)) __VA_ARGS__
