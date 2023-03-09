@@ -714,4 +714,12 @@ void tr_render(BelaContext* context)
 			analogWriteOnce(context, n, c, value);
 		gBottomOutIsSize = bottomOutIsSizeStash;
 	}
+#if 0 // send out a quiet tone on one channel and loop back the input on the other
+	for(unsigned int n = 0; n < context->analogFrames; ++n)
+	{
+		analogWriteOnce(context, n, 0, analogRead(context, n, 0));
+		float osc = (n % 32 > 16);
+		analogWriteOnce(context, n , 1, (osc + 2048) / 4096.f);
+	}
+#endif
 }
