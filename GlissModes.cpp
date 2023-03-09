@@ -2612,6 +2612,7 @@ void process()
 	switch (calibrationState)
 	{
 		case kWaitToStart:
+			count = 0;
 			break;
 		case kNoInput:
 			adcAccu += anIn;
@@ -2669,7 +2670,7 @@ void process()
 						break;
 					}
 					if (kConnectedStepCount == count) {
-						float average = adcAccu - (count - kWaitAfterSetting);
+						float average = adcAccu / (count - kWaitAfterSetting);
 						float diff = average - inGnd;
 						diff = std::abs(diff);
 						if(diff < minDiff)
