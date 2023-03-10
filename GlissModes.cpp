@@ -2733,8 +2733,9 @@ void process()
 		}
 			break;
 		case kDone:
-			// loop through three states showing the -5V, 0V, 10V output range of the module
 		{
+#if 0
+			// loop through three states showing the -5V, 0V, 10V output range of the module
 			uint16_t bottomCode = toCode(outBottom);
 			uint16_t topCode = toCode(outTop);
 			uint16_t gndCode = toCode(outGnd);
@@ -2751,6 +2752,9 @@ void process()
 					outCode = gndCode;
 			}
 			count++;
+#else
+			gOverride.started = 0;
+#endif
 		}
 			break;
 	}
@@ -2859,8 +2863,9 @@ public:
 		gOutMode = kOutModeManualBlock;
 		return true;
 	}
-	void render(BelaContext*) override
+	void render(BelaContext* context) override
 	{
+		// these may be overridden below if calibration is done
 		gOutUsesCalibration = false;
 		gInUsesCalibration = false;
 		LedSlider& slider = ledSliders.sliders[0];
@@ -2900,10 +2905,30 @@ public:
 			animation = kMorph;
 			break;
 		case CalibrationProcedure::kDone:
+		{
+			// override is disabled here (CalibrationProcedure is not sending out anything),
+			// so we enable calibration and send out arbitrary values
+			gOutUsesCalibration = true;
+			gInUsesCalibration = true;
+			static size_t count = 0;
+			static int state = 0;
+			count++;
+			if((count % 300) == 0)
+				printf("%.4f\n\r", analogRead(context, 0, 0));
+			if(3000 == count)
+			{
+				count = 0;
+				state++;
+				if(state == 4)
+					state = 0;
+			}
+			float out = state * 0.333333;
+			gManualAnOut[0] = out;
 			color = kDoneColor;
 			animation = kStatic;
-			begin = fromCode(gCalibrationProcedure.getCode()) * (np.getNumPixels() - 1);
+			begin = out * (np.getNumPixels() - 1);
 			end = begin + 1;
+		}
 			break;
 		}
 		float gain;
