@@ -431,14 +431,15 @@ static float finalise(float value)
 #endif
 }
 
-static float rescaleOutput(size_t channel, const CalibrationData& cal, float value)
+static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationData& cal, float value)
 {
 	float gnd = cal.values[1];
 	if(kNoOutput == value)
 		return finalise(gnd);
-	float bottom;
-	float top;
-	getBottomTopRange(gOutRange, false, gnd, bottom, top);
+	float bottom = 0;
+	float top = 1;
+	if(!ignoreRange)
+		getBottomTopRange(gOutRange, false, cal.points[1], bottom, top);
 	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 
@@ -680,13 +681,13 @@ void tr_render(BelaContext* context)
 			for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
 			{
 				size_t idx = n * kNumOutChannels + channel;
-				context->analogOut[idx] = rescaleOutput(channel, outCal, context->analogOut[idx]);
+				context->analogOut[idx] = rescaleOutput(false, channel, outCal, context->analogOut[idx]);
 			}
 		}
 	} else {
 		std::array<float, gManualAnOut.size()> anOutBuffer;
 		for(unsigned int c = 0; c < gManualAnOut.size(); ++c)
-			anOutBuffer[c] = rescaleOutput(c, outCal, gManualAnOut[c]);
+			anOutBuffer[c] = rescaleOutput(false, c, outCal, gManualAnOut[c]);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{
 			for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
@@ -709,7 +710,7 @@ void tr_render(BelaContext* context)
 		if(1 == gOverride.ch)
 			gBottomOutIsSize = true; // TODO: make it more generic
 		unsigned int c = gOverride.ch;
-		float value = rescaleOutput(c, outCal, gOverride.out);
+		float value = rescaleOutput(true, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 			analogWriteOnce(context, n, c, value);
 		gBottomOutIsSize = bottomOutIsSizeStash;
