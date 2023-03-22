@@ -2760,6 +2760,7 @@ void process()
 	}
 	gOverride.out = fromCode(outCode);
 	gOverride.ch = 0;
+	gOverride.bypassOutRange = true;
 }
 void start(){
 	calibrationState = kNoInput;
@@ -4103,6 +4104,7 @@ public:
 			gOverride.started = HAL_GetTick();
 			gOverride.out = globalSlider.compoundTouchSize();
 			gOverride.ch = 1;
+			gOverride.bypassOutRange = false;
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";

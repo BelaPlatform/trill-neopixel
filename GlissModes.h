@@ -58,4 +58,5 @@ extern struct Override {
 	uint32_t started;
 	size_t ch;
 	float out;
+	bool bypassOutRange;
 } gOverride;

@@ -710,7 +710,7 @@ void tr_render(BelaContext* context)
 		if(1 == gOverride.ch)
 			gBottomOutIsSize = true; // TODO: make it more generic
 		unsigned int c = gOverride.ch;
-		float value = rescaleOutput(true, c, outCal, gOverride.out);
+		float value = rescaleOutput(gOverride.bypassOutRange, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 			analogWriteOnce(context, n, c, value);
 		gBottomOutIsSize = bottomOutIsSizeStash;
