@@ -369,16 +369,18 @@ IoRange gOutRange = {
 	.top = 1,
 };
 
-static inline void getBottomTopRange(int range, bool input, float gnd, float& bottom, float& top)
+static inline void getBottomTopRange(bool input, float& bottom, float& top)
 {
-	switch (range)
+	float gnd = CalibrationData::points[1];
+	const IoRange& range = input ? gInRange : gOutRange;
+	switch (range.range)
 	{
 		case kCvRangeFull:
 			bottom = 0;
 			top = 1;
 			break;
 		case kCvRangeBipolar:
-			bottom = 0; // -5V TODO: fix
+			bottom = 0;
 			top = gnd * 2.f;
 			break;
 		case kCvRangePositive5:
@@ -391,8 +393,8 @@ static inline void getBottomTopRange(int range, bool input, float gnd, float& bo
 			break;
 		default:
 		case kCvRangeCustom:
-			bottom = input ? gInRange.bottom : gOutRange.bottom;
-			top = input ? gInRange.top : gOutRange.top;
+			bottom = range.bottom;
+			top = range.top;
 			break;
 	}
 }
@@ -420,7 +422,7 @@ static float rescaleInput(const CalibrationData& inCal, float value)
 	float bottom;
 	float top;
 	value = processRawThroughCalibration(inCal, true, value);
-	getBottomTopRange(gInRange.range, true, 0.3333333f, bottom, top);
+	getBottomTopRange(true, bottom, top);
 	return mapAndConstrain(value, bottom, top, 0, 1);
 }
 
@@ -442,7 +444,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float bottom = 0;
 	float top = 1;
 	if(!ignoreRange)
-		getBottomTopRange(gOutRange.range, false, cal.points[1], bottom, top);
+		getBottomTopRange(false, bottom, top);
 	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 
