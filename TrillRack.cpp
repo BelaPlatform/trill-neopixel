@@ -371,7 +371,7 @@ IoRange gOutRange = {
 
 static inline void getBottomTopRange(bool input, float& bottom, float& top)
 {
-	float gnd = CalibrationData::points[1];
+	float gnd = CalibrationData::kGnd;
 	const IoRange& range = input ? gInRange : gOutRange;
 	switch (range.range)
 	{
@@ -511,7 +511,7 @@ void tr_render(BelaContext* context)
 	// We don't use the calibrated input here, as we want the display to be independent
 	// of the input range
 	const float kButtonLedThreshold = 0.04;
-	static_assert(inCal.points[1] == float(0.333333333)); // we assume points[1] represents gnd
+	static_assert(inCal.points[1] == CalibrationData::kGnd); // we assume points[1] represents gnd
 	float clippedIn = tri.analogRead() - inCal.values[1]; // positive voltages
 	if(clippedIn < kButtonLedThreshold)
 		clippedIn = 0;

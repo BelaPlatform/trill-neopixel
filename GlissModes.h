@@ -36,8 +36,9 @@ struct ButtonView {
 };
 
 struct CalibrationData {
+	static constexpr float kGnd = 0.3333333333f;
 	static constexpr size_t kNumPoints = 3;
-	static constexpr std::array<float,kNumPoints> points = {{0, float(0.333333333), 1}};
+	static constexpr std::array<float,kNumPoints> points = {{0, kGnd, 1}};
 	std::array<float,kNumPoints> values;
 };
 CalibrationData const& getCalibrationInput();
