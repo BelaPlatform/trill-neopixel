@@ -362,18 +362,21 @@ IoRange gInRange = {
 	.range = kCvRangePositive10,
 	.bottom = 0,
 	.top = 1,
+	.enabled = true,
 };
 IoRange gOutRange = {
 	.range = kCvRangePositive10,
 	.bottom = 0,
 	.top = 1,
+	.enabled = true,
 };
 
 static inline void getBottomTopRange(bool input, float& bottom, float& top)
 {
 	float gnd = CalibrationData::kGnd;
 	const IoRange& ioRange = input ? gInRange : gOutRange;
-	switch (ioRange.range)
+	CvRange range = ioRange.enabled ? ioRange.range : kCvRangeFull;
+	switch (range)
 	{
 		case kCvRangeFull:
 			bottom = 0;

@@ -18,8 +18,6 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 extern int gAlt;
 extern TrillRackInterface tri;
 extern const unsigned int kNumLeds;
-extern IoRange gInRange;
-extern IoRange gOutRange;
 extern std::vector<unsigned int> padsToOrderMap;
 extern NeoPixelT<kNumLeds> np;
 extern Trill trill;
@@ -37,6 +35,7 @@ bool gJacksOnTop = false;
 Override gOverride;
 static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
+static bool gInUsesRange;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
@@ -1518,6 +1517,12 @@ static inline float vToFreq(float volts, float baseFreq)
 	return powf(2, semitones / 12.f) * baseFreq;
 }
 
+static inline float inToV(float in)
+{
+	assert(false == gInUsesRange); // would be meaningless otherwise
+	return in * 15.f - 5.f;
+}
+
 template <typename T>
 static float interpolatedRead(const T& table, float idx)
 {
@@ -1565,6 +1570,7 @@ public:
 	}
 	void render(BelaContext* context) override
 	{
+		gInUsesRange = true; // may be overridden below depending on mode
 		bool hasTouch = ledSliders.sliders[0].getNumTouches();
 		if(kInputModeTrigger == inputMode || hasTouch || hadTouch)
 		{
@@ -1593,8 +1599,8 @@ public:
 		float vizOuts[2];
 		if(kInputModeCv == inputMode)
 		{
-			//TODO: disable input scaling, use it as CV offset for tuning
-			float volts = analogRead(context, 0, 0) * 15.f - 5.f;
+			gInUsesRange = false; // we need actual voltage here
+			float volts = inToV(analogRead(context, 0, 0));
 			float baseFreq = 50;
 			float freq = vToFreq(volts, baseFreq);
 			for(size_t n = 0; n < context->analogFrames; ++n)
@@ -1980,6 +1986,7 @@ public:
 	}
 	void render(BelaContext* context) override
 	{
+		gInUsesRange = true; // may be overridden below depending on mode
 		float clockPeriod;
 		float sampleRate = context->analogSampleRate;
 		switch (inputMode)
@@ -1996,8 +2003,8 @@ public:
 			break;
 		case kInputModeCv:
 		{
-			// TODO: fix CV in: disable global rescale
-			float volts = analogRead(context, 0, 0) * 15.f - 5.f;
+			gInUsesRange = false; // we want actual volts here
+			float volts = inToV(analogRead(context, 0, 0));
 			float freq = vToFreq(volts, 3);
 			clockPeriod = sampleRate / freq;
 		}
@@ -2865,6 +2872,7 @@ public:
 		// these may be overridden below if calibration is done
 		gOutUsesCalibration = false;
 		gInUsesCalibration = false;
+		gInUsesRange = false;
 		LedSlider& slider = ledSliders.sliders[0];
 		bool hasTouch = slider.getNumTouches();
 		if(hasTouch && !hadTouch)
@@ -2907,6 +2915,7 @@ public:
 			// so we enable calibration and send out arbitrary values
 			gOutUsesCalibration = true;
 			gInUsesCalibration = true;
+			gInUsesRange = false; // still disabled: want to get actual volts
 			static size_t count = 0;
 			static int state = 0;
 			count++;
@@ -2998,8 +3007,16 @@ void performanceMode_render(BelaContext* context)
 	// these are set here but may be overridden by render() below
 	gOutUsesCalibration = true;
 	gInUsesCalibration = true;
+	gInUsesRange = true;
+	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 		performanceModes[gNewMode]->render(context);
+	// make the final state visible to the wrapper
+	// note: this will only take effect from the next time this function is called,
+	// because obviously input range processing has already been done  by time this
+	// function is called. This is not an issue normally, as long as the processing
+	// callbacks know about that.
+	gInRange.enabled = gInUsesRange;
 }
 
 class ButtonAnimation {

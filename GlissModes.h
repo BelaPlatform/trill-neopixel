@@ -17,9 +17,12 @@ typedef enum {
 	kCvRangeNum,
 } CvRange;
 struct IoRange {
+	// these are changed explicitly via global settings and are stored as preset
 	CvRange range;
 	float bottom;
 	float top;
+	// this can be changed dynamically by a mode and is not stored
+	bool enabled;
 };
 extern IoRange gInRange;
 extern IoRange gOutRange;
