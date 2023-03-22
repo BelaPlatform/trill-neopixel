@@ -18,12 +18,8 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 extern int gAlt;
 extern TrillRackInterface tri;
 extern const unsigned int kNumLeds;
-extern int gOutRange;
-extern float gOutRangeBottom;
-extern float gOutRangeTop;
-extern int gInRange;
-extern float gInRangeBottom;
-extern float gInRangeTop;
+extern IoRange gInRange;
+extern IoRange gOutRange;
 extern std::vector<unsigned int> padsToOrderMap;
 extern NeoPixelT<kNumLeds> np;
 extern Trill trill;
@@ -4072,25 +4068,25 @@ public:
 		bool verbose = false;
 		char const* str = "+++";
 		if(p.same(outRangeEnum)) {
-			gOutRange = outRangeEnum;
+			gOutRange.range = CvRange(outRangeEnum.get());
 			str = "outRangeEnum";
 		}
 		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
 			outRangeEnum.set(kCvRangeCustom);
-			gOutRange = outRangeEnum;
-			gOutRangeBottom = outRangeBottom;
-			gOutRangeTop = outRangeTop;
+			gOutRange.range = CvRange(outRangeEnum.get());
+			gOutRange.bottom = outRangeBottom;
+			gOutRange.top = outRangeTop;
 			str = "outRangeTop/Bottom";
 		}
 		else if(p.same(inRangeEnum)) {
 			str = "inRangeEnum";
-			gInRange = inRangeEnum;
+			gInRange.range = CvRange(inRangeEnum.get());
 		}
 		else if(p.same(inRangeTop) || p.same(inRangeBottom)) {
 			inRangeEnum.set(kCvRangeCustom);
-			gInRange = inRangeEnum;
-			gInRangeBottom = inRangeBottom;
-			gInRangeTop = inRangeTop;
+			gInRange.range = CvRange(inRangeEnum.get());
+			gInRange.bottom = inRangeBottom;
+			gInRange.top = inRangeTop;
 			str = "inRangeTop/Bottom";
 		} else if(p.same(jacksOnTop)) {
 			gJacksOnTop = jacksOnTop;
@@ -4148,10 +4144,10 @@ public:
 		};
 		presetDescSet(6, &presetDesc);
 	}
-	ParameterEnumT<kCvRangeNum> outRangeEnum {this, 0};
+	ParameterEnumT<kCvRangeNum> outRangeEnum {this, kCvRangePositive10};
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
-	ParameterEnumT<kCvRangeNum> inRangeEnum {this, 0};
+	ParameterEnumT<kCvRangeNum> inRangeEnum {this, kCvRangePositive10};
 	ParameterContinuous inRangeBottom {this, 0.2};
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};

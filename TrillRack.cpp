@@ -358,13 +358,16 @@ void tr_process(BelaContext* ptr)
 	tri.process(ptr);
 }
 
-// C++ doesn't allow myenumvar++, so we need this as an int
-int gOutRange = kCvRangePositive10;
-float gOutRangeTop = 1;
-float gOutRangeBottom = 0;
-int gInRange = kCvRangePositive10;
-float gInRangeTop = 1;
-float gInRangeBottom = 0;
+IoRange gInRange = {
+	.range = kCvRangePositive10,
+	.bottom = 0,
+	.top = 1,
+};
+IoRange gOutRange = {
+	.range = kCvRangePositive10,
+	.bottom = 0,
+	.top = 1,
+};
 
 static inline void getBottomTopRange(int range, bool input, float gnd, float& bottom, float& top)
 {
@@ -388,8 +391,8 @@ static inline void getBottomTopRange(int range, bool input, float gnd, float& bo
 			break;
 		default:
 		case kCvRangeCustom:
-			bottom = input ? gInRangeBottom : gOutRangeBottom;
-			top = input ? gInRangeTop : gOutRangeTop;
+			bottom = input ? gInRange.bottom : gOutRange.bottom;
+			top = input ? gInRange.top : gOutRange.top;
 			break;
 	}
 }
@@ -417,7 +420,7 @@ static float rescaleInput(const CalibrationData& inCal, float value)
 	float bottom;
 	float top;
 	value = processRawThroughCalibration(inCal, true, value);
-	getBottomTopRange(gInRange, true, 0.3333333f, bottom, top);
+	getBottomTopRange(gInRange.range, true, 0.3333333f, bottom, top);
 	return mapAndConstrain(value, bottom, top, 0, 1);
 }
 
@@ -439,7 +442,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float bottom = 0;
 	float top = 1;
 	if(!ignoreRange)
-		getBottomTopRange(gOutRange, false, cal.points[1], bottom, top);
+		getBottomTopRange(gOutRange.range, false, cal.points[1], bottom, top);
 	if(gBottomOutIsSize && 1 == channel) // if this is a size
 		bottom = gnd; // make it always positive
 

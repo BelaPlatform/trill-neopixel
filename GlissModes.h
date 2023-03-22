@@ -16,6 +16,14 @@ typedef enum {
 	kCvRangeCustom,
 	kCvRangeNum,
 } CvRange;
+struct IoRange {
+	CvRange range;
+	float bottom;
+	float top;
+};
+extern IoRange gInRange;
+extern IoRange gOutRange;
+
 const float kNoOutput = -12345.6;
 
 struct ButtonView {
