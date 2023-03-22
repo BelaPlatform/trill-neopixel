@@ -870,11 +870,11 @@ public:
 	virtual uint8_t getMax() const = 0;
 };
 
-template <uint8_t T>
+template <uint8_t N, typename type = uint8_t>
 class ParameterEnumT : public ParameterEnum
 {
 public:
-	ParameterEnumT<T>(ParameterUpdateCapable* that, uint8_t value = 0):
+	ParameterEnumT<N,type>(ParameterUpdateCapable* that, uint8_t value = 0):
 		that(that), value(value) {}
 
 	void set(unsigned int newValue) override
@@ -885,7 +885,7 @@ public:
 	void next() override
 	{
 		value++;
-		if(value >= T)
+		if(value >= N)
 			value = 0;
 		that->updated(*this);
 	}
@@ -895,9 +895,9 @@ public:
 	}
 	uint8_t getMax() const override
 	{
-		return T;
+		return N;
 	}
-	operator uint8_t() { return value; }
+	operator type() { return type(value); }
 private:
 	ParameterUpdateCapable* that;
 	uint8_t value;
@@ -4080,11 +4080,11 @@ public:
 		}
 		else if(p.same(inRangeEnum)) {
 			str = "inRangeEnum";
-			gInRange.range = CvRange(inRangeEnum.get());
+			gInRange.range = inRangeEnum;
 		}
 		else if(p.same(inRangeTop) || p.same(inRangeBottom)) {
 			inRangeEnum.set(kCvRangeCustom);
-			gInRange.range = CvRange(inRangeEnum.get());
+			gInRange.range = inRangeEnum;
 			gInRange.bottom = inRangeBottom;
 			gInRange.top = inRangeTop;
 			str = "inRangeTop/Bottom";
@@ -4144,10 +4144,10 @@ public:
 		};
 		presetDescSet(6, &presetDesc);
 	}
-	ParameterEnumT<kCvRangeNum> outRangeEnum {this, kCvRangePositive10};
+	ParameterEnumT<kCvRangeNum,CvRange> outRangeEnum {this, kCvRangePositive10};
 	ParameterContinuous outRangeBottom {this, 0.2};
 	ParameterContinuous outRangeTop {this, 0.8};
-	ParameterEnumT<kCvRangeNum> inRangeEnum {this, kCvRangePositive10};
+	ParameterEnumT<kCvRangeNum,CvRange> inRangeEnum {this, kCvRangePositive10};
 	ParameterContinuous inRangeBottom {this, 0.2};
 	ParameterContinuous inRangeTop {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
