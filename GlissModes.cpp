@@ -2940,7 +2940,7 @@ public:
 			gInUsesCalibration = true;
 			gInUsesRange = false; // still disabled: want to get actual volts
 			gOutUsesRange = false; // still disabled: want to get actual volts
-			static constexpr std::array<float,4> kTestVoltages = {-5, 0, 5, 10};
+			static constexpr std::array<float,4> kTestVoltages = {0, 5, 10, -5};
 			demoModeCount++;
 			if((demoModeCount % 300) == 0)
 				printf("%.4f->%.3fV\n\r", analogRead(context, 0, 0), inToV(analogRead(context, 0, 0)));
