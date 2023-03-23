@@ -1518,12 +1518,17 @@ static inline float vToFreq(float volts, float baseFreq)
 	return powf(2, semitones / 12.f) * baseFreq;
 }
 
+static inline float normToVfs(float in)
+{
+	return in * 15.f - 5.f;
+}
+
 static inline float inToV(float in)
 {
 	// checks to ensure we make sense
 	assert(true == gInUsesCalibration);
 	assert(false == gInUsesRange); // would be meaningless otherwise
-	return in * 15.f - 5.f;
+	return normToVfs(in);
 }
 
 static inline float vToOut(float v)
@@ -2951,7 +2956,11 @@ public:
 				if(demoModeState == kTestVoltages.size())
 					demoModeState = 0;
 			}
-			float out = vToOut(kTestVoltages[demoModeState]);
+			LedSlider& sl = ledSliders.sliders[0];
+			float v = kTestVoltages[demoModeState];
+			if(sl.getNumTouches()) // draw voltage quantised to 1V
+				v = round(normToVfs(sl.compoundTouchLocation()));
+			float out = vToOut(v);
 			gManualAnOut[0] = out;
 			color = kDoneColor;
 			animation = kStatic;
