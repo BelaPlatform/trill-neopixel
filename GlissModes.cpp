@@ -2705,7 +2705,6 @@ void process()
 					break;
 				case kFindingAdcVals:
 				{
-//					float adcGnd = adcAccu;
 					if(0 == findingAdcIdx)
 						outCode = toCode(outBottom);
 					else if (1 == findingAdcIdx)
