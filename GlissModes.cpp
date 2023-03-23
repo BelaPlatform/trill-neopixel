@@ -2573,7 +2573,7 @@ static constexpr float kIoTopV = 10;
 static constexpr float kIoGndV = 0;
 static constexpr float kIoBottomV = -5;
 
-void updateCalibrationData()
+void publishCalibrationData()
 {
 	calibrationOut.values = {outBottom, outGnd, outTop};
 	calibrationIn.values = {inBottom, inGnd, inTop};
@@ -2585,6 +2585,7 @@ CalibrationProcedure() :
 		.calibrationIn = calibrationIn,
 	})
 {
+	publishCalibrationData(); // load factory settings
 	PresetDesc_t presetDesc = {
 		.field = this,
 		.size = sizeof(PresetFieldData_t),
@@ -2614,7 +2615,6 @@ void setup()
 {
 	count = 0;
 	calibrationState = kWaitToStart;
-	updateCalibrationData();
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
 	gOutMode = kOutModeManualBlock;
 }
@@ -2741,7 +2741,7 @@ void process()
 							kIoBottomV, inBottom,
 							kIoGndV, inGnd,
 							kIoTopV, inTop);
-					updateCalibrationData();
+					publishCalibrationData();
 					break;
 			}
 		}
