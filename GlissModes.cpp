@@ -2877,6 +2877,13 @@ class CalibrationMode : public PerformanceMode {
 	};
 	rgb_t baseColor;
 	uint32_t startTime;
+	size_t demoModeCount;
+	size_t demoModeState;
+	void resetDemoMode()
+	{
+		demoModeCount = 0;
+		demoModeState = 0;
+	}
 public:
 	CalibrationMode(const rgb_t& color) :
 		baseColor(color),
@@ -2885,6 +2892,7 @@ public:
 	bool setup(double ms){
 		gCalibrationProcedure.setup();
 		gOutMode = kOutModeManualBlock;
+		resetDemoMode();
 		return true;
 	}
 	void render(BelaContext* context) override
@@ -2898,6 +2906,7 @@ public:
 		if(performanceBtn.offset)
 		{
 			gCalibrationProcedure.toggle();
+			resetDemoMode();
 		}
 		gCalibrationProcedure.process();
 
@@ -2931,20 +2940,18 @@ public:
 			gInUsesCalibration = true;
 			gInUsesRange = false; // still disabled: want to get actual volts
 			gOutUsesRange = false; // still disabled: want to get actual volts
-			static size_t count = 0;
-			static size_t state = 0;
 			static constexpr std::array<float,4> kTestVoltages = {-5, 0, 5, 10};
-			count++;
-			if((count % 300) == 0)
+			demoModeCount++;
+			if((demoModeCount % 300) == 0)
 				printf("%.4f->%.3fV\n\r", analogRead(context, 0, 0), inToV(analogRead(context, 0, 0)));
-			if(3000 == count)
+			if(3000 == demoModeCount)
 			{
-				count = 0;
-				state++;
-				if(state == kTestVoltages.size())
-					state = 0;
+				demoModeCount = 0;
+				demoModeState++;
+				if(demoModeState == kTestVoltages.size())
+					demoModeState = 0;
 			}
-			float out = vToOut(kTestVoltages[state]);
+			float out = vToOut(kTestVoltages[demoModeState]);
 			gManualAnOut[0] = out;
 			color = kDoneColor;
 			animation = kStatic;
