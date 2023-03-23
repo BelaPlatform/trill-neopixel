@@ -2626,6 +2626,7 @@ void process()
 	switch (calibrationState)
 	{
 		case kWaitToStart:
+			gOverride.started = 0;
 			count = 0;
 			break;
 		case kNoInput:
@@ -2905,10 +2906,6 @@ public:
 		switch(calibrationState)
 		{
 		default:
-		case CalibrationProcedure::kWaitToStart:
-			color = {0, 0, 120};
-			animation = kBlink;
-			break;
 		case CalibrationProcedure::kNoInput:
 			color = {0, 0, 120};
 			animation = kMorph;
@@ -2922,6 +2919,7 @@ public:
 			animation = kMorph;
 			break;
 		case CalibrationProcedure::kDone:
+		case CalibrationProcedure::kWaitToStart:
 		{
 			// override is disabled here (CalibrationProcedure is not sending out anything),
 			// so we enable calibration and send out fixed test voltages
