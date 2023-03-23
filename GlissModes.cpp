@@ -36,6 +36,7 @@ Override gOverride;
 static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
 static bool gInUsesRange;
+static bool gOutUsesRange;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
@@ -1519,8 +1520,18 @@ static inline float vToFreq(float volts, float baseFreq)
 
 static inline float inToV(float in)
 {
+	// checks to ensure we make sense
+	assert(true == gInUsesCalibration);
 	assert(false == gInUsesRange); // would be meaningless otherwise
 	return in * 15.f - 5.f;
+}
+
+static inline float vToOut(float v)
+{
+	// checks to ensure we make sense
+	assert(true == gOutUsesCalibration);
+	assert(false == gOutUsesRange);
+	return (v + 5.f) / 15.f;
 }
 
 template <typename T>
@@ -2873,6 +2884,7 @@ public:
 		gOutUsesCalibration = false;
 		gInUsesCalibration = false;
 		gInUsesRange = false;
+		gOutUsesRange = false;
 		LedSlider& slider = ledSliders.sliders[0];
 		bool hasTouch = slider.getNumTouches();
 		if(hasTouch && !hadTouch)
@@ -2912,23 +2924,25 @@ public:
 		case CalibrationProcedure::kDone:
 		{
 			// override is disabled here (CalibrationProcedure is not sending out anything),
-			// so we enable calibration and send out arbitrary values
+			// so we enable calibration and send out fixed test voltages
 			gOutUsesCalibration = true;
 			gInUsesCalibration = true;
 			gInUsesRange = false; // still disabled: want to get actual volts
+			gOutUsesRange = false; // still disabled: want to get actual volts
 			static size_t count = 0;
-			static int state = 0;
+			static size_t state = 0;
+			static constexpr std::array<float,4> kTestVoltages = {-5, 0, 5, 10};
 			count++;
 			if((count % 300) == 0)
-				printf("%.4f\n\r", analogRead(context, 0, 0));
+				printf("%.4f->%.3fV\n\r", analogRead(context, 0, 0), inToV(analogRead(context, 0, 0)));
 			if(3000 == count)
 			{
 				count = 0;
 				state++;
-				if(state == 4)
+				if(state == kTestVoltages.size())
 					state = 0;
 			}
-			float out = state * 0.333333;
+			float out = vToOut(kTestVoltages[state]);
 			gManualAnOut[0] = out;
 			color = kDoneColor;
 			animation = kStatic;
@@ -3008,10 +3022,12 @@ void performanceMode_render(BelaContext* context)
 	gOutUsesCalibration = true;
 	gInUsesCalibration = true;
 	gInUsesRange = true;
+	gOutUsesRange = true;
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 		performanceModes[gNewMode]->render(context);
-	// make the final state visible to the wrapper
+	// make the final states visible to the wrapper
+	gOutRange.enabled = gOutUsesRange;
 	// note: this will only take effect from the next time this function is called,
 	// because obviously input range processing has already been done  by time this
 	// function is called. This is not an issue normally, as long as the processing
