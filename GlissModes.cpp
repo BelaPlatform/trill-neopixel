@@ -2781,6 +2781,16 @@ void start(){
 	calibrationState = kNoInput;
 	adcAccu = 0;
 }
+void stop(){
+	calibrationState = kWaitToStart;
+}
+void toggle(){
+	if(calibrationState == kWaitToStart || calibrationState == kDone)
+		start();
+	else
+		stop();
+}
+
 const CalibrationData& getIn() const
 {
 	return calibrationIn;
@@ -2868,7 +2878,6 @@ class CalibrationMode : public PerformanceMode {
 	};
 	rgb_t baseColor;
 	uint32_t startTime;
-	bool hadTouch = false;
 public:
 	CalibrationMode(const rgb_t& color) :
 		baseColor(color),
@@ -2886,15 +2895,11 @@ public:
 		gInUsesCalibration = false;
 		gInUsesRange = false;
 		gOutUsesRange = false;
-		LedSlider& slider = ledSliders.sliders[0];
-		bool hasTouch = slider.getNumTouches();
-		if(hasTouch && !hadTouch)
+		// wait for button press to start or stop calibration
+		if(performanceBtn.offset)
 		{
-			if(CalibrationProcedure::kWaitToStart == gCalibrationProcedure.getState())
-				gCalibrationProcedure.start();
+			gCalibrationProcedure.toggle();
 		}
-		hadTouch = hasTouch;
-
 		gCalibrationProcedure.process();
 
 		Animation animation;
