@@ -814,7 +814,7 @@ public:
 		{
 			if(hasTouch[n] != hadTouch[n]) //state change
 			{
-				printf("[%d] hasTouch: %d, hadTouch: %d\n\r", n, hasTouch[n], hadTouch[n]);
+//				printf("[%d] hasTouch: %d, hadTouch: %d\n\r", n, hasTouch[n], hadTouch[n]);
 				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording (and enable)
 					rs[n].startRecording();
 				} else if(0 == hasTouch[n]) { // going to 0 touches: start playing back (unless disabled)
