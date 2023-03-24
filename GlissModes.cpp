@@ -1649,8 +1649,16 @@ public:
 	void render(BelaContext* context) override
 	{
 		gInUsesRange = true; // may be overridden below depending on mode
-		bool hasTouch = ledSliders.sliders[0].getNumTouches();
-		if(kInputModeTrigger == inputMode || hasTouch || hadTouch)
+		std::array<bool,2> hasTouch;
+		bool shouldProcessGestureRecorder = false;
+		for(unsigned int n = 0; n < hasTouch.size() && n < ledSliders.sliders.size(); ++n) {
+				hasTouch[n] = ledSliders.sliders[n].getNumTouches();
+				if(hasTouch[n] || hadTouch[n])
+					shouldProcessGestureRecorder = true;
+		};
+		if(1 == ledSliders.sliders.size())
+			hasTouch[1] = hasTouch[0];
+		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
 			if(split)
 				gestureRecorderSplit_loop(retrigger);
@@ -1662,18 +1670,22 @@ public:
 			gOutMode = kOutModeFollowLeds;
 		} else {
 			gOutMode = kOutModeManualSample;
-			if((hadTouch && !hasTouch) || inputModeShouldUpdateTable){
-				updateTable();
-				inputModeShouldUpdateTable = false;
+			for(unsigned int n = 0; n < hasTouch.size(); ++n)
+			{
+				if((hadTouch[n] && !hasTouch[n]) || inputModeShouldUpdateTable){
+					updateTable(n);
+					inputModeShouldUpdateTable = false;
+				}
+				else
+					processTable(context, n);
 			}
-			else
-				processTable(context);
 		}
 		hadTouch = hasTouch;
 	}
 
-	void processTable(BelaContext* context)
+	void processTable(BelaContext* context, unsigned int c)
 	{
+		assert(c < context->analogOutChannels && c < tables.size());
 		float vizOuts[2];
 		if(kInputModeCv == inputMode)
 		{
@@ -1683,20 +1695,16 @@ public:
 			float freq = vToFreq(volts, baseFreq);
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
-				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
-				{
-					float idx = map(osc.process(freq / context->analogSampleRate), -1, 1, 0, 1);
+					float idx = map(oscs[c].process(freq / context->analogSampleRate), -1, 1, 0, 1);
 					float value = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
 						vizOuts[c] = value;
-				}
 			}
 		} else if (kInputModePhasor == inputMode) {
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 				float idx = analogRead(context, n, 0);
-				for(size_t c = 0; c < context->analogOutChannels && c < tables.size(); ++c)
 				{
 					float out = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, out);
@@ -1721,11 +1729,9 @@ public:
 		if(split)
 			ledSliders.sliders[1].setLedsCentroids(centroids.data() + 1, 1);
 	}
-	void updateTable()
+	void updateTable(size_t c)
 	{
-		// std::array<TimestampedRecorder<sample_t>, 2>
 		auto& recorders = gGestureRecorder.rs;
-		for(size_t c = 0; c < recorders.size() && c < tables.size(); ++c)
 		{
 			auto& data = recorders[c].getData();
 			size_t srcEntries = recorders[c].size();
@@ -1834,8 +1840,8 @@ private:
 	static constexpr size_t kTableSize = 1024;
 	static constexpr size_t kNumSplits = 2;
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
-	Oscillator osc {1, Oscillator::sawtooth};
-	bool hadTouch = false;
+	std::array<Oscillator,2> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
+	std::array<bool,2> hadTouch {};
 	bool inputModeShouldUpdateTable = false;
 } gRecorderMode;
 
