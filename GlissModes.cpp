@@ -2788,13 +2788,21 @@ void start(){
 void stop(){
 	calibrationState = kWaitToStart;
 }
-void toggle(){
-	if(calibrationState == kWaitToStart || calibrationState == kDone)
-		start();
-	else
+void toggle()
+{
+	if(running())
 		stop();
+	else
+		start();
 }
-
+bool running()
+{
+	return !(kWaitToStart == calibrationState|| kDone == calibrationState);
+}
+bool done()
+{
+	return kDone == calibrationState;
+}
 const CalibrationData& getIn() const
 {
 	return calibrationIn;
@@ -2884,6 +2892,8 @@ class CalibrationMode : public PerformanceMode {
 	uint32_t startTime;
 	size_t demoModeCount;
 	size_t demoModeState;
+	std::array<uint32_t,3> clicks {};
+	size_t clickIdx = 0;
 	void resetDemoMode()
 	{
 		demoModeCount = 0;
@@ -2907,11 +2917,33 @@ public:
 		gInUsesCalibration = false;
 		gInUsesRange = false;
 		gOutUsesRange = false;
-		// wait for button press to start or stop calibration
+		uint32_t tick = HAL_GetTick();
+		// wait for button press to start or stop calibration.
 		if(performanceBtn.offset)
 		{
-			gCalibrationProcedure.toggle();
-			resetDemoMode();
+			clicks[clickIdx++] = tick;
+			if(clicks.size() == clickIdx)
+				clickIdx = 0;
+			bool shouldToggle = true;
+			if(gCalibrationProcedure.done())
+			{
+				// if calibration is done, triple press in a short period
+				// of time is needed to restart
+				uint32_t recentTime = tick - 600; // 600 ms
+				for(auto c : clicks)
+				{
+					if(c < recentTime)
+					{
+						shouldToggle = false;
+						break;
+					}
+				}
+			}
+			if(shouldToggle)
+			{
+				gCalibrationProcedure.toggle();
+				resetDemoMode();
+			}
 		}
 		gCalibrationProcedure.process();
 
@@ -2971,7 +3003,6 @@ public:
 		}
 		float gain;
 		constexpr size_t kPeriod = 500;
-		uint32_t tick = HAL_GetTick();
 		rgb_t otherColor = {0, 0, 0};
 		switch(animation)
 		{
