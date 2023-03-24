@@ -2886,7 +2886,7 @@ class CalibrationMode : public PerformanceMode {
 	enum Animation {
 		kBlink,
 		kStatic,
-		kMorph,
+		kGlow,
 	};
 	rgb_t baseColor;
 	uint32_t startTime;
@@ -2948,8 +2948,6 @@ public:
 		gCalibrationProcedure.process();
 
 		Animation animation;
-		rgb_t color;
-		constexpr rgb_t kDoneColor = {0, 127 , 0};
 		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
 		size_t begin = 8;
 		size_t end = 16;
@@ -2957,16 +2955,13 @@ public:
 		{
 		default:
 		case CalibrationProcedure::kNoInput:
-			color = {0, 0, 120};
-			animation = kMorph;
+			animation = kGlow;
 			break;
 		case CalibrationProcedure::kWaitConnect:
-			color = {60, 0, 60};
 			animation = kBlink;
 			break;
 		case CalibrationProcedure::kConnected:
-			color = {60, 0, 60};
-			animation = kMorph;
+			animation = kGlow;
 			break;
 		case CalibrationProcedure::kDone:
 		case CalibrationProcedure::kWaitToStart:
@@ -2994,8 +2989,10 @@ public:
 				v = round(normToVfs(sl.compoundTouchLocation()));
 			float out = vToOut(v);
 			gManualAnOut[0] = out;
-			color = kDoneColor;
-			animation = kStatic;
+			if(CalibrationProcedure::kDone == calibrationState)
+				animation = kGlow;
+			else
+				animation = kStatic;
 			begin = out * (np.getNumPixels() - 1);
 			end = begin + 1;
 		}
@@ -3003,6 +3000,7 @@ public:
 		}
 		float gain;
 		constexpr size_t kPeriod = 500;
+		rgb_t color = {60, 0, 60};
 		rgb_t otherColor = {0, 0, 0};
 		switch(animation)
 		{
@@ -3010,7 +3008,7 @@ public:
 		case kBlink:
 			gain = ((tick - startTime) % kPeriod) > kPeriod / 2;
 			break;
-		case kMorph:
+		case kGlow:
 			gain = simpleTriangle(tick, kPeriod);
 			otherColor = baseColor;
 			break;
