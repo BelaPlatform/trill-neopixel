@@ -533,6 +533,14 @@ protected:
 			idx = 0;
 	};
 
+	template<typename T> void decrement(T& idx)
+	{
+		if(0 == idx)
+			idx = data.size() - 1;
+		else
+			--idx;
+	}
+
 	std::array<sample_t, kMaxRecordLength> data;
 	size_t start = 0;
 	size_t end = 0;
@@ -580,6 +588,13 @@ public:
 		ret.valid = d.valid;
 		return ret;
 	}
+	static struct timedData_t recordToTimedData(uint32_t sample)
+	{
+		return recordToTimedData({
+			.sample = sample,
+			.valid = true,
+		});
+	}
 	static uint32_t timedDataToRecord(const struct timedData_t t)
 	{
 		return *(uint32_t*)&t;
@@ -616,6 +631,40 @@ public:
 		pushSample();
 		Base::stopRecording();
 		playData.reps = 0;
+	}
+
+	void replaceLastFrames(unsigned int howMany)
+	{
+		// find frame containing the last valid value
+		size_t idx = end;
+		size_t reps = 0;
+		sample_t refSample;
+		while(1)
+		{
+			timedData_t d = recordToTimedData(data[idx]);
+			reps += d.reps;
+			if(reps >= howMany || idx == start)
+			{
+				// last good value:
+				refSample = d.sample;
+				break;
+			}
+			decrement(idx);
+		}
+		// fill in later frames with this value
+		while(1)
+		{
+			// get the timedData, leave the same reps
+			timedData_t d = recordToTimedData(data[idx]);
+			// replace value
+			d.sample = refSample;
+			// store back
+			uint32_t r = timedDataToRecord(d);
+			data[idx] = r;
+			if(idx == end)
+				break;
+			increment(idx);
+		}
 	}
 
 	void restart()
@@ -764,6 +813,13 @@ public:
 					rs[n].startRecording();
 				} else if(0 == hasTouch[n]) { // going to 0 touches: start playing back (unless disabled)
 					rs[n].stopRecording();
+					if(single && 1 == n && loop)
+					{
+						// this is size and we are looping:
+						// overwrite last few values in buffer to avoid
+						// discontinuity on release
+						rs[n].replaceLastFrames(40);
+					}
 					if(loop)
 						rs[n].restart();
 				}
