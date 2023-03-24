@@ -2837,7 +2837,7 @@ float fromVolt(float Vo)
 	// so:
 	//   out = Vo / (Vdfs * Ga)
 	constexpr float Vdfs = 3.3;
-	constexpr float Ro = 125;
+	constexpr float Ro = 127;
 	constexpr float Ri = 27;
 	constexpr float Ga = Ro / Ri;
 	float out = Vo / (Vdfs * Ga);
