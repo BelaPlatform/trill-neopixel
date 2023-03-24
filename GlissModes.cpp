@@ -791,13 +791,12 @@ public:
 			hasTouch[1] = sliders[1].getNumTouches();
 		HalfGesture_t out[2];
 		static bool pastAnalogIn = false;
-		// TODO: ignore when recording
 		// TODO: obey trigger level
 		bool analogIn = tri.analogRead() > 0.5;
 		if((analogIn && !pastAnalogIn) || performanceBtn.onset)
 		{
 			assert(hasTouch.size() == rs.size());
-			// when playing back or paused,
+			// when no touch (i.e.: playing back or paused),
 			// reset on rising edge on analog or button ins
 			for(size_t n = 0; n < hasTouch.size(); ++n)
 				if(!hasTouch[n])
