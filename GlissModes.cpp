@@ -788,9 +788,7 @@ public:
 		if(single)
 			hasTouch[1] = hasTouch[0];
 		else
-		{
 			hasTouch[1] = sliders[1].getNumTouches();
-		}
 		HalfGesture_t out[2];
 		static bool pastAnalogIn = false;
 		// TODO: ignore when recording
