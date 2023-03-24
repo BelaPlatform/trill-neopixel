@@ -550,9 +550,15 @@ protected:
 };
 
 template <typename sample_t>
-class TimestampedRecorder : public Recorder<uint32_t>
+class TimestampedRecorder : public Recorder<uint32_t>{
+	// this is just a placeholder for the specialised implementation below
+};
+
+template<>
+class TimestampedRecorder<float> : public Recorder<uint32_t>
 {
 private:
+	using sample_t = float; // if using the actual template, remove this
 	typedef Recorder<uint32_t> Base;
 	enum { kRepsBits = 10, kSampleBits = 22 };
 	enum { max = 1 }; // TODO: not sure what this was introduced for
