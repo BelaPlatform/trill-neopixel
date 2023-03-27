@@ -1764,8 +1764,13 @@ public:
 					dstIdx = dstSize;
 					srcInc = 0;
 				}
-				if(0 == n)
-					pastValue = value;
+				if(0 == n) {
+					// upon the first iteration, the for() before does 0 iterations.
+					// here we simply set the first value in the table, so in the edge case
+					// where we have exactly one frame, the next iteration yields a
+					// constant for all values in the table
+					tables[c][0] = value;
+				}
 				for(size_t i = pastDstIdx; i < dstIdx && i < dstSize; ++i)
 				{
 					// TODO: smooth sharp edges to reduce nasty aliasing
