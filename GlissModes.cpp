@@ -1598,20 +1598,26 @@ static inline float vToOut(float v)
 	return (v + 5.f) / 15.f;
 }
 
-template <typename T>
-static float interpolatedRead(const T& table, float idx)
+static float interpolatedRead(const float* table, size_t size, float idx)
 {
-	float n = table.size() * idx;
+	float n = size * idx;
 	size_t prev = size_t(n);
 	size_t next = size_t(n + 1);
-	if(prev >= table.size()) // idx was out of range
-		prev = table.size() - 1;
-	if(next >= table.size())
+	if(prev >= size) // idx was out of range
+		prev = size - 1;
+	if(next >= size)
 		next = 0; // could be we are at the end of table
 	float frac = n - prev;
 	float value = linearInterpolation(frac, table[prev], table[next]);
 	return value;
 }
+
+template <typename T>
+static float interpolatedRead(const T& table, float idx)
+{
+	return interpolatedRead(table.data(), table.size(), idx);
+}
+
 
 class RecorderMode : public PerformanceMode {
 	enum {
