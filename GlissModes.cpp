@@ -4145,9 +4145,7 @@ static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 };
 
 static ButtonAnimationWaveform animationWaveform{buttonColor};
-static ButtonAnimationSpeedUpDown animationSpeedup(buttonColor);
 static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform, &animationWaveform);
-static MenuItemTypeEnterContinuous balancedOscModeCentreFrequency("centreFrequency", buttonColor, gBalancedOscsMode.centreFrequency, &animationSpeedup);
 static ButtonAnimationRecorderInputMode animationBalancedOscsInputMode{buttonColor};
 static MenuItemTypeDiscreteContinuous balancedOscModeInputModeAndFrequency("balancedOscModeInputModeAndFrequency", buttonColor,
 		gBalancedOscsMode.inputMode, gBalancedOscsMode.centreFrequency, &animationBalancedOscsInputMode);
