@@ -790,22 +790,6 @@ public:
 		else
 			hasTouch[1] = sliders[1].getNumTouches();
 		HalfGesture_t out[2];
-		static bool pastAnalogIn = false;
-		// TODO: obey trigger level
-		bool analogIn = tri.analogRead() > 0.5;
-		if((analogIn && !pastAnalogIn) || performanceBtn.onset)
-		{
-			assert(hasTouch.size() == rs.size());
-			// when no touch (i.e.: playing back or paused),
-			// reset on rising edge on analog or button ins
-			for(size_t n = 0; n < hasTouch.size(); ++n)
-				if(!hasTouch[n])
-				{
-					rs[n].enable();
-					rs[n].restart();
-				}
-		}
-		pastAnalogIn = analogIn;
 
 		for(unsigned int n = 0; n < hasTouch.size(); ++n)
 		{
@@ -826,6 +810,23 @@ public:
 					if(loop)
 						rs[n].restart();
 				}
+			} else {
+				// when no touch and not just released (i.e.: playing back or paused),
+				// reset on rising edge on analog or button ins
+				static bool pastAnalogIn = false;
+				// TODO: obey trigger level
+				bool analogIn = tri.analogRead() > 0.5;
+				if((analogIn && !pastAnalogIn) || performanceBtn.onset)
+				{
+					assert(hasTouch.size() == rs.size());
+					for(size_t n = 0; n < hasTouch.size(); ++n)
+						if(!hasTouch[n])
+						{
+							rs[n].enable();
+							rs[n].restart();
+						}
+				}
+				pastAnalogIn = analogIn;
 			}
 			hadTouch[n] = hasTouch[n];
 			if(hasTouch[n])
