@@ -133,7 +133,11 @@ void triggerInToClock(BelaContext* context)
 	}
 }
 
-static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids)
+typedef enum {
+	kBottomUp,
+	kTopBottom,
+} LedSlidersOrder;
+static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids, LedSlidersOrder order = kBottomUp)
 {
 	std::vector<LedSliders::delimiters_t> boundaries;
 	size_t numSplits = colors.size();
@@ -151,8 +155,19 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	float activeLeds = (kNumLeds - (guardLeds * (numSplits - 1))) / float(numSplits);
 	for(size_t n = 0; n < numSplits; ++n)
 	{
-		size_t firstPad = n * (activePads + guardPads);
-		size_t firstLed = n * (activeLeds + guardLeds);
+		size_t i;
+		switch (order)
+		{
+		default:
+		case kBottomUp:
+			i = n;
+			break;
+		case kTopBottom:
+			i = numSplits - 1 - n;
+			break;
+		}
+		size_t firstPad = i * (activePads + guardPads);
+		size_t firstLed = i * (activeLeds + guardLeds);
 		size_t lastPad = firstPad + activePads;
 		size_t lastLed = firstLed + activeLeds;
 		boundaries.push_back({
@@ -258,7 +273,7 @@ static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 
 static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], LedSlider::LedMode_t mode)
 {
-	ledSlidersSetupMultiSlider(ledSliders, {colors[0], colors[1]}, mode, false, 1);
+	ledSlidersSetupMultiSlider(ledSliders, {colors[0], colors[1]}, mode, false, 1, kTopBottom);
 }
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
@@ -271,9 +286,9 @@ bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t st
 			|| (ms >= 2 * period && ms < 3 * period)
 	){
 		for(unsigned int n = 0; n < endFirst; ++n)
-			np.setPixelColor(n, colors[0].r, colors[0].g, colors[0].b);
+			np.setPixelColor(kNumLeds - 1 - n, colors[0].r, colors[0].g, colors[0].b);
 		for(unsigned int n = startSecond; n < kNumLeds; ++n)
-			np.setPixelColor(n, colors[1].r, colors[1].g, colors[1].b);
+			np.setPixelColor(kNumLeds - 1 - n, colors[1].r, colors[1].g, colors[1].b);
 	} else if (
 			(ms >= 1 * period && ms < 2 * period)
 			|| (ms >= 3 * period && ms < 4 * period)
