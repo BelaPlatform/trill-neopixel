@@ -1688,8 +1688,8 @@ public:
 
 	void processTable(BelaContext* context, unsigned int c)
 	{
-		assert(c < context->analogOutChannels && c < tables.size());
-		float vizOuts[2];
+		assert(c < context->analogOutChannels && c < tables.size() && c < kNumSplits);
+		std::array<float,kNumSplits> vizOuts;
 		if(kInputModeCv == inputMode)
 		{
 			gInUsesRange = false; // we need actual voltage here
@@ -1848,8 +1848,8 @@ private:
 	static constexpr size_t kTableSize = 1024;
 	static constexpr size_t kNumSplits = 2;
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
-	std::array<Oscillator,2> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
-	std::array<bool,2> hadTouch {};
+	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
+	std::array<bool,kNumSplits> hadTouch {};
 	bool inputModeShouldUpdateTable = false;
 } gRecorderMode;
 
