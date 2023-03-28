@@ -1618,7 +1618,6 @@ static float interpolatedRead(const T& table, float idx)
 	return interpolatedRead(table.data(), table.size(), idx);
 }
 
-
 class RecorderMode : public PerformanceMode {
 	enum {
 		kInputModeTrigger,
@@ -1726,7 +1725,7 @@ public:
 			centroids[1].size = kFixedCentroidSize;
 		} else {
 			centroids[0].location = vizOuts[0];
-			centroids[0].size = vizOuts[0];
+			centroids[0].size = vizOuts[1];
 		}
 		ledSliders.sliders[0].setLedsCentroids(centroids.data(), 1);
 		if(split)
