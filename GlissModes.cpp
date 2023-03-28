@@ -85,7 +85,7 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 }
 
 uint32_t gClockPeriodUpdateCounter = 0;
-float gClockPeriod = 0; // before use, make sure it is valid
+float gClockPeriod = 10000; // arbitrary init to avoid divisions by zero. TODO: instead check before using it
 void triggerInToClock(BelaContext* context)
 {
 	const float kTriggerInOnThreshold = 0.6;
