@@ -2437,8 +2437,7 @@ private:
 			"kBending",
 			"kDisabled",
 	};
-//	template <typename T = size_t>
-	void changeState(TouchState newState, const LedSlider::centroid_t& centroid, size_t arg0 = 0)
+	void changeState(TouchState newState, const LedSlider::centroid_t& centroid)
 	{
 		S(printf("%s, {%.2f} %.2f_", touchStateNames[newState], centroid.location, out));
 		switch(newState)
