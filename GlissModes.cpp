@@ -133,7 +133,7 @@ void triggerInToClock(BelaContext* context)
 	}
 }
 
-static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids = 1)
+static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids)
 {
 	std::vector<LedSliders::delimiters_t> boundaries;
 	size_t numSplits = colors.size();
@@ -253,12 +253,12 @@ void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, st
 
 static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 {
-	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false);
+	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false, 1);
 }
 
 static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], LedSlider::LedMode_t mode)
 {
-	ledSlidersSetupMultiSlider(ledSliders, {colors[0], colors[1]}, mode, false);
+	ledSlidersSetupMultiSlider(ledSliders, {colors[0], colors[1]}, mode, false, 1);
 }
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
@@ -305,7 +305,8 @@ bool modeAlt_setup()
 			{0, 255, 0},
 		},
 		LedSlider::MANUAL_CENTROIDS,
-		true
+		true,
+		1
 	);
 	return true;
 }
@@ -2213,7 +2214,8 @@ public:
 				{
 				},
 				LedSlider::MANUAL_CENTROIDS,
-				true
+				true,
+				1
 			);
 			gOutMode = kOutModeManualBlock;
 			changeState(kDisabled, {0, 0});
@@ -3326,7 +3328,7 @@ public:
 			ms %= periodicDuration;
 			coeff = (ms / float(periodicDuration)) < 0.1;
 		} else if (1 == value){
-			// input mode: scaled trigger.
+			// input mode: clock.
 			// over duration, show pulses with ramp up-ramp down period(constant width),
 			// to give the idea of frequency control
 			phase += (ms - lastMs); // this has to be uint to be deterministic on overflow.
@@ -4473,7 +4475,8 @@ static void menu_update()
 					activeMenu->items[4]->baseColor,
 				},
 				LedSlider::MANUAL_CENTROIDS,
-				true
+				true,
+				1
 			);
 			menuJustEntered = true;
 		} else {
