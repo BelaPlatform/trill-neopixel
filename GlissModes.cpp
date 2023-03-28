@@ -1622,6 +1622,7 @@ static float interpolatedRead(const T& table, float idx)
 class RecorderMode : public PerformanceMode {
 	enum {
 		kInputModeTrigger,
+		kInputModeClock,
 		kInputModeCv,
 		kInputModePhasor,
 		kInputModeNum,
@@ -1690,15 +1691,25 @@ public:
 	{
 		assert(c < context->analogOutChannels && c < tables.size() && c < kNumSplits);
 		std::array<float,kNumSplits> vizOuts;
-		if(kInputModeCv == inputMode)
+		if(kInputModeCv == inputMode || kInputModeClock == inputMode)
 		{
-			gInUsesRange = false; // we need actual voltage here
-			float volts = inToV(analogRead(context, 0, 0));
-			float baseFreq = 50;
-			float freq = vToFreq(volts, baseFreq);
+			// wavetable oscillator
+			float freq;
+			if(kInputModeCv == inputMode)
+			{
+				// input is CV
+				gInUsesRange = false; // we need actual voltage here
+				float volts = inToV(analogRead(context, 0, 0));
+				float baseFreq = 50;
+				freq = vToFreq(volts, baseFreq);
+			} else {
+				// input is clock
+				freq = context->analogSampleRate / gClockPeriod;
+			}
+			float normFreq = freq / context->analogSampleRate;
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
-					float idx = map(oscs[c].process(freq / context->analogSampleRate), -1, 1, 0, 1);
+					float idx = map(oscs[c].process(normFreq), -1, 1, 0, 1);
 					float value = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
@@ -3315,6 +3326,18 @@ public:
 			ms %= periodicDuration;
 			coeff = (ms / float(periodicDuration)) < 0.1;
 		} else if (1 == value){
+			// input mode: scaled trigger.
+			// over duration, show pulses with ramp up-ramp down period(constant width),
+			// to give the idea of frequency control
+			phase += (ms - lastMs); // this has to be uint to be deterministic on overflow.
+			lastMs = ms;
+			ms %= duration;
+			float triangle = simpleTriangle(ms, duration);
+			float period = initialPeriod + (sqrt(triangle)) * (finalPeriod - initialPeriod);
+			if(phase > period)
+				phase -= period;
+			coeff = (phase < onTime);
+		} else if (2 == value){
 			// input mode: CV in
 			// show a few smooth transitions
 			const unsigned int duration = 3000;
@@ -3338,6 +3361,12 @@ public:
 	};
 protected:
 	rgb_t color;
+	static constexpr float initialPeriod = 600;
+	static constexpr float finalPeriod = 80;
+	static constexpr unsigned int duration = 3000;
+	static constexpr float onTime = 40;
+	float phase = 0;
+	uint32_t lastMs = 0;
 };
 
 class ButtonAnimationWaveform: public ButtonAnimation {
