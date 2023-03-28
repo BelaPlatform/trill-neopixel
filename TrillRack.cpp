@@ -461,6 +461,13 @@ static float touchOrNot(float val, bool hasTouch)
 	return hasTouch ? val : kNoOutput;
 }
 
+static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned int channel, float value)
+{
+	// swap out channels if gJacksOnTop
+	unsigned int c = gJacksOnTop ? !channel : channel;
+	analogWriteOnce(context, frame, c, value);
+}
+
 void tr_render(BelaContext* context)
 {
 #ifdef STM32
@@ -628,7 +635,7 @@ void tr_render(BelaContext* context)
 		for(size_t n = 0; n < context->analogFrames; ++n)
 		{
 			for(size_t c = 0; c < context->analogOutChannels; ++c)
-				analogWriteOnce(context, n, c, 0);
+				analogWriteJacks(context, n, c, 0);
 		}
 	}
 	if(gJacksOnTop)
@@ -704,7 +711,7 @@ void tr_render(BelaContext* context)
 				float tmp = pastOut[channel];
 				float alpha = 0.993;
 				float out = tmp * alpha + anOutBuffer[channel] * (1.f - alpha);
-				analogWriteOnce(context, n, channel, out);
+				analogWriteJacks(context, n, channel, out);
 				pastOut[channel] = out;
 			}
 		// TODO: could check for nan and clean filter in that case
@@ -720,13 +727,13 @@ void tr_render(BelaContext* context)
 		unsigned int c = gOverride.ch;
 		float value = rescaleOutput(gOverride.bypassOutRange, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
-			analogWriteOnce(context, n, c, value);
+			analogWriteJacks(context, n, c, value);
 		gBottomOutIsSize = bottomOutIsSizeStash;
 	}
 #if 0 // send out a quiet tone on one channel and loop back the input on the other
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
-		analogWriteOnce(context, n, 0, analogRead(context, n, 0));
+		analogWriteJacks(context, n, 0, analogRead(context, n, 0));
 		float osc = (n % 32 > 16);
 		analogWriteOnce(context, n , 1, (osc + 2048) / 4096.f);
 	}
