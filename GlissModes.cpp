@@ -84,7 +84,7 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
-uint32_t gClockPeriodUpdated = 0;
+uint32_t gClockPeriodUpdateCounter = 0;
 float gClockPeriod = 0; // before use, make sure it is valid
 void triggerInToClock(BelaContext* context)
 {
@@ -122,7 +122,7 @@ void triggerInToClock(BelaContext* context)
 				gClockPeriod = averagePeriod;
 #else // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 				gClockPeriod = newPeriod;
-				gClockPeriodUpdated++;
+				gClockPeriodUpdateCounter++;
 #endif // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 			}
 			lastTrig = newTrig;
@@ -2087,11 +2087,13 @@ public:
 		case kInputModeTrig:
 			// after frequency was set by parameter,
 			// we use gClockPeriod only if it gets updated at least once
-			if(gClockPeriodUpdated != lastClockPeriodUpdate)
-				clockPeriod = gClockPeriod;
-			else
+			if(gClockPeriodUpdateCounter == lastClockPeriodUpdateCounter)
+			{
 				clockPeriod = sampleRate / (centreFrequency * 10.f + 0.1f); // TODO: more useful range? exp mapping?
-			lastClockPeriodUpdate = gClockPeriodUpdated;
+			} else {
+				clockPeriod = gClockPeriod;
+				lastClockPeriodUpdateCounter = 0; // show that we are locked to gClockPeriod
+			}
 			break;
 		case kInputModeCv:
 		{
@@ -2143,7 +2145,7 @@ public:
 			for(auto& o : oscillators)
 				o.setType(Oscillator::Type(waveform.get()));
 		} else if (p.same(centreFrequency)) {
-			lastClockPeriodUpdate = gClockPeriodUpdated;
+			lastClockPeriodUpdateCounter = gClockPeriodUpdateCounter;
 			// force us to go into ModeTrig, or the ModeCv would make this change useless
 			inputMode.set(kInputModeTrig);
 		} else if (p.same(inputMode)) {
@@ -2184,7 +2186,7 @@ public:
 	}) presetFieldData;
 private:
 	float divisionPoint = 0.5;
-	uint32_t lastClockPeriodUpdate = gClockPeriodUpdated;
+	uint32_t lastClockPeriodUpdateCounter = gClockPeriodUpdateCounter;
 } gBalancedOscsMode;
 
 class ExprButtonsMode : public PerformanceMode
