@@ -1661,7 +1661,6 @@ public:
 		std::array<TouchFrame,kNumSplits> values;
 
 		size_t numTouches = gTouchTracker.getNumTouches();
-		std::array<TouchTracker::TouchWithId,kNumSplits> touches;
 		// per each split
 		static_assert(kNumSplits == 2); // or the loops below won't work
 		for(ssize_t s = 0; s < 1 + split; ++s)
@@ -1669,6 +1668,7 @@ public:
 			bool found = false;
 			const float min = split ? (kNumSplits - 1 - s) * 0.52 : 0;
 			const float max = split ? min + 0.48 : 1;
+			TouchTracker::TouchWithId twi;
 			for(ssize_t i = numTouches - 1; i >= 0; --i)
 			{
 				// get the most recent touch which started on this split
@@ -1676,20 +1676,20 @@ public:
 				if(t.startLocation >= min && t.startLocation < max)
 				{
 					found = true;
-					touches[s] = t;
+					twi = t;
 					break;
 				}
 			}
 			if(!found)
-				touches[s].id = TouchTracker::kIdInvalid;
-			if(TouchTracker::kIdInvalid == touches[s].id)
+				twi.id = TouchTracker::kIdInvalid;
+			if(TouchTracker::kIdInvalid == twi.id)
 			{
 				values[s].pos = 0;
 				values[s].sz = 0;
 			} else {
 				// TODO: this used to be compoundTouch)
-				values[s].pos = mapAndConstrain(touches[s].touch.location, min, max, 0, 1);
-				values[s].sz = touches[s].touch.size;
+				values[s].pos = mapAndConstrain(twi.touch.location, min, max, 0, 1);
+				values[s].sz = twi.touch.size;
 			}
 		}
 
