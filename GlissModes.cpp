@@ -1603,17 +1603,18 @@ static bool areEqual(const T& a, const T& b)
 }
 
 class DirectControlMode : public PerformanceMode {
+	static constexpr size_t kNumSplits = 2;
 public:
 	bool setup(double ms) override
 	{
 		gBottomOutIsSize = !split;
+		gOutMode = kOutModeFollowLeds;
 		if(split)
 		{
 			unsigned int guardPads = 1;
 			if(ms <= 0)
 			{
-				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::AUTO_CENTROIDS);
-				gOutMode = kOutModeFollowTouch;
+				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
 			}
 			if(ms < 0)
 				return true;
@@ -1623,9 +1624,8 @@ public:
 			{
 				ledSlidersSetupOneSlider(
 					colors[0],
-					LedSlider::AUTO_CENTROIDS
+					LedSlider::MANUAL_CENTROIDS
 				);
-				gOutMode = kOutModeFollowTouch;
 			}
 			if(ms < 0)
 				return true;;
@@ -1634,13 +1634,43 @@ public:
 	}
 	void render(BelaContext*) override
 	{
-		std::array<TouchFrame,2> values;
-		values[0].pos = ledSliders.sliders[0].compoundTouchLocation();
-		values[0].sz = ledSliders.sliders[0].compoundTouchSize();
-		if(split)
+		if(ledSliders.isTouchEnabled())
 		{
-			values[1].pos = ledSliders.sliders[1].compoundTouchLocation();
-			values[1].sz = ledSliders.sliders[1].compoundTouchSize();
+			gTouchTracker.process(globalSlider);
+		}
+		std::array<TouchFrame,kNumSplits> values;
+
+		size_t numTouches = gTouchTracker.getNumTouches();
+		std::array<TouchTracker::TouchWithId,kNumSplits> touches;
+		// per each split
+		static_assert(kNumSplits == 2); // or the loop below won't work
+		for(ssize_t s = 0; s < 1 + split; ++s)
+		{
+			bool found = false;
+			const float min = split ? (kNumSplits - 1 - s) * 0.52 : 0;
+			const float max = split ? min + 0.48 : 1;
+			for(ssize_t i = numTouches - 1; i >= 0; --i)
+			{
+				// get the most recent touch on this split
+				const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
+				if(t.touch.location >= min && t.touch.location < max)
+				{
+					found = true;
+					touches[s] = t;
+					break;
+				}
+			}
+			if(!found)
+				touches[s].id = TouchTracker::kIdInvalid;
+			if(TouchTracker::kIdInvalid == touches[s].id)
+			{
+				values[s].pos = 0;
+				values[s].sz = 0;
+			} else {
+				// TODO: this used to be compoundTouch)
+				values[s].pos = mapAndConstrain(touches[s].touch.location, min, max, 0, 1);
+				values[s].sz = touches[s].touch.size;
+			}
 		}
 
 		bool shouldLatch = false;
@@ -1669,35 +1699,30 @@ public:
 			lastLatchCount = performanceBtn.pressCount;
 		}
 
-		if(isLatched[0] || isLatched[1]) {
-			gOutMode = kOutModeFollowLeds;
-			LedSlider::centroid_t centroid;
-			if(split)
+		LedSlider::centroid_t centroid;
+		if(split)
+		{
+			for(ssize_t n = 0; n < 1 + split; ++n)
 			{
-				for(ssize_t n = 0; n < 1 + split; ++n)
+				if(isLatched[n])
 				{
-					if(isLatched[n])
-					{
-						centroid.location = values[n].pos;
-						centroid.size = kFixedCentroidSize;
-					} else {
-						// this is not actually latched, but as gOutMode
-						// is not latched, we emulate direct control here.
-						// TODO: be able to set gOutMode per-split
-						centroid.location = values[n].pos;
-						bool hasTouch = (ledSliders.sliders[n].compoundTouchSize() > 0);
-						centroid.size = kFixedCentroidSize * hasTouch; // TODO: when bipolar this should send out "nothing"
-					}
-					ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
+					centroid.location = values[n].pos;
+					centroid.size = kFixedCentroidSize;
+				} else {
+					// this is not actually latched, but as gOutMode
+					// is not latched, we emulate direct control here.
+					// TODO: be able to set gOutMode per-split
+					centroid.location = values[n].pos;
+					bool hasTouch = (values[n].sz > 0);
+					centroid.size = kFixedCentroidSize * hasTouch; // TODO: when bipolar this should send out "nothing"
 				}
-			} else {
-				centroid.location = values[0].pos;
-				centroid.size = values[0].sz;
-				ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 			}
+		} else {
+			centroid.location = values[0].pos;
+			centroid.size = values[0].sz;
+			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 		}
-		else
-			gOutMode = kOutModeFollowTouch;
 	}
 	void updated(Parameter& p)
 	{
