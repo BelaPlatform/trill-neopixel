@@ -81,7 +81,6 @@ public:
 	std::vector<LedSlider> sliders;
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
-	bool isFullyEnabled();
 	auto begin()
 	{
 		return sliders.begin();
@@ -91,8 +90,10 @@ public:
 		return sliders.end();
 	}
 	bool areLedsEnabled();
+	bool isTouchEnabled();
 private:
 	std::vector<float> pads;
 	Settings s;
 	bool ledsEnabled = true;
+	bool touchEnabled = true;
 };

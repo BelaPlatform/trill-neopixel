@@ -228,6 +228,7 @@ void LedSliders::process(const float* rawData)
 
 void LedSliders::enableTouch(bool enable)
 {
+	touchEnabled = enable;
 	for(unsigned int n = 0; n < sliders.size(); ++n)
 		sliders[n].enableTouch(enable);
 }
@@ -242,4 +243,9 @@ void LedSliders::enableLeds(bool enable)
 bool LedSliders::areLedsEnabled()
 {
 	return ledsEnabled;
+}
+
+bool LedSliders::isTouchEnabled()
+{
+	return touchEnabled;
 }
