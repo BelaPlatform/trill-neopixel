@@ -376,7 +376,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		ls.sliders[n].setLedMode(mode);
 		if(setInitial)
 		{
-			LedSlider::centroid_t centroid;
+			centroid_t centroid;
 			centroid.location = 0.5;
 			centroid.size = 0.1;
 			ls.sliders[n].setLedsCentroids(&centroid, 1);
@@ -398,7 +398,7 @@ static void ledSlidersExpButtonsProcess(LedSliders& sl, std::array<float,2>& out
 		o = 0;
 	for(size_t n = 0; n < sl.sliders.size(); ++n)
 	{
-		LedSlider::centroid_t centroid;
+		centroid_t centroid;
 		if(highest == int(n) || allFollow)
 		{
 			centroid.location = sl.sliders[n].compoundTouchLocation();
@@ -436,7 +436,7 @@ void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, st
 			}
 			if(shouldUpdateCentroids)
 			{
-				LedSlider::centroid_t centroid;
+				centroid_t centroid;
 				centroid.location = 0.5;
 				// dimmed for "inactive"
 				// full brightness for "active"
@@ -1061,7 +1061,7 @@ static void gestureRecorderSingle_loop(bool loop)
 	bool p = count++ % 20 == 0;
 	p && printf("=%.3f %.3f\n\r", g.first, g.second);
 #endif
-	LedSlider::centroid_t centroid;
+	centroid_t centroid;
 	if(g.first.valid && g.second.valid)
 	{
 		centroid.location = g.first.value;
@@ -1076,7 +1076,7 @@ static void gestureRecorderSingle_loop(bool loop)
 static void gestureRecorderSplit_loop(bool loop)
 {
 	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
-	LedSlider::centroid_t centroids[2];
+	centroid_t centroids[2];
 	if(g.first.valid)
 	{
 		centroids[0].location = g.first.value;
@@ -1244,7 +1244,7 @@ public:
 			tri.buttonLedWrite(kRedBtnIdx, rd);
 		}
 		hadTouch = hasTouch;
-		LedSlider::centroid_t centroids[2];
+		centroid_t centroids[2];
 		switch(ledMode)
 		{
 		case kLedsOff:
@@ -1715,7 +1715,7 @@ public:
 			lastLatchCount = performanceBtn.pressCount;
 		}
 
-		LedSlider::centroid_t centroid;
+		centroid_t centroid;
 		if(split)
 		{
 			for(ssize_t n = 0; n < 1 + split; ++n)
@@ -1948,7 +1948,7 @@ public:
 			}
 		}
 		// do visualisation
-		std::array<LedSlider::centroid_t,2> centroids;
+		std::array<centroid_t,2> centroids;
 		if(split)
 		{
 			centroids[0].location = vizOuts[0];
@@ -2195,7 +2195,7 @@ public:
 		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeBottom, outRangeTop);
 		inDisplay = analogReadMapped(context, 0, 0);
 		// displays if in pure performance mode
-		LedSlider::centroid_t centroids[2];
+		centroid_t centroids[2];
 		// display actual output range
 		centroids[0].location = outDisplay;
 		centroids[0].size = kFixedCentroidSize;
@@ -2463,7 +2463,7 @@ public:
 			return;
 		}
 		// normal processing
-		LedSlider::centroid_t centroid = {
+		centroid_t centroid = {
 				.location = ledSliders.sliders[0].touchLocation(0),
 				.size = ledSliders.sliders[0].touchSize(0),
 		};
@@ -2641,7 +2641,7 @@ private:
 			"kBending",
 			"kDisabled",
 	};
-	void changeState(TouchState newState, const LedSlider::centroid_t& centroid)
+	void changeState(TouchState newState, const centroid_t& centroid)
 	{
 		S(printf("%s, {%.2f} %.2f_", touchStateNames[newState], centroid.location, out));
 		switch(newState)
@@ -2675,7 +2675,7 @@ private:
 		touch.initialLocation = centroid.location;
 		touch.initialOut = out;
 	}
-	bool shouldBend(const LedSlider::centroid_t& centroid)
+	bool shouldBend(const centroid_t& centroid)
 	{
 		float diff = centroid.location - touch.initialLocation;
 		// check that we are far enough from the initial position
@@ -2739,7 +2739,7 @@ private:
 		size_t bendDeadKey = -1;
 		bool bendHasLeftStartKeyDeadSpot = false;
 	} touch;
-	std::array<LedSlider::centroid_t,kNumButtons> buttons;
+	std::array<centroid_t,kNumButtons> buttons;
 	std::array<rgb_t,kNumButtons> colors = {{
 		{0, 255, 0},
 		{0, 200, 50},
@@ -3674,7 +3674,7 @@ public:
 		}
 		if(state != pastState)
 		{
-			LedSlider::centroid_t centroid;
+			centroid_t centroid;
 			centroid.location = 0.5;
 			// dimmed for "inactive"
 			// full brightness for "active"
@@ -3766,7 +3766,7 @@ public:
 			bool latched = false;
 			gMenuAutoLatcher.process(frame, latched);
 			// set the centroid position to whatever the current parameter value is
-			LedSlider::centroid_t centroid = {
+			centroid_t centroid = {
 					.location = parameter->get(),
 					.size = kFixedCentroidSize / 2,
 			};
@@ -3817,7 +3817,7 @@ public:
 				parameter->set(n);
 				menu_up();
 			}
-			LedSlider::centroid_t centroid = {
+			centroid_t centroid = {
 					.location = fix(int(pos * quantised) / float(quantised - 1)),
 					.size = kFixedCentroidSize,
 			};
@@ -3910,9 +3910,9 @@ protected:
 private:
 	virtual void updateDisplay(LedSlider& slider)
 	{
-		std::array<LedSlider::centroid_t,2> values = {
-				LedSlider::centroid_t{ pastFrames[0].location, 0.15 },
-				LedSlider::centroid_t{ pastFrames[1].location, 0.15 },
+		std::array<centroid_t,2> values = {
+				centroid_t{ pastFrames[0].location, 0.15 },
+				centroid_t{ pastFrames[1].location, 0.15 },
 		};
 		slider.setLedsCentroids(values.data(), values.size());
 	}
@@ -3930,10 +3930,10 @@ public:
 		MenuItemTypeRange(color, autoExit, paramBottom, paramTop), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
-		std::array<LedSlider::centroid_t,3> values = {
-				LedSlider::centroid_t{ pastFrames[0].location, 0.05 },
-				LedSlider::centroid_t{ pastFrames[1].location, 0.05 },
-				LedSlider::centroid_t{ *display, 0.15 },
+		std::array<centroid_t,3> values = {
+				centroid_t{ pastFrames[0].location, 0.05 },
+				centroid_t{ pastFrames[1].location, 0.05 },
+				centroid_t{ *display, 0.15 },
 		};
 		slider.setLedsCentroids(values.data(), values.size());
 	}
@@ -3973,7 +3973,7 @@ public:
 		MenuItemType(color), isEnv({bottomEnv, topEnv}) {}
 	void process(LedSlider& slider) override
 	{
-		std::array<LedSlider::centroid_t,kNumSplits> centroids;
+		std::array<centroid_t,kNumSplits> centroids;
 		uint32_t ms = HAL_GetTick() - startMs;
 		for(size_t n = 0; n < isEnv.size(); ++n)
 		{
