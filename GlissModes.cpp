@@ -13,10 +13,11 @@ class TouchTracker
 {
 public:
 	typedef LedSlider::centroid_t centroid_t;
-	typedef uint32_t Index;
-	struct IndexedTouch {
+	typedef uint32_t Id;
+	struct TouchWithId
+	{
 		centroid_t touch;
-		Index index;
+		Id id;
 	};
 private:
 	typedef CentroidDetection::DATA_T Position;
@@ -25,9 +26,11 @@ private:
 	static constexpr size_t MAX_TOUCHES = 5;
 	size_t prevNumTouches = 0;
 	size_t numTouches = 0;
+	size_t newId = 0;
 	unsigned int sortedTouchIndices[MAX_TOUCHES] {};
-	centroid_t sortedTouches[MAX_TOUCHES] {};
-	centroid_t prevSortedTouches[MAX_TOUCHES] {};
+	unsigned int sortedTouchIds[MAX_TOUCHES] {};
+	std::array<TouchWithId,MAX_TOUCHES> sortedTouches {};
+	std::array<TouchWithId,MAX_TOUCHES> prevSortedTouches {};
 public:
 	void process(CentroidDetection& slider) {
 		numTouches = slider.getNumTouches();
@@ -46,7 +49,7 @@ public:
 				for(size_t p = 0; p < prevNumTouches; ++p)
 				{
 					size_t index = i * prevNumTouches + p;	// permutation id [says between which touches we are calculating distance]
-					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].location);
+					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].touch.location);
 					ids[index] = index;
 					if(index > 0)
 					{
@@ -86,16 +89,20 @@ public:
 					currAssigned[currentIndex] = true;
 					prevAssigned[prevIndex] = true;
 					sortedTouchIndices[currentIndex] = prevIndex;
+					sortedTouchIds[currentIndex] = prevSortedTouches[prevIndex].id;
 					sorted++;
 				}
 			}
 			// we still have to assign a free index to new touches
-			if(prevNumTouches < numTouches)
+			if(numTouches > prevNumTouches)
 			{
 				for(size_t i = 0; i < numTouches; i++)
 				{
 					if(!currAssigned[i])
+					{
 						sortedTouchIndices[i] = sorted++; // assign next free index
+						sortedTouchIds[i] = newId++;
+					}
 				}
 			}
 			else // some touches have disappeared...
@@ -115,25 +122,45 @@ public:
 				}
 			}
 		}
-		else // nothing's changed since last round
-		{
-		}
+
 		// done! now update
 		for(size_t i = 0; i < numTouches; ++i)
 		{
 			// update tracked value
-			sortedTouches[sortedTouchIndices[i]] = touches[i];
-			prevSortedTouches[i] = sortedTouches[i];
+			size_t idx = sortedTouchIndices[i];
+
+			sortedTouches[idx] = TouchWithId {
+				.touch = touches[i],
+				.id = sortedTouchIds[i],
+			};
 		}
+		// backup
+		prevSortedTouches = sortedTouches;
 		prevNumTouches = numTouches;
 	}
 	size_t getNumTouches()
 	{
 		return numTouches;
 	}
-	const centroid_t& getTouchById(size_t id)
+	const TouchWithId& getTouchById(const Id id)
 	{
-		return sortedTouches[id];
+		for(const auto& t : sortedTouches)
+			if(id == t.id)
+				return t;
+		return sortedTouches.back();
+	}
+	// the last is the most recent
+	const TouchWithId& getTouchOrdered(size_t n)
+	{
+		return sortedTouches[n];
+	}
+	const TouchWithId& getTouchMostRecent(size_t n)
+	{
+		return sortedTouches[numTouches - 1];
+	}
+	const TouchWithId& getTouchOldest(size_t n)
+	{
+		return sortedTouches[0];
 	}
 } gTouchTracker;
 static_assert(kNumOutChannels >= 2); // too many things to list depend on this in this file.
