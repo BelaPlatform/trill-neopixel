@@ -1663,7 +1663,7 @@ public:
 		size_t numTouches = gTouchTracker.getNumTouches();
 		std::array<TouchTracker::TouchWithId,kNumSplits> touches;
 		// per each split
-		static_assert(kNumSplits == 2); // or the loop below won't work
+		static_assert(kNumSplits == 2); // or the loops below won't work
 		for(ssize_t s = 0; s < 1 + split; ++s)
 		{
 			bool found = false;
@@ -1671,9 +1671,9 @@ public:
 			const float max = split ? min + 0.48 : 1;
 			for(ssize_t i = numTouches - 1; i >= 0; --i)
 			{
-				// get the most recent touch on this split
+				// get the most recent touch which started on this split
 				const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
-				if(t.touch.location >= min && t.touch.location < max)
+				if(t.startLocation >= min && t.startLocation < max)
 				{
 					found = true;
 					touches[s] = t;
