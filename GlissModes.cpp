@@ -15,13 +15,14 @@ public:
 	typedef LedSlider::centroid_t centroid_t;
 	typedef uint32_t Id;
 	static constexpr Id kIdInvalid = -1;
+	typedef CentroidDetection::DATA_T Position;
 	struct TouchWithId
 	{
 		centroid_t touch;
+		Position startLocation;
 		Id id;
 	};
 private:
-	typedef CentroidDetection::DATA_T Position;
 	static_assert(std::is_signed<Position>::value); // if not signed, distance computation below may get fuzzy
 	static_assert(std::is_same<decltype(centroid_t::location),Position>::value);
 	static constexpr size_t kMaxTouches = 5;
@@ -42,6 +43,7 @@ public:
 		for(size_t n = 0; n < numTouches; ++n)
 			touches[n] = centroid_t{ .location = slider.touchLocation(n), .size = slider.touchSize(n) };
 
+		Id firstNewId = newId;
 		if(prevNumTouches != numTouches)
 		{
 			constexpr size_t kMaxPermutations = kMaxTouches * (kMaxTouches - 1);
@@ -133,9 +135,27 @@ public:
 			// update tracked value
 			size_t idx = sortedTouchIndices[i];
 
+			const Id id = sortedTouchIds[i];
+			Position startLocation = -1;
+			if(id >= firstNewId)
+				startLocation = touches[i].location;
+			else {
+				// find it in the prev arrays
+				// TODO: cache this value earlier so we can be faster here
+				for(size_t n = 0; n < prevNumTouches; ++n)
+				{
+					if(id == prevSortedTouches[n].id)
+					{
+						startLocation = prevSortedTouches[n].startLocation;
+						break;
+					}
+				}
+			}
+			assert(-1 != startLocation);
 			sortedTouches[idx] = TouchWithId {
 				.touch = touches[i],
-				.id = sortedTouchIds[i],
+				.startLocation = startLocation,
+				.id = id,
 			};
 		}
 		// empty remaining touches. Not that they should ever be accessed...
