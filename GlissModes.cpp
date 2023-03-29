@@ -6,13 +6,13 @@
 #include "LedSliders.h"
 #include "preset.h"
 #include "packed.h"
+typedef LedSlider::centroid_t centroid_t;
 
 #include <cmath>
 
 class TouchTracker
 {
 public:
-	typedef LedSlider::centroid_t centroid_t;
 	typedef uint32_t Id;
 	static constexpr Id kIdInvalid = -1;
 	typedef CentroidDetection::DATA_T Position;
@@ -509,10 +509,6 @@ bool modeAlt_setup()
 	return true;
 }
 
-struct TouchFrame {
-	float pos;
-	float sz;
-};
 // A circular buffer. When touch sz goes to zero, retrieve the oldest
 // element in the buffer so we can hope to get more stable values instead
 // of whatever spurious reading we got while releasing the touch
@@ -527,19 +523,19 @@ public:
 		// we don't latch on to garbage
 	}
 	// return: sets frame and latchStarts
-	void process(TouchFrame& frame, bool& latchStarts)
+	void process(centroid_t& frame, bool& latchStarts)
 	{
 		size_t pastIdx = (idx - 1 + pastFrames.size()) % pastFrames.size();
 		// filter out duplicate frames
 		// TODO: call this per each new frame instead
-		if(pastFrames[pastIdx].sz == frame.sz && pastFrames[pastIdx].pos == frame.pos)
+		if(pastFrames[pastIdx].size == frame.size && pastFrames[pastIdx].location == frame.location)
 			return;
-		if(pastFrames[pastIdx].sz && !frame.sz) // if size went to zero
+		if(pastFrames[pastIdx].size && !frame.size) // if size went to zero
 		{
 			// use the oldest frame we have
 			frame = pastFrames[idx];
 			latchStarts = true;
-			pastFrames[idx].pos = pastFrames[idx].sz = 0;
+			pastFrames[idx].location = pastFrames[idx].size = 0;
 		} else {
 			// if we are still touching
 			// store current value for later
@@ -551,7 +547,7 @@ public:
 	}
 private:
 	static constexpr size_t kHistoryLength = 5;
-	std::array<TouchFrame,kHistoryLength> pastFrames;
+	std::array<centroid_t,kHistoryLength> pastFrames;
 	size_t idx = 0;
 };
 
@@ -568,12 +564,12 @@ public:
 		for(auto& al : autoLatchers)
 			al.reset();
 	}
-	void process(bool autoLatch, size_t numValues, std::array<TouchFrame,2>& values, std::array<bool,2>& isLatchedRet,
+	void process(bool autoLatch, size_t numValues, std::array<centroid_t,2>& values, std::array<bool,2>& isLatchedRet,
 			bool shouldLatch = false, bool shouldUnlatch = false)
 	{
 		if(numValues > kMaxNumValues)
 			numValues = kMaxNumValues;
-		std::array<bool,kMaxNumValues> hasTouch = { values[0].sz > 0, values[1].sz > 0 };
+		std::array<bool,kMaxNumValues> hasTouch = { values[0].size > 0, values[1].size > 0 };
 		std::array<bool,kMaxNumValues> latchStarts = {false, false};
 		std::array<bool,kMaxNumValues> unlatchStarts = {false, false};
 
@@ -636,7 +632,7 @@ private:
 	static constexpr size_t kMaxNumValues = 2;
 	std::array<bool,kMaxNumValues> isLatched;
 	std::array<bool,kMaxNumValues> unlatchArmed;
-	std::array<TouchFrame,kMaxNumValues> latchedValues;
+	std::array<centroid_t,kMaxNumValues> latchedValues;
 	std::array<AutoLatcher,kMaxNumValues> autoLatchers;
 };
 
@@ -1262,17 +1258,17 @@ public:
 		case kLedsMoveSame:
 		{
 			const uint32_t period = 1024;
-			float pos = 0.8 * simpleTriangle(count, period) + 0.1;
-			centroids[0].location = pos;
+			float location = 0.8 * simpleTriangle(count, period) + 0.1;
+			centroids[0].location = location;
 			centroids[0].size = 1;
 			centroids[1].size = 1;
 			if(kLedsMoveSame == ledMode)
 			{
 				// both move in the same direction
-				centroids[1].location = pos;
+				centroids[1].location = location;
 			} else {
 				// they move in opposite directions
-				centroids[1].location = 1.f - pos;
+				centroids[1].location = 1.f - location;
 			}
 			count++;
 			count %= period;
@@ -1658,7 +1654,7 @@ public:
 		{
 			gTouchTracker.process(globalSlider);
 		}
-		std::array<TouchFrame,kNumSplits> values;
+		std::array<centroid_t,kNumSplits> values;
 
 		size_t numTouches = gTouchTracker.getNumTouches();
 		// per each split
@@ -1684,12 +1680,12 @@ public:
 				twi.id = TouchTracker::kIdInvalid;
 			if(TouchTracker::kIdInvalid == twi.id)
 			{
-				values[s].pos = 0;
-				values[s].sz = 0;
+				values[s].location = 0;
+				values[s].size = 0;
 			} else {
 				// TODO: this used to be compoundTouch)
-				values[s].pos = mapAndConstrain(twi.touch.location, min, max, 0, 1);
-				values[s].sz = twi.touch.size;
+				values[s].location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
+				values[s].size = twi.touch.size;
 			}
 		}
 
@@ -1726,21 +1722,21 @@ public:
 			{
 				if(isLatched[n])
 				{
-					centroid.location = values[n].pos;
+					centroid.location = values[n].location;
 					centroid.size = kFixedCentroidSize;
 				} else {
 					// this is not actually latched, but as gOutMode
 					// is not latched, we emulate direct control here.
 					// TODO: be able to set gOutMode per-split
-					centroid.location = values[n].pos;
-					bool hasTouch = (values[n].sz > 0);
+					centroid.location = values[n].location;
+					bool hasTouch = (values[n].size > 0);
 					centroid.size = kFixedCentroidSize * hasTouch; // TODO: when bipolar this should send out "nothing"
 				}
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 			}
 		} else {
-			centroid.location = values[0].pos;
-			centroid.size = values[0].sz;
+			centroid.location = values[0].location;
+			centroid.size = values[0].size;
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 		}
 	}
@@ -3743,16 +3739,16 @@ public:
 	{
 		if(parameter)
 		{
-			TouchFrame frame {
-				.pos = slider.compoundTouchLocation(),
-				.sz = slider.compoundTouchSize(),
+			centroid_t frame {
+				.location = slider.compoundTouchLocation(),
+				.size = slider.compoundTouchSize(),
 			};
 			if(!hasDoneSetup)
 			{
 				// this can't be moved to constructor because
 				// we don't have the slider there.
 				tracking = false;
-				initialPos = frame.pos;
+				initialPos = frame.location;
 				hasDoneSetup = true;
 				initialTime = HAL_GetTick();
 			}
@@ -3760,7 +3756,7 @@ public:
 			{
 				// check if we crossed the initial point
 				float refPos = parameter->get();
-				float current = frame.pos;
+				float current = frame.location;
 				if(
 						(initialPos <= refPos && current >= refPos) ||
 						(initialPos >= refPos && current <= refPos)
@@ -3776,7 +3772,7 @@ public:
 			};
 			if(tracking) {
 				// only track the slider if we have at some point crossed the initial point
-				parameter->set(frame.pos);
+				parameter->set(frame.location);
 			} else {
 				// or show a pulsating centroid
 				centroid.size *= simpleTriangle(HAL_GetTick() - initialTime, 130);
@@ -3807,13 +3803,13 @@ public:
 		if(parameter)
 		{
 			unsigned int quantised = parameter->getMax();
-			TouchFrame frame {
-				.pos = slider.compoundTouchLocation(),
-				.sz = slider.compoundTouchSize(),
+			centroid_t frame {
+				.location = slider.compoundTouchLocation(),
+				.size = slider.compoundTouchSize(),
 			};
 			bool latched = false;
 			gMenuAutoLatcher.process(frame, latched);
-			float pos = fix(frame.pos);
+			float pos = fix(frame.location);
 			unsigned int n = (unsigned int)(pos * quantised);
 			pos = n / float(quantised);
 			if(latched)
@@ -3847,8 +3843,8 @@ public:
 		latchProcessor.reset();
 		for(size_t n = 0; n < kNumEnds; ++n)
 		{
-			pastFrames[n].pos = parameters[n]->get();
-			pastFrames[n].sz = 1;
+			pastFrames[n].location = parameters[n]->get();
+			pastFrames[n].size = 1;
 		}
 		std::array<bool,2> isLatched;
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
@@ -3871,7 +3867,7 @@ public:
 			if(hasHadTouch)
 			{
 				bool validTouch = 0;
-				std::array<TouchFrame,kNumEnds> frames;
+				std::array<centroid_t,kNumEnds> frames;
 				if(0 == numTouches) {
 					frames = pastFrames;
 				} else if(1 == numTouches)
@@ -3880,28 +3876,28 @@ public:
 					float current = slider.touchLocation(0);
 					std::array<float,kNumEnds> diffs;
 					for(size_t n = 0; n < kNumEnds; ++n)
-						diffs[n] = std::abs(current - pastFrames[n].pos);
+						diffs[n] = std::abs(current - pastFrames[n].location);
 					// the only touch we have is controlling the one that was closest to it
 					validTouch = (diffs[0] > diffs[1]);
 					// put the good one where it belongs
-					frames[validTouch].pos = slider.touchLocation(0);
-					frames[validTouch].sz = slider.touchSize(0);
+					frames[validTouch].location = slider.touchLocation(0);
+					frames[validTouch].size = slider.touchSize(0);
 					// and a non-touch on the other one
-					frames[!validTouch].pos = 0;
-					frames[!validTouch].sz = 0;
+					frames[!validTouch].location = 0;
+					frames[!validTouch].size = 0;
 				} else if (2 == numTouches)
 				{
 					for(size_t n = 0; n < kNumEnds; ++n)
 					{
-						frames[n].pos = slider.touchLocation(n);
-						frames[n].sz = slider.touchSize(n);
+						frames[n].location = slider.touchLocation(n);
+						frames[n].size = slider.touchSize(n);
 					}
 				}
 				std::array<bool,2> isLatched;
 				latchProcessor.process(true, frames.size(), frames, isLatched);
 				for(size_t n = 0; n < frames.size(); ++n)
 				{
-					parameters[n]->set(frames[n].pos);
+					parameters[n]->set(frames[n].location);
 					pastFrames[n] = frames[n];
 				}
 			}
@@ -3910,13 +3906,13 @@ public:
 	}
 protected:
 	static constexpr size_t kNumEnds = 2;
-	std::array<TouchFrame,kNumEnds> pastFrames;
+	std::array<centroid_t,kNumEnds> pastFrames;
 private:
 	virtual void updateDisplay(LedSlider& slider)
 	{
 		std::array<LedSlider::centroid_t,2> values = {
-				LedSlider::centroid_t{ pastFrames[0].pos, 0.15 },
-				LedSlider::centroid_t{ pastFrames[1].pos, 0.15 },
+				LedSlider::centroid_t{ pastFrames[0].location, 0.15 },
+				LedSlider::centroid_t{ pastFrames[1].location, 0.15 },
 		};
 		slider.setLedsCentroids(values.data(), values.size());
 	}
@@ -3935,8 +3931,8 @@ public:
 	void updateDisplay(LedSlider& slider) override
 	{
 		std::array<LedSlider::centroid_t,3> values = {
-				LedSlider::centroid_t{ pastFrames[0].pos, 0.05 },
-				LedSlider::centroid_t{ pastFrames[1].pos, 0.05 },
+				LedSlider::centroid_t{ pastFrames[0].location, 0.05 },
+				LedSlider::centroid_t{ pastFrames[1].location, 0.05 },
 				LedSlider::centroid_t{ *display, 0.15 },
 		};
 		slider.setLedsCentroids(values.data(), values.size());
