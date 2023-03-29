@@ -23,43 +23,43 @@ private:
 	typedef CentroidDetection::DATA_T Position;
 	static_assert(std::is_signed<Position>::value); // if not signed, distance computation below may get fuzzy
 	static_assert(std::is_same<decltype(centroid_t::location),Position>::value);
-	static constexpr size_t MAX_TOUCHES = 5;
+	static constexpr size_t kMaxTouches = 5;
 	size_t prevNumTouches = 0;
 	size_t numTouches = 0;
 	size_t newId = 0;
-	unsigned int sortedTouchIndices[MAX_TOUCHES] {};
-	unsigned int sortedTouchIds[MAX_TOUCHES] {};
-	std::array<TouchWithId,MAX_TOUCHES> sortedTouches {};
-	std::array<TouchWithId,MAX_TOUCHES> prevSortedTouches {};
+	unsigned int sortedTouchIndices[kMaxTouches] {};
+	unsigned int sortedTouchIds[kMaxTouches] {};
+	std::array<TouchWithId,kMaxTouches> sortedTouches {};
+	std::array<TouchWithId,kMaxTouches> prevSortedTouches {};
 public:
 	void process(CentroidDetection& slider) {
 		numTouches = slider.getNumTouches();
-		std::array<centroid_t,MAX_TOUCHES> touches;
+		std::array<centroid_t,kMaxTouches> touches;
 		for(size_t n = 0; n < numTouches; ++n)
 			touches[n] = centroid_t{ .location = slider.touchLocation(n), .size = slider.touchSize(n) };
 
 		if(prevNumTouches != numTouches)
 		{
-			constexpr size_t kMaxPermutations = MAX_TOUCHES * (MAX_TOUCHES - 1);
+			constexpr size_t kMaxPermutations = kMaxTouches * (kMaxTouches - 1);
 			Position distances[kMaxPermutations];
-			size_t ids[kMaxPermutations];
+			size_t permCodes[kMaxPermutations];
 			// calculate all distance permutations between previous and current touches
 			for(size_t i = 0; i < numTouches; ++i)
 			{
 				for(size_t p = 0; p < prevNumTouches; ++p)
 				{
-					size_t index = i * prevNumTouches + p;	// permutation id [says between which touches we are calculating distance]
+					size_t index = i * prevNumTouches + p;	// permutation code [says between which touches we are calculating distance]
 					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].touch.location);
-					ids[index] = index;
+					permCodes[index] = index;
 					if(index > 0)
 					{
 						// sort, from min to max distance
 						Position tmp;
 						while(distances[index] < distances[index - 1])
 						{
-							tmp = ids[index - 1];
-							ids[index - 1] = ids[index];
-							ids[index] = tmp;
+							tmp = permCodes[index - 1];
+							permCodes[index - 1] = permCodes[index];
+							permCodes[index] = tmp;
 
 							tmp	= distances[index - 1];
 							distances[index - 1] = distances[index];
@@ -75,14 +75,14 @@ public:
 			}
 
 			size_t sorted = 0;
-			bool currAssigned[MAX_TOUCHES] = {false};
-			bool prevAssigned[MAX_TOUCHES] = {false};
+			bool currAssigned[kMaxTouches] = {false};
+			bool prevAssigned[kMaxTouches] = {false};
 
 			// track touches assigning index according to shortest distance
 			for(size_t i = 0; i < numTouches * prevNumTouches; ++i)
 			{
-				size_t currentIndex = ids[i] / prevNumTouches;
-				size_t prevIndex = ids[i] % prevNumTouches;
+				size_t currentIndex = permCodes[i] / prevNumTouches;
+				size_t prevIndex = permCodes[i] % prevNumTouches;
 				// avoid double assignment
 				if(!currAssigned[currentIndex] && !prevAssigned[prevIndex])
 				{
