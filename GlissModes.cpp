@@ -14,6 +14,7 @@ class TouchTracker
 public:
 	typedef LedSlider::centroid_t centroid_t;
 	typedef uint32_t Id;
+	static constexpr Id kIdInvalid = -1;
 	struct TouchWithId
 	{
 		centroid_t touch;
@@ -27,10 +28,13 @@ private:
 	size_t prevNumTouches = 0;
 	size_t numTouches = 0;
 	size_t newId = 0;
-	unsigned int sortedTouchIndices[kMaxTouches] {};
-	unsigned int sortedTouchIds[kMaxTouches] {};
+	std::array<unsigned int,kMaxTouches> sortedTouchIndices {};
+	std::array<unsigned int,kMaxTouches> sortedTouchIds {};
 	std::array<TouchWithId,kMaxTouches> sortedTouches {};
 	std::array<TouchWithId,kMaxTouches> prevSortedTouches {};
+	static constexpr TouchWithId kInvalidTouch = {
+		.id = kIdInvalid,
+	};
 public:
 	void process(CentroidDetection& slider) {
 		numTouches = slider.getNumTouches();
@@ -134,6 +138,9 @@ public:
 				.id = sortedTouchIds[i],
 			};
 		}
+		// empty remaining touches. Not that they should ever be accessed...
+		for(size_t i = numTouches; i < sortedTouches.size(); ++i)
+			sortedTouches[i].id = kIdInvalid;
 		// backup
 		prevSortedTouches = sortedTouches;
 		prevNumTouches = numTouches;
@@ -147,18 +154,18 @@ public:
 		for(const auto& t : sortedTouches)
 			if(id == t.id)
 				return t;
-		return sortedTouches.back();
+		return kInvalidTouch;
 	}
 	// the last is the most recent
 	const TouchWithId& getTouchOrdered(size_t n)
 	{
 		return sortedTouches[n];
 	}
-	const TouchWithId& getTouchMostRecent(size_t n)
+	const TouchWithId& getTouchMostRecent()
 	{
 		return sortedTouches[numTouches - 1];
 	}
-	const TouchWithId& getTouchOldest(size_t n)
+	const TouchWithId& getTouchOldest()
 	{
 		return sortedTouches[0];
 	}
