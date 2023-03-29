@@ -1618,8 +1618,49 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
+static constexpr size_t kNumSplits = 2;
+std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool touchEnabled, bool split)
+{
+	std::array<centroid_t,kNumSplits> values;
+	if(touchEnabled)
+		gTouchTracker.process(globalSlider);
+	size_t numTouches = gTouchTracker.getNumTouches();
+	// per each split
+	static_assert(kNumSplits == 2); // or the loop below won't work
+	for(ssize_t s = 0; s < 1 + split; ++s)
+	{
+		bool found = false;
+		const float min = split ? (kNumSplits - 1 - s) * 0.52 : 0;
+		const float max = split ? min + 0.48 : 1;
+		TouchTracker::TouchWithId twi;
+		for(ssize_t i = numTouches - 1; i >= 0; --i)
+		{
+			// get the most recent touch which started on this split
+			const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
+			if(t.startLocation >= min && t.startLocation < max)
+			{
+				found = true;
+				twi = t;
+				break;
+			}
+		}
+		if(!found)
+			twi.id = TouchTracker::kIdInvalid;
+		if(TouchTracker::kIdInvalid == twi.id)
+		{
+			values[s].location = 0;
+			values[s].size = 0;
+		} else {
+			// TODO: this used to be compoundTouch)
+			values[s].location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
+			values[s].size = twi.touch.size;
+		}
+	}
+	return values;
+}
+
 class DirectControlMode : public PerformanceMode {
-	static constexpr size_t kNumSplits = 2;
+	static constexpr size_t kNumSplits = ::kNumSplits;
 public:
 	bool setup(double ms) override
 	{
@@ -1650,45 +1691,7 @@ public:
 	}
 	void render(BelaContext*) override
 	{
-		if(ledSliders.isTouchEnabled())
-		{
-			gTouchTracker.process(globalSlider);
-		}
-		std::array<centroid_t,kNumSplits> values;
-
-		size_t numTouches = gTouchTracker.getNumTouches();
-		// per each split
-		static_assert(kNumSplits == 2); // or the loops below won't work
-		for(ssize_t s = 0; s < 1 + split; ++s)
-		{
-			bool found = false;
-			const float min = split ? (kNumSplits - 1 - s) * 0.52 : 0;
-			const float max = split ? min + 0.48 : 1;
-			TouchTracker::TouchWithId twi;
-			for(ssize_t i = numTouches - 1; i >= 0; --i)
-			{
-				// get the most recent touch which started on this split
-				const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
-				if(t.startLocation >= min && t.startLocation < max)
-				{
-					found = true;
-					twi = t;
-					break;
-				}
-			}
-			if(!found)
-				twi.id = TouchTracker::kIdInvalid;
-			if(TouchTracker::kIdInvalid == twi.id)
-			{
-				values[s].location = 0;
-				values[s].size = 0;
-			} else {
-				// TODO: this used to be compoundTouch)
-				values[s].location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
-				values[s].size = twi.touch.size;
-			}
-		}
-
+		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), split);
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
