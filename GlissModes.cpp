@@ -7,6 +7,135 @@
 #include "preset.h"
 #include "packed.h"
 
+#include <cmath>
+
+class TouchTracker
+{
+public:
+	typedef LedSlider::centroid_t centroid_t;
+	typedef uint32_t Index;
+	struct IndexedTouch {
+		centroid_t touch;
+		Index index;
+	};
+private:
+	typedef CentroidDetection::DATA_T Position;
+	static_assert(std::is_signed<Position>::value); // if not signed, distance computation below may get fuzzy
+	static_assert(std::is_same<decltype(centroid_t::location),Position>::value);
+	static constexpr size_t MAX_TOUCHES = 5;
+	size_t prevNumTouches = 0;
+	size_t numTouches = 0;
+	unsigned int sortedTouchIndices[MAX_TOUCHES] {};
+	centroid_t sortedTouches[MAX_TOUCHES] {};
+	centroid_t prevSortedTouches[MAX_TOUCHES] {};
+public:
+	void process(CentroidDetection& slider) {
+		numTouches = slider.getNumTouches();
+		std::array<centroid_t,MAX_TOUCHES> touches;
+		for(size_t n = 0; n < numTouches; ++n)
+			touches[n] = centroid_t{ .location = slider.touchLocation(n), .size = slider.touchSize(n) };
+
+		if(prevNumTouches != numTouches)
+		{
+			constexpr size_t kMaxPermutations = MAX_TOUCHES * (MAX_TOUCHES - 1);
+			Position distances[kMaxPermutations];
+			size_t ids[kMaxPermutations];
+			// calculate all distance permutations between previous and current touches
+			for(size_t i = 0; i < numTouches; ++i)
+			{
+				for(size_t p = 0; p < prevNumTouches; ++p)
+				{
+					size_t index = i * prevNumTouches + p;	// permutation id [says between which touches we are calculating distance]
+					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].location);
+					ids[index] = index;
+					if(index > 0)
+					{
+						// sort, from min to max distance
+						Position tmp;
+						while(distances[index] < distances[index - 1])
+						{
+							tmp = ids[index - 1];
+							ids[index - 1] = ids[index];
+							ids[index] = tmp;
+
+							tmp	= distances[index - 1];
+							distances[index - 1] = distances[index];
+							distances[index] = tmp;
+
+							index--;
+
+							if(index == 0)
+								break;
+						}
+					}
+				}
+			}
+
+			size_t sorted = 0;
+			bool currAssigned[MAX_TOUCHES] = {false};
+			bool prevAssigned[MAX_TOUCHES] = {false};
+
+			// track touches assigning index according to shortest distance
+			for(size_t i = 0; i < numTouches * prevNumTouches; ++i)
+			{
+				size_t currentIndex = ids[i] / prevNumTouches;
+				size_t prevIndex = ids[i] % prevNumTouches;
+				// avoid double assignment
+				if(!currAssigned[currentIndex] && !prevAssigned[prevIndex])
+				{
+					currAssigned[currentIndex] = true;
+					prevAssigned[prevIndex] = true;
+					sortedTouchIndices[currentIndex] = prevIndex;
+					sorted++;
+				}
+			}
+			// we still have to assign a free index to new touches
+			if(prevNumTouches < numTouches)
+			{
+				for(size_t i = 0; i < numTouches; i++)
+				{
+					if(!currAssigned[i])
+						sortedTouchIndices[i] = sorted++; // assign next free index
+				}
+			}
+			else // some touches have disappeared...
+			{
+				// ...we have to shift all indices...
+				for(size_t i = prevNumTouches - 1; i != (size_t)-1; --i) // things you do to avoid warnings ...
+				{
+					if(!prevAssigned[i])
+					{
+						for(size_t j = 0; j < numTouches; ++j)
+						{
+							// ...only if touches that disappeared were before the current one
+							if(sortedTouchIndices[j] > i)
+								sortedTouchIndices[j]--;
+						}
+					}
+				}
+			}
+		}
+		else // nothing's changed since last round
+		{
+		}
+		// done! now update
+		for(size_t i = 0; i < numTouches; ++i)
+		{
+			// update tracked value
+			sortedTouches[sortedTouchIndices[i]] = touches[i];
+			prevSortedTouches[i] = sortedTouches[i];
+		}
+		prevNumTouches = numTouches;
+	}
+	size_t getNumTouches()
+	{
+		return numTouches;
+	}
+	const centroid_t& getTouchById(size_t id)
+	{
+		return sortedTouches[id];
+	}
+} gTouchTracker;
 static_assert(kNumOutChannels >= 2); // too many things to list depend on this in this file.
 
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
