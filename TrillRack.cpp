@@ -47,7 +47,6 @@ TrillRackInterface tri(0, 0, 1, __builtin_ctz(SW0_Pin), __builtin_ctz(SW_LED_Pin
 
 NeoPixelT<kNumLeds> np;
 Trill trill;
-CentroidDetection cd;
 
 std::vector<unsigned int> padsToOrderMap = {
 #if GLISS_HW_REV >= 2
