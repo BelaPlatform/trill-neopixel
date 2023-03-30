@@ -9,7 +9,7 @@ typedef struct {
 	uint8_t b;
 } rgb_t;
 
-class LedSlider : public CentroidDetection
+class LedSlider : public CentroidDetectionScaled
 {
 public:
 	struct centroid_t {
@@ -72,6 +72,8 @@ public:
 		std::vector<delimiters_t> boundaries;
 		std::vector<unsigned int> maxNumCentroids;
 		NeoPixel* np;
+		float min;
+		float max;
 	};
 
 	LedSliders() {};

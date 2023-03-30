@@ -46,7 +46,7 @@ void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length)
 void LedSlider::process(const float* rawData)
 {
 	if(touchEnabled)
-		CentroidDetection::process(rawData);
+		CentroidDetectionScaled::process(rawData);
 	if(AUTO_RAW == mode)
 		memcpy(scratch.data(), rawData, sizeof(rawData[0]) * scratch.size());
 	else if(AUTO_CENTROIDS == mode)
@@ -197,6 +197,7 @@ int LedSliders::setup(const Settings& settings)
 			.numLeds = b.lastLed - b.firstLed,
 			.ledOffset = b.firstLed,
 		});
+		sliders[n].setUsableRange(settings.min, settings.max);
 	}
 	return 0;
 }
