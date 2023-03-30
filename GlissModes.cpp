@@ -2369,10 +2369,9 @@ public:
 		}
 
 		float midFreq = 1.f / clockPeriod; // we process once per block; the oscillator thinks Fs = 1
-		float touchPosition = ledSliders.sliders[0].compoundTouchLocation();
 
-		if (touchPosition > 0.0) {
-			divisionPoint = touchPosition;
+		if (ledSliders.isTouchEnabled() && globalSlider.getNumTouches()) {
+			divisionPoint = globalSlider.compoundTouchLocation();
 		}
 		std::array<float,oscillators.size()> freqs = {
 				(1.f - divisionPoint) * midFreq * 2.f,
