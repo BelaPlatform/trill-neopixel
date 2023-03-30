@@ -1,6 +1,8 @@
 #include <array>
 constexpr size_t kNumPads = 26;
 constexpr size_t kNumLeds = 23;
+constexpr float kSliderBottomMargin = 0.05;
+constexpr float kSliderTopMargin = 0.05;
 typedef enum {
 	kOutModeFollowTouch,
 	kOutModeFollowLeds,

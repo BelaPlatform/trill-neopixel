@@ -255,7 +255,7 @@ int tr_setup()
 {
 	assert(kNumPads == padsToOrderMap.size());
 	globalSlider.setup(padsToOrderMap, 4, 1);
-	globalSlider.setUsableRange(0.1, 0.9);
+	globalSlider.setUsableRange(kSliderBottomMargin, 1.f - kSliderTopMargin);
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL

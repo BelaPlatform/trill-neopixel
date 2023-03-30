@@ -379,8 +379,8 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 			.boundaries = boundaries,
 			.maxNumCentroids = {maxNumCentroids},
 			.np = &np,
-			.min = 0,
-			.max = 1,
+			.min = kSliderBottomMargin,
+			.max = 1.f - kSliderTopMargin,
 	};
 	ls.setup(settings);
 	assert(numSplits == ls.sliders.size());
