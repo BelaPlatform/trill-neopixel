@@ -3578,6 +3578,11 @@ public:
 			ms %= periodicDuration;
 			coeff = (ms / float(periodicDuration)) < 0.1;
 		} else if (1 == value){
+			// in case we haven't been here in a while, we fix it quickly
+			// TODO: a proper setup() call to set lastMs
+			if(phase > finalPeriod * 2)
+				phase = 0;
+
 			// input mode: clock.
 			// over duration, show pulses with ramp up-ramp down period(constant width),
 			// to give the idea of frequency control
@@ -3586,7 +3591,7 @@ public:
 			ms %= duration;
 			float triangle = simpleTriangle(ms, duration);
 			float period = initialPeriod + (sqrt(triangle)) * (finalPeriod - initialPeriod);
-			if(phase > period)
+			while(phase > period) // wrap around
 				phase -= period;
 			coeff = (phase < onTime);
 		} else if (2 == value){
