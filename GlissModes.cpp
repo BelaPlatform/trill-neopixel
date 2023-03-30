@@ -1930,11 +1930,11 @@ public:
 			{
 				if((hadTouch[n] && !hasTouch[n]) || inputModeShouldUpdateTable){
 					updateTable(n);
-					inputModeShouldUpdateTable = false;
 				}
 				else
 					processTable(context, n);
 			}
+			inputModeShouldUpdateTable = false;
 		}
 		hadTouch = hasTouch;
 	}
