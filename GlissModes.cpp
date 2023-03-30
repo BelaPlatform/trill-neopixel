@@ -1909,7 +1909,7 @@ static float interpolatedRead(const T& table, float idx)
 	return interpolatedRead(table.data(), table.size(), idx);
 }
 
-class RecorderMode : public PerformanceMode {
+class RecorderMode : public SplitPerformanceMode {
 	enum {
 		kInputModeTrigger,
 		kInputModeClock,
@@ -1921,8 +1921,8 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode = kOutModeFollowLeds;
-		gBottomOutIsSize = !split;
-		if(split)
+		gBottomOutIsSize = !isSplit();
+		if(isSplit())
 		{
 			unsigned int guardPads = 1;
 			if(ms <= 0)
@@ -1946,17 +1946,17 @@ public:
 		std::array<bool,kNumSplits> hasTouch;
 		bool shouldProcessGestureRecorder = false;
 		static_assert(kNumSplits == 2); // or the loops below won't work
-		for(size_t n = 0; n < hasTouch.size() && n < size_t(1 + split); ++n) {
+		for(size_t n = 0; n < hasTouch.size() && n < size_t(1 + isSplit()); ++n) {
 				hasTouch[n] = ledSliders.sliders[n].getNumTouches();
 				if(hasTouch[n] || hadTouch[n])
 					shouldProcessGestureRecorder = true;
 		};
 		if(1 == ledSliders.sliders.size())
 			hasTouch[1] = hasTouch[0];
-		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), split);
+		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
-			if(split)
+			if(isSplit())
 				gestureRecorderSplit_loop(touches.data(), retrigger);
 			else
 				gestureRecorderSingle_loop(touches.data(), retrigger);
@@ -2021,7 +2021,7 @@ public:
 		}
 		// do visualisation
 		std::array<centroid_t,2> centroids;
-		if(split)
+		if(isSplit())
 		{
 			centroids[0].location = vizOuts[0];
 			centroids[0].size = kFixedCentroidSize;
@@ -2032,7 +2032,7 @@ public:
 			centroids[0].size = vizOuts[1];
 		}
 		ledSliders.sliders[0].setLedsCentroids(centroids.data(), 1);
-		if(split)
+		if(isSplit())
 			ledSliders.sliders[1].setLedsCentroids(centroids.data() + 1, 1);
 	}
 	void updateTable(size_t c)
@@ -2104,8 +2104,8 @@ public:
 	}
 	void updated(Parameter& p)
 	{
-		if(p.same(split)) {
-			printf("RecorderMode: Updated split: %d\n\r", split.get());
+		if(p.same(splitMode)) {
+			printf("RecorderMode: Updated splitMode: %d\n\r", splitMode.get());
 			setup(-1);
 		}
 		else if (p.same(retrigger)) {
@@ -2118,11 +2118,11 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3(split, retrigger, inputMode);
+		UPDATE_PRESET_FIELD3(splitMode, retrigger, inputMode);
 	}
 	RecorderMode() :
 		presetFieldData {
-			.split = split,
+			.splitMode = splitMode,
 			.retrigger = retrigger,
 			.inputMode = inputMode,
 		}
@@ -2130,16 +2130,16 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3(RecorderMode, split, retrigger, inputMode),
-			.loadCallback = genericLoadCallback3(RecorderMode, split, retrigger, inputMode),
+			.defaulter = genericDefaulter3(RecorderMode, splitMode, retrigger, inputMode),
+			.loadCallback = genericLoadCallback3(RecorderMode, splitMode, retrigger, inputMode),
 		};
 		presetDescSet(1, &presetDesc);
 	}
-	ParameterEnumT<2> split{this, false};
+	//splitMode from the base class
 	ParameterEnumT<2> retrigger{this, true};
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
 	PACKED_STRUCT(PresetFieldData_t {
-		uint8_t split;
+		uint8_t splitMode;
 		uint8_t retrigger ;
 		uint8_t inputMode;
 	}) presetFieldData;
@@ -4455,7 +4455,7 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 };
 
 static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColor};
-static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.split, &animationSplit);
+static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.splitMode, &animationSplit);
 static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.retrigger, &animationSingleRepeatedPulse);
 static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColor};
 static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
