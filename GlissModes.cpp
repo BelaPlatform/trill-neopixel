@@ -34,6 +34,13 @@ private:
 	static constexpr TouchWithId kInvalidTouch = {
 		.id = kIdInvalid,
 	};
+	size_t getTouchOrderById(const Id id)
+	{
+		for(size_t n = 0; n < sortedTouches.size() && n < numTouches; ++n)
+			if(id == sortedTouches[n].id)
+				return n;
+		return numTouches;
+	}
 public:
 	void process(CentroidDetection& slider) {
 		// cache previous readings
@@ -170,10 +177,11 @@ public:
 	}
 	const TouchWithId& getTouchById(const Id id)
 	{
-		for(const auto& t : sortedTouches)
-			if(id == t.id)
-				return t;
-		return kInvalidTouch;
+		size_t n = getTouchOrderById(id);
+		if(n >= numTouches)
+			return kInvalidTouch;
+		else
+			return sortedTouches[n];
 	}
 	// the last is the most recent
 	const TouchWithId& getTouchOrdered(size_t n)
