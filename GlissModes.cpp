@@ -973,17 +973,17 @@ public:
 		HalfGesture_t first;
 		HalfGesture_t second;
 	};
-	Gesture_t process(const std::vector<LedSlider>& sliders, bool loop)
+	Gesture_t process(const centroid_t* touches, size_t numTouches, bool loop)
 	{
-		if(sliders.size() < 1)
+		if(numTouches < 1)
 			return Gesture_t();
-		bool single = (1 == sliders.size());
-		std::array<unsigned int, 2> hasTouch;
-		hasTouch[0] = sliders[0].getNumTouches();
+		bool single = (1 == numTouches);
+		std::array<bool, 2> hasTouch;
+		hasTouch[0] = (touches[0].size > 0);
 		if(single)
 			hasTouch[1] = hasTouch[0];
 		else
-			hasTouch[1] = sliders[1].getNumTouches();
+			hasTouch[1] = touches[1].size;
 		HalfGesture_t out[2];
 
 		for(unsigned int n = 0; n < hasTouch.size(); ++n)
@@ -1028,12 +1028,12 @@ public:
 			{
 				sample_t val;
 				if(0 == n)
-					val = sliders[n].compoundTouchLocation();
+					val = touches[n].location;
 				else {
 					if(single)
-						val = sliders[0].compoundTouchSize();
+						val = touches[0].size;
 					else
-						val = sliders[n].compoundTouchLocation();
+						val = touches[n].location;
 				}
 				out[n] = { rs[n].record(val), true };
 			}
@@ -1053,9 +1053,9 @@ private:
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
-static void gestureRecorderSingle_loop(bool loop)
+static void gestureRecorderSingle_loop(const centroid_t* inTouches, bool loop)
 {
-	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
+	GestureRecorder::Gesture_t g = gGestureRecorder.process(inTouches, 1, loop);
 #if 0
 	static int count = 0;
 	bool p = count++ % 20 == 0;
@@ -1073,9 +1073,9 @@ static void gestureRecorderSingle_loop(bool loop)
 	ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
 }
 
-static void gestureRecorderSplit_loop(bool loop)
+static void gestureRecorderSplit_loop(const centroid_t* inTouches, bool loop)
 {
-	GestureRecorder::Gesture_t g = gGestureRecorder.process(ledSliders.sliders, loop);
+	GestureRecorder::Gesture_t g = gGestureRecorder.process(inTouches, 2, loop);
 	centroid_t centroids[2];
 	if(g.first.valid)
 	{
@@ -1876,21 +1876,32 @@ public:
 	void render(BelaContext* context) override
 	{
 		gInUsesRange = true; // may be overridden below depending on mode
-		std::array<bool,2> hasTouch;
+		std::array<bool,kNumSplits> hasTouch;
 		bool shouldProcessGestureRecorder = false;
-		for(unsigned int n = 0; n < hasTouch.size() && n < ledSliders.sliders.size(); ++n) {
+		static_assert(kNumSplits == 2); // or the loops below won't work
+		for(size_t n = 0; n < hasTouch.size() && n < size_t(1 + split); ++n) {
 				hasTouch[n] = ledSliders.sliders[n].getNumTouches();
 				if(hasTouch[n] || hadTouch[n])
 					shouldProcessGestureRecorder = true;
 		};
 		if(1 == ledSliders.sliders.size())
 			hasTouch[1] = hasTouch[0];
+		std::array<centroid_t,kNumSplits> touches;
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
-			if(split)
-				gestureRecorderSplit_loop(retrigger);
-			else
-				gestureRecorderSingle_loop(retrigger);
+			touches[0] = centroid_t {
+					.location = ledSliders.sliders[0].compoundTouchLocation(),
+					.size = ledSliders.sliders[0].compoundTouchSize(),
+			};
+			if(split) {
+				touches[1] = centroid_t {
+						.location = ledSliders.sliders[1].compoundTouchLocation(),
+						.size = ledSliders.sliders[1].compoundTouchSize(),
+				};
+				gestureRecorderSplit_loop(touches.data(), retrigger);
+			} else {
+				gestureRecorderSingle_loop(touches.data(), retrigger);
+			}
 		}
 		if(kInputModeTrigger == inputMode)
 		{
@@ -2080,7 +2091,7 @@ private:
 			{128, 128, 100},
 	};
 	static constexpr size_t kTableSize = 1024;
-	static constexpr size_t kNumSplits = 2;
+	static constexpr size_t kNumSplits = ::kNumSplits;
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<bool,kNumSplits> hadTouch {};
