@@ -183,6 +183,12 @@ public:
 		else
 			return sortedTouches[n];
 	}
+	void setStartLocationById(const Id id, Position newLocation)
+	{
+		size_t n = getTouchOrderById(id);
+		if(n < numTouches)
+			sortedTouches[n].startLocation = newLocation;
+	}
 	// the last is the most recent
 	const TouchWithId& getTouchOrdered(size_t n)
 	{
