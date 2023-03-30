@@ -26,18 +26,20 @@ private:
 	static_assert(std::is_signed<Position>::value); // if not signed, distance computation below may get fuzzy
 	static_assert(std::is_same<decltype(centroid_t::location),Position>::value);
 	static constexpr size_t kMaxTouches = 5;
-	size_t prevNumTouches = 0;
 	size_t numTouches = 0;
 	size_t newId = 0;
 	std::array<unsigned int,kMaxTouches> sortedTouchIndices {};
 	std::array<unsigned int,kMaxTouches> sortedTouchIds {};
 	std::array<TouchWithId,kMaxTouches> sortedTouches {};
-	std::array<TouchWithId,kMaxTouches> prevSortedTouches {};
 	static constexpr TouchWithId kInvalidTouch = {
 		.id = kIdInvalid,
 	};
 public:
 	void process(CentroidDetection& slider) {
+		// cache previous readings
+		std::array<TouchWithId,kMaxTouches> prevSortedTouches = sortedTouches;
+		size_t prevNumTouches = numTouches;
+
 		numTouches = slider.getNumTouches();
 		std::array<centroid_t,kMaxTouches> touches;
 		for(size_t n = 0; n < numTouches; ++n)
@@ -161,9 +163,6 @@ public:
 		// empty remaining touches. Not that they should ever be accessed...
 		for(size_t i = numTouches; i < sortedTouches.size(); ++i)
 			sortedTouches[i].id = kIdInvalid;
-		// backup
-		prevSortedTouches = sortedTouches;
-		prevNumTouches = numTouches;
 	}
 	size_t getNumTouches()
 	{
