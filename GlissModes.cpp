@@ -1640,21 +1640,35 @@ std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, b
 	size_t numTouches = gTouchTracker.getNumTouches();
 	// per each split
 	static_assert(kNumSplits == 2); // or the loop below won't work
+	const float midMin = 0.45;
+	const float midMax = 0.55;
 	for(ssize_t s = 0; s < 1 + split; ++s)
 	{
 		bool found = false;
-		const float min = split ? (kNumSplits - 1 - s) * 0.52 : 0;
-		const float max = split ? min + 0.48 : 1;
+		const float min = split ? (kNumSplits - 1 - s) * midMax : 0;
+		const float max = split ? min + midMin : 1;
 		TouchTracker::TouchWithId twi;
 		for(ssize_t i = numTouches - 1; i >= 0; --i)
 		{
 			// get the most recent touch which started on this split
 			const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
-			if(t.startLocation >= min && t.startLocation < max)
+			if(t.startLocation >= min && t.startLocation <= max)
 			{
 				found = true;
 				twi = t;
 				break;
+			} else if(t.startLocation > midMin && t.startLocation < midMax) {
+				// touch originated in the region between the splits.
+				if(t.touch.location >= min && t.touch.location <= max)
+				{
+					// if it enters one of the splits,
+					// we assign it to it for future reference
+					// and immediately start using it
+					gTouchTracker.setStartLocationById(t.id, t.touch.location);
+					found = true;
+					twi = t;
+					break;
+				}
 			}
 		}
 		if(!found)
