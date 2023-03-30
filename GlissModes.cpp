@@ -1093,30 +1093,8 @@ static void gestureRecorderSingle_loop(const centroid_t* inTouches, bool loop)
 		centroid.size = kNoOutput;
 	}
 	ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-}
-
-static void gestureRecorderSplit_loop(const centroid_t* inTouches, bool loop)
-{
-	GestureRecorder::Gesture_t g = gGestureRecorder.process(inTouches, 2, loop);
-	centroid_t centroids[2];
-	if(g.first.valid)
-	{
-		centroids[0].location = g.first.value;
-		centroids[0].size = kFixedCentroidSize;
-	} else {
-		centroids[0].location = kNoOutput;
-		centroids[0].size = kNoOutput;
-	}
-	if(g.second.valid)
-	{
-		centroids[1].location = g.second.value;
-		centroids[1].size = kFixedCentroidSize;
-	} else {
-		centroids[1].location = kNoOutput;
-		centroids[1].size = kNoOutput;
-	}
-	ledSliders.sliders[0].setLedsCentroids(centroids, 1);
-	ledSliders.sliders[1].setLedsCentroids(centroids + 1, 1);
+	gManualAnOut[0] = centroid.location;
+	gManualAnOut[1] = centroid.size;
 }
 
 class Parameter {
@@ -1920,7 +1898,7 @@ class RecorderMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gOutMode = kOutModeFollowLeds;
+		gOutMode = kOutModeManualBlock;
 		gBottomOutIsSize = !isSplit();
 		if(isSplit())
 		{
@@ -1956,14 +1934,39 @@ public:
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
-			if(isSplit())
-				gestureRecorderSplit_loop(touches.data(), retrigger);
-			else
+			if(isSplit()){
+				bool isSize = (kModeSplitSize == splitMode);
+				if(isSize)
+				{
+					// trick the recorder into recording the size
+					for(auto& t : touches)
+						t.location = t.size;
+				}
+				GestureRecorder::Gesture_t g = gGestureRecorder.process(touches.data(), 2, retrigger);
+				if(kInputModeTrigger == inputMode)
+				{
+					static constexpr centroid_t kInvalid = {0, 0};
+					// set display
+					std::array<centroid_t,kNumSplits> values;
+					for(size_t n = 0; n < g.size(); ++n)
+					{
+						if(g[n].valid)
+						{
+							values[n].location = g[n].value;
+							values[n].size = isSize ? g[n].value : kFixedCentroidSize;
+						} else {
+							values[n] = kInvalid;
+						}
+					}
+					renderOut(gManualAnOut, values);
+				}
+			} else {
 				gestureRecorderSingle_loop(touches.data(), retrigger);
+			}
 		}
 		if(kInputModeTrigger == inputMode)
 		{
-			gOutMode = kOutModeFollowLeds;
+			gOutMode = kOutModeManualBlock;
 		} else {
 			gOutMode = kOutModeManualSample;
 			for(unsigned int n = 0; n < hasTouch.size(); ++n)
