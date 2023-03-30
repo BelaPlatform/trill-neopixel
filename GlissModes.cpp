@@ -1691,15 +1691,45 @@ std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, b
 class SplitPerformanceMode : public PerformanceMode {
 protected:
 	static constexpr size_t kNumSplits = ::kNumSplits;
-	enum SplitMode {
-		kModeNoSplit,
-		kModeSplitLocation,
-	};
 	bool isSplit()
 	{
 		return splitMode != kModeNoSplit;
 	}
+	void renderOut(std::array<float,kNumSplits>& out, std::array<centroid_t,kNumSplits>& values)
+	{
+		for(size_t n = 0; n < kNumSplits; ++n)
+		{
+			bool hasTouch = (values[n].size > 0);
+			if(kModeSplitLocation == splitMode)
+			{
+				centroid_t centroid;
+				centroid.location = values[n].location;
+				centroid.size = hasTouch * kFixedCentroidSize;
+				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
+				out[n] = values[n].location;
+			} else {
+				// use multiple centroids to make a bigger dot
+				// TODO: it would be perhaps nicer to show this with
+				// a patch that expands vertically as well as increasing
+				// in intensity
+				std::array<centroid_t,3> centroids;
+				float value = values[n].size;
+				for(size_t c = 0; c < centroids.size(); ++c)
+				{
+					centroids[c].location = 0.3 + (c * 0.2);
+					centroids[c].size = value;
+				}
+				out[n] = value;
+				ledSliders.sliders[n].setLedsCentroids(centroids.data(), centroids.size());
+			}
+		}
+	}
 public:
+	enum SplitMode {
+		kModeNoSplit,
+		kModeSplitLocation,
+		kModeSplitSize,
+	};
 	ParameterEnumT<3> splitMode{this, false};
 };
 
@@ -1708,7 +1738,7 @@ public:
 	bool setup(double ms) override
 	{
 		gBottomOutIsSize = !isSplit();
-		gOutMode = kOutModeFollowLeds;
+		gOutMode = kOutModeManualBlock;
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
@@ -1761,35 +1791,22 @@ public:
 			lastLatchCount = performanceBtn.pressCount;
 		}
 
-		centroid_t centroid;
 		if(isSplit())
 		{
-			for(ssize_t n = 0; n < 1 + isSplit(); ++n)
-			{
-				if(isLatched[n])
-				{
-					centroid.location = values[n].location;
-					centroid.size = kFixedCentroidSize;
-				} else {
-					// this is not actually latched, but as gOutMode
-					// is not latched, we emulate direct control here.
-					// TODO: be able to set gOutMode per-split
-					centroid.location = values[n].location;
-					bool hasTouch = (values[n].size > 0);
-					centroid.size = kFixedCentroidSize * hasTouch; // TODO: when bipolar this should send out "nothing"
-				}
-				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
-			}
+			renderOut(gManualAnOut, values);
 		} else {
+			centroid_t centroid;
 			centroid.location = values[0].location;
 			centroid.size = values[0].size;
 			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+			gManualAnOut[0] = centroid.location;
+			gManualAnOut[1] = centroid.size;
 		}
 	}
 	void updated(Parameter& p)
 	{
 		if(p.same(splitMode)) {
-			printf("DirectControlMode: updated split: %d\n\r", splitMode.get());
+			printf("DirectControlMode: updated splitMode: %d\n\r", splitMode.get());
 			setup(-1);
 		}
 		else if (p.same(autoLatch)) {
@@ -3454,14 +3471,15 @@ public:
 		color0(color0), color1(color1) {}
 	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
 		rgb_t color;
-		if(0 == value)
+		if(SplitPerformanceMode::kModeNoSplit == value)
 			color = color0;
 		else {
 			float coeff0 = simpleTriangle(ms, 1000);
 			float coeff1 = 1.f - coeff0;
-			color.r = coeff0 * color0.r + coeff1 * color1.r;
-			color.g = coeff0 * color0.g + coeff1 * color1.g;
-			color.b = coeff0 * color0.b + coeff1 * color1.b;
+			rgb_t otherColor = (SplitPerformanceMode::kModeSplitLocation == value) ? color1 : rgb_t{0, 0, 0};
+			color.r = coeff0 * color0.r + coeff1 * otherColor.r;
+			color.g = coeff0 * color0.g + coeff1 * otherColor.g;
+			color.b = coeff0 * color0.b + coeff1 * otherColor.b;
 		}
 		ledSlider.setColor(color);
 	};
