@@ -3249,6 +3249,10 @@ public:
 		gCalibrationProcedure.setup();
 		gOutMode = kOutModeManualBlock;
 		resetDemoMode();
+		ledSlidersSetupOneSlider(
+			baseColor,
+			LedSlider::MANUAL_CENTROIDS
+		);
 		return true;
 	}
 	void render(BelaContext* context) override
