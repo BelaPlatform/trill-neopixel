@@ -987,6 +987,13 @@ public:
 	struct Gesture_t {
 		HalfGesture_t first;
 		HalfGesture_t second;
+		HalfGesture_t operator[](size_t n)
+		{
+			return (0 == n) ? first : second;
+		}
+		size_t size() const {
+			return 2;
+		}
 	};
 	Gesture_t process(const centroid_t* touches, size_t numTouches, bool loop)
 	{
