@@ -3330,6 +3330,7 @@ public:
 				v = round(normToVfs(sl.compoundTouchLocation()));
 			float out = vToOut(v);
 			gManualAnOut[0] = out;
+			gManualAnOut[1] = out;
 			if(CalibrationProcedure::kDone == calibrationState)
 				animation = kGlow;
 			else
