@@ -145,7 +145,7 @@ std::vector<unsigned int> padsToOrderMap = {
 #endif // OLD
 #endif
 };
-CentroidDetection globalSlider;
+CentroidDetectionScaled globalSlider;
 int gAlt = 0;
 
 #include "bootloader.h"
@@ -255,6 +255,7 @@ int tr_setup()
 {
 	assert(kNumPads == padsToOrderMap.size());
 	globalSlider.setup(padsToOrderMap, 4, 1);
+	globalSlider.setUsableRange(0.1, 0.9);
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL
