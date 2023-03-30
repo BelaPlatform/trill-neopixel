@@ -1688,14 +1688,28 @@ std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, b
 	return values;
 }
 
-class DirectControlMode : public PerformanceMode {
+class SplitPerformanceMode : public PerformanceMode {
+protected:
 	static constexpr size_t kNumSplits = ::kNumSplits;
+	enum SplitMode {
+		kModeNoSplit,
+		kModeSplitLocation,
+	};
+	bool isSplit()
+	{
+		return splitMode != kModeNoSplit;
+	}
+public:
+	ParameterEnumT<3> splitMode{this, false};
+};
+
+class DirectControlMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gBottomOutIsSize = !split;
+		gBottomOutIsSize = !isSplit();
 		gOutMode = kOutModeFollowLeds;
-		if(split)
+		if(isSplit())
 		{
 			unsigned int guardPads = 1;
 			if(ms <= 0)
@@ -1720,14 +1734,14 @@ public:
 	}
 	void render(BelaContext*) override
 	{
-		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), split);
+		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
 		{
 			// at least one VALID and non-latched
 			// (isLatched[split] is same as isLatched[0] if not split)
-			if(!isLatched[0] || !isLatched[split])
+			if(!isLatched[0] || !isLatched[isSplit()])
 				shouldLatch = true;
 		}
 		if(performanceBtn.offset)
@@ -1740,17 +1754,17 @@ public:
 			}
 		}
 		// sets values and isLatched
-		latchProcessor.process(autoLatch, 1 + split, values, isLatched, shouldLatch, shouldUnlatch);
-		if(shouldLatch && (isLatched[0] || isLatched[split]))
+		latchProcessor.process(autoLatch, 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
+		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
 			lastLatchCount = performanceBtn.pressCount;
 		}
 
 		centroid_t centroid;
-		if(split)
+		if(isSplit())
 		{
-			for(ssize_t n = 0; n < 1 + split; ++n)
+			for(ssize_t n = 0; n < 1 + isSplit(); ++n)
 			{
 				if(isLatched[n])
 				{
@@ -1774,8 +1788,8 @@ public:
 	}
 	void updated(Parameter& p)
 	{
-		if(p.same(split)) {
-			printf("DirectControlMode: updated split: %d\n\r", split.get());
+		if(p.same(splitMode)) {
+			printf("DirectControlMode: updated split: %d\n\r", splitMode.get());
 			setup(-1);
 		}
 		else if (p.same(autoLatch)) {
@@ -1784,26 +1798,26 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2(split, autoLatch);
+		UPDATE_PRESET_FIELD2(splitMode, autoLatch);
 	}
 	DirectControlMode() :
 		presetFieldData{
-			.split = split,
+			.splitMode = splitMode,
 			.autoLatch = autoLatch,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2(DirectControlMode, split, autoLatch),
-			.loadCallback = genericLoadCallback2(DirectControlMode, split, autoLatch),
+			.defaulter = genericDefaulter2(DirectControlMode, splitMode, autoLatch),
+			.loadCallback = genericLoadCallback2(DirectControlMode, splitMode, autoLatch),
 		};
 		presetDescSet(0, &presetDesc);
 	}
-	ParameterEnumT<2> split{this, false};
+	// splitMode from base class
 	ParameterEnumT<2> autoLatch{this, false};
 	PACKED_STRUCT(PresetFieldData_t {
-		uint8_t split;
+		uint8_t splitMode;
 		uint8_t autoLatch;
 	}) presetFieldData;
 private:
@@ -4407,7 +4421,7 @@ static MenuItemTypeDisabled disabled;
 
 static ButtonAnimationSplit animationSplit(buttonColor, buttonColorSimilar);
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColor);
-static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.split, &animationSplit);
+static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
