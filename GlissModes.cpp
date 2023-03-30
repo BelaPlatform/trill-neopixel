@@ -1886,22 +1886,13 @@ public:
 		};
 		if(1 == ledSliders.sliders.size())
 			hasTouch[1] = hasTouch[0];
-		std::array<centroid_t,kNumSplits> touches;
+		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), split);
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
-			touches[0] = centroid_t {
-					.location = ledSliders.sliders[0].compoundTouchLocation(),
-					.size = ledSliders.sliders[0].compoundTouchSize(),
-			};
-			if(split) {
-				touches[1] = centroid_t {
-						.location = ledSliders.sliders[1].compoundTouchLocation(),
-						.size = ledSliders.sliders[1].compoundTouchSize(),
-				};
+			if(split)
 				gestureRecorderSplit_loop(touches.data(), retrigger);
-			} else {
+			else
 				gestureRecorderSingle_loop(touches.data(), retrigger);
-			}
 		}
 		if(kInputModeTrigger == inputMode)
 		{
