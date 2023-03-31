@@ -42,6 +42,10 @@ private:
 				return n;
 		return numTouches;
 	}
+	// these are stored only so that we can detect frame changes.
+	// TODO: if there is a guarantee process() is called only on new frames,
+	// you can save memory by making these local variables there.
+	std::array<centroid_t,kMaxTouches> touches;
 public:
 	void setMaxTrackingDistance(Position d)
 	{
@@ -51,11 +55,19 @@ public:
 		// cache previous readings
 		std::array<TouchWithId,kMaxTouches> prevSortedTouches = sortedTouches;
 		size_t prevNumTouches = numTouches;
-
 		numTouches = slider.getNumTouches();
-		std::array<centroid_t,kMaxTouches> touches;
+		bool changed = (numTouches != prevNumTouches);
 		for(size_t n = 0; n < numTouches; ++n)
-			touches[n] = centroid_t{ .location = slider.touchLocation(n), .size = slider.touchSize(n) };
+		{
+			centroid_t newTouch = centroid_t{ .location = slider.touchLocation(n), .size = slider.touchSize(n) };
+			changed |= memcmp(&newTouch, &touches[n], sizeof(newTouch));
+			touches[n] = newTouch;
+		}
+		if(!changed)
+		{
+			// if we are a repetition of the previous frame, no need to process anything
+			return;
+		}
 
 		Id firstNewId = newId;
 		{
