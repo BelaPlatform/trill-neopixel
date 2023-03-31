@@ -1919,7 +1919,7 @@ public:
 				if(hasTouch[n] || hadTouch[n])
 					shouldProcessGestureRecorder = true;
 		};
-		if(1 == ledSliders.sliders.size())
+		if(!isSplit())
 			hasTouch[1] = hasTouch[0];
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
