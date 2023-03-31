@@ -1705,15 +1705,14 @@ protected:
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 				out[n] = values[n].location;
 			} else {
-				// use multiple centroids to make a bigger dot
-				// TODO: it would be perhaps nicer to show this with
-				// a patch that expands vertically as well as increasing
-				// in intensity
-				std::array<centroid_t,3> centroids;
+				// Use multiple centroids to make a bigger dot.
+				// Their spacing increases with the size
+				std::array<centroid_t,2> centroids;
 				float value = values[n].size;
+				float spread = 0.15f * std::min(1.f, values[n].size);
 				for(size_t c = 0; c < centroids.size(); ++c)
 				{
-					centroids[c].location = 0.3 + (c * 0.2);
+					centroids[c].location = 0.5f + (0 == c ? -spread : +spread);
 					centroids[c].size = value;
 				}
 				out[n] = value;
