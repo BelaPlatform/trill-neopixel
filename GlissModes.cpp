@@ -1694,7 +1694,7 @@ protected:
 			{
 				// Use multiple centroids to make a bigger dot.
 				// Their spacing increases with the size
-				std::array<centroid_t,2> centroids;
+				std::array<centroid_t,kNumSplits> centroids;
 				float value = values[n].size;
 				float spread = 0.15f * std::min(1.f, values[n].size);
 				for(size_t c = 0; c < centroids.size(); ++c)
