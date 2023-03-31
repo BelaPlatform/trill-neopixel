@@ -1694,17 +1694,27 @@ protected:
 	}
 	void renderOut(std::array<float,kNumSplits>& out, std::array<centroid_t,kNumSplits>& values)
 	{
-		for(size_t n = 0; n < kNumSplits; ++n)
+		for(ssize_t n = 0; n < isSplit() + 1; ++n)
 		{
 			bool hasTouch = (values[n].size > 0);
-			if(kModeSplitLocation == splitMode)
+			switch(splitMode)
+			{
+			case kModeNoSplit:
+				ledSliders.sliders[n].setLedsCentroids(values.data(), 1);
+				out[0] = values[0].location;
+				out[1] = values[0].size;
+				break;
+			case kModeSplitLocation:
 			{
 				centroid_t centroid;
 				centroid.location = values[n].location;
 				centroid.size = hasTouch * kFixedCentroidSize;
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 				out[n] = values[n].location;
-			} else {
+			}
+				break;
+			case kModeSplitSize:
+			{
 				// Use multiple centroids to make a bigger dot.
 				// Their spacing increases with the size
 				std::array<centroid_t,2> centroids;
@@ -1717,6 +1727,8 @@ protected:
 				}
 				out[n] = value;
 				ledSliders.sliders[n].setLedsCentroids(centroids.data(), centroids.size());
+			}
+				break;
 			}
 		}
 	}
@@ -1786,18 +1798,7 @@ public:
 			// keep note of current press
 			lastLatchCount = performanceBtn.pressCount;
 		}
-
-		if(isSplit())
-		{
-			renderOut(gManualAnOut, values);
-		} else {
-			centroid_t centroid;
-			centroid.location = values[0].location;
-			centroid.size = values[0].size;
-			ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-			gManualAnOut[0] = centroid.location;
-			gManualAnOut[1] = centroid.size;
-		}
+		renderOut(gManualAnOut, values);
 	}
 	void updated(Parameter& p)
 	{
