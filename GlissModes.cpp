@@ -28,6 +28,7 @@ private:
 	static constexpr size_t kMaxTouches = 5;
 	size_t numTouches = 0;
 	size_t newId = 0;
+	Position maxTrackingDistance = 0.2;
 	std::array<unsigned int,kMaxTouches> sortedTouchIndices {};
 	std::array<unsigned int,kMaxTouches> sortedTouchIds {};
 	std::array<TouchWithId,kMaxTouches> sortedTouches {};
@@ -42,6 +43,10 @@ private:
 		return numTouches;
 	}
 public:
+	void setMaxTrackingDistance(Position d)
+	{
+		maxTrackingDistance = d;
+	}
 	void process(CentroidDetection& slider) {
 		// cache previous readings
 		std::array<TouchWithId,kMaxTouches> prevSortedTouches = sortedTouches;
@@ -53,7 +58,6 @@ public:
 			touches[n] = centroid_t{ .location = slider.touchLocation(n), .size = slider.touchSize(n) };
 
 		Id firstNewId = newId;
-		if(prevNumTouches != numTouches)
 		{
 			constexpr size_t kMaxPermutations = kMaxTouches * (kMaxTouches - 1);
 			Position distances[kMaxPermutations];
@@ -66,7 +70,7 @@ public:
 					size_t index = i * prevNumTouches + p;	// permutation code [says between which touches we are calculating distance]
 					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].touch.location);
 					permCodes[index] = index;
-					// sort, from min to max distance
+					// sort permCodes and distances by distances from min to max
 					while(index && (distances[index] < distances[index - 1]))
 					{
 						std::swap(permCodes[index], permCodes[index - 1]);
@@ -85,6 +89,13 @@ public:
 			{
 				size_t currentIndex = permCodes[i] / prevNumTouches;
 				size_t prevIndex = permCodes[i] % prevNumTouches;
+				if(distances[i] > maxTrackingDistance)
+				{
+					// if distance is too large, it must be a new touch
+					// TODO: this heuristic could be improved, e.g.: by tracking
+					// and considering past velocity
+					continue;
+				}
 				// avoid double assignment
 				if(!currAssigned[currentIndex] && !prevAssigned[prevIndex])
 				{
@@ -95,9 +106,8 @@ public:
 					sorted++;
 				}
 			}
-			// we still have to assign a free index to new touches
-			if(numTouches > prevNumTouches)
 			{
+				// assign a free index to new touches
 				for(size_t i = 0; i < numTouches; i++)
 				{
 					if(!currAssigned[i])
@@ -107,8 +117,8 @@ public:
 					}
 				}
 			}
-			else // some touches have disappeared...
 			{
+				// if some touches have disappeared...
 				// ...we have to shift all indices...
 				for(size_t i = prevNumTouches - 1; i != (size_t)-1; --i) // things you do to avoid warnings ...
 				{
