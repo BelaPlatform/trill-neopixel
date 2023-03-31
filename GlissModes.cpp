@@ -70,79 +70,73 @@ public:
 		}
 
 		Id firstNewId = newId;
+		constexpr size_t kMaxPermutations = kMaxTouches * (kMaxTouches - 1);
+		Position distances[kMaxPermutations];
+		size_t permCodes[kMaxPermutations];
+		// calculate all distance permutations between previous and current touches
+		for(size_t i = 0; i < numTouches; ++i)
 		{
-			constexpr size_t kMaxPermutations = kMaxTouches * (kMaxTouches - 1);
-			Position distances[kMaxPermutations];
-			size_t permCodes[kMaxPermutations];
-			// calculate all distance permutations between previous and current touches
-			for(size_t i = 0; i < numTouches; ++i)
+			for(size_t p = 0; p < prevNumTouches; ++p)
 			{
-				for(size_t p = 0; p < prevNumTouches; ++p)
+				size_t index = i * prevNumTouches + p;	// permutation code [says between which touches we are calculating distance]
+				distances[index] = std::abs(touches[i].location - prevSortedTouches[p].touch.location);
+				permCodes[index] = index;
+				// sort permCodes and distances by distances from min to max
+				while(index && (distances[index] < distances[index - 1]))
 				{
-					size_t index = i * prevNumTouches + p;	// permutation code [says between which touches we are calculating distance]
-					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].touch.location);
-					permCodes[index] = index;
-					// sort permCodes and distances by distances from min to max
-					while(index && (distances[index] < distances[index - 1]))
-					{
-						std::swap(permCodes[index], permCodes[index - 1]);
-						std::swap(distances[index], distances[index - 1]);
-						index--;
-					}
+					std::swap(permCodes[index], permCodes[index - 1]);
+					std::swap(distances[index], distances[index - 1]);
+					index--;
 				}
 			}
+		}
 
-			size_t sorted = 0;
-			bool currAssigned[kMaxTouches] = {false};
-			bool prevAssigned[kMaxTouches] = {false};
+		size_t sorted = 0;
+		bool currAssigned[kMaxTouches] = {false};
+		bool prevAssigned[kMaxTouches] = {false};
 
-			// track touches assigning index according to shortest distance
-			for(size_t i = 0; i < numTouches * prevNumTouches; ++i)
+		// track touches assigning index according to shortest distance
+		for(size_t i = 0; i < numTouches * prevNumTouches; ++i)
+		{
+			size_t currentIndex = permCodes[i] / prevNumTouches;
+			size_t prevIndex = permCodes[i] % prevNumTouches;
+			if(distances[i] > maxTrackingDistance)
 			{
-				size_t currentIndex = permCodes[i] / prevNumTouches;
-				size_t prevIndex = permCodes[i] % prevNumTouches;
-				if(distances[i] > maxTrackingDistance)
-				{
-					// if distance is too large, it must be a new touch
-					// TODO: this heuristic could be improved, e.g.: by tracking
-					// and considering past velocity
-					continue;
-				}
-				// avoid double assignment
-				if(!currAssigned[currentIndex] && !prevAssigned[prevIndex])
-				{
-					currAssigned[currentIndex] = true;
-					prevAssigned[prevIndex] = true;
-					sortedTouchIndices[currentIndex] = prevIndex;
-					sortedTouchIds[currentIndex] = prevSortedTouches[prevIndex].id;
-					sorted++;
-				}
+				// if distance is too large, it must be a new touch
+				// TODO: this heuristic could be improved, e.g.: by tracking
+				// and considering past velocity
+				continue;
 			}
+			// avoid double assignment
+			if(!currAssigned[currentIndex] && !prevAssigned[prevIndex])
 			{
-				// assign a free index to new touches
-				for(size_t i = 0; i < numTouches; i++)
-				{
-					if(!currAssigned[i])
-					{
-						sortedTouchIndices[i] = sorted++; // assign next free index
-						sortedTouchIds[i] = newId++;
-					}
-				}
+				currAssigned[currentIndex] = true;
+				prevAssigned[prevIndex] = true;
+				sortedTouchIndices[currentIndex] = prevIndex;
+				sortedTouchIds[currentIndex] = prevSortedTouches[prevIndex].id;
+				sorted++;
 			}
+		}
+		// assign a free index to new touches
+		for(size_t i = 0; i < numTouches; i++)
+		{
+			if(!currAssigned[i])
 			{
-				// if some touches have disappeared...
-				// ...we have to shift all indices...
-				for(size_t i = prevNumTouches - 1; i != (size_t)-1; --i) // things you do to avoid warnings ...
+				sortedTouchIndices[i] = sorted++; // assign next free index
+				sortedTouchIds[i] = newId++;
+			}
+		}
+		// if some touches have disappeared...
+		// ...we have to shift all indices...
+		for(size_t i = prevNumTouches - 1; i != (size_t)-1; --i) // things you do to avoid warnings ...
+		{
+			if(!prevAssigned[i])
+			{
+				for(size_t j = 0; j < numTouches; ++j)
 				{
-					if(!prevAssigned[i])
-					{
-						for(size_t j = 0; j < numTouches; ++j)
-						{
-							// ...only if touches that disappeared were before the current one
-							if(sortedTouchIndices[j] > i)
-								sortedTouchIndices[j]--;
-						}
-					}
+					// ...only if touches that disappeared were before the current one
+					if(sortedTouchIndices[j] > i)
+						sortedTouchIndices[j]--;
 				}
 			}
 		}
