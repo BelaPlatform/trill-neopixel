@@ -1087,28 +1087,6 @@ private:
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
-static void gestureRecorderSingle_loop(const centroid_t* inTouches, bool loop)
-{
-	GestureRecorder::Gesture_t g = gGestureRecorder.process(inTouches, 1, loop);
-#if 0
-	static int count = 0;
-	bool p = count++ % 20 == 0;
-	p && printf("=%.3f %.3f\n\r", g.first, g.second);
-#endif
-	centroid_t centroid;
-	if(g.first.valid && g.second.valid)
-	{
-		centroid.location = g.first.value;
-		centroid.size = g.second.value;
-	} else {
-		centroid.location = kNoOutput;
-		centroid.size = kNoOutput;
-	}
-	ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
-	gManualAnOut[0] = centroid.location;
-	gManualAnOut[1] = centroid.size;
-}
-
 class Parameter {
 public:
 	bool same(Parameter& p) const
@@ -1946,20 +1924,20 @@ public:
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
-			if(isSplit()){
-				bool isSize = (kModeSplitSize == splitMode);
-				if(isSize)
-				{
-					// trick the recorder into recording the size
-					for(auto& t : touches)
-						t.location = t.size;
-				}
-				GestureRecorder::Gesture_t g = gGestureRecorder.process(touches.data(), 2, retrigger);
-				if(kInputModeTrigger == inputMode)
-				{
-					static constexpr centroid_t kInvalid = {0, 0};
-					// set display
-					std::array<centroid_t,kNumSplits> values;
+			bool isSize = (kModeSplitSize == splitMode);
+			if(isSize)
+			{
+				// trick the recorder into recording the size
+				for(auto& t : touches)
+					t.location = t.size;
+			}
+			GestureRecorder::Gesture_t g = gGestureRecorder.process(touches.data(), 1 + isSplit(), retrigger);
+			if(kInputModeTrigger == inputMode)
+			{
+				static constexpr centroid_t kInvalid = {0, 0};
+				// set display
+				std::array<centroid_t,kNumSplits> values;
+				if(isSplit()){
 					for(size_t n = 0; n < g.size(); ++n)
 					{
 						if(g[n].valid)
@@ -1970,10 +1948,15 @@ public:
 							values[n] = kInvalid;
 						}
 					}
-					renderOut(gManualAnOut, values);
+				} else {
+					if(g.first.valid && g.second.valid)
+					{
+						values[0].location = g.first.value;
+						values[0].size = g.second.value;
+					} else
+						values[0] = kInvalid;
 				}
-			} else {
-				gestureRecorderSingle_loop(touches.data(), retrigger);
+				renderOut(gManualAnOut, values);
 			}
 		}
 		if(kInputModeTrigger == inputMode)
