@@ -66,25 +66,12 @@ public:
 					size_t index = i * prevNumTouches + p;	// permutation code [says between which touches we are calculating distance]
 					distances[index] = std::abs(touches[i].location - prevSortedTouches[p].touch.location);
 					permCodes[index] = index;
-					if(index > 0)
+					// sort, from min to max distance
+					while(index && (distances[index] < distances[index - 1]))
 					{
-						// sort, from min to max distance
-						Position tmp;
-						while(distances[index] < distances[index - 1])
-						{
-							tmp = permCodes[index - 1];
-							permCodes[index - 1] = permCodes[index];
-							permCodes[index] = tmp;
-
-							tmp	= distances[index - 1];
-							distances[index - 1] = distances[index];
-							distances[index] = tmp;
-
-							index--;
-
-							if(index == 0)
-								break;
-						}
+						std::swap(permCodes[index], permCodes[index - 1]);
+						std::swap(distances[index], distances[index - 1]);
+						index--;
 					}
 				}
 			}
