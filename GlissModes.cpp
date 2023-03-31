@@ -256,7 +256,6 @@ LedSliders ledSliders;
 LedSliders ledSlidersAlt;
 ButtonView menuBtn;
 ButtonView performanceBtn;
-extern CentroidDetection globalSlider;
 
 void resample(float* out, unsigned int nOut, float* in, unsigned int nIn)
 {
