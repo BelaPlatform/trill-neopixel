@@ -238,7 +238,7 @@ std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MID
 OutMode gOutMode = kOutModeFollowTouch;
 int gCounter = 0;
 int gSubMode = 0;
-bool gBottomOutIsSize;
+std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = false;
 Override gOverride;
 static bool gInUsesCalibration;
@@ -1710,6 +1710,21 @@ protected:
 			}
 		}
 	}
+	void setOutIsSize()
+	{
+		switch(splitMode)
+		{
+		case kModeNoSplit:
+			gOutIsSize = {false, true};
+			break;
+		case kModeSplitSize:
+			gOutIsSize = {true, true};
+			break;
+		case kModeSplitLocation:
+			gOutIsSize = {false, false};
+			break;
+		}
+	}
 public:
 	enum SplitMode {
 		kModeNoSplit,
@@ -1723,7 +1738,6 @@ class DirectControlMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gBottomOutIsSize = !isSplit();
 		gOutMode = kOutModeManualBlock;
 		if(isSplit())
 		{
@@ -1750,6 +1764,7 @@ public:
 	}
 	void render(BelaContext*) override
 	{
+		setOutIsSize();
 		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
@@ -1889,7 +1904,6 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode = kOutModeManualBlock;
-		gBottomOutIsSize = !isSplit();
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
@@ -1910,6 +1924,7 @@ public:
 	}
 	void render(BelaContext* context) override
 	{
+		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
 		std::array<bool,kNumSplits> hasTouch;
 		bool shouldProcessGestureRecorder = false;
@@ -2154,7 +2169,7 @@ class ScaleMeterMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gBottomOutIsSize = false; // TODO: _both_ may have to be positive
+		gOutIsSize = {false, false};
 		count = 0;
 		x1 = 0;
 		y1 = 0;
@@ -2351,7 +2366,7 @@ class BalancedOscsMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gBottomOutIsSize = false;
+		gOutIsSize = {false, false};
 		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
 		if(ms <= 0)
 		{
@@ -2485,7 +2500,7 @@ class ExprButtonsMode : public PerformanceMode
 public:
 	bool setup(double ms)
 	{
-		gBottomOutIsSize = true;
+		gOutIsSize = {false, true};
 		if(ms <= 0)
 		{
 			ledSlidersSetupMultiSlider(

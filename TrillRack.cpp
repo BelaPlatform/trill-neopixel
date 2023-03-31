@@ -11,7 +11,6 @@
 
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
-extern bool gBottomOutIsSize;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_setup(double);
 extern void performanceMode_render(BelaContext*);
@@ -448,7 +447,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float top = 1;
 	if(!ignoreRange)
 		getBottomTopRange(false, bottom, top);
-	if(gBottomOutIsSize && 1 == channel) // if this is a size
+	if(gOutIsSize[channel]) // if this is a size
 		bottom = gnd; // make it always positive
 
 	value = mapAndConstrain(value, 0, 1, bottom, top);
@@ -721,14 +720,14 @@ void tr_render(BelaContext* context)
 	bool overrideOutput = tick - gOverride.started < 10;
 	if(overrideOutput)
 	{
-		bool bottomOutIsSizeStash = gBottomOutIsSize;
+		auto outIsSizeStash = gOutIsSize;
 		if(1 == gOverride.ch)
-			gBottomOutIsSize = true; // TODO: make it more generic
+			gOutIsSize[1] = true; // TODO: make it more generic
 		unsigned int c = gOverride.ch;
 		float value = rescaleOutput(gOverride.bypassOutRange, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 			analogWriteJacks(context, n, c, value);
-		gBottomOutIsSize = bottomOutIsSizeStash;
+		gOutIsSize = outIsSizeStash;
 	}
 #if 0 // send out a quiet tone on one channel and loop back the input on the other
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
