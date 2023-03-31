@@ -999,7 +999,7 @@ public:
 	struct Gesture_t {
 		HalfGesture_t first;
 		HalfGesture_t second;
-		HalfGesture_t operator[](size_t n)
+		HalfGesture_t& operator[](size_t n)
 		{
 			return (0 == n) ? first : second;
 		}
