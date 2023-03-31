@@ -179,6 +179,15 @@ public:
 		// empty remaining touches. Not that they should ever be accessed...
 		for(size_t i = numTouches; i < sortedTouches.size(); ++i)
 			sortedTouches[i].id = kIdInvalid;
+#if 0
+		for(size_t n = 0; n < numTouches; ++n)
+		{
+			auto& t = getTouchOrdered(n);
+			printf("[%u]%lu %.2f %.1f ", n, t.id, t.touch.location, t.startLocation);
+		}
+		if(numTouches)
+			printf("\n\r");
+#endif
 	}
 	size_t getNumTouches()
 	{
