@@ -1678,8 +1678,8 @@ protected:
 			{
 			case kModeNoSplit:
 				ledSliders.sliders[n].setLedsCentroids(values.data(), 1);
-				out[0] = values[0].location;
-				out[1] = values[0].size;
+				out[0] = hasTouch ? values[0].location : kNoOutput;
+				out[1] = hasTouch ? values[0].size : kNoOutput;
 				break;
 			case kModeSplitLocation:
 			{
