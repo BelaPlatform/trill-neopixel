@@ -254,7 +254,6 @@ int tr_setup()
 {
 	assert(kNumPads == padsToOrderMap.size());
 	globalSlider.setup(padsToOrderMap, 4, 1);
-	globalSlider.setUsableRange(kSliderBottomMargin, 1.f - kSliderTopMargin);
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL
@@ -503,6 +502,12 @@ void tr_render(BelaContext* context)
 	processMidiMessage();
 	triggerInToClock(context);
 
+	float min = kSliderBottomMargin;
+	float max = 1.f - kSliderTopMargin;
+	if(gJacksOnTop)
+		std::swap(min, max);
+	globalSlider.setUsableRange(min, max);
+
 	const CalibrationData& inCal = getCalibrationInput();
 	// rescale analog inputs according to range
 	// TODO: don't do it if we are using this input for trig instead.
@@ -696,6 +701,17 @@ void tr_render(BelaContext* context)
 			{
 				size_t idx = n * kNumOutChannels + channel;
 				context->analogOut[idx] = rescaleOutput(false, channel, outCal, context->analogOut[idx]);
+			}
+		}
+		// we do the loop again to swap channels if needed
+		// this _cannot_ be incorporated in the above loop
+		// without a lot of care not to overwrite the other channel
+		if(gJacksOnTop)
+		{
+			for(unsigned int n = 0; n < context->analogFrames; ++n)
+			{
+				size_t idx0 = n * kNumOutChannels;
+				std::swap(context->analogOut[idx0], context->analogOut[idx0 + 1]);
 			}
 		}
 	} else {
