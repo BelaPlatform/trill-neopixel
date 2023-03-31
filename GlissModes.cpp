@@ -1921,43 +1921,19 @@ public:
 		};
 		if(!isSplit())
 			hasTouch[1] = hasTouch[0];
+		GestureRecorder::Gesture_t gesture; // used for visualization
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
+		bool isSizeOnly = (kModeSplitSize == splitMode);
 		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
 		{
-			bool isSize = (kModeSplitSize == splitMode);
-			if(isSize)
+			if(isSizeOnly)
 			{
 				// trick the recorder into recording the size
 				for(auto& t : touches)
 					t.location = t.size;
 			}
-			GestureRecorder::Gesture_t g = gGestureRecorder.process(touches.data(), 1 + isSplit(), retrigger);
-			if(kInputModeTrigger == inputMode)
-			{
-				static constexpr centroid_t kInvalid = {0, 0};
-				// set display
-				std::array<centroid_t,kNumSplits> values;
-				if(isSplit()){
-					for(size_t n = 0; n < g.size(); ++n)
-					{
-						if(g[n].valid)
-						{
-							values[n].location = g[n].value;
-							values[n].size = isSize ? g[n].value : kFixedCentroidSize;
-						} else {
-							values[n] = kInvalid;
-						}
-					}
-				} else {
-					if(g.first.valid && g.second.valid)
-					{
-						values[0].location = g.first.value;
-						values[0].size = g.second.value;
-					} else
-						values[0] = kInvalid;
-				}
-				renderOut(gManualAnOut, values);
-			}
+			// gesture may be overwritten below before its visualised
+			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), retrigger);
 		}
 		if(kInputModeTrigger == inputMode)
 		{
@@ -1969,18 +1945,43 @@ public:
 				if((hadTouch[n] && !hasTouch[n]) || inputModeShouldUpdateTable){
 					updateTable(n);
 				}
-				else
-					processTable(context, n);
+				float value = processTable(context, n);;
+				gesture[n] = GestureRecorder::HalfGesture_t {.value = value, .valid = true};
 			}
 			inputModeShouldUpdateTable = false;
 		}
+		static constexpr centroid_t kInvalid = {0, 0};
+		// visualise
+		std::array<centroid_t,kNumSplits> values;
+		if(isSplit()){
+			for(size_t n = 0; n < gesture.size(); ++n)
+			{
+				if(gesture[n].valid)
+				{
+					values[n].location = gesture[n].value;
+					values[n].size = isSizeOnly ? gesture[n].value : kFixedCentroidSize;
+				} else {
+					values[n] = kInvalid;
+				}
+			}
+		} else {
+			if(gesture.first.valid && gesture.second.valid)
+			{
+				values[0].location = gesture.first.value;
+				values[0].size = gesture.second.value;
+			} else
+				values[0] = kInvalid;
+		}
+		// this may set gManualAnOut even if they are ignored
+		renderOut(gManualAnOut, values);
+
 		hadTouch = hasTouch;
 	}
 
-	void processTable(BelaContext* context, unsigned int c)
+	float processTable(BelaContext* context, unsigned int c)
 	{
 		assert(c < context->analogOutChannels && c < tables.size() && c < kNumSplits);
-		std::array<float,kNumSplits> vizOuts;
+		float vizOut = 0;
 		if(kInputModeCv == inputMode || kInputModeClock == inputMode)
 		{
 			// wavetable oscillator
@@ -2003,7 +2004,7 @@ public:
 					float value = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
-						vizOuts[c] = value;
+						vizOut = value;
 			}
 		} else if (kInputModePhasor == inputMode) {
 			for(size_t n = 0; n < context->analogFrames; ++n)
@@ -2013,25 +2014,15 @@ public:
 					float out = interpolatedRead(tables[c], idx);
 					analogWriteOnce(context, n, c, out);
 					if(0 == n)
-						vizOuts[c] = out;
+						vizOut = out;
 				}
 			}
-		}
-		// do visualisation
-		std::array<centroid_t,2> centroids;
-		if(isSplit())
-		{
-			centroids[0].location = vizOuts[0];
-			centroids[0].size = kFixedCentroidSize;
-			centroids[1].location = vizOuts[1];
-			centroids[1].size = kFixedCentroidSize;
 		} else {
-			centroids[0].location = vizOuts[0];
-			centroids[0].size = vizOuts[1];
+			assert(0);
+			vizOut = 0;
 		}
-		ledSliders.sliders[0].setLedsCentroids(centroids.data(), 1);
-		if(isSplit())
-			ledSliders.sliders[1].setLedsCentroids(centroids.data() + 1, 1);
+		// return snapshot for visualisation
+		return vizOut;
 	}
 	void updateTable(size_t c)
 	{
