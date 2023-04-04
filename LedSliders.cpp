@@ -126,6 +126,31 @@ static uint8_t clipLed(float val)
 	return val + 0.5f;
 }
 
+int LedSlider::writeCentroidToArray(const centroid_t& centroid, float* dest, size_t destSize)
+{
+	float size = centroid.size;
+	float idx = centroid.location;
+	if(idx > 1 || idx < 0)
+		return -1;
+	idx *= destSize;
+	if(size > 1)
+		size = 1;
+	if(size <= 0)
+		return -1;
+	unsigned int numWeights = 4;
+	float weights[numWeights];
+	int idx0 = int(idx - numWeights / 2) + 1;
+	idxToWeights(idx - idx0, weights, numWeights);
+	for(unsigned int i = 0; i < numWeights; ++i)
+	{
+		int ii = i + idx0 - 1;
+		ii = ii >= 0 ? ii : 0;
+		ii = ii < int(destSize) ? ii : int(destSize) - 1;
+		dest[ii] += weights[i] * size;
+	}
+	return 0;
+}
+
 void LedSlider::updateLeds()
 {
 	if(!ledsEnabled)
@@ -138,26 +163,7 @@ void LedSlider::updateLeds()
 		memset(ledValues.data(), 0, sizeof(ledValues[0]) * ledValues.size());
 		for(unsigned int n = 0; n < ledCentroids.size(); ++n)
 		{
-			float size = ledCentroids[n].size;
-			float idx = ledCentroids[n].location;
-			if(idx > 1 || idx < 0)
-				continue;
-			idx *= ledValues.size();
-			if(size > 1)
-				size = 1;
-			if(size <= 0)
-				continue;
-			unsigned int numWeights = 4;
-			float weights[numWeights];
-			int idx0 = int(idx - numWeights / 2) + 1;
-			idxToWeights(idx - idx0, weights, numWeights);
-			for(unsigned int i = 0; i < numWeights; ++i)
-			{
-				int ii = i + idx0 - 1;
-				ii = ii >= 0 ? ii : 0;
-				ii = ii < int(ledValues.size()) ? ii : int(ledValues.size()) - 1;
-				ledValues[ii] += weights[i] * size;
-			}
+			writeCentroidToArray(ledCentroids[n], ledValues.data(), ledValues.size());
 		}
 		//for(unsigned int n = 0; n < ledValues.size(); ++n)
 			//printf("[%d]: %f ", n, ledValues[n]);

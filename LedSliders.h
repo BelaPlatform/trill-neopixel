@@ -42,6 +42,7 @@ public:
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
 	centroid_t& operator[](size_t i) {return ledCentroids[i];}
+	static int writeCentroidToArray(const centroid_t& centroid, float* dest, size_t destSize);
 private:
 	void updateLeds();
 	NeoPixel* np;
