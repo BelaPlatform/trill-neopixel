@@ -3977,11 +3977,13 @@ public:
 	bool orientationAgnostic = true;
 };
 
+#include <functional>
+
 class MenuItemTypeRange : public MenuItemType {
 public:
 	MenuItemTypeRange(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeRange(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop) :
-		MenuItemType(color), parameters({paramBottom, paramTop}), autoExit(autoExit)
+	MenuItemTypeRange(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, std::function<float(float)> preprocess) :
+		MenuItemType(color), preprocessFn(preprocess), parameters({paramBottom, paramTop}), autoExit(autoExit)
 	{
 		latchProcessor.reset();
 		for(size_t n = 0; n < kNumEnds; ++n)
@@ -4023,7 +4025,7 @@ public:
 					// the only touch we have is controlling the one that was closest to it
 					validTouch = (diffs[0] > diffs[1]);
 					// put the good one where it belongs
-					frames[validTouch].location = slider.touchLocation(0);
+					frames[validTouch].location = preprocess(slider.touchLocation(0));
 					frames[validTouch].size = slider.touchSize(0);
 					// and a non-touch on the other one
 					frames[!validTouch].location = 0;
@@ -4032,7 +4034,7 @@ public:
 				{
 					for(size_t n = 0; n < kNumEnds; ++n)
 					{
-						frames[n].location = slider.touchLocation(n);
+						frames[n].location = preprocess(slider.touchLocation(n));
 						frames[n].size = slider.touchSize(n);
 					}
 				}
@@ -4050,7 +4052,15 @@ public:
 protected:
 	static constexpr size_t kNumEnds = 2;
 	std::array<centroid_t,kNumEnds> pastFrames;
+	std::function<float(float)> preprocessFn;
 private:
+	float preprocess(float in)
+	{
+		if(preprocessFn)
+			return preprocessFn(in);
+		else
+			return in;
+	}
 	virtual void updateDisplay(LedSlider& slider)
 	{
 		std::array<centroid_t,2> values = {
@@ -4069,8 +4079,9 @@ LatchProcessor MenuItemTypeRange::latchProcessor;
 class MenuItemTypeRangeDisplayCentroids : public MenuItemTypeRange {
 public:
 	MenuItemTypeRangeDisplayCentroids(){}
-	MenuItemTypeRangeDisplayCentroids(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
-		MenuItemTypeRange(signalColor, autoExit, paramBottom, paramTop), endpointsColor(endpointsColor), display(&display) {}
+	MenuItemTypeRangeDisplayCentroids(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit,
+				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, std::function<float(float)> preprocess, const float& display) :
+		MenuItemTypeRange(signalColor, autoExit, paramBottom, paramTop, preprocess), endpointsColor(endpointsColor), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
 		std::array<float,kNumLeds> endpointsLeds {};
@@ -4317,17 +4328,18 @@ public:
 class MenuItemTypeEnterRange : public MenuItemTypeEnterSubmenu
 {
 public:
-	MenuItemTypeEnterRange(const char* name, rgb_t baseColor, ParameterContinuous& bottom, ParameterContinuous& top) :
-		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), bottom(bottom), top(top) {}
+	MenuItemTypeEnterRange(const char* name, rgb_t baseColor, ParameterContinuous& bottom, ParameterContinuous& top, std::function<float(float)> preprocess) :
+		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), bottom(bottom), top(top), preprocess(preprocess) {}
 	void event(Event e)
 	{
 		if(kHoldHigh == e) {
-			singleRangeMenuItem = MenuItemTypeRange(baseColor, true, &bottom, &top);
+			singleRangeMenuItem = MenuItemTypeRange(baseColor, true, &bottom, &top, preprocess);
 			menu_in(singleRangeMenu);
 		}
 	}
 	ParameterContinuous& bottom;
 	ParameterContinuous& top;
+	std::function<float(float)> preprocess;
 };
 
 class MenuItemTypeDiscretePlus : public MenuItemTypeEvent
@@ -4405,23 +4417,24 @@ public:
 class MenuItemTypeDiscreteRange : public MenuItemTypeDiscretePlus
 {
 public:
-	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, uint32_t doNotUpdateTimeout = 0):
-		MenuItemTypeDiscretePlus(name, baseColor, valueEn, doNotUpdateTimeout), valueConBottom(valueConBottom), valueConTop(valueConTop) {}
+	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess, uint32_t doNotUpdateTimeout = 0):
+		MenuItemTypeDiscretePlus(name, baseColor, valueEn, doNotUpdateTimeout), valueConBottom(valueConBottom), valueConTop(valueConTop), preprocess(preprocess) {}
 	void enterPlus() override
 	{
 		printf("DiscreteRange: going to range\n\r");
-		singleRangeMenuItem = MenuItemTypeRange(baseColor, true, &valueConBottom, &valueConTop);
+		singleRangeMenuItem = MenuItemTypeRange(baseColor, true, &valueConBottom, &valueConTop, preprocess);
 		menu_in(singleRangeMenu);
 	}
 	ParameterContinuous& valueConBottom;
 	ParameterContinuous& valueConTop;
+	std::function<float(float)> preprocess;
 };
 
 class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
 {
 public:
-	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop):
-		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop, 5000) {}
+	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess):
+		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop, preprocess, 5000) {}
 	void event(Event e) override
 	{
 		MenuItemTypeDiscreteRange::event(e);
@@ -4772,9 +4785,14 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
 static constexpr rgb_t globalSettingsColor = {255, 127, 0};
-static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax);
-static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax);
-static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax);
+static float quantiseFsForIntegerVolts(float in)
+{
+	static constexpr float kVoltsFs = 15;
+	return std::round((in * kVoltsFs)) / kVoltsFs;
+}
+static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseFsForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseFsForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseFsForIntegerVolts);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
@@ -4785,7 +4803,7 @@ static bool menuJustEntered;
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
-	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColor, autoExit, &bottom, &top, display);
+	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColor, autoExit, &bottom, &top, nullptr, display);
 	menu_in(singleRangeDisplayMenu);
 }
 
