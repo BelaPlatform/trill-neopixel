@@ -7,6 +7,21 @@ typedef struct {
 	uint8_t r;
 	uint8_t g;
 	uint8_t b;
+	uint8_t& operator[](size_t n) {
+		switch(n)
+		{
+		default:
+		case 0:
+			return r;
+		case 1:
+			return g;
+		case 2:
+			return b;
+		}
+	}
+	size_t size() const {
+		return 3;
+	}
 } rgb_t;
 
 class LedSlider : public CentroidDetectionScaled
