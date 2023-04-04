@@ -362,7 +362,7 @@ IoRange gInRange = {
 	.max = 1,
 	.enabled = true,
 };
-IoRange gOutRange = {
+IoRange gOutRangeTop = {
 	.range = kCvRangePositive10,
 	.min = 0,
 	.max = 1,
@@ -372,7 +372,7 @@ IoRange gOutRange = {
 static inline void getRangeMinMax(bool input, float& min, float& max)
 {
 	float gnd = CalibrationData::kGnd;
-	const IoRange& ioRange = input ? gInRange : gOutRange;
+	const IoRange& ioRange = input ? gInRange : gOutRangeTop;
 	CvRange range = ioRange.enabled ? ioRange.range : kCvRangeFull;
 	switch (range)
 	{

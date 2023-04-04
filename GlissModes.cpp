@@ -3463,7 +3463,7 @@ void performanceMode_render(BelaContext* context)
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 		performanceModes[gNewMode]->render(context);
 	// make the final states visible to the wrapper
-	gOutRange.enabled = gOutUsesRange;
+	gOutRangeTop.enabled = gOutUsesRange;
 	// note: this will only take effect from the next time this function is called,
 	// because obviously input range processing has already been done  by time this
 	// function is called. This is not an issue normally, as long as the processing
@@ -4573,15 +4573,15 @@ public:
 	{
 		bool verbose = false;
 		char const* str = "+++";
-		if(p.same(outRangeEnum)) {
-			gOutRange.range = CvRange(outRangeEnum.get());
+		if(p.same(outRangeTopEnum)) {
+			gOutRangeTop.range = CvRange(outRangeTopEnum.get());
 			str = "outRangeEnum";
 		}
-		else if(p.same(outRangeMin) || p.same(outRangeMax)) {
-			outRangeEnum.set(kCvRangeCustom);
-			gOutRange.range = CvRange(outRangeEnum.get());
-			gOutRange.min = outRangeMin;
-			gOutRange.max = outRangeMax;
+		else if(p.same(outRangeTopMin) || p.same(outRangeTopMax)) {
+			outRangeTopEnum.set(kCvRangeCustom);
+			gOutRangeTop.range = CvRange(outRangeTopEnum.get());
+			gOutRangeTop.min = outRangeTopMin;
+			gOutRangeTop.max = outRangeTopMax;
 			str = "outRangeTop/Bottom";
 		}
 		else if(p.same(inRangeEnum)) {
@@ -4617,18 +4617,18 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD9(outRangeMin, outRangeMax, outRangeEnum,
+		UPDATE_PRESET_FIELD9(outRangeTopMin, outRangeTopMax, outRangeTopEnum,
 				inRangeMin, inRangeMax, inRangeEnum,
 					sizeScaleCoeff, jacksOnTop, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
-			.outRangeMin = outRangeMin,
-			.outRangeMax = outRangeMax,
+			.outRangeTopMin = outRangeTopMin,
+			.outRangeTopMax = outRangeTopMax,
 			.inRangeMin = inRangeMin,
 			.inRangeMax = inRangeMax,
 			.sizeScaleCoeff = sizeScaleCoeff,
-			.outRangeEnum = outRangeEnum,
+			.outRangeTopEnum = outRangeTopEnum,
 			.inRangeEnum = inRangeEnum,
 			.jacksOnTop = jacksOnTop,
 			.newMode = newMode,
@@ -4637,22 +4637,22 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter9(GlobalSettings, outRangeMin, outRangeMax, outRangeEnum,
+			.defaulter = genericDefaulter9(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
 					inRangeMin, inRangeMax, inRangeEnum,
 						sizeScaleCoeff, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallback9(GlobalSettings, outRangeMin, outRangeMax, outRangeEnum,
+			.loadCallback = genericLoadCallback9(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
 							inRangeMin, inRangeMax, inRangeEnum,
 								sizeScaleCoeff, jacksOnTop, newMode),
 		};
 		presetDescSet(6, &presetDesc);
 	}
-	ParameterEnumT<kCvRangeNum,CvRange> outRangeEnum {this, kCvRangePositive10};
-	ParameterContinuous outRangeMin {this, 0.2};
-	ParameterContinuous outRangeMax {this, 0.8};
+	ParameterEnumT<kCvRangeNum,CvRange> outRangeTopEnum {this, kCvRangePositive10};
+	ParameterContinuous outRangeTopMin {this, 0.2};
+	ParameterContinuous outRangeTopMax {this, 0.8};
 	ParameterEnumT<kCvRangeNum,CvRange> inRangeEnum {this, kCvRangePositive10};
 	ParameterContinuous inRangeMin {this, 0.2};
 	ParameterContinuous inRangeMax {this, 0.8};
@@ -4660,12 +4660,12 @@ public:
 	ParameterEnumT<2> jacksOnTop {this, false};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
-		float outRangeMin;
-		float outRangeMax;
+		float outRangeTopMin;
+		float outRangeTopMax;
 		float inRangeMin;
 		float inRangeMax;
 		float sizeScaleCoeff;
-		uint8_t outRangeEnum;
+		uint8_t outRangeTopEnum;
 		uint8_t inRangeEnum;
 		uint8_t jacksOnTop;
 		uint8_t newMode;
@@ -4693,7 +4693,7 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
 static constexpr rgb_t globalSettingsColor = {255, 127, 0};
-static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRange", globalSettingsColor, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeMin, gGlobalSettings.outRangeMax);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutRange", globalSettingsColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax);
 static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
@@ -4736,7 +4736,7 @@ static void menu_update()
 			&disabled,
 			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
-			&globalSettingsOutRange,
+			&globalSettingsOutTopRange,
 			&globalSettingsInRange,
 		};
 		singleSliderMenu.items = {
