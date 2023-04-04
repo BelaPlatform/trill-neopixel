@@ -85,6 +85,13 @@ void LedSlider::enableLeds(bool enable)
 	ledsEnabled = enable;
 }
 
+void LedSlider::directBegin()
+{
+	if(!ledsEnabled)
+		return;
+	np->clear();
+}
+
 extern void resample(float* out, unsigned int nOut, float* in, unsigned int nIn);
 
 // numWeights should be even.
@@ -126,6 +133,26 @@ static uint8_t clipLed(float val)
 	return val + 0.5f;
 }
 
+void LedSlider::directWriteCentroid(const centroid_t& centroid, rgb_t color)
+{
+	if(!ledsEnabled)
+		return;
+	size_t numLeds = np->getNumPixels();
+	float leds[numLeds];
+	memset(leds, 0, sizeof(leds[0]) * numLeds);
+	writeCentroidToArray(centroid, leds, numLeds);
+	for(size_t n = 0; n < np->getNumPixels(); ++n)
+	{
+		std::array<float,Stm32NeoPixel::kNumBytesPerPixel> pixel;
+		for(size_t c = 0; c < pixel.size(); ++c)
+		{
+			pixel[c] = np->getPixelChannel(n, c);
+			pixel[c] += color[c] * leds[n];
+		}
+		np->setPixelColor(n, clipLed(pixel[0]), clipLed(pixel[1]), clipLed(pixel[2]));
+	}
+}
+
 int LedSlider::writeCentroidToArray(const centroid_t& centroid, float* dest, size_t destSize)
 {
 	float size = centroid.size;
@@ -153,6 +180,8 @@ int LedSlider::writeCentroidToArray(const centroid_t& centroid, float* dest, siz
 
 void LedSlider::updateLeds()
 {
+	if(MANUAL_DIRECT == mode)
+		return;
 	if(!ledsEnabled)
 		return;
 	if(!ledValues.size())

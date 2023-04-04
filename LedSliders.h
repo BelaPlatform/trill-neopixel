@@ -36,6 +36,7 @@ public:
 		AUTO_RAW,
 		MANUAL_CENTROIDS,
 		MANUAL_RAW,
+		MANUAL_DIRECT, // uses directBegin(), directWriteCentroid()
 	} LedMode_t;
 	struct Settings
 	{
@@ -56,6 +57,8 @@ public:
 	void process(const float* rawData);
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
+	void directBegin();
+	void directWriteCentroid(const centroid_t& centroid, rgb_t color);
 	centroid_t& operator[](size_t i) {return ledCentroids[i];}
 	static int writeCentroidToArray(const centroid_t& centroid, float* dest, size_t destSize);
 private:
