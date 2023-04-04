@@ -369,7 +369,7 @@ IoRange gOutRange = {
 	.enabled = true,
 };
 
-static inline void getBottomTopRange(bool input, float& bottom, float& top)
+static inline void getRangeMinMax(bool input, float& min, float& max)
 {
 	float gnd = CalibrationData::kGnd;
 	const IoRange& ioRange = input ? gInRange : gOutRange;
@@ -377,25 +377,25 @@ static inline void getBottomTopRange(bool input, float& bottom, float& top)
 	switch (range)
 	{
 		case kCvRangeFull:
-			bottom = 0;
-			top = 1;
+			min = 0;
+			max = 1;
 			break;
 		case kCvRangeBipolar:
-			bottom = 0;
-			top = gnd * 2.f;
+			min = 0;
+			max = gnd * 2.f;
 			break;
 		case kCvRangePositive5:
-			bottom = gnd;
-			top = gnd * 2.f;
+			min = gnd;
+			max = gnd * 2.f;
 			break;
 		case kCvRangePositive10:
-			bottom = gnd;
-			top = gnd * 3.f;
+			min = gnd;
+			max = gnd * 3.f;
 			break;
 		default:
 		case kCvRangeCustom:
-			bottom = ioRange.min;
-			top = ioRange.max;
+			min = ioRange.min;
+			max = ioRange.max;
 			break;
 	}
 }
@@ -420,11 +420,11 @@ static float processRawThroughCalibration(const CalibrationData& cal, bool input
 
 static float rescaleInput(const CalibrationData& inCal, float value)
 {
-	float bottom;
-	float top;
+	float min;
+	float max;
 	value = processRawThroughCalibration(inCal, true, value);
-	getBottomTopRange(true, bottom, top);
-	return mapAndConstrain(value, bottom, top, 0, 1);
+	getRangeMinMax(true, min, max);
+	return mapAndConstrain(value, min, max, 0, 1);
 }
 
 static float finalise(float value)
@@ -442,14 +442,14 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float gnd = cal.values[1];
 	if(kNoOutput == value)
 		return finalise(gnd);
-	float bottom = 0;
+	float min = 0;
 	float top = 1;
 	if(!ignoreRange)
-		getBottomTopRange(false, bottom, top);
+		getRangeMinMax(false, min, top);
 	if(gOutIsSize[channel]) // if this is a size
-		bottom = gnd; // make it always positive
+		min = gnd; // make it always positive
 
-	value = mapAndConstrain(value, 0, 1, bottom, top);
+	value = mapAndConstrain(value, 0, 1, min, top);
 	value = processRawThroughCalibration(cal, false, value);
 	return finalise(value);
 }
