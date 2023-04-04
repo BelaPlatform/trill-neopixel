@@ -28,6 +28,7 @@ struct IoRange {
 };
 extern IoRange gInRange;
 extern IoRange gOutRangeTop;
+extern IoRange gOutRangeBottom;
 
 const float kNoOutput = -12345.6;
 

@@ -368,11 +368,17 @@ IoRange gOutRangeTop = {
 	.max = 1,
 	.enabled = true,
 };
+IoRange gOutRangeBottom = {
+	.range = kCvRangePositive10,
+	.min = 0,
+	.max = 1,
+	.enabled = true,
+};
 
-static inline void getRangeMinMax(bool input, float& min, float& max)
+static inline void getRangeMinMax(bool input, size_t channel, float& min, float& max)
 {
 	float gnd = CalibrationData::kGnd;
-	const IoRange& ioRange = input ? gInRange : gOutRangeTop;
+	const IoRange& ioRange = input ? gInRange : (0 == channel) ? gOutRangeTop : gOutRangeBottom;
 	CvRange range = ioRange.enabled ? ioRange.range : kCvRangeFull;
 	switch (range)
 	{
@@ -423,7 +429,7 @@ static float rescaleInput(const CalibrationData& inCal, float value)
 	float min;
 	float max;
 	value = processRawThroughCalibration(inCal, true, value);
-	getRangeMinMax(true, min, max);
+	getRangeMinMax(true, 0, min, max);
 	return mapAndConstrain(value, min, max, 0, 1);
 }
 
@@ -445,7 +451,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float min = 0;
 	float top = 1;
 	if(!ignoreRange)
-		getRangeMinMax(false, min, top);
+		getRangeMinMax(false, channel, min, top);
 	if(gOutIsSize[channel]) // if this is a size
 		min = gnd; // make it always positive
 

@@ -244,7 +244,7 @@ Override gOverride;
 static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
 static bool gInUsesRange;
-static bool gOutUsesRange;
+static std::array<bool,kNumOutChannels> gOutUsesRange;
 
 // Recording the gesture
 enum { kMaxRecordLength = 10000 };
@@ -1923,7 +1923,7 @@ static inline float vToOut(float v)
 {
 	// checks to ensure we make sense
 	assert(true == gOutUsesCalibration);
-	assert(false == gOutUsesRange);
+	assert(false == gOutUsesRange[0] || false == gOutUsesRange[1]); // TODO: should check the specific channel
 	return (v + 5.f) / 15.f;
 }
 
@@ -3360,7 +3360,7 @@ public:
 		gOutUsesCalibration = false;
 		gInUsesCalibration = false;
 		gInUsesRange = false;
-		gOutUsesRange = false;
+		gOutUsesRange = {false, false};
 		uint32_t tick = HAL_GetTick();
 		// wait for button press to start or stop calibration.
 		if(performanceBtn.offset)
@@ -3415,7 +3415,7 @@ public:
 			gOutUsesCalibration = true;
 			gInUsesCalibration = true;
 			gInUsesRange = false; // still disabled: want to get actual volts
-			gOutUsesRange = false; // still disabled: want to get actual volts
+			gOutUsesRange = {false, false}; // still disabled: want to get actual volts
 			static constexpr std::array<float,4> kTestVoltages = {0, 5, 10, -5};
 			demoModeCount++;
 			if((demoModeCount % 300) == 0)
@@ -3514,12 +3514,13 @@ void performanceMode_render(BelaContext* context)
 	gOutUsesCalibration = true;
 	gInUsesCalibration = true;
 	gInUsesRange = true;
-	gOutUsesRange = true;
+	gOutUsesRange = {true, true};
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 		performanceModes[gNewMode]->render(context);
 	// make the final states visible to the wrapper
-	gOutRangeTop.enabled = gOutUsesRange;
+	gOutRangeTop.enabled = gOutUsesRange[0];
+	gOutRangeBottom.enabled = gOutUsesRange[1];
 	// note: this will only take effect from the next time this function is called,
 	// because obviously input range processing has already been done  by time this
 	// function is called. This is not an issue normally, as long as the processing
@@ -4631,14 +4632,25 @@ public:
 		char const* str = "+++";
 		if(p.same(outRangeTopEnum)) {
 			gOutRangeTop.range = CvRange(outRangeTopEnum.get());
-			str = "outRangeEnum";
+			str = "outRangeTopEnum";
 		}
 		else if(p.same(outRangeTopMin) || p.same(outRangeTopMax)) {
 			outRangeTopEnum.set(kCvRangeCustom);
 			gOutRangeTop.range = CvRange(outRangeTopEnum.get());
 			gOutRangeTop.min = outRangeTopMin;
 			gOutRangeTop.max = outRangeTopMax;
-			str = "outRangeTop/Bottom";
+			str = "outRangeTopMin/Max";
+		}
+		else if(p.same(outRangeBottomEnum)) {
+			gOutRangeBottom.range = CvRange(outRangeBottomEnum.get());
+			str = "outRangeBottomEnum";
+		}
+		else if(p.same(outRangeBottomMin) || p.same(outRangeBottomMax)) {
+			outRangeBottomEnum.set(kCvRangeCustom);
+			gOutRangeBottom.range = CvRange(outRangeBottomEnum.get());
+			gOutRangeBottom.min = outRangeBottomMin;
+			gOutRangeBottom.max = outRangeBottomMax;
+			str = "outRangeBottomMin/Max";
 		}
 		else if(p.same(inRangeEnum)) {
 			str = "inRangeEnum";
@@ -4673,7 +4685,8 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD9(outRangeTopMin, outRangeTopMax, outRangeTopEnum,
+		UPDATE_PRESET_FIELD12(outRangeTopMin, outRangeTopMax, outRangeTopEnum,
+				outRangeBottomMin, outRangeBottomMax, outRangeBottomEnum,
 				inRangeMin, inRangeMax, inRangeEnum,
 					sizeScaleCoeff, jacksOnTop, newMode);
 	}
@@ -4681,6 +4694,8 @@ public:
 		presetFieldData {
 			.outRangeTopMin = outRangeTopMin,
 			.outRangeTopMax = outRangeTopMax,
+			.outRangeBottomMin = outRangeBottomMin,
+			.outRangeBottomMax = outRangeBottomMax,
 			.inRangeMin = inRangeMin,
 			.inRangeMax = inRangeMax,
 			.sizeScaleCoeff = sizeScaleCoeff,
@@ -4693,14 +4708,16 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter9(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
+			.defaulter = genericDefaulter12(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
+					outRangeBottomMin, outRangeBottomMax, outRangeBottomEnum,
 					inRangeMin, inRangeMax, inRangeEnum,
 						sizeScaleCoeff, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallback9(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
+			.loadCallback = genericLoadCallback12(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
+							outRangeBottomMin, outRangeBottomMax, outRangeBottomEnum,
 							inRangeMin, inRangeMax, inRangeEnum,
 								sizeScaleCoeff, jacksOnTop, newMode),
 		};
@@ -4709,6 +4726,9 @@ public:
 	ParameterEnumT<kCvRangeNum,CvRange> outRangeTopEnum {this, kCvRangePositive10};
 	ParameterContinuous outRangeTopMin {this, 0.2};
 	ParameterContinuous outRangeTopMax {this, 0.8};
+	ParameterEnumT<kCvRangeNum,CvRange> outRangeBottomEnum {this, kCvRangePositive10};
+	ParameterContinuous outRangeBottomMin {this, 0.2};
+	ParameterContinuous outRangeBottomMax {this, 0.8};
 	ParameterEnumT<kCvRangeNum,CvRange> inRangeEnum {this, kCvRangePositive10};
 	ParameterContinuous inRangeMin {this, 0.2};
 	ParameterContinuous inRangeMax {this, 0.8};
@@ -4718,10 +4738,13 @@ public:
 	PACKED_STRUCT(PresetFieldData_t {
 		float outRangeTopMin;
 		float outRangeTopMax;
+		float outRangeBottomMin;
+		float outRangeBottomMax;
 		float inRangeMin;
 		float inRangeMax;
 		float sizeScaleCoeff;
 		uint8_t outRangeTopEnum;
+		uint8_t outRangeBottomEnum;
 		uint8_t inRangeEnum;
 		uint8_t jacksOnTop;
 		uint8_t newMode;
@@ -4749,7 +4772,8 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
 static constexpr rgb_t globalSettingsColor = {255, 127, 0};
-static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutRange", globalSettingsColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax);
 static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
@@ -4789,9 +4813,9 @@ static void menu_update()
 	{
 		inited = true;
 		globalSettingsMenu.items = {
-			&disabled,
 			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
+			&globalSettingsOutBottomRange,
 			&globalSettingsOutTopRange,
 			&globalSettingsInRange,
 		};
