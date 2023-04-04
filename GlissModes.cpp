@@ -1476,6 +1476,25 @@ private:
 	pfd->I = that->I; \
 }
 
+#define genericDefaulter12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	pfd->A = that->A; \
+	pfd->B = that->B; \
+	pfd->C = that->C; \
+	pfd->D = that->D; \
+	pfd->E = that->E; \
+	pfd->F = that->F; \
+	pfd->G = that->G; \
+	pfd->H = that->H; \
+	pfd->I = that->I; \
+	pfd->J = that->J; \
+	pfd->K = that->K; \
+	pfd->L = that->L; \
+}
+
 #define genericLoadCallback2(CLASS,A,B) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
@@ -1530,6 +1549,24 @@ private:
 	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
 	that->H.set(pfd->H); that->presetFieldData.H = pfd->H; \
 	that->I.set(pfd->I); that->presetFieldData.I = pfd->I; \
+}
+
+#define genericLoadCallback12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
+	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
+	that->D.set(pfd->D); that->presetFieldData.D = pfd->D; \
+	that->E.set(pfd->E); that->presetFieldData.E = pfd->E; \
+	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
+	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
+	that->H.set(pfd->H); that->presetFieldData.H = pfd->H; \
+	that->I.set(pfd->I); that->presetFieldData.I = pfd->I; \
+	that->J.set(pfd->J); that->presetFieldData.J = pfd->J; \
+	that->K.set(pfd->K); that->presetFieldData.K = pfd->K; \
+	that->L.set(pfd->L); that->presetFieldData.L = pfd->L; \
 }
 
 template <typename T>
@@ -1603,6 +1640,25 @@ static bool areEqual(const T& a, const T& b)
 	presetFieldData.G = G; \
 	presetFieldData.H = H; \
 	presetFieldData.I = I; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
+}
+
+#define UPDATE_PRESET_FIELD12(A,B,C,D,E,F,G,H,I,J,K,L) \
+{ \
+	PresetFieldData_t bak = presetFieldData; \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	presetFieldData.C = C; \
+	presetFieldData.D = D; \
+	presetFieldData.E = E; \
+	presetFieldData.F = F; \
+	presetFieldData.G = G; \
+	presetFieldData.H = H; \
+	presetFieldData.I = I; \
+	presetFieldData.J = J; \
+	presetFieldData.K = K; \
+	presetFieldData.L = L; \
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
