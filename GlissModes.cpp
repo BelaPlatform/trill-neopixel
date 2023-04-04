@@ -2216,7 +2216,7 @@ private:
 } gRecorderMode;
 
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
-static void menu_enterDisplayRangeRaw(const rgb_t& color, float bottom, float top);
+static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top);
 static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv);
 static void menu_up();
 
@@ -4125,24 +4125,30 @@ private:
 class MenuItemTypeDisplayRangeRaw : public MenuItemType {
 public:
 	MenuItemTypeDisplayRangeRaw(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeDisplayRangeRaw(const rgb_t& color, float bottom, float top) :
-		MenuItemType(color), bottom(bottom), top(top) {}
+	MenuItemTypeDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top) :
+		MenuItemType(color), bottom(bottom), top(top), otherColor(otherColor) {}
 	void process(LedSlider& slider) override
 	{
-		std::array<float,kNumLeds> values;
-		for(size_t n = 0; n < values.size(); ++n)
+		np.clear();
+		size_t start = std::round((kNumLeds - 1) * bottom);
+		size_t stop = std::round((kNumLeds - 1) * top);
+		for(size_t n = start; n <= stop; ++n)
 		{
-			float idx = n / float(values.size());
-			bool active = (idx >= bottom && idx < top);
-			values[n] = active;
+			rgb_t pixel;
+			float rel = (n - start) / float(stop - start);
+			if(stop == start)
+				rel = 0.5; // ensure some mixing happens
+			for(size_t c = 0; c < pixel.size(); ++c)
+				pixel[c] = baseColor[c] * rel + otherColor[c] * (1.f - rel);
+			np.setPixelColor(n, pixel.r, pixel.g, pixel.b);
 		}
-		slider.setLedsRaw(values.data());
 		if(HAL_GetTick() - startMs >= kMaxMs)
 			menu_up();
 	}
 private:
 	float bottom;
 	float top;
+	rgb_t otherColor;
 	static constexpr uint32_t kMaxMs = 300;
 	uint32_t startMs = HAL_GetTick();
 };
@@ -4445,8 +4451,8 @@ public:
 class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
 {
 public:
-	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess):
-		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop, preprocess, 5000) {}
+	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess):
+		MenuItemTypeDiscreteRange(name, baseColor, valueEn, valueConBottom, valueConTop, preprocess, 5000), otherColor(otherColor) {}
 	void event(Event e) override
 	{
 		MenuItemTypeDiscreteRange::event(e);
@@ -4458,6 +4464,7 @@ public:
 			const float kGnd = 0.33;
 			const float kPlus5 = 0.66;
 			const float kPlus10 = 1;
+			rgb_t secondaryColor = baseColor;
 			switch(valueEn.get())
 			{
 			case kCvRangeBipolar:
@@ -4467,6 +4474,7 @@ public:
 			case kCvRangeCustom:
 				bottom = valueConBottom;
 				top = valueConTop;
+				secondaryColor = otherColor;
 				break;
 			case kCvRangeFull:
 				bottom = kMinus5;
@@ -4481,9 +4489,11 @@ public:
 				top = kPlus10;
 				break;
 			}
-			menu_enterDisplayRangeRaw(baseColor, bottom, top);
+			menu_enterDisplayRangeRaw(baseColor, secondaryColor, bottom, top);
 		}
 	}
+private:
+	rgb_t otherColor;
 };
 
 class MenuItemTypeDiscreteScaleMeterOutputMode : public MenuItemTypeDiscrete
@@ -4802,9 +4812,10 @@ static float quantiseFsForIntegerVolts(float in)
 	static constexpr float kVoltsFs = 15;
 	return std::round((in * kVoltsFs)) / kVoltsFs;
 }
-static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseFsForIntegerVolts);
-static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseFsForIntegerVolts);
-static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseFsForIntegerVolts);
+static constexpr rgb_t globalSettingsRangeOtherColor = {255, 0, 0};
+static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseFsForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseFsForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseFsForIntegerVolts);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
@@ -4819,10 +4830,10 @@ static void menu_enterRangeDisplay(const rgb_t& signalColor, const rgb_t& endpoi
 	menu_in(singleRangeDisplayMenu);
 }
 
-static void menu_enterDisplayRangeRaw(const rgb_t& color, float bottom, float top)
+static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top)
 {
 	gAlt = 1;
-	displayRangeRawMenuItem = MenuItemTypeDisplayRangeRaw(color, bottom, top);
+	displayRangeRawMenuItem = MenuItemTypeDisplayRangeRaw(color, otherColor, bottom, top);
 	menu_in(displayRangeRawMenu);
 }
 
