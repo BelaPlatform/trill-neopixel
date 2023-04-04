@@ -4022,10 +4022,16 @@ public:
 					std::array<float,kNumEnds> diffs;
 					for(size_t n = 0; n < kNumEnds; ++n)
 						diffs[n] = std::abs(current - pastFrames[n].location);
+					// TODO: if preprocessing (e.g.: quantisation) is applied
+					// before this stage, then (diffs[0] > diffs[1]) may
+					// return the opposite of the expected value
+					// which makes it so that the min endpoint becomes higher
+					// than the max endpoint.
+
 					// the only touch we have is controlling the one that was closest to it
 					validTouch = (diffs[0] > diffs[1]);
 					// put the good one where it belongs
-					frames[validTouch].location = preprocess(slider.touchLocation(0));
+					frames[validTouch].location = slider.touchLocation(0);
 					frames[validTouch].size = slider.touchSize(0);
 					// and a non-touch on the other one
 					frames[!validTouch].location = 0;
@@ -4034,7 +4040,7 @@ public:
 				{
 					for(size_t n = 0; n < kNumEnds; ++n)
 					{
-						frames[n].location = preprocess(slider.touchLocation(n));
+						frames[n].location = slider.touchLocation(n);
 						frames[n].size = slider.touchSize(n);
 					}
 				}
@@ -4042,7 +4048,12 @@ public:
 				latchProcessor.process(true, frames.size(), frames, isLatched);
 				for(size_t n = 0; n < frames.size(); ++n)
 				{
-					parameters[n]->set(frames[n].location);
+					float preprocessedValue = preprocess(frames[n].location);
+					parameters[n]->set(preprocessedValue);
+					// TODO: is it really the best decision to store a preprocessed (e.g.: quantised)
+					// value and then use a non-preprocessed value at the next frame to check which
+					// touch is closest?
+					displayLocations[n] = preprocessedValue;
 					pastFrames[n] = frames[n];
 				}
 			}
@@ -4052,6 +4063,7 @@ public:
 protected:
 	static constexpr size_t kNumEnds = 2;
 	std::array<centroid_t,kNumEnds> pastFrames;
+	std::array<float,kNumEnds> displayLocations;
 	std::function<float(float)> preprocessFn;
 private:
 	float preprocess(float in)
@@ -4064,8 +4076,8 @@ private:
 	virtual void updateDisplay(LedSlider& slider)
 	{
 		std::array<centroid_t,2> values = {
-				centroid_t{ pastFrames[0].location, 0.15 },
-				centroid_t{ pastFrames[1].location, 0.15 },
+				centroid_t{ displayLocations[0], 0.15 },
+				centroid_t{ displayLocations[1], 0.15 },
 		};
 		slider.setLedsCentroids(values.data(), values.size());
 	}
