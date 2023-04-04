@@ -132,12 +132,14 @@ public:
 	}
 	virtual size_t getNumPixels() = 0;
 	virtual void show() = 0;
+	virtual uint8_t getPixelChannel(size_t n, size_t c) = 0;
 	virtual void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) = 0;
 	virtual void clear() = 0;
 protected:
 	Stm32NeoPixel* snp = nullptr;
 };
 
+#include<stdio.h>
 template <size_t kNumLeds>
 class NeoPixelT : public NeoPixel
 {
@@ -154,6 +156,14 @@ public:
 	{
 		if(snp)
 			snp->send(buffer.data(), buffer.size());
+	}
+	uint8_t getPixelChannel(size_t n, size_t c) override
+	{
+		size_t idx = kNumBytesPerPixel * n + c;
+		if(idx >= buffer.size())
+			return 0;
+		else
+			return buffer[idx];
 	}
 	void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) override
 	{
