@@ -2159,7 +2159,7 @@ private:
 	bool inputModeShouldUpdateTable = false;
 } gRecorderMode;
 
-static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
+static void menu_enterRangeDisplay(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
 static void menu_enterDisplayRangeRaw(const rgb_t& color, float bottom, float top);
 static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv);
 static void menu_up();
@@ -2178,14 +2178,14 @@ public:
 		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(
-				color,
+				signalColor,
 				LedSlider::MANUAL_CENTROIDS
 			);
 			gOutMode = kOutModeManualSample;
 		}
 		if(ms < 0)
 			return true;
-		return modeChangeBlink(ms, color);
+		return modeChangeBlink(ms, signalColor);
 	}
 
 	void render(BelaContext* context) override
@@ -2197,7 +2197,7 @@ public:
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
-				menu_enterRangeDisplay(color, true, outRangeBottom, outRangeTop, outDisplay);
+				menu_enterRangeDisplay(signalColor, endpointsColorOut, true, outRangeBottom, outRangeTop, outDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
@@ -2207,7 +2207,7 @@ public:
 			if(performanceBtn.offset)
 			{
 				// press button: set input range
-				menu_enterRangeDisplay(color, false, inRangeBottom, inRangeTop, inDisplay);
+				menu_enterRangeDisplay(signalColor, endpointsColorIn, false, inRangeBottom, inRangeTop, inDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
 				ledSliders.sliders[0].process(data.data());
@@ -2353,7 +2353,9 @@ private:
 		float in = analogRead(context, frame, channel);
 		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
 	}
-	const rgb_t color = {0, 160, 160};
+	const rgb_t signalColor = {0, 160, 160};
+	const rgb_t endpointsColorIn = {255, 0, 0};
+	const rgb_t endpointsColorOut = {0, 255, 0};
 	float x1;
 	float y1;
 	float env;
@@ -4010,18 +4012,33 @@ LatchProcessor MenuItemTypeRange::latchProcessor;
 class MenuItemTypeRangeDisplayCentroids : public MenuItemTypeRange {
 public:
 	MenuItemTypeRangeDisplayCentroids(){}
-	MenuItemTypeRangeDisplayCentroids(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
-		MenuItemTypeRange(color, autoExit, paramBottom, paramTop), display(&display) {}
+	MenuItemTypeRangeDisplayCentroids(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, const float& display) :
+		MenuItemTypeRange(signalColor, autoExit, paramBottom, paramTop), endpointsColor(endpointsColor), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
-		std::array<centroid_t,3> values = {
-				centroid_t{ pastFrames[0].location, 0.05 },
-				centroid_t{ pastFrames[1].location, 0.05 },
-				centroid_t{ *display, 0.15 },
+		std::array<float,kNumLeds> endpointsLeds {};
+		std::array<float,kNumLeds> signalLeds {};
+		std::array<centroid_t,2> endpointsCentroids {
+			centroid_t{ pastFrames[0].location, 0.1 },
+			centroid_t{ pastFrames[1].location, 0.1 },
 		};
-		slider.setLedsCentroids(values.data(), values.size());
+		for(auto& c : endpointsCentroids)
+			LedSlider::writeCentroidToArray(c, endpointsLeds.data(), endpointsLeds.size());
+		LedSlider::writeCentroidToArray({ *display, 0.15 }, signalLeds.data(), signalLeds.size());
+
+		np.clear();
+		rgb_t signalColor = baseColor;
+		for(size_t n = 0; n < np.getNumPixels(); ++n)
+		{
+			rgb_t pixel {};
+			pixel.r = signalColor.r * signalLeds[n] + endpointsColor.r * endpointsLeds[n];
+			pixel.g = signalColor.g * signalLeds[n] + endpointsColor.g * endpointsLeds[n];
+			pixel.b = signalColor.b * signalLeds[n] + endpointsColor.b * endpointsLeds[n];
+			np.setPixelColor(n, pixel.r, pixel.g, pixel.b);
+		}
 	}
 private:
+	rgb_t endpointsColor;
 	const float* display;
 };
 
@@ -4685,10 +4702,10 @@ static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksO
 
 static bool menuJustEntered;
 
-static void menu_enterRangeDisplay(const rgb_t& color, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
+static void menu_enterRangeDisplay(const rgb_t& signalColor, const rgb_t& endpointsColor, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
-	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(color, autoExit, &bottom, &top, display);
+	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColor, autoExit, &bottom, &top, display);
 	menu_in(singleRangeDisplayMenu);
 }
 
