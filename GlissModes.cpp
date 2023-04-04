@@ -2537,10 +2537,9 @@ public:
 			return;
 		}
 		// normal processing
-		centroid_t centroid = {
-				.location = ledSliders.sliders[0].touchLocation(0),
-				.size = ledSliders.sliders[0].touchSize(0),
-		};
+		if(ledSliders.isTouchEnabled())
+			gTouchTracker.process(globalSlider);
+		centroid_t centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
 		if(!centroid.size)
 		{
 			// touch is removed
