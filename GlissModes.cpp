@@ -2197,7 +2197,7 @@ public:
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
-				menu_enterRangeDisplay(signalColor, endpointsColorOut, true, outRangeBottom, outRangeTop, outDisplay);
+				menu_enterRangeDisplay(signalColor, endpointsColorOut, true, outRangeMax, outRangeMin, outDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
@@ -2262,12 +2262,12 @@ public:
 				// TODO: combine this mapping with global mapping in tr_render(),
 				// or at least reduce the number of times it gets called here if the compiler is not smart enough
 				// TODO: should env also be mapped?
-				float value = mapAndConstrain(outs[c], 0, 1, outRangeBottom, outRangeTop);
+				float value = mapAndConstrain(outs[c], 0, 1, outRangeMax, outRangeMin);
 				analogWriteOnce(context, n, c, value);
 			}
 		}
 		// displays if in In/OutRange mode
-		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeBottom, outRangeTop);
+		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeMax, outRangeMin);
 		inDisplay = analogReadMapped(context, 0, 0);
 		// displays if in pure performance mode
 		centroid_t centroids[2];
@@ -2277,7 +2277,7 @@ public:
 		size_t numCentroids = 1;
 		if(kOutputModeNN != outputMode)
 		{
-			centroids[1].location = mapAndConstrain(env, 0, 1, outRangeBottom, outRangeTop);
+			centroids[1].location = mapAndConstrain(env, 0, 1, outRangeMax, outRangeMin);
 			centroids[1].size = kFixedCentroidSize;
 			numCentroids++;
 		}
@@ -2297,7 +2297,7 @@ public:
 			par = mapAndConstrain(par, 0, 1, 0.000005, 0.08);
 			decay = 1.f - par;
 		}
-		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
+		else if(p.same(outRangeMax) || p.same(outRangeMin)) {
 		}
 		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
 		}
@@ -2335,8 +2335,8 @@ public:
 	ParameterEnumT<kOutputModeNum> outputMode {this, 0};
 	ParameterEnumT<kCouplingNum> coupling {this, kCouplingDc};
 	ParameterContinuous cutoff {this, 0.5};
-	ParameterContinuous outRangeBottom {this, 0};
-	ParameterContinuous outRangeTop {this, 1};
+	ParameterContinuous outRangeMax {this, 0};
+	ParameterContinuous outRangeMin {this, 1};
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
 	PACKED_STRUCT(PresetFieldData_t {
