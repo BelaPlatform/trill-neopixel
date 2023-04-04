@@ -4736,8 +4736,8 @@ static void menu_update()
 			&disabled,
 			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
-			&globalSettingsInRange,
 			&globalSettingsOutRange,
+			&globalSettingsInRange,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,
