@@ -21,8 +21,8 @@ typedef enum {
 struct IoRange {
 	// these are changed explicitly via global settings and are stored as preset
 	CvRange range;
-	float bottom;
-	float top;
+	float min;
+	float max;
 	// this can be changed dynamically by a mode and is not stored
 	bool enabled;
 };

@@ -358,14 +358,14 @@ void tr_process(BelaContext* ptr)
 
 IoRange gInRange = {
 	.range = kCvRangePositive10,
-	.bottom = 0,
-	.top = 1,
+	.min = 0,
+	.max = 1,
 	.enabled = true,
 };
 IoRange gOutRange = {
 	.range = kCvRangePositive10,
-	.bottom = 0,
-	.top = 1,
+	.min = 0,
+	.max = 1,
 	.enabled = true,
 };
 
@@ -394,8 +394,8 @@ static inline void getBottomTopRange(bool input, float& bottom, float& top)
 			break;
 		default:
 		case kCvRangeCustom:
-			bottom = ioRange.bottom;
-			top = ioRange.top;
+			bottom = ioRange.min;
+			top = ioRange.max;
 			break;
 	}
 }

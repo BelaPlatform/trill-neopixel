@@ -4577,22 +4577,22 @@ public:
 			gOutRange.range = CvRange(outRangeEnum.get());
 			str = "outRangeEnum";
 		}
-		else if(p.same(outRangeBottom) || p.same(outRangeTop)) {
+		else if(p.same(outRangeMin) || p.same(outRangeMax)) {
 			outRangeEnum.set(kCvRangeCustom);
 			gOutRange.range = CvRange(outRangeEnum.get());
-			gOutRange.bottom = outRangeBottom;
-			gOutRange.top = outRangeTop;
+			gOutRange.min = outRangeMin;
+			gOutRange.max = outRangeMax;
 			str = "outRangeTop/Bottom";
 		}
 		else if(p.same(inRangeEnum)) {
 			str = "inRangeEnum";
 			gInRange.range = inRangeEnum;
 		}
-		else if(p.same(inRangeTop) || p.same(inRangeBottom)) {
+		else if(p.same(inRangeMax) || p.same(inRangeMin)) {
 			inRangeEnum.set(kCvRangeCustom);
 			gInRange.range = inRangeEnum;
-			gInRange.bottom = inRangeBottom;
-			gInRange.top = inRangeTop;
+			gInRange.min = inRangeMin;
+			gInRange.max = inRangeMax;
 			str = "inRangeTop/Bottom";
 		} else if(p.same(jacksOnTop)) {
 			gJacksOnTop = jacksOnTop;
@@ -4617,16 +4617,16 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD9(outRangeBottom, outRangeTop, outRangeEnum,
-				inRangeBottom, inRangeTop, inRangeEnum,
+		UPDATE_PRESET_FIELD9(outRangeMin, outRangeMax, outRangeEnum,
+				inRangeMin, inRangeMax, inRangeEnum,
 					sizeScaleCoeff, jacksOnTop, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
-			.outRangeBottom = outRangeBottom,
-			.outRangeTop = outRangeTop,
-			.inRangeBottom = inRangeBottom,
-			.inRangeTop = inRangeTop,
+			.outRangeMin = outRangeMin,
+			.outRangeMax = outRangeMax,
+			.inRangeMin = inRangeMin,
+			.inRangeMax = inRangeMax,
 			.sizeScaleCoeff = sizeScaleCoeff,
 			.outRangeEnum = outRangeEnum,
 			.inRangeEnum = inRangeEnum,
@@ -4637,33 +4637,33 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter9(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
-					inRangeBottom, inRangeTop, inRangeEnum,
+			.defaulter = genericDefaulter9(GlobalSettings, outRangeMin, outRangeMax, outRangeEnum,
+					inRangeMin, inRangeMax, inRangeEnum,
 						sizeScaleCoeff, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallback9(GlobalSettings, outRangeBottom, outRangeTop, outRangeEnum,
-							inRangeBottom, inRangeTop, inRangeEnum,
+			.loadCallback = genericLoadCallback9(GlobalSettings, outRangeMin, outRangeMax, outRangeEnum,
+							inRangeMin, inRangeMax, inRangeEnum,
 								sizeScaleCoeff, jacksOnTop, newMode),
 		};
 		presetDescSet(6, &presetDesc);
 	}
 	ParameterEnumT<kCvRangeNum,CvRange> outRangeEnum {this, kCvRangePositive10};
-	ParameterContinuous outRangeBottom {this, 0.2};
-	ParameterContinuous outRangeTop {this, 0.8};
+	ParameterContinuous outRangeMin {this, 0.2};
+	ParameterContinuous outRangeMax {this, 0.8};
 	ParameterEnumT<kCvRangeNum,CvRange> inRangeEnum {this, kCvRangePositive10};
-	ParameterContinuous inRangeBottom {this, 0.2};
-	ParameterContinuous inRangeTop {this, 0.8};
+	ParameterContinuous inRangeMin {this, 0.2};
+	ParameterContinuous inRangeMax {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
-		float outRangeBottom;
-		float outRangeTop;
-		float inRangeBottom;
-		float inRangeTop;
+		float outRangeMin;
+		float outRangeMax;
+		float inRangeMin;
+		float inRangeMax;
 		float sizeScaleCoeff;
 		uint8_t outRangeEnum;
 		uint8_t inRangeEnum;
@@ -4693,8 +4693,8 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
 static constexpr rgb_t globalSettingsColor = {255, 127, 0};
-static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRange", globalSettingsColor, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeBottom, gGlobalSettings.outRangeTop);
-static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeBottom, gGlobalSettings.inRangeTop);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutRange("globalSettingsOutRange", globalSettingsColor, gGlobalSettings.outRangeEnum, gGlobalSettings.outRangeMin, gGlobalSettings.outRangeMax);
+static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
