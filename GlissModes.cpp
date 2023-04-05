@@ -4648,6 +4648,14 @@ static void setAllSizeScales(float coeff)
 	gSizeScale = coeff;
 }
 
+static void doOverride(size_t c, float value, bool bypassRange)
+{
+	gOverride.started = HAL_GetTick();
+	gOverride.out = value;
+	gOverride.ch = c;
+	gOverride.bypassOutRange = bypassRange;
+}
+
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
 class GlobalSettings : public ParameterUpdateCapable {
 public:
@@ -4696,10 +4704,7 @@ public:
 			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
 			float coeff = kSizeScale / (tmp * tmp * tmp);
 			setAllSizeScales(coeff);
-			gOverride.started = HAL_GetTick();
-			gOverride.out = globalSlider.compoundTouchSize();
-			gOverride.ch = 1;
-			gOverride.bypassOutRange = false;
+			doOverride(1, globalSlider.compoundTouchSize(), false);
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";
