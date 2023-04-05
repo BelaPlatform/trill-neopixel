@@ -11,10 +11,10 @@ typedef enum {
 } OutMode;
 
 typedef enum {
-	kCvRangeFull,
+	kCvRangePositive10,
 	kCvRangeBipolar,
 	kCvRangePositive5,
-	kCvRangePositive10,
+	kCvRangeFull,
 	kCvRangeCustom,
 	kCvRangeNum,
 } CvRange;
