@@ -3981,8 +3981,9 @@ public:
 
 class MenuItemTypeRange : public MenuItemType {
 public:
+	typedef std::function<float(float)> PreprocessFn;
 	MenuItemTypeRange(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeRange(const rgb_t& color, const rgb_t& otherColor, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, std::function<float(float)> preprocess) :
+	MenuItemTypeRange(const rgb_t& color, const rgb_t& otherColor, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, PreprocessFn preprocess) :
 		MenuItemType(color), otherColor(otherColor), preprocessFn(preprocess), parameters({paramBottom, paramTop}), autoExit(autoExit)
 	{
 		latchProcessor.reset();
@@ -4065,7 +4066,7 @@ protected:
 	std::array<centroid_t,kNumEnds> pastFrames;
 	std::array<float,kNumEnds> displayLocations;
 	rgb_t otherColor;
-	std::function<float(float)> preprocessFn;
+	PreprocessFn preprocessFn;
 private:
 	float preprocess(float in)
 	{
@@ -4091,7 +4092,7 @@ class MenuItemTypeRangeDisplayCentroids : public MenuItemTypeRange {
 public:
 	MenuItemTypeRangeDisplayCentroids(){}
 	MenuItemTypeRangeDisplayCentroids(const rgb_t& displayColor, const std::array<rgb_t,kNumEnds>& endpointsColor, bool autoExit,
-				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, std::function<float(float)> preprocess, const float& display) :
+				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, PreprocessFn preprocess, const float& display) :
 		MenuItemTypeRange(endpointsColor[0], endpointsColor[1], autoExit, paramBottom, paramTop, preprocess), displayColor(displayColor), endpointsColor(endpointsColor), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
@@ -4334,7 +4335,7 @@ public:
 class MenuItemTypeEnterRange : public MenuItemTypeEnterSubmenu
 {
 public:
-	MenuItemTypeEnterRange(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterContinuous& bottom, ParameterContinuous& top, std::function<float(float)> preprocess) :
+	MenuItemTypeEnterRange(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterContinuous& bottom, ParameterContinuous& top, MenuItemTypeRange::PreprocessFn preprocess) :
 		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), bottom(bottom), top(top), preprocess(preprocess), otherColor(otherColor) {}
 	void event(Event e)
 	{
@@ -4345,7 +4346,7 @@ public:
 	}
 	ParameterContinuous& bottom;
 	ParameterContinuous& top;
-	std::function<float(float)> preprocess;
+	MenuItemTypeRange::PreprocessFn preprocess;
 	rgb_t otherColor;
 };
 
@@ -4424,7 +4425,7 @@ public:
 class MenuItemTypeDiscreteRange : public MenuItemTypeDiscretePlus
 {
 public:
-	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess, uint32_t doNotUpdateTimeout = 0):
+	MenuItemTypeDiscreteRange(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, MenuItemTypeRange::PreprocessFn preprocess, uint32_t doNotUpdateTimeout = 0):
 		MenuItemTypeDiscretePlus(name, baseColor, valueEn, doNotUpdateTimeout), valueConBottom(valueConBottom), valueConTop(valueConTop), preprocess(preprocess), otherColor(otherColor) {}
 	void enterPlus() override
 	{
@@ -4434,14 +4435,14 @@ public:
 	}
 	ParameterContinuous& valueConBottom;
 	ParameterContinuous& valueConTop;
-	std::function<float(float)> preprocess;
+	MenuItemTypeRange::PreprocessFn preprocess;
 	rgb_t otherColor;
 };
 
 class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
 {
 public:
-	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess):
+	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, MenuItemTypeRange::PreprocessFn preprocess):
 		MenuItemTypeDiscreteRange(name, baseColor, otherColor, valueEn, valueConBottom, valueConTop, preprocess, 2000), otherColor(otherColor) {}
 	void event(Event e) override
 	{
