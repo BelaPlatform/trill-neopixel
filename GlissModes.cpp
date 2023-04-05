@@ -4866,7 +4866,7 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
 static constexpr rgb_t globalSettingsColor = {255, 127, 0};
-static std::array<float,MenuItemTypeRange::kNumEnds> quantiseFsForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
+static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
 	static constexpr float kVoltsFs = 15;
 	std::array<float,MenuItemTypeRange::kNumEnds> out;
@@ -4875,9 +4875,9 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseFsForIntegerVolts(c
 	return out;
 }
 static constexpr rgb_t globalSettingsRangeOtherColor = {255, 0, 0};
-static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseFsForIntegerVolts);
-static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseFsForIntegerVolts);
-static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseFsForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseNormalisedForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseNormalisedForIntegerVolts);
+static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseNormalisedForIntegerVolts);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
 static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
