@@ -743,8 +743,7 @@ void tr_render(BelaContext* context)
 	if(overrideOutput)
 	{
 		auto outIsSizeStash = gOutIsSize;
-		if(1 == gOverride.ch)
-			gOutIsSize[1] = true; // TODO: make it more generic
+		gOutIsSize[gOverride.ch] = gOverride.isSize;
 		unsigned int c = gOverride.ch;
 		float value = rescaleOutput(gOverride.bypassOutRange, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)

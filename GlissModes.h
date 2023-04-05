@@ -74,6 +74,7 @@ extern struct Override {
 	size_t ch;
 	float out;
 	bool bypassOutRange;
+	bool isSize;
 } gOverride;
 extern std::array<bool,2> gOutIsSize;
 

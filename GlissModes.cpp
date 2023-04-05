@@ -3084,6 +3084,7 @@ void process()
 {
 	float anIn = tri.analogRead();
 	gOverride.started = HAL_GetTick();
+	gOverride.isSize = false;
 	switch (calibrationState)
 	{
 		case kWaitToStart:
@@ -4667,12 +4668,13 @@ static void setAllSizeScales(float coeff)
 	gSizeScale = coeff;
 }
 
-static void doOverride(size_t c, float value, bool bypassRange)
+static void doOverride(size_t c, float value, bool bypassRange, bool isSize)
 {
 	gOverride.started = HAL_GetTick();
 	gOverride.out = value;
 	gOverride.ch = c;
 	gOverride.bypassOutRange = bypassRange;
+	gOverride.isSize = isSize;
 }
 
 static void doOutRangeOverride(size_t c)
@@ -4712,7 +4714,7 @@ static void doOutRangeOverride(size_t c)
 	}
 	bool square = ((tick - startTick) & (kFullPeriod -1)) >= kFullPeriod / 2;
 	float value = square ? ranges[c]->max : ranges[c]->min;
-	doOverride(c, value, true);
+	doOverride(c, value, true, false);
 	for(size_t n = 0; n < pastRanges.size(); ++n)
 		pastRanges[n] = *ranges[n];
 	pastC = c;
@@ -4768,7 +4770,7 @@ public:
 			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
 			float coeff = kSizeScale / (tmp * tmp * tmp);
 			setAllSizeScales(coeff);
-			doOverride(1, globalSlider.compoundTouchSize(), false);
+			doOverride(1, globalSlider.compoundTouchSize(), false, true);
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";
