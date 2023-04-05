@@ -1806,6 +1806,11 @@ public:
 };
 
 class DirectControlMode : public SplitPerformanceMode {
+	enum AutoLatchMode {
+		kAutoLatchOff,
+		kAutoLatchBoth,
+		kAutoLatchLocationOnly,
+	};
 public:
 	bool setup(double ms) override
 	{
@@ -1856,13 +1861,26 @@ public:
 			}
 		}
 		// sets values and isLatched
-		latchProcessor.process(autoLatch, 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
+		latchProcessor.process(kAutoLatchOff != autoLatch, 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
 			lastLatchCount = performanceBtn.pressCount;
 		}
-		renderOut(gManualAnOut, values, values);
+		// make a copy before possibly removing size
+		std::array<centroid_t,kNumSplits> displayValues = values;
+		if(kAutoLatchLocationOnly == autoLatch)
+		{
+			// if latched and shouldn't latch size, set size to 0 for output, but leave
+			// a faint dot for display
+			for(size_t n = 0; n < isLatched.size() && n < size_t(1 + isSplit()); ++n)
+				if(isLatched[n])
+				{
+					displayValues[n].size = 0.15;
+					values[n].size = 0;
+				}
+		}
+		renderOut(gManualAnOut, values, displayValues);
 	}
 	void updated(Parameter& p)
 	{
@@ -1893,7 +1911,7 @@ public:
 		presetDescSet(0, &presetDesc);
 	}
 	// splitMode from base class
-	ParameterEnumT<2> autoLatch{this, false};
+	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
 	PACKED_STRUCT(PresetFieldData_t {
 		uint8_t splitMode;
 		uint8_t autoLatch;
@@ -3578,23 +3596,27 @@ public:
 	ButtonAnimationPulsatingStill(rgb_t color) :
 		color(color) {}
 	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
-		rgb_t c;
-		if(0 == value)
+		rgb_t otherColor;
+		if(0 == value) // kAutoLatchOff,
 		{
-			// PWM with increasingly longer width
-			const unsigned int period = 600;
-			const unsigned int numPeriods = 5;
-			ms = ms % (period * numPeriods);
-			unsigned int thisPeriod = ms / period;
-			unsigned int pulseWidth = thisPeriod / float(numPeriods - 1) * period;
-			unsigned int idx = ms % period;
-			float coeff = idx < pulseWidth ? 0.3 : 1;
-			c.r = color.r * coeff;
-			c.g = color.g * coeff;
-			c.b = color.b * coeff;
-		} else {
-			c = color;
+			otherColor = {0, 0, 0};
+		} else if (1 == value) { // kAutoLatchBoth
+			otherColor = color;
+		} else { // kAutoLatchLocationOnly
+			for(size_t n = 0; n < otherColor.size(); ++n)
+				otherColor[n] = color[n] * 0.6;
 		}
+		// PWM with increasingly longer width
+		const unsigned int period = 600;
+		const unsigned int numPeriods = 5;
+		ms = ms % (period * numPeriods);
+		unsigned int thisPeriod = ms / period;
+		unsigned int pulseWidth = thisPeriod / float(numPeriods - 1) * period;
+		unsigned int idx = ms % period;
+		bool coeff = idx < pulseWidth;
+		rgb_t c;
+		for(size_t n = 0; n < c.size(); ++n)
+			c[n] = color[n] * coeff+ otherColor[n] * !coeff;
 		ledSlider.setColor(c);
 	};
 protected:
