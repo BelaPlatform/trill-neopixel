@@ -4870,8 +4870,26 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 {
 	static constexpr float kVoltsFs = 15;
 	std::array<float,MenuItemTypeRange::kNumEnds> out;
+	// first we make them integers, one per each voltage step
 	for(size_t n = 0; n < in.size(); ++n)
-		out[n] = std::round((in[n] * kVoltsFs)) / kVoltsFs;
+		out[n] = std::round((in[n] * kVoltsFs));
+	// ensure they are in the correct order
+	std::sort(out.begin(), out.end());
+	if(out[0] == out[1])
+	{
+		// if the are the same, we
+		// ensure they are at least 1 apart.
+		int val = out[0];
+		if(0 == val) //edge case
+			out[1] = 1;
+		else if (kVoltsFs == val) //edge case
+			out[0] = kVoltsFs - 1;
+		else //general case
+			out[1] = out[0] + 1;
+	}
+	// convert back to normalised
+	for(auto& o : out)
+		o /= kVoltsFs;
 	return out;
 }
 static constexpr rgb_t globalSettingsRangeOtherColor = {255, 0, 0};
