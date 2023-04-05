@@ -4677,11 +4677,45 @@ static void doOverride(size_t c, float value, bool bypassRange)
 
 static void doOutRangeOverride(size_t c)
 {
-	// cheap square of period 2.048 seconds and free-running phase
-	bool s = (HAL_GetTick() & 2047) > 1024;
-	auto& range = (0 == c) ? gOutRangeTop : gOutRangeBottom;
-	float value = s ? range.max : range.min;
+	// generate a cheap square of period 2.048 seconds and reset phase on change
+	static size_t pastC = -1;
+	static uint32_t startTick = 0;
+	static std::array<IoRange,2> pastRanges {
+		gOutRangeTop,
+		gOutRangeBottom,
+	};
+	constexpr size_t kFullPeriod = 2048; // has to be a power of 2
+
+	uint32_t tick = HAL_GetTick();
+	const std::array<const IoRange*,2> ranges {
+		&gOutRangeTop,
+		&gOutRangeBottom,
+	};
+	// detect a change so we can play back first the one that has changed
+	ssize_t changedEndpoint = -1;
+	if(ranges[c]->min != pastRanges[c].min)
+		changedEndpoint = 0;
+	else if(ranges[c]->max != pastRanges[c].max)
+		changedEndpoint = 1;
+
+	if(changedEndpoint != -1 || pastC != c)
+	{
+		// reset phase on change
+		startTick = tick;
+		if(1 == changedEndpoint)
+		{
+			// if the second endpoint changed,
+			// increment the phase by half period so
+			// that we start playing back the high part
+			startTick -= kFullPeriod / 2;
+		}
+	}
+	bool square = ((tick - startTick) & (kFullPeriod -1)) >= kFullPeriod / 2;
+	float value = square ? ranges[c]->max : ranges[c]->min;
 	doOverride(c, value, true);
+	for(size_t n = 0; n < pastRanges.size(); ++n)
+		pastRanges[n] = *ranges[n];
+	pastC = c;
 }
 
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
