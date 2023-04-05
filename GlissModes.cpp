@@ -594,25 +594,31 @@ private:
 };
 
 class LatchProcessor {
+	static constexpr size_t kMaxNumValues = 2;
 public:
+	enum Reason {
+		kLatchNone,
+		kLatchAuto,
+		kLatchManual,
+	};
 	LatchProcessor() {
 		reset();
 	}
 	void reset()
 	{
-		isLatched = {false, false};
+		isLatched = {kLatchNone, kLatchNone};
 		unlatchArmed = {false, false};
 		latchedValues = {0, 0};
 		for(auto& al : autoLatchers)
 			al.reset();
 	}
-	void process(bool autoLatch, size_t numValues, std::array<centroid_t,2>& values, std::array<bool,2>& isLatchedRet,
+	void process(bool autoLatch, size_t numValues, std::array<centroid_t,kMaxNumValues>& values, std::array<Reason,kMaxNumValues>& isLatchedRet,
 			bool shouldLatch = false, bool shouldUnlatch = false)
 	{
 		if(numValues > kMaxNumValues)
 			numValues = kMaxNumValues;
 		std::array<bool,kMaxNumValues> hasTouch = { values[0].size > 0, values[1].size > 0 };
-		std::array<bool,kMaxNumValues> latchStarts = {false, false};
+		std::array<Reason,kMaxNumValues> latchStarts = {kLatchNone, kLatchNone};
 		std::array<bool,kMaxNumValues> unlatchStarts = {false, false};
 
 		// button latches everything if there is at least one touch
@@ -622,7 +628,7 @@ public:
 			for(size_t n = 0; n < numValues; ++n)
 			{
 				if(!isLatched[n] && hasTouch[n])
-					latchStarts[n] = true;
+					latchStarts[n] = kLatchManual;
 			}
 		} else if (shouldUnlatch) {
 			if(!(hasTouch[0] || hasTouch[numValues - 1]))
@@ -639,7 +645,15 @@ public:
 		{
 			// try to hold without button
 			for(size_t n = 0; n < numValues; ++n)
-				autoLatchers[n].process(values[n], latchStarts[n]);
+			{
+				if(!isLatched[n])
+				{
+					bool autoLatchStarts = false;
+					autoLatchers[n].process(values[n], autoLatchStarts);
+					if(autoLatchStarts && kLatchNone == latchStarts[n])
+						latchStarts[n] = kLatchAuto;
+				}
+			}
 		}
 		for(size_t n = 0; n < numValues; ++n)
 		{
@@ -656,11 +670,11 @@ public:
 			if(latchStarts[n])
 			{
 				latchedValues[n] = values[n];
-				isLatched[n] = true;
+				isLatched[n] = latchStarts[n];
 				unlatchArmed[n] = false;
 			}
 			if(unlatchStarts[n])
-				isLatched[n] = false;
+				isLatched[n] = kLatchNone;
 		}
 		for(size_t n = 0; n < numValues; ++n)
 		{
@@ -671,8 +685,7 @@ public:
 		isLatchedRet = isLatched;
 	}
 private:
-	static constexpr size_t kMaxNumValues = 2;
-	std::array<bool,kMaxNumValues> isLatched;
+	std::array<Reason,kMaxNumValues> isLatched;
 	std::array<bool,kMaxNumValues> unlatchArmed;
 	std::array<centroid_t,kMaxNumValues> latchedValues;
 	std::array<AutoLatcher,kMaxNumValues> autoLatchers;
@@ -1922,7 +1935,7 @@ private:
 		{255, 0, 127},
 	};
 	LatchProcessor latchProcessor;
-	std::array<bool,2> isLatched = {false, false};
+	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
 	uint32_t lastLatchCount = ButtonView::kPressCountInvalid;
 } gDirectControlMode;
 
@@ -4033,7 +4046,7 @@ public:
 			pastFrames[n].location = parameters[n]->get();
 			pastFrames[n].size = 1;
 		}
-		std::array<bool,2> isLatched;
+		std::array<LatchProcessor::Reason,2> isLatched;
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
 		latchProcessor.process(true, pastFrames.size(), pastFrames, isLatched);
 		hasHadTouch = false;
@@ -4086,7 +4099,7 @@ public:
 						frames[n].size = slider.touchSize(n);
 					}
 				}
-				std::array<bool,2> isLatched;
+				std::array<LatchProcessor::Reason,2> isLatched;
 				latchProcessor.process(true, frames.size(), frames, isLatched);
 				auto preprocessedValues = preprocess({frames[0].location, frames[1].location});
 				for(size_t n = 0; n < frames.size(); ++n)
