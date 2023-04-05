@@ -4442,7 +4442,7 @@ class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
 {
 public:
 	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, std::function<float(float)> preprocess):
-		MenuItemTypeDiscreteRange(name, baseColor, otherColor, valueEn, valueConBottom, valueConTop, preprocess, 5000), otherColor(otherColor) {}
+		MenuItemTypeDiscreteRange(name, baseColor, otherColor, valueEn, valueConBottom, valueConTop, preprocess, 2000), otherColor(otherColor) {}
 	void event(Event e) override
 	{
 		MenuItemTypeDiscreteRange::event(e);
