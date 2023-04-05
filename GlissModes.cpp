@@ -1741,7 +1741,7 @@ protected:
 	{
 		return splitMode != kModeNoSplit;
 	}
-	void renderOut(std::array<float,kNumSplits>& out, std::array<centroid_t,kNumSplits>& values)
+	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues)
 	{
 		for(ssize_t n = 0; n < isSplit() + 1; ++n)
 		{
@@ -1749,14 +1749,14 @@ protected:
 			switch(splitMode)
 			{
 			case kModeNoSplit:
-				ledSliders.sliders[n].setLedsCentroids(values.data(), 1);
+				ledSliders.sliders[n].setLedsCentroids(displayValues.data(), 1);
 				out[0] = hasTouch ? values[0].location : kNoOutput;
 				out[1] = hasTouch ? values[0].size : kNoOutput;
 				break;
 			case kModeSplitLocation:
 			{
 				centroid_t centroid;
-				centroid.location = values[n].location;
+				centroid.location = displayValues[n].location;
 				centroid.size = hasTouch * kFixedCentroidSize;
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 				out[n] = values[n].location;
@@ -1767,15 +1767,15 @@ protected:
 				// Use multiple centroids to make a bigger dot.
 				// Their spacing increases with the size
 				std::array<centroid_t,kNumSplits> centroids;
-				float value = values[n].size;
-				float spread = 0.15f * std::min(1.f, values[n].size);
+				float value = displayValues[n].size;
+				float spread = 0.15f * std::min(1.f, displayValues[n].size);
 				for(size_t c = 0; c < centroids.size(); ++c)
 				{
 					centroids[c].location = 0.5f + (0 == c ? -spread : +spread);
 					centroids[c].size = value;
 				}
-				out[n] = value;
 				ledSliders.sliders[n].setLedsCentroids(centroids.data(), centroids.size());
+				out[n] = values[n].size;
 			}
 				break;
 			}
@@ -1862,7 +1862,7 @@ public:
 			// keep note of current press
 			lastLatchCount = performanceBtn.pressCount;
 		}
-		renderOut(gManualAnOut, values);
+		renderOut(gManualAnOut, values, values);
 	}
 	void updated(Parameter& p)
 	{
@@ -2059,7 +2059,7 @@ public:
 				values[0] = kInvalid;
 		}
 		// this may set gManualAnOut even if they are ignored
-		renderOut(gManualAnOut, values);
+		renderOut(gManualAnOut, values, values);
 
 		hadTouch = hasTouch;
 	}
