@@ -545,8 +545,8 @@ public:
 	}
 	void reset()
 	{
-		// TODO: count valid frames so that for short touches
-		// we don't latch on to garbage
+		idx = 0;
+		validFrames = 0;
 	}
 	// return: sets frame and latchStarts
 	void process(centroid_t& frame, bool& latchStarts)
@@ -558,14 +558,29 @@ public:
 			return;
 		if(pastFrames[pastIdx].size && !frame.size) // if size went to zero
 		{
-			// use the oldest frame we have
-			frame = pastFrames[idx];
+			// use the oldest frame we have:
+			size_t lastGood;
+			if(validFrames)
+			{
+
+				if(validFrames >= kHistoryLength)
+					// all values in the circular buffer are valid. Get the oldest
+					lastGood = idx;
+				else
+					// go back in the circular buffer to the oldest valid  value.
+					lastGood = (idx - validFrames + kHistoryLength) % kHistoryLength;
+				frame = pastFrames[lastGood];
+			} else {
+				// nothing: we have nothing to latch onto, so we do not alter frame
+			}
 			latchStarts = true;
 			pastFrames[idx].location = pastFrames[idx].size = 0;
+			validFrames = 0;
 		} else {
 			// if we are still touching
 			// store current value for later
 			pastFrames[idx] = frame;
+			validFrames++;
 		}
 		++idx;
 		if(idx >= pastFrames.size())
@@ -574,7 +589,8 @@ public:
 private:
 	static constexpr size_t kHistoryLength = 5;
 	std::array<centroid_t,kHistoryLength> pastFrames;
-	size_t idx = 0;
+	size_t idx;
+	size_t validFrames;
 };
 
 class LatchProcessor {
