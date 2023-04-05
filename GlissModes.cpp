@@ -3979,9 +3979,11 @@ public:
 
 #include <functional>
 
+
 class MenuItemTypeRange : public MenuItemType {
 public:
-	typedef std::function<float(float)> PreprocessFn;
+	static constexpr size_t kNumEnds = 2;
+	typedef std::function<std::array<float,kNumEnds>(const std::array<float,kNumEnds>&)> PreprocessFn;
 	MenuItemTypeRange(): MenuItemType({0, 0, 0}) {}
 	MenuItemTypeRange(const rgb_t& color, const rgb_t& otherColor, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop, PreprocessFn preprocess) :
 		MenuItemType(color), otherColor(otherColor), preprocessFn(preprocess), parameters({paramBottom, paramTop}), autoExit(autoExit)
@@ -4047,9 +4049,10 @@ public:
 				}
 				std::array<bool,2> isLatched;
 				latchProcessor.process(true, frames.size(), frames, isLatched);
+				auto preprocessedValues = preprocess({frames[0].location, frames[1].location});
 				for(size_t n = 0; n < frames.size(); ++n)
 				{
-					float preprocessedValue = preprocess(frames[n].location);
+					float preprocessedValue = preprocessedValues[n];
 					parameters[n]->set(preprocessedValue);
 					// TODO: is it really the best decision to store a preprocessed (e.g.: quantised)
 					// value and then use a non-preprocessed value at the next frame to check which
@@ -4062,13 +4065,12 @@ public:
 		}
 	}
 protected:
-	static constexpr size_t kNumEnds = 2;
 	std::array<centroid_t,kNumEnds> pastFrames;
 	std::array<float,kNumEnds> displayLocations;
 	rgb_t otherColor;
 	PreprocessFn preprocessFn;
 private:
-	float preprocess(float in)
+	std::array<float,kNumEnds> preprocess(const std::array<float,kNumEnds>& in)
 	{
 		if(preprocessFn)
 			return preprocessFn(in);
@@ -4814,10 +4816,13 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
 static constexpr rgb_t globalSettingsColor = {255, 127, 0};
-static float quantiseFsForIntegerVolts(float in)
+static std::array<float,MenuItemTypeRange::kNumEnds> quantiseFsForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
 	static constexpr float kVoltsFs = 15;
-	return std::round((in * kVoltsFs)) / kVoltsFs;
+	std::array<float,MenuItemTypeRange::kNumEnds> out;
+	for(size_t n = 0; n < in.size(); ++n)
+		out[n] = std::round((in[n] * kVoltsFs)) / kVoltsFs;
+	return out;
 }
 static constexpr rgb_t globalSettingsRangeOtherColor = {255, 0, 0};
 static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseFsForIntegerVolts);
