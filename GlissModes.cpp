@@ -4656,6 +4656,15 @@ static void doOverride(size_t c, float value, bool bypassRange)
 	gOverride.bypassOutRange = bypassRange;
 }
 
+static void doOutRangeOverride(size_t c)
+{
+	// cheap square of period 2.048 seconds and free-running phase
+	bool s = (HAL_GetTick() & 2047) > 1024;
+	auto& range = (0 == c) ? gOutRangeTop : gOutRangeBottom;
+	float value = s ? range.max : range.min;
+	doOverride(c, value, true);
+}
+
 static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
 class GlobalSettings : public ParameterUpdateCapable {
 public:
@@ -4673,6 +4682,7 @@ public:
 			gOutRangeTop.min = outRangeTopMin;
 			gOutRangeTop.max = outRangeTopMax;
 			str = "outRangeTopMin/Max";
+			doOutRangeOverride(0);
 		}
 		else if(p.same(outRangeBottomEnum)) {
 			gOutRangeBottom.range = CvRange(outRangeBottomEnum.get());
@@ -4684,6 +4694,7 @@ public:
 			gOutRangeBottom.min = outRangeBottomMin;
 			gOutRangeBottom.max = outRangeBottomMax;
 			str = "outRangeBottomMin/Max";
+			doOutRangeOverride(1);
 		}
 		else if(p.same(inRangeEnum)) {
 			str = "inRangeEnum";
