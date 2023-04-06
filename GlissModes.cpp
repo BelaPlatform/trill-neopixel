@@ -1878,9 +1878,11 @@ public:
 		if(performanceBtn.onset)
 		{
 			// at least one VALID and non-latched
-			// (isLatched[split] is same as isLatched[0] if not split)
-			if(!isLatched[0] || !isLatched[isSplit()])
-				shouldLatch = true;
+			for(ssize_t n = 0; n < 1 + isSplit(); ++n)
+			{
+				bool hasTouch = values[n].size > 0;
+				shouldLatch |= (!isLatched[n] && hasTouch);
+			}
 		}
 		if(performanceBtn.offset)
 		{
