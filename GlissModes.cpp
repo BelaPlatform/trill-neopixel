@@ -3766,13 +3766,8 @@ class ButtonAnimationBrightDimmed: public ButtonAnimation {
 public:
 	ButtonAnimationBrightDimmed(rgb_t color) :
 		color(color) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float rampUp) override {
-		rgb_t c;
-		float coeff = rampUp > 0.5 ? 1 : 0.3;
-		c.r = color.r * coeff;
-		c.g = color.g * coeff;
-		c.b = color.b * coeff;
-		ledSlider.setColor(c);
+	void process(uint32_t ms, LedSlider& ledSlider, float) override {
+		ledSlider.setColor(color);
 	};
 protected:
 	rgb_t color;
@@ -5021,8 +5016,9 @@ static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsO
 static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseNormalisedForIntegerVolts);
 static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
-static ButtonAnimationBrightDimmed animationBrightDimmed(globalSettingsColor);
-static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", globalSettingsColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
+static constexpr rgb_t jacksOnTopButtonColor {0, 0, 180};
+static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
+static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 
 static bool menuJustEntered;
 
