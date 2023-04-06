@@ -555,7 +555,7 @@ public:
 		size_t pastIdx = (idx - 1 + pastFrames.size()) % pastFrames.size();
 		// filter out duplicate frames
 		// TODO: call this per each new frame instead
-		if(pastFrameSize == frame.size && pastFrames[pastIdx].location == frame.location)
+		if(validFrames && pastFrameSize == frame.size && pastFrames[pastIdx].location == frame.location)
 		{
 			ssize_t oldest = getOldestFrame();
 			if(oldest >= 0)
@@ -677,7 +677,7 @@ public:
 		{
 			if(isLatched[n])
 			{
-				// if it's latched (and you have release your finger),
+				// if it's latched (and you have released your finger),
 				// you can unlatch and go back
 				// to direct control simply by touching again
 				if(!hasTouch[n])
