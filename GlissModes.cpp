@@ -692,7 +692,10 @@ public:
 				unlatchArmed[n] = false;
 			}
 			if(unlatchStarts[n])
+			{
 				isLatched[n] = kLatchNone;
+				autoLatchers[n].reset(); // ensure we don't get a spurious auto latch next frame
+			}
 		}
 		for(size_t n = 0; n < numValues; ++n)
 		{
