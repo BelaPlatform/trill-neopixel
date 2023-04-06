@@ -30,6 +30,7 @@ public:
 	struct centroid_t {
 		float location;
 		float size;
+		bool operator== (const centroid_t& other) { return !memcmp(this, &other, sizeof(other)); }
 	};
 	typedef enum {
 		AUTO_CENTROIDS,
