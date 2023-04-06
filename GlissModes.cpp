@@ -547,27 +547,29 @@ public:
 	{
 		idx = 0;
 		validFrames = 0;
-		pastFrameSize = 0;
+		pastInputFrame = {0, 0};
+		lastOutSize = 0;
 	}
-	// return: sets frame and latchStarts
+	// return: may modify frame and latchStarts
 	void process(centroid_t& frame, bool& latchStarts)
 	{
-		size_t pastIdx = (idx - 1 + pastFrames.size()) % pastFrames.size();
 		// filter out duplicate frames
 		// TODO: call this per each new frame instead
-		if(validFrames && pastFrameSize == frame.size && pastFrames[pastIdx].location == frame.location)
+		if(validFrames && pastInputFrame == frame)
 		{
-			ssize_t oldest = getOldestFrame();
-			if(oldest >= 0)
-				frame.size = pastFrames[oldest].size;
+			frame.size = lastOutSize;
 			return;
 		}
-		if(pastFrames[pastIdx].size && !frame.size) // if size went to zero
+		// cache for duplicate detection
+		pastInputFrame = frame;
+		if(validFrames && pastFrames[getPastFrame(0)].size && !frame.size) // if size went to zero
 		{
-			// use the oldest frame we have for both size and location
-			ssize_t oldest = getOldestFrame();
-			if(oldest >= 0) {
-				frame = pastFrames[oldest];
+			// use the oldest frame we have for location, keeping whatever size we have been using
+			if(validFrames) {
+				frame = centroid_t {
+						.location = pastFrames[getOldestFrame()].location,
+						.size = lastOutSize,
+				};
 			} else {
 				// nothing: we have nothing to latch onto, so we do not alter frame
 			}
@@ -575,40 +577,69 @@ public:
 			pastFrames[idx].location = pastFrames[idx].size = 0;
 			validFrames = 0;
 		} else {
-			ssize_t oldest = getOldestFrame();
-			float newSize = frame.size;
-			if(oldest >= 0) // apply a delay to the size to avoid glitches when releasing
-				newSize = pastFrames[oldest].size;
 			// if we are still touching
-			// store current value for later
+			// apply a variable delay to the output size
+			if(validFrames < kMaxDelay)
+			{
+				// we are just at the beginning of a touch: get the most recent size
+				delay = 0;
+			} else if (delay < kMaxDelay)
+			{
+				// the touch has been going on for a while, we need to progressively
+				// reach the max delay
+				delay++;
+			}
+			float newSize = frame.size; // no delay!
+			if(delay > 0)
+			{
+				// validFrames is always larger than delay, so we always
+				// get a valid inde
+				ssize_t n = getPastFrame(delay - 1);
+				assert(n >= 0);
+				newSize = pastFrames[n].size;
+			}
+
+			// store current input value for later
 			pastFrames[idx] = frame;
+			++idx;
+			if(idx >= pastFrames.size())
+				idx = 0;
 			validFrames++;
-			pastFrameSize = frame.size; // cache it for duplicate detection
+
+			// output the delayed size
 			frame.size = newSize;
+			lastOutSize = frame.size;
 		}
-		++idx;
-		if(idx >= pastFrames.size())
-			idx = 0;
 	}
 private:
 	ssize_t getOldestFrame()
 	{
+		return getPastFrame(kHistoryLength - 1);
+	}
+	// back = 0 : newest frame
+	// back = kHistoryLength - 1 : oldest frame
+	ssize_t getPastFrame(size_t back)
+	{
 		if(!validFrames)
 			return -1;
 		size_t lastGood;
-		if(validFrames >= kHistoryLength)
-			// all values in the circular buffer are valid. Get the oldest
-			lastGood = idx;
-		else
-			// go back in the circular buffer to the oldest valid value.
-			lastGood = (idx - validFrames + kHistoryLength) % kHistoryLength;
+		if(back > validFrames)
+			back = validFrames;
+		// all values in the circular buffer are valid. Get the oldest
+		if(back >= kHistoryLength)
+			back = kHistoryLength - 1;
+		// go back in the circular buffer to the oldest valid value.
+		lastGood = (idx - 1 - back + kHistoryLength) % kHistoryLength;
 		return lastGood;
 	}
 	static constexpr size_t kHistoryLength = 5;
+	static constexpr size_t kMaxDelay = kHistoryLength - 1; // could be even less than this, if desired
 	std::array<centroid_t,kHistoryLength> pastFrames;
 	size_t idx;
 	size_t validFrames;
-	float pastFrameSize;
+	size_t delay;
+	centroid_t pastInputFrame;
+	float lastOutSize;
 };
 
 class LatchProcessor {
