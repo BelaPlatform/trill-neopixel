@@ -1874,7 +1874,7 @@ public:
 			}
 		}
 		// sets values and isLatched
-		latchProcessor.process(kAutoLatchOff != autoLatch, 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
+		latchProcessor.process(shouldAutoLatch(), 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
@@ -1882,16 +1882,24 @@ public:
 		}
 		// make a copy before possibly removing size
 		std::array<centroid_t,kNumSplits> displayValues = values;
-		if(kAutoLatchLocationOnly == autoLatch)
+
+		if(hasSizeOutput() && !shouldAutoLatchSize())
 		{
-			// if latched and shouldn't latch size, set size to 0 for output, but leave
-			// a faint dot for display
 			for(size_t n = 0; n < isLatched.size() && n < size_t(1 + isSplit()); ++n)
-				if(isLatched[n])
+			{
+				if(LatchProcessor::kLatchAuto == isLatched[n])
 				{
-					displayValues[n].size = 0.15;
+					// if we were autolatched
+					// set size to 0 for output
 					values[n].size = 0;
+					if(!isSplit())
+						// leave a faint dot for display while location is latched
+						displayValues[n].size = 0.15;
+					else
+						// display is dark
+						displayValues[n].size = 0;
 				}
+			}
 		}
 		renderOut(gManualAnOut, values, displayValues);
 	}
@@ -1930,6 +1938,18 @@ public:
 		uint8_t autoLatch;
 	}) presetFieldData;
 private:
+	bool hasSizeOutput()
+	{
+		return kModeSplitLocation != splitMode;
+	}
+	bool shouldAutoLatchSize()
+	{
+		return kAutoLatchBoth == autoLatch;
+	}
+	bool shouldAutoLatch()
+	{
+		return kAutoLatchOff != autoLatch;
+	}
 	rgb_t colors[2] = {
 		{255, 0, 0},
 		{255, 0, 127},
