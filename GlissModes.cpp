@@ -1901,25 +1901,37 @@ public:
 		// make a copy before possibly removing size
 		std::array<centroid_t,kNumSplits> displayValues = values;
 
+		bool shouldOverrideOut0 = false;
 		if(hasSizeOutput() && !shouldAutoLatchSize())
 		{
 			for(size_t n = 0; n < isLatched.size() && n < size_t(1 + isSplit()); ++n)
 			{
 				if(LatchProcessor::kLatchAuto == isLatched[n])
 				{
-					// if we were autolatched
+					// if we were autolatched, we ned to ignore size
+					// CV outs:
 					// set size to 0 for output
 					values[n].size = 0;
-					if(!isSplit())
-						// leave a faint dot for display while location is latched
-						displayValues[n].size = 0.15;
-					else
+					// TODO: this also sets location to kNoOutput, so we have to "fixup" it below.
+					// so we make a not of it here
+					if(kModeNoSplit == splitMode)
+						shouldOverrideOut0 = true;
+					// display:
+					if(kModeSplitSize == splitMode)
 						// display is dark
 						displayValues[n].size = 0;
+					else
+						// leave a faint dot for display while location is latched
+						displayValues[n].size = 0.15;
 				}
 			}
 		}
 		renderOut(gManualAnOut, values, displayValues);
+		if(shouldOverrideOut0) {
+			// fixup: yet another hack to get something displayed, kNoOutput size output,
+			// but valid location output. See TODO above
+			gManualAnOut[0] = values[0].location;
+		}
 	}
 	void updated(Parameter& p)
 	{
