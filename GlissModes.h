@@ -37,7 +37,7 @@ struct ButtonView {
 	bool offset;
 	bool pressed;
 	bool enabled;
-	uint32_t pressCount;
+	uint32_t pressId;
 	uint32_t pressDuration;
 	static constexpr uint32_t kPressCountInvalid = -1;
 };

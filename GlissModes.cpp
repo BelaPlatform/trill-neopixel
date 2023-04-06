@@ -1921,7 +1921,7 @@ public:
 		if(performanceBtn.offset)
 		{
 			// if it's not the same press that triggered the latch, unlatch
-			if(lastLatchCount != performanceBtn.pressCount)
+			if(lastLatchCount != performanceBtn.pressId)
 			{
 				shouldUnlatch = true;
 				lastLatchCount = ButtonView::kPressCountInvalid;
@@ -1932,7 +1932,7 @@ public:
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
-			lastLatchCount = performanceBtn.pressCount;
+			lastLatchCount = performanceBtn.pressId;
 		}
 		// make a copy before possibly removing size
 		std::array<centroid_t,kNumSplits> displayValues = values;
