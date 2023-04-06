@@ -7,8 +7,17 @@
 #include "preset.h"
 #include "packed.h"
 typedef LedSlider::centroid_t centroid_t;
+// TODO: verify these are consistent with the rest
+constexpr float SAMPLE_RATE = 42500;
+constexpr size_t BLOCKSIZE = 64;
 
 #include <cmath>
+static size_t msToNumBlocks(float ms)
+{
+	if(ms < 0)
+		ms = 0;
+	return std::round(SAMPLE_RATE * ms / 1000.f / BLOCKSIZE);
+}
 
 class TouchTracker
 {
