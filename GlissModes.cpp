@@ -547,6 +547,7 @@ public:
 	{
 		idx = 0;
 		validFrames = 0;
+		pastFrameSize = 0;
 	}
 	// return: sets frame and latchStarts
 	void process(centroid_t& frame, bool& latchStarts)
@@ -554,22 +555,19 @@ public:
 		size_t pastIdx = (idx - 1 + pastFrames.size()) % pastFrames.size();
 		// filter out duplicate frames
 		// TODO: call this per each new frame instead
-		if(pastFrames[pastIdx].size == frame.size && pastFrames[pastIdx].location == frame.location)
+		if(pastFrameSize == frame.size && pastFrames[pastIdx].location == frame.location)
+		{
+			size_t oldest = getOldestFrame();
+			if(oldest >= 0)
+				frame.size = pastFrames[oldest].size;
 			return;
+		}
 		if(pastFrames[pastIdx].size && !frame.size) // if size went to zero
 		{
-			// use the oldest frame we have:
-			size_t lastGood;
-			if(validFrames)
-			{
-
-				if(validFrames >= kHistoryLength)
-					// all values in the circular buffer are valid. Get the oldest
-					lastGood = idx;
-				else
-					// go back in the circular buffer to the oldest valid  value.
-					lastGood = (idx - validFrames + kHistoryLength) % kHistoryLength;
-				frame = pastFrames[lastGood];
+			// use the oldest frame we have for both size and location
+			ssize_t oldest = getOldestFrame();
+			if(oldest >= 0) {
+				frame = pastFrames[oldest];
 			} else {
 				// nothing: we have nothing to latch onto, so we do not alter frame
 			}
@@ -577,20 +575,40 @@ public:
 			pastFrames[idx].location = pastFrames[idx].size = 0;
 			validFrames = 0;
 		} else {
+			ssize_t oldest = getOldestFrame();
+			float newSize = frame.size;
+			if(oldest >= 0) // apply a delay to the size to avoid glitches when releasing
+				newSize = pastFrames[oldest].size;
 			// if we are still touching
 			// store current value for later
 			pastFrames[idx] = frame;
 			validFrames++;
+			pastFrameSize = frame.size; // cache it for duplicate detection
+			frame.size = newSize;
 		}
 		++idx;
 		if(idx >= pastFrames.size())
 			idx = 0;
 	}
 private:
+	ssize_t getOldestFrame()
+	{
+		if(!validFrames)
+			return -1;
+		size_t lastGood;
+		if(validFrames >= kHistoryLength)
+			// all values in the circular buffer are valid. Get the oldest
+			lastGood = idx;
+		else
+			// go back in the circular buffer to the oldest valid value.
+			lastGood = (idx - validFrames + kHistoryLength) % kHistoryLength;
+		return lastGood;
+	}
 	static constexpr size_t kHistoryLength = 5;
 	std::array<centroid_t,kHistoryLength> pastFrames;
 	size_t idx;
 	size_t validFrames;
+	float pastFrameSize;
 };
 
 class LatchProcessor {
