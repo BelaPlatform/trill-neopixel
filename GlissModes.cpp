@@ -2132,8 +2132,17 @@ public:
 	}
 	void render(BelaContext* context) override
 	{
+		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
+
+		// handle button
+		if(performanceBtn.pressDuration == msToNumBlocks(3000))
+		{
+			gGestureRecorder.empty();
+			for(auto& t : tableEnabled)
+				t = false;
+		}
 		std::array<bool,kNumSplits> hasTouch;
 		bool shouldProcessGestureRecorder = false;
 		static_assert(kNumSplits == 2); // or the loops below won't work
@@ -2167,8 +2176,9 @@ public:
 			{
 				if((hadTouch[n] && !hasTouch[n]) || inputModeShouldUpdateTable){
 					updateTable(n);
+					tableEnabled[n] = true;
 				}
-				float value = processTable(context, n);;
+				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.value = value, .valid = true};
 			}
 			inputModeShouldUpdateTable = false;
@@ -2205,7 +2215,13 @@ public:
 	{
 		assert(c < context->analogOutChannels && c < tables.size() && c < kNumSplits);
 		float vizOut = 0;
-		if(kInputModeCv == inputMode || kInputModeClock == inputMode)
+		if(!tableEnabled[c])
+		{
+			for(size_t n = 0; n < context->analogFrames; ++n)
+				analogWriteOnce(context, n, c, kNoOutput);
+			vizOut = kNoOutput;
+
+		} else if(kInputModeCv == inputMode || kInputModeClock == inputMode)
 		{
 			// wavetable oscillator
 			float freq;
@@ -2365,6 +2381,7 @@ private:
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<bool,kNumSplits> hadTouch {};
+	std::array<bool,kNumSplits> tableEnabled {};
 	bool inputModeShouldUpdateTable = false;
 } gRecorderMode;
 
