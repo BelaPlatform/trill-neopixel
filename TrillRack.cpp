@@ -565,7 +565,7 @@ void tr_render(BelaContext* context)
 			preMenuActive = true;
 		if(!numTouches) // we no longer touch
 			preMenuActive = false;
-		if(numTouches >= kTouchesForMenu && 1 != gAlt)
+		if(1 != gAlt && preMenuActive && numTouches >= kTouchesForMenu)
 		{
 			//button is on + touches: enter alt mode
 			gAlt = 1;
