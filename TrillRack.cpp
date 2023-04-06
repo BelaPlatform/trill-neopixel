@@ -540,7 +540,7 @@ void tr_render(BelaContext* context)
 	
 	static ButtonView btn; // reflects reality
 	static bool wasPressed = !tri.digitalRead(0);
-	btn = {false, false, false, false, btn.pressCount};
+	btn = {false, false, false, false, btn.pressCount, btn.pressDuration};
 	bool isPressed = !tri.digitalRead(0);
 	btn.enabled = true;
 	btn.offset = wasPressed && !isPressed;
@@ -550,8 +550,13 @@ void tr_render(BelaContext* context)
 		btn.pressCount++;
 		if(ButtonView::kPressCountInvalid == btn.pressCount) // reserved value
 			btn.pressCount = 0;
+		btn.pressDuration = 0;
 	}
 	btn.pressed = isPressed;
+	if(btn.pressed)
+		btn.pressDuration += isPressed;
+	else
+		btn.pressDuration = 0;
 	wasPressed = isPressed;
 
 	static bool hadTouch = false;
