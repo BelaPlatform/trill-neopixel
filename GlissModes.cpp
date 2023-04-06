@@ -1824,7 +1824,7 @@ protected:
 				centroid.location = displayValues[n].location;
 				centroid.size = hasTouch * kFixedCentroidSize;
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
-				out[n] = values[n].location;
+				out[n] = hasTouch ? values[n].location : kNoOutput;
 			}
 				break;
 			case kModeSplitSize:
