@@ -557,7 +557,7 @@ public:
 		// TODO: call this per each new frame instead
 		if(pastFrameSize == frame.size && pastFrames[pastIdx].location == frame.location)
 		{
-			size_t oldest = getOldestFrame();
+			ssize_t oldest = getOldestFrame();
 			if(oldest >= 0)
 				frame.size = pastFrames[oldest].size;
 			return;
