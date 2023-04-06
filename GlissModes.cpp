@@ -944,8 +944,11 @@ public:
 
 	void stopRecording() override
 	{
-		// flush whatever we haven't recorded yet
-		pushSample();
+		if(!firstSample)
+		{
+			// flush whatever we haven't recorded yet
+			pushSample();
+		}
 		Base::stopRecording();
 		playData.reps = 0;
 	}
@@ -1169,6 +1172,14 @@ public:
 			}
 		}
 		return {out[0], out[1]};
+	}
+	void empty()
+	{
+		for(auto& r : rs)
+		{
+			r.startRecording();
+			r.stopRecording();
+		}
 	}
 	std::array<TimestampedRecorder<sample_t>, 2> rs;
 private:
