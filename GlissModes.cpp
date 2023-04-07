@@ -2208,7 +2208,7 @@ public:
 				for(auto& t : touches)
 					t.location = t.size;
 			}
-			// gesture may be overwritten below before its visualised
+			// gesture may be overwritten below before it is visualised
 			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), autoRetrigger, triggerNow);
 		}
 		if(kInputModeTrigger == inputMode)
