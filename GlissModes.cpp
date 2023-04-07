@@ -2138,11 +2138,7 @@ public:
 
 		// handle button
 		if(performanceBtn.pressDuration == msToNumBlocks(3000))
-		{
-			gGestureRecorder.empty();
-			for(auto& t : tableEnabled)
-				t = false;
-		}
+			emptyRecordings();
 		std::array<bool,kNumSplits> hasTouch;
 		bool shouldProcessGestureRecorder = false;
 		static_assert(kNumSplits == 2); // or the loops below won't work
@@ -2372,6 +2368,12 @@ public:
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
+	void emptyRecordings()
+	{
+		gGestureRecorder.empty();
+		for(auto& t : tableEnabled)
+			t = false;
+	}
 	rgb_t colors[2] = {
 			{128, 128, 0},
 			{128, 128, 100},
