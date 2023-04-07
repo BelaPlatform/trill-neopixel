@@ -2165,7 +2165,7 @@ public:
 					t.location = t.size;
 			}
 			// gesture may be overwritten below before its visualised
-			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), retrigger);
+			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), autoRetrigger);
 		}
 		if(kInputModeTrigger == inputMode)
 		{
@@ -2336,8 +2336,8 @@ public:
 			printf("RecorderMode: Updated splitMode: %d\n\r", splitMode.get());
 			setup(-1);
 		}
-		else if (p.same(retrigger)) {
-			printf("RecorderMode: Updated retrigger %d\n\r", retrigger.get());
+		else if (p.same(autoRetrigger)) {
+			printf("RecorderMode: Updated retrigger %d\n\r", autoRetrigger.get());
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
 			if(inputMode != kInputModeTrigger)
@@ -2346,29 +2346,29 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3(splitMode, retrigger, inputMode);
+		UPDATE_PRESET_FIELD3(splitMode, autoRetrigger, inputMode);
 	}
 	RecorderMode() :
 		presetFieldData {
 			.splitMode = splitMode,
-			.retrigger = retrigger,
+			.autoRetrigger = autoRetrigger,
 			.inputMode = inputMode,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3(RecorderMode, splitMode, retrigger, inputMode),
-			.loadCallback = genericLoadCallback3(RecorderMode, splitMode, retrigger, inputMode),
+			.defaulter = genericDefaulter3(RecorderMode, splitMode, autoRetrigger, inputMode),
+			.loadCallback = genericLoadCallback3(RecorderMode, splitMode, autoRetrigger, inputMode),
 		};
 		presetDescSet(1, &presetDesc);
 	}
 	//splitMode from the base class
-	ParameterEnumT<2> retrigger{this, true};
+	ParameterEnumT<2> autoRetrigger{this, true};
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
 	PACKED_STRUCT(PresetFieldData_t {
 		uint8_t splitMode;
-		uint8_t retrigger ;
+		uint8_t autoRetrigger ;
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
@@ -4730,7 +4730,7 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 
 static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColor};
 static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.splitMode, &animationSplit);
-static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.retrigger, &animationSingleRepeatedPulse);
+static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.autoRetrigger, &animationSingleRepeatedPulse);
 static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColor};
 static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
