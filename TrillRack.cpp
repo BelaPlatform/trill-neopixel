@@ -524,7 +524,7 @@ void tr_render(BelaContext* context)
 #ifndef TEST_MODE
 	// Button LEDs:
 	// First LED follows button
-	tri.buttonLedWrite(0, !tri.digitalRead(0));
+//	tri.buttonLedWrite(0, !tri.digitalRead(0));
 	// Second LED displays a clipped version of the input.
 	// The clipping ensures that a small offset (e.g.: due to calibration or lack thereof)
 	// won't cause the LED to be dim the whole time.

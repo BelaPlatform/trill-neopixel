@@ -2153,7 +2153,7 @@ public:
 				break;
 			}
 		}
-
+		tri.buttonLedWrite(0, qrec.armedForStart || qrec.recording || qrec.armedForStop);
 		// detect edges on analog in
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
