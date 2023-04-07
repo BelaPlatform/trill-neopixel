@@ -1126,72 +1126,31 @@ public:
 			rs[n].restart();
 		}
 	}
-	Gesture_t process(const centroid_t* touches, size_t numTouches, bool loop, bool retriggerNow)
+	HalfGesture_t process(size_t n, float touch, bool loop, bool retriggerNow)
 	{
-		if(numTouches < 1)
-			return Gesture_t();
-		bool single = (1 == numTouches);
-		std::array<bool, 2> hasTouch;
-		hasTouch[0] = (touches[0].size > 0);
-		if(single)
-			hasTouch[1] = hasTouch[0];
-		else
-			hasTouch[1] = touches[1].size;
-		std::array<HalfGesture_t,kNumSplits> out;
-
-		for(unsigned int n = 0; n < hasTouch.size(); ++n)
+		if(n >= kNumSplits)
+			return {0, false};
+		HalfGesture_t out;
+		// when playing back or paused,
+		// restart if a trigger is received
+		if(retriggerNow)
 		{
-			if(hasTouch[n] != hadTouch[n]) //state change
-			{
-				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
-					startRecording(n);
-				} else if(0 == hasTouch[n]) {
-					// going to 0 touches
+			if(!recording[n])
+				restart(n);
+		}
 
-					// if this is size and we are looping:
-					// overwrite last few values in buffer to avoid
-					// discontinuity on release
-					bool optimizeForLoop = single && 1 == n && loop;
-					stopRecording(n, optimizeForLoop);
-					if(loop)
-						restart(n);
-				}
-			}
-			hadTouch[n] = hasTouch[n];
-
-			// when playing back or paused,
-			// restart if a trigger is received
-			if(retriggerNow)
-			{
-				for(size_t n = 0; n < rs.size(); ++n)
-				{
-					if(!recording[n])
-						restart(n);
-				}
-			}
-
-			if(recording[n])
-			{
-				sample_t val;
-				if(0 == n)
-					val = touches[n].location;
-				else {
-					if(single)
-						val = touches[0].size;
-					else
-						val = touches[n].location;
-				}
-				out[n] = { rs[n].record(val), true };
-			}
+		if(recording[n])
+		{
+			out = { rs[n].record(touch), true };
+		}
+		else {
+			if(rs[n].size())
+				out = rs[n].play(loop);
 			else {
-				if(rs[n].size())
-					out[n] = rs[n].play(loop);
-				else {
-					out[n] = {0, false};
-				}
+				out = {0, false};
 			}
 		}
-		return {out[0], out[1]};
+		return out;
 	}
 	void empty()
 	{
@@ -1200,6 +1159,12 @@ public:
 			r.startRecording();
 			r.stopRecording();
 		}
+	}
+	bool isRecording(size_t n)
+	{
+		if(n < recording.size())
+			return recording[n];
+		return false;
 	}
 	std::array<TimestampedRecorder<sample_t>, 2> rs;
 private:
@@ -1842,6 +1807,10 @@ std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, b
 class SplitPerformanceMode : public PerformanceMode {
 protected:
 	static constexpr size_t kNumSplits = ::kNumSplits;
+	size_t currentSplits()
+	{
+		return 1 + isSplit();
+	}
 	bool isSplit()
 	{
 		return splitMode != kModeNoSplit;
@@ -2187,70 +2156,105 @@ public:
 			}
 		}
 
-		std::array<bool,kNumSplits> hasTouch;
-		bool shouldProcessGestureRecorder = false;
-		static_assert(kNumSplits == 2); // or the loops below won't work
-		for(size_t n = 0; n < hasTouch.size() && n < size_t(1 + isSplit()); ++n) {
-				hasTouch[n] = ledSliders.sliders[n].getNumTouches();
-				if(hasTouch[n] || hadTouch[n])
-					shouldProcessGestureRecorder = true;
-		};
-		if(!isSplit())
-			hasTouch[1] = hasTouch[0];
-		GestureRecorder::Gesture_t gesture; // used for visualization
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
-		bool isSizeOnly = (kModeSplitSize == splitMode);
-		if(kInputModeTrigger == inputMode || shouldProcessGestureRecorder)
+		std::array<bool,kNumSplits> hasTouch;
+
+		for(size_t n = 0; n < currentSplits(); ++n)
+			hasTouch[n] = touches[n].size > 0;
+
+		// We have two recording tracks available, one per each analog output.
+		// We are always using both tracks and the loop below controls automatic
+		// recording start/stop per each track, based on the presence/absence of touch.
+		// If we are split, the start/stop logic is separate for each track/split, each
+		// following its own touch.
+		// If we are not-split, then they both follow the same touch.
+		if(!isSplit())
+			hasTouch[1] = hasTouch[0]; // the second track follows the same touch as the first one
+		for(size_t n = 0; n < kNumSplits; ++n)
 		{
-			if(isSizeOnly)
+			if(hasTouch[n] != hadTouch[n]) //state change
 			{
-				// trick the recorder into recording the size
-				for(auto& t : touches)
-					t.location = t.size;
+				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
+					gGestureRecorder.startRecording(n);
+				} else if(0 == hasTouch[n]) {
+					// going to 0 touches
+
+					// if this is size and we are looping:
+					// overwrite last few values in buffer to avoid
+					// discontinuity on release
+					bool optimizeForLoop = isSize(n) && autoRetrigger;
+					gGestureRecorder.stopRecording(n, optimizeForLoop);
+					shouldUpdateTables[n] = true;
+				}
 			}
-			// gesture may be overwritten below before it is visualised
-			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), autoRetrigger, triggerNow);
 		}
+
+		GestureRecorder::Gesture_t gesture; // used for visualization
+		std::array<float,kNumSplits> recIns;
+		switch(splitMode)
+		{
+		case kModeNoSplit:
+			recIns[0] = touches[0].location;
+			recIns[1] = touches[0].size;
+			break;
+		case kModeSplitLocation:
+			recIns[0] = touches[0].location;
+			recIns[1] = touches[1].location;
+			break;
+		case kModeSplitSize:
+			recIns[0] = touches[0].size;
+			recIns[1] = touches[1].size;
+			break;
+		}
+		// gesture may be overwritten below before it is visualised
+		for(size_t n = 0; n < recIns.size(); ++n)
+		{
+			if(inputMode == kInputModeTrigger || gGestureRecorder.isRecording(n))
+				gesture[n] = gGestureRecorder.process(n, recIns[n], autoRetrigger, triggerNow);
+		}
+
 		if(kInputModeTrigger == inputMode)
 		{
 			gOutMode = kOutModeManualBlock;
 		} else {
 			gOutMode = kOutModeManualSample;
-			for(unsigned int n = 0; n < hasTouch.size(); ++n)
+			for(unsigned int n = 0; n < kNumSplits; ++n)
 			{
-				if((hadTouch[n] && !hasTouch[n]) || inputModeShouldUpdateTable){
+				if(shouldUpdateTables[n])
+				{
 					updateTable(n);
 					tableEnabled[n] = true;
 				}
+				shouldUpdateTables[n] = false;
 				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.value = value, .valid = true};
 			}
-			inputModeShouldUpdateTable = false;
 		}
 		static constexpr centroid_t kInvalid = {0, 0};
 		// visualise
-		std::array<centroid_t,kNumSplits> values;
+		std::array<centroid_t,kNumSplits> vizValues;
+		bool isSizeOnly = (kModeSplitSize == splitMode);
 		if(isSplit()){
 			for(size_t n = 0; n < gesture.size(); ++n)
 			{
 				if(gesture[n].valid)
 				{
-					values[n].location = gesture[n].value;
-					values[n].size = isSizeOnly ? gesture[n].value : kFixedCentroidSize;
+					vizValues[n].location = gesture[n].value;
+					vizValues[n].size = isSizeOnly ? gesture[n].value : kFixedCentroidSize;
 				} else {
-					values[n] = kInvalid;
+					vizValues[n] = kInvalid;
 				}
 			}
 		} else {
 			if(gesture.first.valid && gesture.second.valid)
 			{
-				values[0].location = gesture.first.value;
-				values[0].size = gesture.second.value;
+				vizValues[0].location = gesture.first.value;
+				vizValues[0].size = gesture.second.value;
 			} else
-				values[0] = kInvalid;
+				vizValues[0] = kInvalid;
 		}
 		// this may set gManualAnOut even if they are ignored
-		renderOut(gManualAnOut, values, values);
+		renderOut(gManualAnOut, vizValues, vizValues);
 
 		hadTouch = hasTouch;
 	}
@@ -2384,8 +2388,11 @@ public:
 			printf("RecorderMode: Updated retrigger %d\n\r", autoRetrigger.get());
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
-			if(inputMode != kInputModeTrigger)
-				inputModeShouldUpdateTable = true;
+			if(kInputModeTrigger != inputMode)
+			{
+				for(auto& t : shouldUpdateTables)
+					t = true;
+			}
 		}
 	}
 	void updatePreset()
@@ -2416,6 +2423,19 @@ public:
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
+	bool isSize(size_t n)
+	{
+		switch(splitMode)
+		{
+		default:
+		case kModeSplitLocation:
+			return false;
+		case kModeNoSplit:
+			return n == 1;
+		case kModeSplitSize:
+			return true;
+		}
+	}
 	void emptyRecordings()
 	{
 		gGestureRecorder.empty();
@@ -2432,7 +2452,7 @@ private:
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<bool,kNumSplits> tableEnabled {};
-	bool inputModeShouldUpdateTable = false;
+	std::array<bool,kNumSplits> shouldUpdateTables {};
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 
