@@ -7,6 +7,7 @@
 #include "preset.h"
 #include "packed.h"
 typedef LedSlider::centroid_t centroid_t;
+static constexpr size_t kNumSplits = 2;
 // TODO: verify these are consistent with the rest
 constexpr float SAMPLE_RATE = 42500;
 constexpr size_t BLOCKSIZE = 64;
@@ -1099,6 +1100,32 @@ public:
 			return 2;
 		}
 	};
+	void startRecording(size_t n)
+	{
+		if(n < rs.size())
+		{
+			rs[n].startRecording();
+			recording[n] = true;
+		}
+	}
+	void stopRecording(size_t n, bool optimizeForLoop)
+	{
+		if(n < rs.size())
+		{
+			rs[n].stopRecording();
+			recording[n] = false;
+			if(optimizeForLoop)
+				rs[n].replaceLastFrames(40);
+		}
+	}
+	void restart(size_t n)
+	{
+		if(n < rs.size())
+		{
+			rs[n].enable();
+			rs[n].restart();
+		}
+	}
 	Gesture_t process(const centroid_t* touches, size_t numTouches, bool loop, bool retriggerNow)
 	{
 		if(numTouches < 1)
@@ -1110,44 +1137,40 @@ public:
 			hasTouch[1] = hasTouch[0];
 		else
 			hasTouch[1] = touches[1].size;
-		HalfGesture_t out[2];
+		std::array<HalfGesture_t,kNumSplits> out;
 
 		for(unsigned int n = 0; n < hasTouch.size(); ++n)
 		{
 			if(hasTouch[n] != hadTouch[n]) //state change
 			{
-//				printf("[%d] hasTouch: %d, hadTouch: %d\n\r", n, hasTouch[n], hadTouch[n]);
-				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording (and enable)
-					rs[n].startRecording();
-				} else if(0 == hasTouch[n]) { // going to 0 touches: start playing back (unless disabled)
-					rs[n].stopRecording();
-					if(single && 1 == n && loop)
-					{
-						// this is size and we are looping:
-						// overwrite last few values in buffer to avoid
-						// discontinuity on release
-						rs[n].replaceLastFrames(40);
-					}
+				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
+					startRecording(n);
+				} else if(0 == hasTouch[n]) {
+					// going to 0 touches
+
+					// if this is size and we are looping:
+					// overwrite last few values in buffer to avoid
+					// discontinuity on release
+					bool optimizeForLoop = single && 1 == n && loop;
+					stopRecording(n, optimizeForLoop);
 					if(loop)
-						rs[n].restart();
-				}
-			} else {
-				// when no touch and not just released (i.e.: playing back or paused),
-				// if a trigger is received, restart
-				if(retriggerNow)
-				{
-					for(size_t n = 0; n < hasTouch.size(); ++n)
-					{
-						if(!hasTouch[n])
-						{
-							rs[n].enable();
-							rs[n].restart();
-						}
-					}
+						restart(n);
 				}
 			}
 			hadTouch[n] = hasTouch[n];
-			if(hasTouch[n])
+
+			// when playing back or paused,
+			// restart if a trigger is received
+			if(retriggerNow)
+			{
+				for(size_t n = 0; n < rs.size(); ++n)
+				{
+					if(!recording[n])
+						restart(n);
+				}
+			}
+
+			if(recording[n])
 			{
 				sample_t val;
 				if(0 == n)
@@ -1180,7 +1203,8 @@ public:
 	}
 	std::array<TimestampedRecorder<sample_t>, 2> rs;
 private:
-	unsigned int hadTouch[2];
+	std::array<bool,kNumSplits> hadTouch {};
+	std::array<bool,kNumSplits> recording {};
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
@@ -1761,7 +1785,6 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-static constexpr size_t kNumSplits = 2;
 std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool touchEnabled, bool split)
 {
 	std::array<centroid_t,kNumSplits> values;
