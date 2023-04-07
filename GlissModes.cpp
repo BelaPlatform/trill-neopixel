@@ -1099,7 +1099,7 @@ public:
 			return 2;
 		}
 	};
-	Gesture_t process(const centroid_t* touches, size_t numTouches, bool loop)
+	Gesture_t process(const centroid_t* touches, size_t numTouches, bool loop, bool retriggerNow)
 	{
 		if(numTouches < 1)
 			return Gesture_t();
@@ -1133,21 +1133,18 @@ public:
 				}
 			} else {
 				// when no touch and not just released (i.e.: playing back or paused),
-				// reset on rising edge on analog or button ins
-				static bool pastAnalogIn = false;
-				// TODO: obey trigger level
-				bool analogIn = tri.analogRead() > 0.5;
-				if((analogIn && !pastAnalogIn) || performanceBtn.onset)
+				// if a trigger is received, restart
+				if(retriggerNow)
 				{
-					assert(hasTouch.size() == rs.size());
 					for(size_t n = 0; n < hasTouch.size(); ++n)
+					{
 						if(!hasTouch[n])
 						{
 							rs[n].enable();
 							rs[n].restart();
 						}
+					}
 				}
-				pastAnalogIn = analogIn;
 			}
 			hadTouch[n] = hasTouch[n];
 			if(hasTouch[n])
@@ -2112,6 +2109,7 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode = kOutModeManualBlock;
+		pastAnalogInHigh = false;
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
@@ -2139,6 +2137,33 @@ public:
 		// handle button
 		if(performanceBtn.pressDuration == msToNumBlocks(3000))
 			emptyRecordings();
+		bool triggerNow = false;
+		if(performanceBtn.onset)
+		{
+			switch(inputMode.get())
+			{
+			case kInputModeTrigger:
+				triggerNow = true;
+				break;
+			}
+		}
+
+		// detect edges on analog in
+		// TODO: obey trigger level
+		bool analogInHigh = tri.analogRead() > 0.5;
+		bool analogEdge = (analogInHigh && !pastAnalogInHigh);
+		pastAnalogInHigh = analogInHigh;
+
+		if(analogEdge)
+		{
+			switch(inputMode.get())
+			{
+			case kInputModeTrigger:
+				triggerNow = true;
+				break;
+			}
+		}
+
 		std::array<bool,kNumSplits> hasTouch;
 		bool shouldProcessGestureRecorder = false;
 		static_assert(kNumSplits == 2); // or the loops below won't work
@@ -2161,7 +2186,7 @@ public:
 					t.location = t.size;
 			}
 			// gesture may be overwritten below before its visualised
-			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), autoRetrigger);
+			gesture = gGestureRecorder.process(touches.data(), 1 + isSplit(), autoRetrigger, triggerNow);
 		}
 		if(kInputModeTrigger == inputMode)
 		{
@@ -2385,6 +2410,7 @@ private:
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<bool,kNumSplits> tableEnabled {};
 	bool inputModeShouldUpdateTable = false;
+	bool pastAnalogInHigh = false;
 } gRecorderMode;
 
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
