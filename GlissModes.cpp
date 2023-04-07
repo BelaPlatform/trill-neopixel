@@ -2128,14 +2128,28 @@ public:
 
 		// handle button
 		if(performanceBtn.pressDuration == msToNumBlocks(3000))
+		{
 			emptyRecordings();
+			// clear possible side effects of previous press:
+			qrec.armedForStart = false;
+			qrec.armedForStop = false;
+		}
 		bool triggerNow = false;
-		if(performanceBtn.onset)
+		if(performanceBtn.offset)
 		{
 			switch(inputMode.get())
 			{
 			case kInputModeTrigger:
 				triggerNow = true;
+				break;
+			case kInputModeClock:
+				if(!qrec.recording) {
+					// printf("%lu armedForStart\n\r", HAL_GetTick());
+					qrec.armedForStart = true;
+				} else {
+					// printf("%lu armedForStop\n\r", HAL_GetTick());
+					qrec.armedForStop = true;
+				}
 				break;
 			}
 		}
@@ -2146,6 +2160,8 @@ public:
 		bool analogEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 
+		bool qrecStartNow = false;
+		bool qrecStopNow = false;
 		if(analogEdge)
 		{
 			switch(inputMode.get())
@@ -2153,11 +2169,48 @@ public:
 			case kInputModeTrigger:
 				triggerNow = true;
 				break;
+			case kInputModeClock:
+				if(qrec.armedForStart)
+				{
+					qrec.armedForStart = false;
+					qrecStartNow = true;
+					qrec.periodsInRecording = 0;
+					// printf("%lu qrecStartNow\n\r", HAL_GetTick());
+				} else if(qrec.armedForStop)
+				{
+					qrec.armedForStop = false;
+					qrecStopNow = true;
+					// printf("%lu qrecStopNow\n\r", HAL_GetTick());
+				} else if(qrec.recording) {
+					qrec.periodsInRecording++;
+				}
 			}
 		}
 
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
+
+		// start/stop recording
+		if(kInputModeClock == inputMode)
 		{
+			// start/stop recording based on qrec and input edges
+			if(qrecStartNow)
+			{
+				for(size_t n = 0; n < kNumSplits; ++n)
+					gGestureRecorder.startRecording(n);
+				qrec.recording = true;
+			} else 	if(qrecStopNow)
+			{
+				qrec.recording = false;
+				for(size_t n = 0; n < kNumSplits; ++n)
+				{
+					gGestureRecorder.stopRecording(n, false);
+					shouldUpdateTables[n] = true;
+					periodsInTables[n] = qrec.periodsInRecording;
+					printf("periods: %u\n\r", qrec.periodsInRecording);
+				}
+			}
+		} else {
+			// start/stop recording based on touch
 			std::array<bool,kNumSplits> hasTouch;
 
 			for(size_t n = 0; n < currentSplits(); ++n)
@@ -2186,6 +2239,7 @@ public:
 						bool optimizeForLoop = isSize(n) && autoRetrigger;
 						gGestureRecorder.stopRecording(n, optimizeForLoop);
 						shouldUpdateTables[n] = true;
+						periodsInTables[n] = 1;
 					}
 				}
 			}
@@ -2227,8 +2281,8 @@ public:
 				{
 					updateTable(n);
 					tableEnabled[n] = true;
+					shouldUpdateTables[n] = false;
 				}
-				shouldUpdateTables[n] = false;
 				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.value = value, .valid = true};
 			}
@@ -2283,7 +2337,10 @@ public:
 				freq = vToFreq(volts, baseFreq);
 			} else {
 				// input is clock
-				freq = context->analogSampleRate / gClockPeriod;
+				assert(periodsInTables[c] > 0);
+				if(!periodsInTables[c])
+					periodsInTables[c] = 1;
+				freq = context->analogSampleRate / gClockPeriod / periodsInTables[c];
 			}
 			float normFreq = freq / context->analogSampleRate;
 			for(size_t n = 0; n < context->analogFrames; ++n)
@@ -2394,6 +2451,8 @@ public:
 				for(auto& t : shouldUpdateTables)
 					t = true;
 			}
+			if(kInputModeClock == inputMode)
+				qrec = QuantisedRecorder();
 		}
 	}
 	void updatePreset()
@@ -2447,10 +2506,17 @@ private:
 			{128, 128, 0},
 			{128, 128, 100},
 	};
+	struct QuantisedRecorder {
+		size_t periodsInRecording;
+		bool armedForStart;
+		bool armedForStop;
+		bool recording;
+	} qrec {};
 	static constexpr size_t kTableSize = 1024;
 	static constexpr size_t kNumSplits = ::kNumSplits;
 	std::array<std::array<float,kTableSize>,kNumSplits> tables;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
+	std::array<size_t,kNumSplits> periodsInTables {1, 1};
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<bool,kNumSplits> tableEnabled {};
 	std::array<bool,kNumSplits> shouldUpdateTables {};
