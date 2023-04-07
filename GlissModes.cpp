@@ -2157,36 +2157,39 @@ public:
 		}
 
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
-		std::array<bool,kNumSplits> hasTouch;
-
-		for(size_t n = 0; n < currentSplits(); ++n)
-			hasTouch[n] = touches[n].size > 0;
-
-		// We have two recording tracks available, one per each analog output.
-		// We are always using both tracks and the loop below controls automatic
-		// recording start/stop per each track, based on the presence/absence of touch.
-		// If we are split, the start/stop logic is separate for each track/split, each
-		// following its own touch.
-		// If we are not-split, then they both follow the same touch.
-		if(!isSplit())
-			hasTouch[1] = hasTouch[0]; // the second track follows the same touch as the first one
-		for(size_t n = 0; n < kNumSplits; ++n)
 		{
-			if(hasTouch[n] != hadTouch[n]) //state change
-			{
-				if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
-					gGestureRecorder.startRecording(n);
-				} else if(0 == hasTouch[n]) {
-					// going to 0 touches
+			std::array<bool,kNumSplits> hasTouch;
 
-					// if this is size and we are looping:
-					// overwrite last few values in buffer to avoid
-					// discontinuity on release
-					bool optimizeForLoop = isSize(n) && autoRetrigger;
-					gGestureRecorder.stopRecording(n, optimizeForLoop);
-					shouldUpdateTables[n] = true;
+			for(size_t n = 0; n < currentSplits(); ++n)
+				hasTouch[n] = touches[n].size > 0;
+
+			// We have two recording tracks available, one per each analog output.
+			// We are always using both tracks and the loop below controls automatic
+			// recording start/stop per each track, based on the presence/absence of touch.
+			// If we are split, the start/stop logic is separate for each track/split, each
+			// following its own touch.
+			// If we are not-split, then they both follow the same touch.
+			if(!isSplit())
+				hasTouch[1] = hasTouch[0]; // the second track follows the same touch as the first one
+			for(size_t n = 0; n < kNumSplits; ++n)
+			{
+				if(hasTouch[n] != hadTouch[n]) //state change
+				{
+					if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
+						gGestureRecorder.startRecording(n);
+					} else if(0 == hasTouch[n]) {
+						// going to 0 touches
+
+						// if this is size and we are looping:
+						// overwrite last few values in buffer to avoid
+						// discontinuity on release
+						bool optimizeForLoop = isSize(n) && autoRetrigger;
+						gGestureRecorder.stopRecording(n, optimizeForLoop);
+						shouldUpdateTables[n] = true;
+					}
 				}
 			}
+			hadTouch = hasTouch;
 		}
 
 		GestureRecorder::Gesture_t gesture; // used for visualization
@@ -2255,8 +2258,6 @@ public:
 		}
 		// this may set gManualAnOut even if they are ignored
 		renderOut(gManualAnOut, vizValues, vizValues);
-
-		hadTouch = hasTouch;
 	}
 
 	float processTable(BelaContext* context, unsigned int c)
