@@ -2133,11 +2133,11 @@ public:
 		{
 			emptyRecordings();
 			// clear possible side effects of previous press:
-			qrec.armedForStart = false;
-			qrec.armedForStop = false;
+			qrec.armedFor = kArmedForNone;
+			lastResetPressId = performanceBtn.pressId;
 		}
 		bool triggerNow = false;
-		if(performanceBtn.offset)
+		if(performanceBtn.offset && performanceBtn.pressId != lastResetPressId)
 		{
 			switch(inputMode.get())
 			{
@@ -2145,17 +2145,17 @@ public:
 				triggerNow = true;
 				break;
 			case kInputModeClock:
-				if(!qrec.recording) {
-					// printf("%lu armedForStart\n\r", HAL_GetTick());
-					qrec.armedForStart = true;
-				} else {
+				if(qrec.recording) {
 					// printf("%lu armedForStop\n\r", HAL_GetTick());
-					qrec.armedForStop = true;
+					qrec.armedFor = kArmedForStop;
+				} else {
+					// printf("%lu armedForStart\n\r", HAL_GetTick());
+					qrec.armedFor = kArmedForStart;
 				}
 				break;
 			}
 		}
-		tri.buttonLedWrite(0, qrec.armedForStart || qrec.recording || qrec.armedForStop);
+		tri.buttonLedWrite(0, qrec.armedFor|| qrec.recording);
 		// detect edges on analog in
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
@@ -2168,23 +2168,28 @@ public:
 		{
 			switch(inputMode.get())
 			{
-			case kInputModeTrigger:
-				triggerNow = true;
-				break;
-			case kInputModeClock:
-				if(qrec.armedForStart)
+				case kInputModeTrigger:
+					triggerNow = true;
+					break;
+				case kInputModeClock:
 				{
-					qrec.armedForStart = false;
-					qrecStartNow = true;
-					qrec.periodsInRecording = 0;
-					// printf("%lu qrecStartNow\n\r", HAL_GetTick());
-				} else if(qrec.armedForStop)
-				{
-					qrec.armedForStop = false;
-					qrecStopNow = true;
-					// printf("%lu qrecStopNow\n\r", HAL_GetTick());
-				} else if(qrec.recording) {
-					qrec.periodsInRecording++;
+					switch(qrec.armedFor)
+					{
+					case kArmedForStart:
+						qrec.armedFor = kArmedForNone;
+						qrecStartNow = true;
+						qrec.periodsInRecording = 0;
+						break;
+					case kArmedForStop:
+						qrec.armedFor = kArmedForNone;
+						qrecStopNow = true;
+						// NOBREAK
+					case kArmedForNone:
+						if(qrec.recording)
+							qrec.periodsInRecording++;
+						break;
+					}
+					break;
 				}
 			}
 		}
@@ -2508,10 +2513,14 @@ private:
 			{128, 128, 0},
 			{128, 128, 100},
 	};
+	enum ArmedFor {
+		kArmedForNone,
+		kArmedForStart,
+		kArmedForStop,
+	};
 	struct QuantisedRecorder {
 		size_t periodsInRecording;
-		bool armedForStart;
-		bool armedForStop;
+		ArmedFor armedFor;
 		bool recording;
 	} qrec {};
 	static constexpr size_t kTableSize = 1024;
@@ -2522,6 +2531,7 @@ private:
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<bool,kNumSplits> tableEnabled {};
 	std::array<bool,kNumSplits> shouldUpdateTables {};
+	size_t lastResetPressId = ButtonView::kPressIdInvalid;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 
