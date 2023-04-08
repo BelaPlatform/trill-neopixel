@@ -2164,6 +2164,7 @@ public:
 
 		bool qrecStartNow = false;
 		bool qrecStopNow = false;
+		bool qrecResetPhase = false;
 		if(analogEdge)
 		{
 			switch(inputMode.get())
@@ -2173,20 +2174,23 @@ public:
 					break;
 				case kInputModeClock:
 				{
+					if(qrec.recording)
+						qrec.periodsInRecording++;
+					else
+						qrec.periodsInPlayback++;
 					switch(qrec.armedFor)
 					{
 					case kArmedForStart:
 						qrec.armedFor = kArmedForNone;
 						qrecStartNow = true;
-						qrec.periodsInRecording = 0;
 						break;
 					case kArmedForStop:
 						qrec.armedFor = kArmedForNone;
 						qrecStopNow = true;
 						// NOBREAK
 					case kArmedForNone:
-						if(qrec.recording)
-							qrec.periodsInRecording++;
+						if(qrec.periodsInPlayback == qrec.periodsInRecording)
+							qrecResetPhase = true;
 						break;
 					}
 					break;
@@ -2205,6 +2209,7 @@ public:
 				for(size_t n = 0; n < kNumSplits; ++n)
 					gGestureRecorder.startRecording(n);
 				qrec.recording = true;
+				qrec.periodsInRecording = 0;
 			} else 	if(qrecStopNow)
 			{
 				qrec.recording = false;
@@ -2213,9 +2218,19 @@ public:
 					gGestureRecorder.stopRecording(n, false);
 					shouldUpdateTables[n] = true;
 					periodsInTables[n] = qrec.periodsInRecording;
+					qrecResetPhase = true;
 					printf("periods: %u\n\r", qrec.periodsInRecording);
+					qrec.periodsInPlayback = 0;
 				}
 			}
+			if(qrecResetPhase)
+			{
+				// keep oscillators in phase with external clock pulses
+				for(auto& o : oscs)
+					o.setPhase(-M_PI);
+				qrec.periodsInPlayback = 0;
+			}
+
 		} else {
 			// start/stop recording based on touch
 			std::array<bool,kNumSplits> hasTouch;
@@ -2520,6 +2535,7 @@ private:
 	};
 	struct QuantisedRecorder {
 		size_t periodsInRecording;
+		size_t periodsInPlayback;
 		ArmedFor armedFor;
 		bool recording;
 	} qrec {};
