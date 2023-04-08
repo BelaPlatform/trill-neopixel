@@ -2292,7 +2292,7 @@ public:
 				gesture[n] = gGestureRecorder.process(n, recIns[n], autoRetrigger, triggerNow);
 		}
 
-		if(kInputModeTrigger == inputMode)
+		if(kInputModeTrigger == inputMode || (kInputModeClock == inputMode && qrec.recording))
 		{
 			gOutMode = kOutModeManualBlock;
 		} else {
