@@ -548,7 +548,7 @@ void tr_render(BelaContext* context)
 	if(btn.onset)
 	{
 		btn.pressId++;
-		if(ButtonView::kPressCountInvalid == btn.pressId) // reserved value
+		if(ButtonView::kPressIdInvalid == btn.pressId) // reserved value
 			btn.pressId = 0;
 		btn.pressDuration = 0;
 	}

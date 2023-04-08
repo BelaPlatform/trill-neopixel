@@ -1933,7 +1933,7 @@ public:
 			if(lastLatchCount != performanceBtn.pressId)
 			{
 				shouldUnlatch = true;
-				lastLatchCount = ButtonView::kPressCountInvalid;
+				lastLatchCount = ButtonView::kPressIdInvalid;
 			}
 		}
 		// sets values and isLatched
@@ -2031,7 +2031,7 @@ private:
 	};
 	LatchProcessor latchProcessor;
 	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
-	uint32_t lastLatchCount = ButtonView::kPressCountInvalid;
+	uint32_t lastLatchCount = ButtonView::kPressIdInvalid;
 } gDirectControlMode;
 
 static float linearInterpolation(float frac, float pastValue, float value)

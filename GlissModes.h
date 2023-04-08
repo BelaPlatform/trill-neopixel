@@ -39,7 +39,7 @@ struct ButtonView {
 	bool enabled;
 	uint32_t pressId;
 	uint32_t pressDuration;
-	static constexpr uint32_t kPressCountInvalid = -1;
+	static constexpr uint32_t kPressIdInvalid = -1;
 };
 
 struct CalibrationData {
