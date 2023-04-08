@@ -920,6 +920,8 @@ public:
 	void startRecording() override
 	{
 		firstSample = true;
+		reps = 0;
+		oldSample = -1;
 		Base::startRecording();
 	}
 
