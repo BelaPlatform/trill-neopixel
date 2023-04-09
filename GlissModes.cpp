@@ -2429,18 +2429,22 @@ public:
 					dstIdx = dstSize;
 					srcInc = 0;
 				}
+#undef LINEARLY_INTERPOLATED_TABLE
+#ifdef LINEARLY_INTERPOLATED_TABLE
 				if(0 == n) {
-					// upon the first iteration, the for() before does 0 iterations.
+					// upon the first iteration, the for() below does 0 iterations.
 					// here we simply set the first value in the table, so in the edge case
 					// where we have exactly one frame, the next iteration yields a
 					// constant for all values in the table
 					tables[c][0] = value;
 				}
+#endif
 				for(size_t i = pastDstIdx; i < dstIdx && i < dstSize; ++i)
 				{
 					// TODO: smooth sharp edges to reduce nasty aliasing
+					float tableValue;
+#if LINEARLY_INTERPOLATED_TABLE // linearly interpolate the gesture to fill in the table
 					float den = dstIdx - pastDstIdx - 1;
-					float interp;
 					float frac = 0;
 					if(den) {
 						frac = (i - pastDstIdx) / den;
@@ -2448,6 +2452,9 @@ public:
 					} else {
 						tableValue = value;
 					}
+#else // fill in the table with the actual values from the gesture, without interpolation
+					tableValue = pastValue;
+#endif
 					tables[c][i] = tableValue;
 //					if(0 == c)
 //						printf("%u %.2f %.2f \n\r", i, value, tableValue);
