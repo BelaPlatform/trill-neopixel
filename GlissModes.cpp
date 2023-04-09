@@ -2444,13 +2444,13 @@ public:
 					float frac = 0;
 					if(den) {
 						frac = (i - pastDstIdx) / den;
-						interp = linearInterpolation(frac, pastValue, value);
+						tableValue = linearInterpolation(frac, pastValue, value);
 					} else {
-						interp = value;
+						tableValue = value;
 					}
-					tables[c][i] = interp;
+					tables[c][i] = tableValue;
 //					if(0 == c)
-//						printf("%u %.2f %.2f \n\r", i, value, interp);
+//						printf("%u %.2f %.2f \n\r", i, value, tableValue);
 				}
 				pastValue = value;;
 				srcIdx += srcInc;
