@@ -2404,8 +2404,10 @@ public:
 				TimestampedRecorder<GestureRecorder::sample_t>::timedData_t timedData;
 				timedData = TimestampedRecorder<GestureRecorder::sample_t>::recordToTimedData({data[n], true});
 				srcSize += timedData.reps;
+//				if(0 == c)
+//					printf("%d: %f\n\r", timedData.reps, TimestampedRecorder<GestureRecorder::sample_t>::sampleToOut(timedData.sample));
 			}
-			printf("srcSize: %u frames in %u entries\n\r", srcSize, srcEntries);
+//			printf("srcSize: %u frames in %u entries\n\r", srcSize, srcEntries);
 			// go through the whole recording again and fit it into the fixed-size table
 			size_t srcIdx = 0;
 			size_t dstIdx = 0;
