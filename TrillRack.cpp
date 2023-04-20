@@ -276,6 +276,11 @@ int tr_setup()
 	}
 	if(!foundAddress)
 		return false;
+	if(trill.firmwareVersion() < 3)
+	{
+		printf("Incompatible Trill firwmware version: %d, should be >= %d\n\r", trill.firmwareVersion(), 3);
+		return false;
+	}
 	trill.printDetails();
 	if(trill.setMode(Trill::DIFF))
 		return false;
@@ -287,15 +292,25 @@ int tr_setup()
 #else
 	prescaler = 5;
 #endif
+	if(trill.setScanTrigger(Trill::kScanTriggerI2c))
+		return false;
 	if(trill.setPrescaler(prescaler))
 		return false;
 	if(trill.setNoiseThreshold(0.06))
 		return false;
+	for(unsigned int n = 0; n < 10; ++n)
+	{
+		// trigger a few scans so that the baseline gets adjusted
+		// a workaround for the current situation with updateBaseline() when not scanning
+		if(trill.readStatusByte() < 0)
+			return false;
+		HAL_Delay(10);
+	}
+	// finally, update the baseline
 	if(trill.updateBaseline())
 		return false;
-	if(trill.prepareForDataRead())
+	if(trill.readStatusByte() < 0) // ensure that future reads via DMA have the correct offset
 		return false;
-
 	modeAlt_setup();
 	setHdlCtlChange(midiCtlCallback);
 	setHdlAll(midiInputCallback);
@@ -348,7 +363,7 @@ int tr_ledsUpdateRequested()
 
 void tr_newData(const uint8_t* newData, size_t len)
 {
-	trill.newData(newData, len);
+	trill.newData(newData, len, true);
 }
 
 void tr_process(BelaContext* ptr)
