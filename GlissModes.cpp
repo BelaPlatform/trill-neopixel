@@ -1032,63 +1032,6 @@ private:
 	bool firstSample = false;
 };
 
-//#define TWO_FINGERS_TOGGLE_ENABLE // we disable it for now because it's barely usable
-#ifdef TWO_FINGERS_TOGGLE_ENABLE
-class DebouncedTouches
-{
-	typedef uint8_t touchCount_t;
-public:
-	touchCount_t process(const touchCount_t newTouches)
-	{
-		touchCount_t ret;
-		size_t backMax;
-		if(newTouches > lastRet)
-			backMax = kUpDebounce;
-		else if (newTouches < lastRet)
-			backMax = kDownDebounce;
-		else
-			backMax = 0;
-		ret = newTouches;
-		if(0 != newTouches) // going to 0 touches should not be ambiguous, so we should let it through immediately
-		{
-			for(unsigned int n = 0; n < backMax; ++n)
-			{
-				// let the new value through only if all recent past values are the same
-				if(old(n) != newTouches)
-				{
-					#if 0
-					printf("old[%d] %d %di---", n, old(n), newTouches);
-					for(unsigned int n = 0; n < backMax; ++n)
-						printf("%d ", old(n));
-					printf("\n\r");
-					#endif
-					ret = lastRet;
-					break;
-				}
-			}
-		}
-		history[idx++] = newTouches;
-		if(idx >= history.size())
-			idx = 0;
-		 lastRet = ret;
-		 return ret;
-	}
-private:
-	touchCount_t old(size_t back) {
-		return history[(idx - back - 1 + 2 * history.size()) % history.size()];
-	}
-	touchCount_t oldest() {
-		return history[idx];
-	}
-	enum { kUpDebounce = 4 };
-	enum { kDownDebounce = 8 };
-	enum { kMaxDebounce = size_t(kUpDebounce) > size_t(kDownDebounce) ? size_t(kUpDebounce) : size_t(kDownDebounce) };
-	std::array<touchCount_t,kMaxDebounce> history;
-	size_t idx = 0;
-	touchCount_t lastRet;
-};
-#endif // TWO_FINGERS_TOGGLE_ENABLE
-
 class GestureRecorder
 {
 public:
