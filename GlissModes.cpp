@@ -864,6 +864,7 @@ protected:
 	bool full = false; // whether during recording the buffer becomes full
 };
 
+#if 0
 template <typename sample_t>
 class TimestampedRecorder : public Recorder<uint32_t>{
 	// this is just a placeholder for the specialised implementation below
@@ -1031,12 +1032,13 @@ private:
 	uint16_t reps;
 	bool firstSample = false;
 };
+#endif
 
 class GestureRecorder
 {
 public:
 	typedef float sample_t;
-	typedef TimestampedRecorder<sample_t>::sampleData_t HalfGesture_t;
+	typedef Recorder<sample_t>::ValidSample HalfGesture_t;
 	struct Gesture_t {
 		HalfGesture_t first;
 		HalfGesture_t second;
@@ -1062,8 +1064,10 @@ public:
 		{
 			rs[n].stopRecording();
 			recording[n] = false;
+#if 0
 			if(optimizeForLoop)
 				rs[n].replaceLastFrames(40);
+#endif
 		}
 	}
 	void restart(size_t n)
@@ -1089,7 +1093,7 @@ public:
 
 		if(recording[n])
 		{
-			out = { rs[n].record(touch), true };
+			out = { rs[n].record(touch).sample, true };
 		}
 		else {
 			if(rs[n].size())
@@ -1114,7 +1118,7 @@ public:
 			return recording[n];
 		return false;
 	}
-	std::array<TimestampedRecorder<sample_t>, 2> rs;
+	std::array<Recorder<sample_t>, 2> rs;
 private:
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<bool,kNumSplits> recording {};
@@ -2252,7 +2256,7 @@ public:
 					shouldUpdateTables[n] = false;
 				}
 				float value = processTable(context, n);
-				gesture[n] = GestureRecorder::HalfGesture_t {.value = value, .valid = true};
+				gesture[n] = GestureRecorder::HalfGesture_t {.sample = value, .valid = true};
 			}
 		}
 		static constexpr centroid_t kInvalid = {0, 0};
@@ -2264,8 +2268,8 @@ public:
 			{
 				if(gesture[n].valid)
 				{
-					vizValues[n].location = gesture[n].value;
-					vizValues[n].size = isSizeOnly ? gesture[n].value : kFixedCentroidSize;
+					vizValues[n].location = gesture[n].sample;
+					vizValues[n].size = isSizeOnly ? gesture[n].sample : kFixedCentroidSize;
 				} else {
 					vizValues[n] = kInvalid;
 				}
@@ -2273,8 +2277,8 @@ public:
 		} else {
 			if(gesture.first.valid && gesture.second.valid)
 			{
-				vizValues[0].location = gesture.first.value;
-				vizValues[0].size = gesture.second.value;
+				vizValues[0].location = gesture.first.sample;
+				vizValues[0].size = gesture.second.sample;
 			} else
 				vizValues[0] = kInvalid;
 		}
@@ -2339,6 +2343,7 @@ public:
 	}
 	void updateTable(size_t c)
 	{
+#if 0
 		auto& recorders = gGestureRecorder.rs;
 		{
 			auto& data = recorders[c].getData();
@@ -2412,6 +2417,7 @@ public:
 				pastDstIdx = dstIdx;
 			}
 		}
+#endif
 	}
 	void updated(Parameter& p)
 	{
