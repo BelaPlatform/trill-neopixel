@@ -4488,7 +4488,7 @@ private:
 	float bottom;
 	float top;
 	rgb_t otherColor;
-	static constexpr uint32_t kMaxMs = 300;
+	static constexpr uint32_t kMaxMs = 800;
 	uint32_t startMs = HAL_GetTick();
 };
 
@@ -4830,7 +4830,8 @@ public:
 				top = kPlus10;
 				break;
 			}
-			menu_enterDisplayRangeRaw(baseColor, secondaryColor, bottom, top);
+			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
+			menu_enterDisplayRangeRaw(baseColor, secondaryColor, bottom + kMargin, top - kMargin);
 		}
 	}
 private:
