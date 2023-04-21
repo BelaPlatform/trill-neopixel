@@ -8,6 +8,7 @@
 #include <cmath>
 #include <assert.h>
 #include "usbd_midi_if.h"
+#include <atomic>
 
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
@@ -361,9 +362,23 @@ int tr_ledsUpdateRequested()
 	return gShouldUpdateLeds;
 }
 
+constexpr uint32_t kInvalidFrameId = -1;
+static std::atomic_uint32_t trillFrameId { kInvalidFrameId };
+
 void tr_newData(const uint8_t* newData, size_t len)
 {
-	trill.newData(newData, len, true);
+	static uint32_t pastStatusByte = newData[0];
+	// only process new data if they belong to a new frame
+	if(pastStatusByte != newData[0])
+	{
+		pastStatusByte = newData[0];
+		// mark data as invalid
+		trillFrameId.store(kInvalidFrameId);
+		// operate on it
+		trill.newData(newData, len, true);
+		// mark data as valid again
+		trillFrameId.store(trill.getFrameIdUnwrapped());
+	}
 }
 
 void tr_process(BelaContext* ptr)
@@ -489,6 +504,14 @@ static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned 
 
 void tr_render(BelaContext* context)
 {
+	static uint32_t pastFrameId = kInvalidFrameId;
+	uint32_t frameId = trillFrameId.load();
+	bool newFrame = false;
+	if(frameId != kInvalidFrameId && frameId != pastFrameId)
+	{
+		newFrame = true;
+		pastFrameId = frameId;
+	}
 #ifdef STM32
 	static std::array<uint32_t, 2> pastTicks;
 	static size_t pastTicksIdx = 0;
@@ -575,7 +598,8 @@ void tr_render(BelaContext* context)
 	wasPressed = isPressed;
 
 	static bool hadTouch = false;
-	globalSlider.process(trill.rawData.data());
+	if(newFrame)
+		globalSlider.process(trill.rawData.data());
 	size_t numTouches = globalSlider.getNumTouches();
 	static bool preMenuActive = false;
 	if(btn.pressed)
@@ -657,7 +681,8 @@ void tr_render(BelaContext* context)
 	}
 	if(setupDone)
 	{
-		ledSliders.process(trill.rawData.data());
+		if(newFrame)
+			ledSliders.process(trill.rawData.data());
 		performanceMode_render(context);
 	} else {
 		// zero the outputs
