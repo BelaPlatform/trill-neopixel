@@ -76,6 +76,9 @@ public:
 		if(!changed)
 		{
 			// if we are a repetition of the previous frame, no need to process anything
+			// NOTE: right now we are already avoiding calling on duplicate frames,
+			// so we will return early only if two successive, distinct frames happen
+			// to be _exactly_ the same
 			return;
 		}
 
@@ -1752,10 +1755,10 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool touchEnabled, bool split)
+std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
 {
 	std::array<centroid_t,kNumSplits> values;
-	if(touchEnabled)
+	if(shouldProcess)
 		gTouchTracker.process(globalSlider);
 	size_t numTouches = gTouchTracker.getNumTouches();
 	// per each split
@@ -1917,7 +1920,7 @@ public:
 	void render(BelaContext*, FrameData* frameData) override
 	{
 		setOutIsSize();
-		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
+		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
@@ -2198,7 +2201,7 @@ public:
 			}
 		}
 
-		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
+		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 
 		// start/stop recording
 		if(kInputModeClock == inputMode)
