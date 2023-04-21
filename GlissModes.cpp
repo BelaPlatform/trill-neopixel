@@ -1192,7 +1192,7 @@ public:
 class PerformanceMode : public ParameterUpdateCapable {
 public:
 	virtual bool setup(double ms) = 0;
-	virtual void render(BelaContext*) = 0;
+	virtual void render(BelaContext*, FrameData* frameData) = 0;
 };
 
 class ParameterEnum : public Parameter {
@@ -1279,7 +1279,7 @@ public:
 		nextState();
 		return true;
 	}
-	void render(BelaContext* context)
+	void render(BelaContext* context, FrameData* frameData) override
 	{
 		bool hasTouch = (globalSlider.compoundTouchSize() > 0);
 		if(performanceBtn.onset)
@@ -1914,7 +1914,7 @@ public:
 			return modeChangeBlink(ms, colors[0]);
 		}
 	}
-	void render(BelaContext*) override
+	void render(BelaContext*, FrameData* frameData) override
 	{
 		setOutIsSize();
 		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled(), isSplit());
@@ -2122,7 +2122,7 @@ public:
 			return modeChangeBlink(ms, colors[0]);
 		}
 	}
-	void render(BelaContext* context) override
+	void render(BelaContext* context, FrameData* frameData) override
 	{
 		// set global states
 		setOutIsSize();
@@ -2589,7 +2589,7 @@ public:
 		return modeChangeBlink(ms, signalColor);
 	}
 
-	void render(BelaContext* context) override
+	void render(BelaContext* context, FrameData* frameData) override
 	{
 		// we can quickly get into menu mode from here
 		if(!gAlt)
@@ -2785,7 +2785,7 @@ public:
 			return true;
 		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), kNumLeds / 2, kNumLeds / 2);
 	}
-	void render(BelaContext* context) override
+	void render(BelaContext* context, FrameData* frameData) override
 	{
 		gInUsesRange = true; // may be overridden below depending on mode
 		float clockPeriod;
@@ -2923,7 +2923,7 @@ public:
 			return true;
 		return modeChangeBlink(ms, {0, 200, 50});
 	}
-	void render(BelaContext*)
+	void render(BelaContext* context, FrameData* frameData)
 	{
 		if(pitchBeingAdjusted >= 0)
 		{
@@ -3700,7 +3700,7 @@ public:
 		);
 		return true;
 	}
-	void render(BelaContext* context) override
+	void render(BelaContext* context, FrameData* frameData) override
 	{
 		// these may be overridden below if calibration is done
 		gOutUsesCalibration = false;
@@ -3854,7 +3854,7 @@ bool performanceMode_setup(double ms)
 		return true;
 }
 
-void performanceMode_render(BelaContext* context)
+void performanceMode_render(BelaContext* context, FrameData* frameData)
 {
 	// these are set here but may be overridden by render() below
 	gOutUsesCalibration = true;
@@ -3863,7 +3863,7 @@ void performanceMode_render(BelaContext* context)
 	gOutUsesRange = {true, true};
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
-		performanceModes[gNewMode]->render(context);
+		performanceModes[gNewMode]->render(context, frameData);
 	// make the final states visible to the wrapper
 	gOutRangeTop.enabled = gOutUsesRange[0];
 	gOutRangeBottom.enabled = gOutUsesRange[1];
@@ -5407,7 +5407,7 @@ int menu_setup(double)
 	return menu_dosetup(mainMenu);
 }
 
-void menu_render(BelaContext*)
+void menu_render(BelaContext*, FrameData* frameData)
 {
 	// if button pressed, go back up
 	if (menuBtn.onset){
@@ -5421,7 +5421,10 @@ void menu_render(BelaContext*)
 		return;
 	// process these regardless to ensure the display is updated
 	// (i.e.: if menuJustEntered, this will make sure the buttons are shown)
-	ledSlidersAlt.process(trill.rawData.data());
+	static uint32_t pastFrameId = 0;
+	if(pastFrameId != frameData->id)
+		ledSlidersAlt.process(trill.rawData.data());
+	pastFrameId = frameData->id;
 	// update touches
 	if(menuJustEntered)
 	{

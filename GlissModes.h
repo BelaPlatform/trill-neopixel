@@ -51,6 +51,10 @@ struct CalibrationData {
 CalibrationData const& getCalibrationInput();
 CalibrationData const& getCalibrationOutput();
 
+struct FrameData {
+	uint32_t id;
+	bool isNew;
+};
 //#define TEST_MODE
 #ifdef TEST_MODE
 constexpr size_t kNumModes = 7;

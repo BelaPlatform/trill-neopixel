@@ -14,9 +14,9 @@ constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_setup(double);
-extern void performanceMode_render(BelaContext*);
+extern void performanceMode_render(BelaContext*, FrameData*);
 extern bool menu_setup(double);
-extern void menu_render(BelaContext*);
+extern void menu_render(BelaContext*, FrameData*);
 extern bool menuShouldChangeMode();
 extern float getGnd();
 extern OutMode gOutMode;
@@ -512,6 +512,10 @@ void tr_render(BelaContext* context)
 		newFrame = true;
 		pastFrameId = frameId;
 	}
+	FrameData frameData = {
+			.id = pastFrameId,
+			.isNew = newFrame,
+	};
 #ifdef STM32
 	static std::array<uint32_t, 2> pastTicks;
 	static size_t pastTicksIdx = 0;
@@ -632,7 +636,7 @@ void tr_render(BelaContext* context)
 		// has to run before multiplexer part 2 so
 		// that any slider that gets recreated because of menu action
 		// doesn't lose its enables. TODO: fix this better
-		menu_render(context); // this will set gAlt back to 0 when exiting menu
+		menu_render(context, &frameData); // this will set gAlt back to 0 when exiting menu
 	}
 
 	static bool menuExitWaitingButtonRelease = false;
@@ -683,7 +687,7 @@ void tr_render(BelaContext* context)
 	{
 		if(newFrame)
 			ledSliders.process(trill.rawData.data());
-		performanceMode_render(context);
+		performanceMode_render(context, &frameData);
 	} else {
 		// zero the outputs
 		gManualAnOut[0] = gManualAnOut[1] = 0;
