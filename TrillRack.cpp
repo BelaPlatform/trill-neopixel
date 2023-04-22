@@ -293,7 +293,11 @@ int tr_setup()
 #else
 	prescaler = 5;
 #endif
-	if(trill.setScanTrigger(Trill::kScanTriggerI2c))
+	if(trill.setScanTrigger(1)) // scan as fast as possible ...
+		return false;
+	if(trill.setEventMode(Trill::kEventModeAlways)) // ... and set PSOC_EVENT pin when ready
+		return false;
+	if(trill.setScanSettings(0, 12))
 		return false;
 	if(trill.setPrescaler(prescaler))
 		return false;
