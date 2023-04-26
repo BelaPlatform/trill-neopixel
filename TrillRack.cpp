@@ -293,26 +293,19 @@ int tr_setup()
 #else
 	prescaler = 5;
 #endif
-	if(trill.setScanTrigger(1)) // scan as fast as possible ...
-		return false;
-	if(trill.setEventMode(Trill::kEventModeAlways)) // ... and set PSOC_EVENT pin when ready
-		return false;
 	if(trill.setScanSettings(0, 12))
 		return false;
 	if(trill.setPrescaler(prescaler))
 		return false;
 	if(trill.setNoiseThreshold(0.06))
 		return false;
-	for(unsigned int n = 0; n < 10; ++n)
-	{
-		// trigger a few scans so that the baseline gets adjusted
-		// a workaround for the current situation with updateBaseline() when not scanning
-		if(trill.readStatusByte() < 0)
-			return false;
-		HAL_Delay(10);
-	}
-	// finally, update the baseline
 	if(trill.updateBaseline())
+		return false;
+	if(trill.setScanTrigger(Trill::kScanTriggerTimer))
+		return false;
+	if(trill.setTimerPeriod(1)) // scan as fast as possible ...
+		return false;
+	if(trill.setEventMode(Trill::kEventModeAlways)) // ... and set PSOC_EVENT pin when ready
 		return false;
 	if(trill.readStatusByte() < 0) // ensure that future reads via DMA have the correct offset
 		return false;
