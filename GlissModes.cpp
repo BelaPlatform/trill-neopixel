@@ -260,7 +260,7 @@ static bool gInUsesRange;
 static std::array<bool,kNumOutChannels> gOutUsesRange;
 
 // Recording the gesture
-enum { kMaxRecordLength = 5000 };
+enum { kMaxRecordLength = 10000 };
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 const float kFixedCentroidSize = 0.3;
@@ -2197,7 +2197,6 @@ public:
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
 					gGestureRecorder.stopRecording(n, false);
-					shouldUpdateTables[n] = true;
 					periodsInTables[n] = qrec.periodsInRecording;
 					qrecResetPhase = true;
 					printf("periods: %u\n\r", qrec.periodsInRecording);
@@ -2241,7 +2240,6 @@ public:
 						// discontinuity on release
 						bool optimizeForLoop = isSize(n) && autoRetrigger;
 						gGestureRecorder.stopRecording(n, optimizeForLoop);
-						shouldUpdateTables[n] = true;
 						periodsInTables[n] = 1;
 					}
 				}
@@ -2280,12 +2278,6 @@ public:
 			gOutMode = kOutModeManualSample;
 			for(unsigned int n = 0; n < kNumSplits; ++n)
 			{
-				if(shouldUpdateTables[n])
-				{
-					updateTable(n);
-					tableEnabled[n] = true;
-					shouldUpdateTables[n] = false;
-				}
 				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.sample = value, .valid = true};
 			}
@@ -2319,9 +2311,11 @@ public:
 
 	float processTable(BelaContext* context, unsigned int c)
 	{
-		assert(c < context->analogOutChannels && c < tables.size() && c < kNumSplits);
+		assert(c < context->analogOutChannels && c < gGestureRecorder.rs.size() && c < kNumSplits);
 		float vizOut = 0;
-		if(!tableEnabled[c])
+		const float* table = gGestureRecorder.rs[c].getData().data();
+		size_t tableSize = gGestureRecorder.rs[c].size();
+		if(!tableSize)
 		{
 			for(size_t n = 0; n < context->analogFrames; ++n)
 				analogWriteOnce(context, n, c, kNoOutput);
@@ -2329,6 +2323,7 @@ public:
 
 		} else if(kInputModeCv == inputMode || kInputModeClock == inputMode)
 		{
+
 			// wavetable oscillator
 			float freq;
 			if(kInputModeCv == inputMode)
@@ -2349,7 +2344,7 @@ public:
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 					float idx = map(oscs[c].process(normFreq), -1, 1, 0, 1);
-					float value = interpolatedRead(tables[c], idx);
+					float value = interpolatedRead(table, tableSize, idx);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
 						vizOut = value;
@@ -2359,7 +2354,7 @@ public:
 			{
 				float idx = analogRead(context, n, 0);
 				{
-					float out = interpolatedRead(tables[c], idx);
+					float out = interpolatedRead(table, tableSize, idx);
 					analogWriteOnce(context, n, c, out);
 					if(0 == n)
 						vizOut = out;
@@ -2372,84 +2367,7 @@ public:
 		// return snapshot for visualisation
 		return vizOut;
 	}
-	void updateTable(size_t c)
-	{
-#if 0
-		auto& recorders = gGestureRecorder.rs;
-		{
-			auto& data = recorders[c].getData();
-			size_t srcEntries = recorders[c].size();
-			// go through the whole recording first to compute its length
-			size_t srcSize = 0;
-			for(size_t n = 0; n < srcEntries; ++n)
-			{
-				TimestampedRecorder<GestureRecorder::sample_t>::timedData_t timedData;
-				timedData = TimestampedRecorder<GestureRecorder::sample_t>::recordToTimedData({data[n], true});
-				srcSize += timedData.reps;
-//				if(0 == c)
-//					printf("%d: %f\n\r", timedData.reps, TimestampedRecorder<GestureRecorder::sample_t>::sampleToOut(timedData.sample));
-			}
-//			printf("srcSize: %u frames in %u entries\n\r", srcSize, srcEntries);
-			// go through the whole recording again and fit it into the fixed-size table
-			size_t srcIdx = 0;
-			size_t dstIdx = 0;
-			size_t dstSize = tables[c].size();
-			size_t pastDstIdx = 0;
-			float pastValue = 0;
-			for(size_t n = 0; n <= srcEntries; ++n)
-			{
-				float value;
-				size_t srcInc;
-				if(n < srcEntries)
-				{
-					TimestampedRecorder<GestureRecorder::sample_t>::timedData_t timedData;
-					timedData = TimestampedRecorder<GestureRecorder::sample_t>::recordToTimedData({data[n], true});
-					value = TimestampedRecorder<GestureRecorder::sample_t>::sampleToOut(timedData.sample);
-					dstIdx = float(srcIdx) / float(srcSize) * dstSize;
-					srcInc = timedData.reps;
-				} else {
-					// if we are at the end, interpolate back towards the first value
-					value = tables[c][0];
-					dstIdx = dstSize;
-					srcInc = 0;
-				}
-#undef LINEARLY_INTERPOLATED_TABLE
-#ifdef LINEARLY_INTERPOLATED_TABLE
-				if(0 == n) {
-					// upon the first iteration, the for() below does 0 iterations.
-					// here we simply set the first value in the table, so in the edge case
-					// where we have exactly one frame, the next iteration yields a
-					// constant for all values in the table
-					tables[c][0] = value;
-				}
-#endif
-				for(size_t i = pastDstIdx; i < dstIdx && i < dstSize; ++i)
-				{
-					// TODO: smooth sharp edges to reduce nasty aliasing
-					float tableValue;
-#if LINEARLY_INTERPOLATED_TABLE // linearly interpolate the gesture to fill in the table
-					float den = dstIdx - pastDstIdx - 1;
-					float frac = 0;
-					if(den) {
-						frac = (i - pastDstIdx) / den;
-						tableValue = linearInterpolation(frac, pastValue, value);
-					} else {
-						tableValue = value;
-					}
-#else // fill in the table with the actual values from the gesture, without interpolation
-					tableValue = pastValue;
-#endif
-					tables[c][i] = tableValue;
-//					if(0 == c)
-//						printf("%u %.2f %.2f \n\r", i, value, tableValue);
-				}
-				pastValue = value;;
-				srcIdx += srcInc;
-				pastDstIdx = dstIdx;
-			}
-		}
-#endif
-	}
+
 	void updated(Parameter& p)
 	{
 		if(p.same(splitMode)) {
@@ -2460,11 +2378,6 @@ public:
 			printf("RecorderMode: Updated retrigger %d\n\r", autoRetrigger.get());
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
-			if(kInputModeTrigger != inputMode)
-			{
-				for(auto& t : shouldUpdateTables)
-					t = true;
-			}
 			if(kInputModeClock == inputMode)
 				qrec = QuantisedRecorder();
 		}
@@ -2513,8 +2426,6 @@ private:
 	void emptyRecordings()
 	{
 		gGestureRecorder.empty();
-		for(auto& t : tableEnabled)
-			t = false;
 	}
 	rgb_t colors[2] = {
 			{128, 128, 0},
@@ -2531,14 +2442,10 @@ private:
 		ArmedFor armedFor;
 		bool recording;
 	} qrec {};
-	static constexpr size_t kTableSize = 4096;
 	static constexpr size_t kNumSplits = ::kNumSplits;
-	std::array<std::array<float,kTableSize>,kNumSplits> tables;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<size_t,kNumSplits> periodsInTables {1, 1};
 	std::array<bool,kNumSplits> hadTouch {};
-	std::array<bool,kNumSplits> tableEnabled {};
-	std::array<bool,kNumSplits> shouldUpdateTables {};
 	size_t lastResetPressId = ButtonView::kPressIdInvalid;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
