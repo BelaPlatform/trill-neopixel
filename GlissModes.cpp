@@ -1057,6 +1057,7 @@ public:
 		{
 			rs[n].r.startRecording();
 			rs[n].state = kRecJustStarted;
+			rs[n].activity = 0;
 		}
 	}
 	void stopRecording(size_t n, bool optimizeForLoop)
@@ -1081,10 +1082,12 @@ public:
 	}
 	void restart(size_t n)
 	{
+		assert(false); // this is probably broken: ensure that playHead is initialised to a value that is meaningful for process()
 		if(n < kNumRecs)
 		{
 			rs[n].r.enable();
 			rs[n].r.restart();
+			rs[n].playHead = rs[n].r.size();
 		}
 	}
 	HalfGesture_t process(size_t n, float touch, const FrameId frameId, bool loop, bool retriggerNow)
@@ -1104,6 +1107,7 @@ public:
 			if(frameId == rs[n].lastFrameId)
 				return rs[n].lastOut;
 			out = { rs[n].r.record(touch).sample, true };
+			rs[n].activity |= touch > 0;
 		} else {
 			if(retriggerNow)
 				rs[n].playHead = 0; // restart
@@ -1154,6 +1158,7 @@ public:
 			uint32_t recCounter {};
 			double playHead {};
 			double playbackInc {1};
+			bool activity {};
 		};
 		std::array<Rcr,kNumRecs> rs;
 		std::array<Rcr*,kNumRecs> ptrs;
@@ -2135,7 +2140,8 @@ public:
 		{
 			emptyRecordings();
 			// clear possible side effects of previous press:
-			qrec.armedFor = kArmedForNone;
+			for(auto& qrec : qrecs)
+				qrec.armedFor = kArmedForNone;
 			lastResetPressId = performanceBtn.pressId;
 		}
 		bool triggerNow = false;
@@ -2147,17 +2153,20 @@ public:
 				triggerNow = true;
 				break;
 			case kInputModeClock:
-				if(qrec.recording) {
-					// printf("%lu armedForStop\n\r", HAL_GetTick());
-					qrec.armedFor = kArmedForStop;
-				} else {
-					// printf("%lu armedForStart\n\r", HAL_GetTick());
-					qrec.armedFor = kArmedForStart;
+				for(auto& qrec : qrecs)
+				{
+					if(qrec.recording) {
+						// printf("%lu armedForStop\n\r", HAL_GetTick());
+						qrec.armedFor = kArmedForStop;
+					} else {
+						// printf("%lu armedForStart\n\r", HAL_GetTick());
+						qrec.armedFor = kArmedForStart;
+					}
 				}
 				break;
 			}
 		}
-		tri.buttonLedWrite(0, qrec.armedFor|| qrec.recording);
+		tri.buttonLedWrite(0, qrecs[0].armedFor || qrecs[0].recording || qrecs[1].armedFor || qrecs[1].recording);
 		// detect edges on analog in
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
@@ -2176,24 +2185,28 @@ public:
 					break;
 				case kInputModeClock:
 				{
-					if(qrec.recording)
-						qrec.periodsInRecording++;
-					else
-						qrec.periodsInPlayback++;
-					switch(qrec.armedFor)
+					for(size_t n = 0; n < qrecs.size(); ++n)
 					{
-					case kArmedForStart:
-						qrec.armedFor = kArmedForNone;
-						qrecStartNow = true;
-						break;
-					case kArmedForStop:
-						qrec.armedFor = kArmedForNone;
-						qrecStopNow = true;
-						// NOBREAK
-					case kArmedForNone:
-						if(qrec.periodsInPlayback == qrec.periodsInRecording)
-							qrecResetPhase = true;
-						break;
+						auto& qrec = qrecs[n];
+						if(qrec.recording)
+							qrec.periodsInRecording++;
+						else
+							qrec.periodsInPlayback++;
+						switch(qrec.armedFor)
+						{
+						case kArmedForStart:
+							qrec.armedFor = kArmedForNone;
+							qrecStartNow = true;
+							break;
+						case kArmedForStop:
+							qrec.armedFor = kArmedForNone;
+							qrecStopNow = true;
+							// NOBREAK
+						case kArmedForNone:
+							if(qrec.periodsInPlayback == periodsInTables[n])
+								qrecResetPhase = true;
+							break;
+						}
 					}
 					break;
 				}
@@ -2202,25 +2215,36 @@ public:
 
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 
+		size_t recordOffset = 0;
 		// start/stop recording
 		if(kInputModeClock == inputMode)
 		{
+			recordOffset += GestureRecorder::kNumRecs / 2;
 			// start/stop recording based on qrec and input edges
 			if(qrecStartNow)
 			{
 				for(size_t n = 0; n < kNumSplits; ++n)
-					gGestureRecorder.startRecording(n);
-				qrec.recording = true;
-				qrec.periodsInRecording = 0;
+				{
+					auto& qrec = qrecs[n];
+					gGestureRecorder.startRecording(n + recordOffset);
+					qrec.recording = true;
+					qrec.periodsInRecording = 0;
+				}
 			} else 	if(qrecStopNow)
 			{
-				qrec.recording = false;
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
-					gGestureRecorder.stopRecording(n, false);
-					periodsInTables[n] = qrec.periodsInRecording;
+					auto& qrec = qrecs[n];
+					qrec.recording = false;
+					gGestureRecorder.stopRecording(n + recordOffset, false);
+					// if non split, always keep the new one. If split, only keep if something was recorded onto it
+					if(!isSplit() || gGestureRecorder.rs[n + recordOffset].activity)
+					{
+						gGestureRecorder.rs.swap(n, n + recordOffset);
+						periodsInTables[n] = qrec.periodsInRecording;
+					}
 					qrecResetPhase = true;
-					printf("periods: %u\n\r", qrec.periodsInRecording);
+					printf("periods: %u, activity: %d\n\r", qrec.periodsInRecording, gGestureRecorder.rs[n].activity);
 					qrec.periodsInPlayback = 0;
 				}
 			}
@@ -2229,7 +2253,8 @@ public:
 				// keep oscillators in phase with external clock pulses
 				for(auto& o : oscs)
 					o.setPhase(-M_PI);
-				qrec.periodsInPlayback = 0;
+				for(auto& qrec : qrecs)
+					qrec.periodsInPlayback = 0;
 			}
 
 		} else {
@@ -2288,11 +2313,17 @@ public:
 		// gesture may be overwritten below before it is visualised
 		for(size_t n = 0; n < recIns.size(); ++n)
 		{
-			if(inputMode == kInputModeTrigger || gGestureRecorder.isRecording(n))
-				gesture[n] = gGestureRecorder.process(n, recIns[n], frameData->id, autoRetrigger, triggerNow);
+			size_t idx = n;
+			if(gGestureRecorder.isRecording(n + recordOffset))
+				idx += recordOffset;
+			if(inputMode == kInputModeTrigger || gGestureRecorder.isRecording(idx))
+			{
+				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow);
+			}
 		}
 
-		if(kInputModeTrigger == inputMode || (kInputModeClock == inputMode && qrec.recording))
+		assert(qrecs[0].recording == qrecs[1].recording);
+		if(kInputModeTrigger == inputMode || (kInputModeClock == inputMode && qrecs[0].recording))
 		{
 			gOutMode.fill(kOutModeManualBlock);
 		} else {
@@ -2400,7 +2431,8 @@ public:
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
 			if(kInputModeClock == inputMode)
-				qrec = QuantisedRecorder();
+				for(auto& qrec : qrecs)
+					qrec = QuantisedRecorder();
 		}
 	}
 	void updatePreset()
@@ -2462,7 +2494,8 @@ private:
 		size_t periodsInPlayback;
 		ArmedFor armedFor;
 		bool recording;
-	} qrec {};
+	};
+	std::array<QuantisedRecorder,kNumSplits> qrecs {};
 	static constexpr size_t kNumSplits = ::kNumSplits;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<size_t,kNumSplits> periodsInTables {1, 1};
