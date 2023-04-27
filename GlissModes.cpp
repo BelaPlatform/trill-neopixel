@@ -260,7 +260,7 @@ static bool gInUsesRange;
 static std::array<bool,kNumOutChannels> gOutUsesRange;
 
 // Recording the gesture
-enum { kMaxRecordLength = 10000 };
+enum { kMaxRecordLength = 5000 };
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 const float kFixedCentroidSize = 0.3;
@@ -1053,106 +1053,127 @@ public:
 	};
 	void startRecording(size_t n)
 	{
-		if(n < rs.size())
+		if(n < kNumRecs)
 		{
-			rs[n].startRecording();
-			states[n] = kRecJustStarted;
+			rs[n].r.startRecording();
+			rs[n].state = kRecJustStarted;
 		}
 	}
 	void stopRecording(size_t n, bool optimizeForLoop)
 	{
-		if(n < rs.size())
+		if(n < kNumRecs)
 		{
-			rs[n].stopRecording();
-			states[n] = kPlayJustStarted;
+			rs[n].r.stopRecording();
+			rs[n].state = kPlayJustStarted;
 			// compute how many unique frames on average per call to process.
 			// Use that as an increment to playback
-			playbackIncs[n] = rs[n].size() / double(recCounters[n]);
+			rs[n].playbackInc = rs[n].r.size() / double(rs[n].recCounter);
 			printf("unique frames: %lu %lu, recCount: %lu average inc: %.5f\n\r",
-					1 + lastFrameIds[n] - firstFrameIds[n], (uint32_t)rs[n].size(), recCounters[n], playbackIncs[n]);
+					1 + rs[n].lastFrameId - rs[n].firstFrameId, (uint32_t)rs[n].r.size(), rs[n].recCounter, rs[n].playbackInc);
 			// set playhead at the end so we do not immediately start unless loop / triggering
-			playHeads[n] = rs[n].size();
+			rs[n].playHead = rs[n].r.size();
 //			assert((1 + lastFrameIds[n] - firstFrameIds[n]) == rs[n].size());
 #if 0
 			if(optimizeForLoop)
-				rs[n].replaceLastFrames(40);
+				rs[n].r.replaceLastFrames(40);
 #endif
 		}
 	}
 	void restart(size_t n)
 	{
-		if(n < rs.size())
+		if(n < kNumRecs)
 		{
-			rs[n].enable();
-			rs[n].restart();
+			rs[n].r.enable();
+			rs[n].r.restart();
 		}
 	}
 	HalfGesture_t process(size_t n, float touch, const FrameId frameId, bool loop, bool retriggerNow)
 	{
-		if(n >= kNumSplits)
+		if(n >= kNumRecs)
 			return {0, false};
-		if(kRecJustStarted == states[n])
+		if(kRecJustStarted == rs[n].state)
 		{
-			firstFrameIds[n] = frameId;
-			states[n] = kRec;
-			recCounters[n] = 0;
+			rs[n].firstFrameId = frameId;
+			rs[n].state = kRec;
+			rs[n].recCounter = 0;
 		}
 		HalfGesture_t out;
-		if(kRec == states[n])
+		if(kRec == rs[n].state)
 		{
-			recCounters[n]++;
-			if(frameId == lastFrameIds[n])
-				return lastOuts[n];
-			out = { rs[n].record(touch).sample, true };
+			rs[n].recCounter++;
+			if(frameId == rs[n].lastFrameId)
+				return rs[n].lastOut;
+			out = { rs[n].r.record(touch).sample, true };
 		} else {
 			if(retriggerNow)
-				playHeads[n] = 0; // restart
-			if(rs[n].size()) {
-				size_t idx = size_t(playHeads[n]);
-				if(idx < rs[n].size()) {
-					if(playHeads[n] >= rs[n].size() && loop)
-						playHeads[n] -= rs[n].size(); // loop back keeping phase offset
-					out = {rs[n].getData()[idx], true};
-					playHeads[n] += playbackIncs[n];
+				rs[n].playHead = 0; // restart
+			if(rs[n].r.size()) {
+				size_t idx = size_t(rs[n].playHead);
+				if(idx < rs[n].r.size()) {
+					if(rs[n].playHead >= rs[n].r.size() && loop)
+						rs[n].playHead -= rs[n].r.size(); // loop back keeping phase offset
+					out = {rs[n].r.getData()[idx], true};
+					rs[n].playHead += rs[n].playbackInc;
 				}
 				else
 					out = {0, false};
 			} else
 				out = {0, false};
 		}
-		lastFrameIds[n] = frameId;
-		return lastOuts[n] = out;
+		rs[n].lastFrameId = frameId;
+		return rs[n].lastOut = out;
 	}
 	void empty()
 	{
-		for(auto& r : rs)
+		for(size_t n = 0; n < kNumRecs; ++n)
 		{
-			r.startRecording();
-			r.stopRecording();
+			rs[n].r.startRecording();
+			rs[n].r.stopRecording();
 		}
 	}
 	bool isRecording(size_t n)
 	{
-		if(n < states.size())
-			return states[n] != kPlay;
+		if(n < kNumRecs)
+			return rs[n].state != kPlay;
 		return false;
 	}
-	std::array<Recorder<sample_t>, 2> rs;
-private:
-	std::array<bool,kNumSplits> hadTouch {};
+	static constexpr size_t kNumRecs = 4;
 	enum State {
 		kPlay = 0,
 		kRec = 2,
 		kPlayJustStarted = -1,
 		kRecJustStarted = -2,
 	};
-	std::array<State,kNumSplits> states {};
-	std::array<FrameId,kNumSplits> firstFrameIds {};
-	std::array<FrameId,kNumSplits> lastFrameIds {};
-	std::array<HalfGesture_t,kNumSplits> lastOuts {};
-	std::array<uint32_t,kNumSplits> recCounters {};
-	std::array<double,kNumSplits> playHeads {0, 0};
-	std::array<double,kNumSplits> playbackIncs {1, 1};
+	class SwappableRecorders {
+		struct Rcr {
+			Recorder<sample_t> r;
+			State state {};
+			FrameId firstFrameId {};
+			FrameId lastFrameId {};
+			HalfGesture_t lastOut {};
+			uint32_t recCounter {};
+			double playHead {};
+			double playbackInc {1};
+		};
+		std::array<Rcr,kNumRecs> rs;
+		std::array<Rcr*,kNumRecs> ptrs;
+	public:
+		SwappableRecorders() {
+			for(size_t n = 0; n < kNumRecs; ++n)
+				ptrs[n] = &rs[n];
+		}
+		void swap(size_t a, size_t b) {
+			std::swap(ptrs[a], ptrs[b]);
+		}
+		Rcr& operator[] (size_t n) {
+			return *ptrs[n];
+		}
+		// do not implement size() to avoid confusion when
+		// the user wants to call rs[n].r.size()
+	};
+	SwappableRecorders rs;
+private:
+	std::array<bool,kNumSplits> hadTouch {};
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
 
@@ -2311,10 +2332,10 @@ public:
 
 	float processTable(BelaContext* context, unsigned int c)
 	{
-		assert(c < context->analogOutChannels && c < gGestureRecorder.rs.size() && c < kNumSplits);
+		assert(c < context->analogOutChannels && c < gGestureRecorder.kNumRecs && c < kNumSplits);
 		float vizOut = 0;
-		const float* table = gGestureRecorder.rs[c].getData().data();
-		size_t tableSize = gGestureRecorder.rs[c].size();
+		const float* table = gGestureRecorder.rs[c].r.getData().data();
+		size_t tableSize = gGestureRecorder.rs[c].r.size();
 		if(!tableSize)
 		{
 			for(size_t n = 0; n < context->analogFrames; ++n)
