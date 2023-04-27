@@ -253,7 +253,21 @@ void tr_snpDone()
 
 int tr_setup()
 {
+	// find unused pads and mark them as such,
+	// then shift channel numbers accordingly
+	uint32_t channelMask = 0;
+	for(auto p : padsToOrderMap)
+		channelMask |= 1 << p;
 	assert(kNumPads == padsToOrderMap.size());
+	assert(kNumPads == __builtin_popcount(channelMask));
+	for(auto& p : padsToOrderMap)
+	{
+		assert(channelMask & (1 << p));
+		unsigned int end = p;
+		for(unsigned int n = 0; n < end; ++n)
+			if(!(channelMask & (1 << n))) // decrement once for every skipped channel
+				p--;
+	}
 	globalSlider.setup(padsToOrderMap, 4, 1);
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
@@ -293,6 +307,9 @@ int tr_setup()
 #else
 	prescaler = 5;
 #endif
+
+	if(trill.setChannelMask(channelMask))
+		return false;;
 	if(trill.setScanSettings(0, 12))
 		return false;
 	if(trill.setPrescaler(prescaler))
