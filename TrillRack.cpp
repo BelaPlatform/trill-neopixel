@@ -310,9 +310,7 @@ int tr_setup()
 		return false;
 	if(trill.updateBaseline())
 		return false;
-	if(trill.setScanTrigger(Trill::kScanTriggerTimer))
-		return false;
-	if(trill.setTimerPeriod(1)) // scan as fast as possible ...
+	if(trill.setScanTrigger(Trill::kScanTriggerI2c))
 		return false;
 	if(trill.setEventMode(Trill::kEventModeAlways)) // ... and set PSOC_EVENT pin when ready
 		return false;
