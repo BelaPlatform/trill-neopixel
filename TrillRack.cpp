@@ -516,6 +516,25 @@ void tr_render(BelaContext* context)
 		newFrame = true;
 		pastFrameId = frameId;
 	}
+#if 0 //  count average frames of capacitive data
+	static uint32_t firstFrameId = frameId;
+	static uint32_t count = 0;
+	if(newFrame)
+	{
+		static uint32_t lastCount = 0;
+		if(lastCount && count - lastCount != 5)
+			printf("WRONG COUNT: %lu\n", count - lastCount);
+		lastCount = count;
+		if(count > 1000) {
+			float mean = (frameId - firstFrameId) / double(count);
+			printf(" %.4f\n\r", mean);
+			count = 0;
+			lastCount = 0;
+			firstFrameId = frameId;
+		}
+	}
+	count++;
+#endif
 	FrameData frameData = {
 			.id = pastFrameId,
 			.isNew = newFrame,
