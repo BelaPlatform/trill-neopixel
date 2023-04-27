@@ -92,18 +92,6 @@ std::vector<unsigned int> padsToOrderMap = {
 	11,
 	12,
 	13,
-#ifdef TRILL_BAR
-	14,
-	15,
-	16,
-	17,
-	18,
-	19,
-	20,
-	21,
-	22,
-	23,
-#else // TRILL_BAR
 	28,
 	27,
 	26,
@@ -114,7 +102,6 @@ std::vector<unsigned int> padsToOrderMap = {
 	19,
 	20,
 	24,
-#endif // TRILL_BAR
 #else // OLD
 	29,
 	28,
@@ -253,6 +240,11 @@ void tr_snpDone()
 
 int tr_setup()
 {
+#ifdef TRILL_BAR
+	padsToOrderMap.resize(kNumPads);
+	for(size_t n = 0; n < padsToOrderMap.size(); ++n)
+		padsToOrderMap[n] = n;
+#endif // TRILL_BAR
 	// find unused pads and mark them as such,
 	// then shift channel numbers accordingly
 	uint32_t channelMask = 0;
