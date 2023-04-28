@@ -2323,15 +2323,33 @@ public:
 		}
 
 		assert(qrecs[0].recording == qrecs[1].recording);
-		if(kInputModeTrigger == inputMode || (kInputModeClock == inputMode && qrecs[0].recording))
+		switch(inputMode)
 		{
+		case kInputModeTrigger:
 			gOutMode.fill(kOutModeManualBlock);
-		} else {
+			break;
+		case kInputModeClock:
+			for(size_t n = 0; n < kNumSplits; ++n)
+			{
+				// if actually doing something while recording,
+				// pass through current touch
+				if(qrecs[n].recording && gGestureRecorder.rs[n + recordOffset].activity)
+					gOutMode[n] = kOutModeManualBlock;
+				else // otherwise, keep playing back from table
+					gOutMode[n] = kOutModeManualSample;
+			}
+			break;
+		default:
 			gOutMode.fill(kOutModeManualSample);
-			for(unsigned int n = 0; n < kNumSplits; ++n)
+		}
+		for(unsigned int n = 0; n < kNumSplits; ++n)
+		{
+			if(kOutModeManualSample == gOutMode[n])
 			{
 				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.sample = value, .valid = true};
+			} else {
+				// gesture is already set elsewhere
 			}
 		}
 		static constexpr centroid_t kInvalid = {0, 0};
