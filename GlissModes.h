@@ -4,11 +4,11 @@ constexpr size_t kNumLeds = 23;
 constexpr float kSliderBottomMargin = 0.05;
 constexpr float kSliderTopMargin = 0.05;
 typedef enum {
-	kOutModeFollowTouch,
-	kOutModeFollowLeds,
 	kOutModeManualBlock,
 	kOutModeManualSample,
 } OutMode;
+constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
+extern std::array<OutMode,kNumOutChannels> gOutMode;
 
 typedef enum {
 	kCvRangePositive10,
@@ -61,8 +61,6 @@ constexpr size_t kNumModes = 7;
 #else // TEST_MODE
 constexpr size_t kNumModes = 6;
 #endif // TEST_MODE
-
-constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
 
 #include <Utilities.h>
 static inline float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)

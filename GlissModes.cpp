@@ -248,7 +248,7 @@ std::array<Oscillator, 2> oscillators;
 const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{{0, 0, 255}, {0, 255, 0}}};
 std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MIDI without changing defaults
 
-OutMode gOutMode = kOutModeFollowTouch;
+std::array<OutMode,kNumOutChannels> gOutMode { kOutModeManualBlock, kOutModeManualBlock };
 int gCounter = 0;
 int gSubMode = 0;
 std::array<bool,2> gOutIsSize;
@@ -1273,7 +1273,7 @@ class TestMode: public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gOutMode = kOutModeFollowLeds;
+		gOutMode.fill(kOutModeFollowLeds);
 		ledSlidersSetupTwoSliders(1, colorDefs[0], LedSlider::MANUAL_CENTROIDS);
 		for(unsigned int n = 0; n < kNumLeds; ++n)
 			np.setPixelColor(n, 0, 0, 0);
@@ -1892,7 +1892,7 @@ class DirectControlMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gOutMode = kOutModeManualBlock;
+		gOutMode.fill(kOutModeManualBlock);
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
@@ -2104,7 +2104,7 @@ class RecorderMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gOutMode = kOutModeManualBlock;
+		gOutMode.fill(kOutModeManualBlock);
 		pastAnalogInHigh = false;
 		if(isSplit())
 		{
@@ -2294,9 +2294,9 @@ public:
 
 		if(kInputModeTrigger == inputMode || (kInputModeClock == inputMode && qrec.recording))
 		{
-			gOutMode = kOutModeManualBlock;
+			gOutMode.fill(kOutModeManualBlock);
 		} else {
-			gOutMode = kOutModeManualSample;
+			gOutMode.fill(kOutModeManualSample);
 			for(unsigned int n = 0; n < kNumSplits; ++n)
 			{
 				float value = processTable(context, n);
@@ -2493,7 +2493,7 @@ public:
 				signalColor,
 				LedSlider::MANUAL_CENTROIDS
 			);
-			gOutMode = kOutModeManualSample;
+			gOutMode.fill(kOutModeManualSample);
 		}
 		if(ms < 0)
 			return true;
@@ -2691,7 +2691,7 @@ public:
 				LedSlider::MANUAL_CENTROIDS
 			);
 		}
-		gOutMode = kOutModeManualSample;
+		gOutMode.fill(kOutModeManualSample);
 		if(ms < 0)
 			return true;
 		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), kNumLeds / 2, kNumLeds / 2);
@@ -2824,7 +2824,7 @@ public:
 				true,
 				1
 			);
-			gOutMode = kOutModeManualBlock;
+			gOutMode.fill(kOutModeManualBlock);
 			changeState(kDisabled, {0, 0});
 		}
 		// Force initialisation of offsets. Alternatively, always copy them in render()
@@ -3317,7 +3317,7 @@ void setup()
 	count = 0;
 	calibrationState = kWaitToStart;
 	printf("Disconnect INPUT\n\r"); // TODO: this is printed repeatedly till you release the button
-	gOutMode = kOutModeManualBlock;
+	gOutMode.fill(kOutModeManualBlock);
 }
 
 void process()
@@ -3603,7 +3603,7 @@ public:
 	{}
 	bool setup(double ms){
 		gCalibrationProcedure.setup();
-		gOutMode = kOutModeManualBlock;
+		gOutMode.fill(kOutModeManualBlock);
 		resetDemoMode();
 		ledSlidersSetupOneSlider(
 			baseColor,

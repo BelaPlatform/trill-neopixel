@@ -19,7 +19,6 @@ extern bool menu_setup(double);
 extern void menu_render(BelaContext*, FrameData*);
 extern bool menuShouldChangeMode();
 extern float getGnd();
-extern OutMode gOutMode;
 extern bool modeAlt_setup();
 extern void triggerInToClock(BelaContext* context);
 extern int gMtrClkTrigger;
@@ -212,7 +211,7 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 			msb  = value;
 		else if (101 == num) {
 			int lsb = value;
-			gOutMode = kOutModeManualBlock;
+			gOutMode.fill(kOutModeManualBlock);
 			float f = ((msb << 7) | lsb) / 4096.f;
 			gManualAnOut[0] = f;
 			gManualAnOut[1] = f;
@@ -730,75 +729,44 @@ void tr_render(BelaContext* context)
 //	tri.buttonLedWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs
-	auto& sls = ledSliders.sliders;
-	if(kOutModeFollowTouch == gOutMode || kOutModeFollowLeds == gOutMode)
-	{
-		std::array<LedSlider::centroid_t,kNumOutChannels> centroids;
-		size_t numCentroids = 1;
-		switch (gOutMode)
-		{
-			case kOutModeFollowTouch:
-				centroids[0].location = sls[0].compoundTouchLocation();
-				centroids[0].size = sls[0].compoundTouchSize();
-				if(2 == sls.size()) {
-					numCentroids = 2;
-					centroids[1].location = sls[1].compoundTouchLocation();
-					centroids[1].size = sls[1].compoundTouchSize();
-				}
-				break;
-			case kOutModeFollowLeds:
-				centroids[0] = sls[0][0];
-				if (2 == sls.size())
-				{
-					numCentroids = 2;
-					centroids[1] = sls[1][0];
-				}
-				break;
-			default:
-				assert(false);
-				break;
-		}
-		gManualAnOut[0] = touchOrNot(centroids[0].location, centroids[0].size);
-		if(1 == numCentroids)
-			gManualAnOut[1] = touchOrNot(centroids[0].size, centroids[0].size);
-		else if (2 == numCentroids)
-			gManualAnOut[1] = touchOrNot(centroids[1].location, centroids[1].size);
-		else
-			assert(false);
-	}
 	const CalibrationData& outCal = getCalibrationOutput();
-	if(kOutModeManualSample == gOutMode)
-	{
-		constexpr size_t kNumOutChannels = 2; // hardcode to give the compiler room for optimisations
-		assert(kNumOutChannels == context->analogOutChannels);
 
-		// analogOut has already been written. Rescale in-place
-		for(unsigned int n = 0; n < context->analogFrames; ++n)
+	assert(kNumOutChannels == context->analogOutChannels);
+
+	// analogOut has already been written. Rescale in-place
+	for(unsigned int n = 0; n < context->analogFrames; ++n)
+	{
+		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
 		{
-			for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
+			if(kOutModeManualSample == gOutMode[channel])
 			{
 				size_t idx = n * kNumOutChannels + channel;
 				context->analogOut[idx] = rescaleOutput(false, channel, outCal, context->analogOut[idx]);
 			}
 		}
-		// we do the loop again to swap channels if needed
-		// this _cannot_ be incorporated in the above loop
-		// without a lot of care not to overwrite the other channel
-		if(gJacksOnTop)
-		{
-			for(unsigned int n = 0; n < context->analogFrames; ++n)
-			{
-				size_t idx0 = n * kNumOutChannels;
-				std::swap(context->analogOut[idx0], context->analogOut[idx0 + 1]);
-			}
-		}
-	} else {
-		std::array<float, gManualAnOut.size()> anOutBuffer;
-		for(unsigned int c = 0; c < gManualAnOut.size(); ++c)
-			anOutBuffer[c] = rescaleOutput(false, c, outCal, gManualAnOut[c]);
+	}
+	// we do the loop again to swap channels if needed
+	// this can be incorporated in the above loop
+	// but it needs a lot of care not to overwrite the other channel
+	// note: if the two channels have a different gOutMode, this may swap some stale data
+	// that will be overwritten below
+	// TODO: consolidate these three loops. Try to incorporate this above, or just use it on
+	// all channels after the next loop.
+	if(gJacksOnTop && (kOutModeManualSample == gOutMode[0] || kOutModeManualSample == gOutMode[1]))
+	{
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 		{
-			for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
+			size_t idx0 = n * kNumOutChannels;
+			std::swap(context->analogOut[idx0], context->analogOut[idx0 + 1]);
+		}
+	}
+	std::array<float, gManualAnOut.size()> anOutBuffer;
+	for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
+	{
+		if(kOutModeManualBlock == gOutMode[channel])
+		{
+			anOutBuffer[channel] = rescaleOutput(false, channel, outCal, gManualAnOut[channel]);
+			for(unsigned int n = 0; n < context->analogFrames; ++n)
 			{
 				static float pastOut[anOutBuffer.size()];
 				float tmp = pastOut[channel];
