@@ -601,10 +601,15 @@ void tr_render(BelaContext* context)
 		clippedIn = 0;
 	tri.buttonLedWrite(1, clippedIn);
 #endif // TEST_MODE
-	
+	extern size_t msToNumBlocks(BelaContext* context, float ms);
+	static const uint32_t kDoubleClickTime = msToNumBlocks(context, 300);
+	static const uint32_t kTripleClickTime = msToNumBlocks(context, 500);
+	static uint32_t timeNow = 0;
+	static uint32_t lastOnsetTime = 0;
+	static uint32_t lastLastOnsetTime = 0;
 	static ButtonView btn; // reflects reality
 	static bool wasPressed = !tri.digitalRead(0);
-	btn = {false, false, false, false, btn.pressId, btn.pressDuration};
+	btn = {false, false, false, false, false, false, btn.pressId, btn.pressDuration};
 	bool isPressed = !tri.digitalRead(0);
 	btn.enabled = true;
 	btn.offset = wasPressed && !isPressed;
@@ -615,6 +620,12 @@ void tr_render(BelaContext* context)
 		if(ButtonView::kPressIdInvalid == btn.pressId) // reserved value
 			btn.pressId = 0;
 		btn.pressDuration = 0;
+		if(timeNow - lastLastOnsetTime < kTripleClickTime)
+			btn.tripleClick = true;
+		else if(timeNow - lastOnsetTime < kDoubleClickTime)
+			btn.doubleClick = true;
+		lastLastOnsetTime = lastOnsetTime;
+		lastOnsetTime = timeNow;
 	}
 	btn.pressed = isPressed;
 	if(btn.pressed)
@@ -622,6 +633,7 @@ void tr_render(BelaContext* context)
 	else
 		btn.pressDuration = 0;
 	wasPressed = isPressed;
+	timeNow++;
 
 	static bool hadTouch = false;
 	if(newFrame)
