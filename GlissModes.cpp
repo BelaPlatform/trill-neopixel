@@ -2190,8 +2190,7 @@ public:
 						auto& qrec = qrecs[n];
 						if(qrec.recording)
 							qrec.periodsInRecording++;
-						else
-							qrec.periodsInPlayback++;
+						qrec.periodsInPlayback++;
 						switch(qrec.armedFor)
 						{
 						case kArmedForStart:
@@ -2203,7 +2202,7 @@ public:
 							qrecStopNow = true;
 							// NOBREAK
 						case kArmedForNone:
-							if(qrec.periodsInPlayback == periodsInTables[n])
+							if(qrec.periodsInPlayback >= periodsInTables[n])
 								qrecResetPhase[n] = true;
 							break;
 						}
@@ -2214,6 +2213,9 @@ public:
 		}
 
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		std::array<bool,kNumSplits> hasTouch;
+		for(size_t n = 0; n < currentSplits(); ++n)
+			hasTouch[n] = touches[n].size > 0;
 
 		size_t recordOffset = 0;
 		// control start/stop recording
@@ -2239,9 +2241,9 @@ public:
 						gGestureRecorder.rs.swap(n, n + recordOffset);
 						periodsInTables[n] = qrec.periodsInRecording;
 						qrecResetPhase[n] = true;
+						qrec.periodsInPlayback = 0;
 					}
 					printf("periods: %u, activity: %d\n\r", qrec.periodsInRecording, gGestureRecorder.rs[n].activity);
-					qrec.periodsInPlayback = 0;
 				}
 				// keep oscillators in phase with external clock pulses
 				if(qrecResetPhase[n]) {
@@ -2252,10 +2254,6 @@ public:
 
 		} else {
 			// start/stop recording based on touch
-			std::array<bool,kNumSplits> hasTouch;
-
-			for(size_t n = 0; n < currentSplits(); ++n)
-				hasTouch[n] = touches[n].size > 0;
 
 			// We have two recording tracks available, one per each analog output.
 			// We are always using both tracks and the loop below controls automatic
@@ -2315,21 +2313,44 @@ public:
 			}
 		}
 
+
 		assert(qrecs[0].recording == qrecs[1].recording);
+		std::array<bool,kNumSplits> directControl = { false, false };
 		switch(inputMode)
 		{
 		case kInputModeTrigger:
 			gOutMode.fill(kOutModeManualBlock);
 			break;
 		case kInputModeClock:
-			for(size_t n = 0; n < kNumSplits; ++n)
+			for(size_t n = 0; n < currentSplits(); ++n)
 			{
-				// if actually doing something while recording,
-				// pass through current touch
-				if(qrecs[n].recording && gGestureRecorder.rs[n + recordOffset].activity)
-					gOutMode[n] = kOutModeManualBlock;
-				else // otherwise, keep playing back from table
-					gOutMode[n] = kOutModeManualSample;
+				// if actually doing something while recording, pass through current touch
+				if((qrecs[n].recording && gGestureRecorder.rs[n + recordOffset].activity))
+					directControl[n] = true;
+				// if a finger is on the sensor and we are not recording, pass through current touch
+				if(hasTouch[n])
+					directControl[n] = true;
+				if(isSplit()) {
+					if(directControl[n])
+					{
+						gOutMode[n] = kOutModeManualBlock;
+						gesture[n] = GestureRecorder::HalfGesture_t {
+							.sample = kModeSplitLocation == splitMode ? touches[n].location : touches[n].size,
+							.valid = true,
+						};
+					} else // otherwise, keep playing back from table
+						gOutMode[n] = kOutModeManualSample;
+				} else {
+					// non split
+					directControl[1] = directControl[n];
+					if(directControl[n])
+					{
+						gOutMode.fill(kOutModeManualBlock);
+						gesture[0] = { touches[0].location, true };
+						gesture[1] = { touches[0].size, true };
+					} else
+						gOutMode.fill(kOutModeManualSample);
+				}
 			}
 			break;
 		default:
@@ -2342,6 +2363,14 @@ public:
 				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.sample = value, .valid = true};
 			} else {
+				if(kInputModeClock == inputMode && directControl[n])
+				{
+					// we still have to processTable() just to ensure
+					// the oscillator stay in phase.
+					// outputs will actually be written here but they will
+					// be overwritten in tr_render() because of gOutMode
+					processTable(context, n);
+				}
 				// gesture is already set elsewhere
 			}
 		}
