@@ -2175,7 +2175,7 @@ public:
 
 		bool qrecStartNow = false;
 		bool qrecStopNow = false;
-		bool qrecResetPhase = false;
+		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		if(analogEdge)
 		{
 			switch(inputMode.get())
@@ -2204,7 +2204,7 @@ public:
 							// NOBREAK
 						case kArmedForNone:
 							if(qrec.periodsInPlayback == periodsInTables[n])
-								qrecResetPhase = true;
+								qrecResetPhase[n] = true;
 							break;
 						}
 					}
@@ -2242,19 +2242,19 @@ public:
 					{
 						gGestureRecorder.rs.swap(n, n + recordOffset);
 						periodsInTables[n] = qrec.periodsInRecording;
+						qrecResetPhase[n] = true;
 					}
-					qrecResetPhase = true;
 					printf("periods: %u, activity: %d\n\r", qrec.periodsInRecording, gGestureRecorder.rs[n].activity);
 					qrec.periodsInPlayback = 0;
 				}
 			}
-			if(qrecResetPhase)
+			for(size_t n = 0; n < kNumSplits; ++n)
 			{
 				// keep oscillators in phase with external clock pulses
-				for(auto& o : oscs)
-					o.setPhase(-M_PI);
-				for(auto& qrec : qrecs)
-					qrec.periodsInPlayback = 0;
+				if(qrecResetPhase[n]) {
+					oscs[n].setPhase(-M_PI);
+					qrecs[n].periodsInPlayback = 0;
+				}
 			}
 
 		} else {
