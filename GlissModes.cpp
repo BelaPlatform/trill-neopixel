@@ -2216,25 +2216,21 @@ public:
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 
 		size_t recordOffset = 0;
-		// start/stop recording
+		// control start/stop recording
 		if(kInputModeClock == inputMode)
 		{
 			recordOffset += GestureRecorder::kNumRecs / 2;
 			// start/stop recording based on qrec and input edges
-			if(qrecStartNow)
+			for(size_t n = 0; n < kNumSplits; ++n)
 			{
-				for(size_t n = 0; n < kNumSplits; ++n)
+				auto& qrec = qrecs[n];
+				if(qrecStartNow)
 				{
-					auto& qrec = qrecs[n];
 					gGestureRecorder.startRecording(n + recordOffset);
 					qrec.recording = true;
 					qrec.periodsInRecording = 0;
-				}
-			} else 	if(qrecStopNow)
-			{
-				for(size_t n = 0; n < kNumSplits; ++n)
+				} else if(qrecStopNow)
 				{
-					auto& qrec = qrecs[n];
 					qrec.recording = false;
 					gGestureRecorder.stopRecording(n + recordOffset, false);
 					// if non split, always keep the new one. If split, only keep if something was recorded onto it
@@ -2247,13 +2243,10 @@ public:
 					printf("periods: %u, activity: %d\n\r", qrec.periodsInRecording, gGestureRecorder.rs[n].activity);
 					qrec.periodsInPlayback = 0;
 				}
-			}
-			for(size_t n = 0; n < kNumSplits; ++n)
-			{
 				// keep oscillators in phase with external clock pulses
 				if(qrecResetPhase[n]) {
 					oscs[n].setPhase(-M_PI);
-					qrecs[n].periodsInPlayback = 0;
+					qrec.periodsInPlayback = 0;
 				}
 			}
 
