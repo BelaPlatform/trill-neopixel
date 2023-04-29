@@ -780,7 +780,7 @@ public:
 	virtual void startRecording()
 	{
 		active = true;
-		start = current = 0;
+		start = end = current = 0;
 		full = false;
 	}
 	ValidSample record(const sample_t& in)
@@ -791,11 +791,11 @@ public:
 		// if the circular buffer becomes full, make a note of it
 		if(current == start)
 			full = true;
+		end = current;
 		return {ret, true};
 	}
 	virtual void stopRecording()
 	{
-		end = current;
 		if(full)
 		{
 			// if the circular buffer became full, adjust start
