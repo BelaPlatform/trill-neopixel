@@ -2124,7 +2124,9 @@ public:
 		gInUsesRange = true; // may be overridden below depending on mode
 
 		// handle button
-		if(performanceBtn.pressDuration == msToNumBlocks(context, 3000) || performanceBtn.tripleClick)
+		if(!(!autoRetrigger && kInputModeTrigger == inputMode) && // when in envelope mode, no reason to erase recordings. We use the button for other stuff here
+				(performanceBtn.pressDuration == msToNumBlocks(context, 3000)
+				|| (kInputModeTrigger != inputMode && performanceBtn.tripleClick)))
 		{
 			emptyRecordings();
 			// clear possible side effects of previous press:
