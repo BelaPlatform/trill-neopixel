@@ -1126,7 +1126,7 @@ public:
 	bool isRecording(size_t n)
 	{
 		if(n < kNumRecs)
-			return rs[n].state != kPlay;
+			return kRec == rs[n].state || kRecJustStarted == rs[n].state;
 		return false;
 	}
 	static constexpr size_t kNumRecs = 4;
