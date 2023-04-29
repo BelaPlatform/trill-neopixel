@@ -761,6 +761,7 @@ public:
 		sample_t sample;
 		bool valid;
 	};
+#if 0
 	void enable()
 	{
 		active = true;
@@ -777,6 +778,7 @@ public:
 	{
 		return active;
 	}
+#endif
 	virtual void startRecording()
 	{
 		active = true;
@@ -804,7 +806,7 @@ public:
 			increment(start);
 		}
 	}
-
+#if 0
 	ValidSample play(bool loop)
 	{
 		if(current == end)
@@ -824,14 +826,13 @@ public:
 		increment(current);
 		return {ret, true};
 	}
-
+#endif
 	size_t size()
 	{
 		size_t size = data.size();
 		size_t i = (end - start + size) % size;
 		return i;
 	}
-
 	const std::array<sample_t, kMaxRecordLength>& getData()
 	{
 		return data;
@@ -1075,16 +1076,6 @@ public:
 			if(optimizeForLoop)
 				rs[n].r.replaceLastFrames(40);
 #endif
-		}
-	}
-	void restart(size_t n)
-	{
-		assert(false); // this is probably broken: ensure that playHead is initialised to a value that is meaningful for process()
-		if(n < kNumRecs)
-		{
-			rs[n].r.enable();
-			rs[n].r.restart();
-			rs[n].playHead = rs[n].r.size();
 		}
 	}
 	HalfGesture_t process(size_t n, float touch, const FrameId frameId, bool loop, bool retriggerNow)
