@@ -2145,22 +2145,26 @@ public:
 			lastIgnoredPressId = performanceBtn.pressId;
 		}
 		bool triggerNow = false;
-		if(performanceBtn.doubleClick) {
-			for(auto& qrec : qrecs)
+		if(performanceBtn.doubleClick)
+		{
+			if(kInputModeClock == inputMode)
 			{
-				if(kArmedForStart == qrec.armedFor || qrec.recording)
+				for(auto& qrec : qrecs)
 				{
-					if(qrec.recording){
-						// probably just started recording because between
-						// the first click and the double click a new clock edge
-						// came in
-						printf("sync when %d\n\r", qrec.periodsInRecording);
+					if(kArmedForStart == qrec.armedFor || qrec.recording)
+					{
+						if(qrec.recording){
+							// probably just started recording because between
+							// the first click and the double click a new clock edge
+							// came in
+							printf("sync when %d\n\r", qrec.periodsInRecording);
+						}
+						qrec.armedFor = kArmedForStartSynced;
+						qrec.recording = false;
 					}
-					qrec.armedFor = kArmedForStartSynced;
-					qrec.recording = false;
 				}
+				lastIgnoredPressId = performanceBtn.pressId;
 			}
-			lastIgnoredPressId = performanceBtn.pressId;
 		}
 		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
 		{
