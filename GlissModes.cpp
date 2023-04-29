@@ -1066,8 +1066,8 @@ public:
 			// compute how many unique frames on average per call to process.
 			// Use that as an increment to playback
 			rs[n].playbackInc = rs[n].r.size() / double(rs[n].recCounter);
-			printf("unique frames: %lu %lu, recCount: %lu average inc: %.5f\n\r",
-					1 + rs[n].lastFrameId - rs[n].firstFrameId, (uint32_t)rs[n].r.size(), rs[n].recCounter, rs[n].playbackInc);
+			// printf("unique frames: %lu %lu, recCount: %lu average inc: %.5f\n\r",
+			//		1 + rs[n].lastFrameId - rs[n].firstFrameId, (uint32_t)rs[n].r.size(), rs[n].recCounter, rs[n].playbackInc);
 			// set playhead at the end so we do not immediately start unless loop / triggering
 			rs[n].playHead = rs[n].r.size();
 //			assert((1 + lastFrameIds[n] - firstFrameIds[n]) == rs[n].size());
@@ -2133,16 +2133,36 @@ public:
 		gInUsesRange = true; // may be overridden below depending on mode
 
 		// handle button
-		if(performanceBtn.pressDuration == msToNumBlocks(context, 3000))
+		if(performanceBtn.pressDuration == msToNumBlocks(context, 3000) || performanceBtn.tripleClick)
 		{
 			emptyRecordings();
 			// clear possible side effects of previous press:
 			for(auto& qrec : qrecs)
+			{
 				qrec.armedFor = kArmedForNone;
-			lastResetPressId = performanceBtn.pressId;
+				qrec.recording = false;
+			}
+			lastIgnoredPressId = performanceBtn.pressId;
 		}
 		bool triggerNow = false;
-		if(performanceBtn.offset && performanceBtn.pressId != lastResetPressId)
+		if(performanceBtn.doubleClick) {
+			for(auto& qrec : qrecs)
+			{
+				if(kArmedForStart == qrec.armedFor || qrec.recording)
+				{
+					if(qrec.recording){
+						// probably just started recording because between
+						// the first click and the double click a new clock edge
+						// came in
+						printf("sync when %d\n\r", qrec.periodsInRecording);
+					}
+					qrec.armedFor = kArmedForStartSynced;
+					qrec.recording = false;
+				}
+			}
+			lastIgnoredPressId = performanceBtn.pressId;
+		}
+		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
 		{
 			switch(inputMode.get())
 			{
@@ -2170,8 +2190,8 @@ public:
 		bool analogEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 
-		bool qrecStartNow = false;
-		bool qrecStopNow = false;
+		std::array<bool,kNumSplits> qrecStartNow {false , false};
+		std::array<bool,kNumSplits> qrecStopNow {false, false};
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		if(analogEdge)
 		{
@@ -2182,25 +2202,68 @@ public:
 					break;
 				case kInputModeClock:
 				{
+					// first process periods
 					for(size_t n = 0; n < qrecs.size(); ++n)
 					{
 						auto& qrec = qrecs[n];
 						if(qrec.recording)
 							qrec.periodsInRecording++;
 						qrec.periodsInPlayback++;
+						if(qrec.periodsInPlayback >= periodsInTables[n])
+							qrecResetPhase[n] = true;
+					}
+					// now process armed, which may use the periods processed above
+					for(size_t n = 0; n < qrecs.size(); ++n)
+					{
+						auto& qrec = qrecs[n];
+						bool isSynced = false;
+						size_t ref;
+						if(isSplit())
+							ref = !n; // sync to the other split
+						else
+							ref = n; // sync to itself
+						if(kArmedForStartSynced == qrec.armedFor)
+						{
+							if(qrecResetPhase[ref]) {
+								qrec.armedFor = kArmedForStart;
+								isSynced = true;
+							}
+						}
 						switch(qrec.armedFor)
 						{
 						case kArmedForStart:
 							qrec.armedFor = kArmedForNone;
-							qrecStartNow = true;
+							qrec.isSynced = isSynced;
+							qrecStartNow[n] = true;
 							break;
 						case kArmedForStop:
-							qrec.armedFor = kArmedForNone;
-							qrecStopNow = true;
-							// NOBREAK
-						case kArmedForNone:
-							if(qrec.periodsInPlayback >= periodsInTables[n])
-								qrecResetPhase[n] = true;
+						{
+							bool thisShouldStop = true;
+							bool refShouldStop = false;
+							if(qrec.isSynced)
+							{
+								// only stop recording if on a multiple
+								if(0 == qrec.periodsInRecording % periodsInTables[ref])
+								{
+									if(isSplit()) // both stop
+										refShouldStop = true;
+								} else {
+									thisShouldStop = false;
+								}
+							}
+							if(thisShouldStop)
+							{
+								qrec.armedFor = kArmedForNone;
+								qrecStopNow[n] = true;
+							}
+							if(refShouldStop)
+							{
+								qrecs[ref].armedFor = kArmedForNone;
+								qrecStopNow[ref] = true;
+							}
+						}
+							break;
+						default:
 							break;
 						}
 					}
@@ -2223,12 +2286,12 @@ public:
 			for(size_t n = 0; n < kNumSplits; ++n)
 			{
 				auto& qrec = qrecs[n];
-				if(qrecStartNow)
+				if(qrecStartNow[n])
 				{
 					gGestureRecorder.startRecording(n + recordOffset);
 					qrec.recording = true;
 					qrec.periodsInRecording = 0;
-				} else if(qrecStopNow)
+				} else if(qrecStopNow[n])
 				{
 					qrec.recording = false;
 					gGestureRecorder.stopRecording(n + recordOffset, false);
@@ -2240,7 +2303,6 @@ public:
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
 					}
-					printf("periods: %u, activity: %d\n\r", qrec.periodsInRecording, gGestureRecorder.rs[n].activity);
 				}
 				// keep oscillators in phase with external clock pulses
 				if(qrecResetPhase[n]) {
@@ -2311,7 +2373,6 @@ public:
 		}
 
 
-		assert(qrecs[0].recording == qrecs[1].recording);
 		std::array<bool,kNumSplits> directControl = { false, false };
 		switch(inputMode)
 		{
@@ -2516,6 +2577,7 @@ private:
 	void emptyRecordings()
 	{
 		gGestureRecorder.empty();
+		periodsInTables.fill(1);
 	}
 	rgb_t colors[2] = {
 			{128, 128, 0},
@@ -2525,19 +2587,21 @@ private:
 		kArmedForNone,
 		kArmedForStart,
 		kArmedForStop,
+		kArmedForStartSynced,
 	};
 	struct QuantisedRecorder {
 		size_t periodsInRecording;
 		size_t periodsInPlayback;
 		ArmedFor armedFor;
 		bool recording;
+		bool isSynced;
 	};
 	std::array<QuantisedRecorder,kNumSplits> qrecs {};
 	static constexpr size_t kNumSplits = ::kNumSplits;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<size_t,kNumSplits> periodsInTables {1, 1};
 	std::array<bool,kNumSplits> hadTouch {};
-	size_t lastResetPressId = ButtonView::kPressIdInvalid;
+	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 
