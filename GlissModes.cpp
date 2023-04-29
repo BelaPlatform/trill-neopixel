@@ -1056,6 +1056,7 @@ public:
 			rs[n].r.startRecording();
 			rs[n].state = kRecJustStarted;
 			rs[n].activity = 0;
+			rs[n].frozen = false;
 		}
 	}
 	void stopRecording(size_t n, bool optimizeForLoop)
@@ -1078,7 +1079,7 @@ public:
 #endif
 		}
 	}
-	HalfGesture_t process(size_t n, float touch, const FrameId frameId, bool loop, bool retriggerNow)
+	HalfGesture_t process(size_t n, float touch, const FrameId frameId, bool loop, bool retriggerNow, ssize_t autoFreezeAt)
 	{
 		if(n >= kNumRecs)
 			return {0, false};
@@ -1098,14 +1099,20 @@ public:
 			rs[n].activity |= touch > 0;
 		} else {
 			if(retriggerNow)
-				rs[n].playHead = 0; // restart
+				resumePlaybackFrom(n, 0);
 			if(rs[n].r.size()) {
 				size_t idx = size_t(rs[n].playHead);
 				if(idx < rs[n].r.size()) {
 					if(rs[n].playHead >= rs[n].r.size() && loop)
 						rs[n].playHead -= rs[n].r.size(); // loop back keeping phase offset
 					out = {rs[n].r.getData()[idx], true};
-					rs[n].playHead += rs[n].playbackInc;
+					if(autoFreezeAt >= 0)
+					{
+						if(rs[n].playHead < autoFreezeAt && rs[n].playHead + rs[n].playbackInc >= autoFreezeAt)
+							freeze(n); // unfrozen on resumePlaybackFrom()
+					}
+					if(!rs[n].frozen)
+						rs[n].playHead += rs[n].playbackInc;
 				}
 				else
 					out = {0, false};
@@ -1114,6 +1121,17 @@ public:
 		}
 		rs[n].lastFrameId = frameId;
 		return rs[n].lastOut = out;
+	}
+	void freeze(size_t n)
+	{
+		rs[n].frozen = true;
+	}
+	void resumePlaybackFrom(size_t n, ssize_t from)
+	{
+		rs[n].frozen = false;
+		if(from < 0)
+			from = 0;
+		rs[n].playHead = from;
 	}
 	void empty()
 	{
@@ -1147,6 +1165,7 @@ public:
 			double playHead {};
 			double playbackInc {1};
 			bool activity {};
+			bool frozen {};
 		};
 		std::array<Rcr,kNumRecs> rs;
 		std::array<Rcr*,kNumRecs> ptrs;
@@ -2159,12 +2178,50 @@ public:
 				lastIgnoredPressId = performanceBtn.pressId;
 			}
 		}
+		if(performanceBtn.onset)
+		{
+			switch(autoRetrigger)
+			{
+			case 0:
+			{
+				for(size_t n = 0; n < kNumSplits; ++n)
+				{
+					// in envelope mode,
+					if(gGestureRecorder.isRecording(n)) {
+						// if a button is pressed while recording
+						// we use this intermediate point to act as
+						// a separator between attack and release when playing back
+						envelopeReleaseStarts[n] = gGestureRecorder.rs[n].r.size();
+						lastIgnoredPressId = performanceBtn.pressId;
+					} else {
+						// if not recording, on button press we
+						// start the attack section of the envelope
+						// NOTE: all other modes use the button offset
+						// instead to minimise interaction with menu entering.
+						// TODO: decide if this is really the best
+						triggerNow = true;
+						// we DO NOT ignore this press as we are interested
+						// in getting its offset, too for triggering the release phase
+					}
+				}
+			}
+			break;
+			}
+		}
+		std::array<bool,kNumSplits> releaseStarts {false, false};
 		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
 		{
 			switch(inputMode.get())
 			{
 			case kInputModeTrigger:
-				triggerNow = true;
+				if(!autoRetrigger)
+				{
+					for(size_t n = 0; n < kNumSplits; ++n)
+						if(envelopeReleaseStarts[n] >= 0)
+							releaseStarts[n] = true;
+				} else {
+					triggerNow = true;
+				}
 				break;
 			case kInputModeClock:
 				for(auto& qrec : qrecs)
@@ -2184,13 +2241,14 @@ public:
 		// detect edges on analog in
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
-		bool analogEdge = (analogInHigh && !pastAnalogInHigh);
+		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
+		bool analogFallingEdge = (!analogInHigh && pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 
 		std::array<bool,kNumSplits> qrecStartNow {false , false};
 		std::array<bool,kNumSplits> qrecStopNow {false, false};
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
-		if(analogEdge)
+		if(analogRisingEdge)
 		{
 			switch(inputMode.get())
 			{
@@ -2268,6 +2326,16 @@ public:
 				}
 			}
 		}
+		if(analogFallingEdge)
+		{
+			if(0 == autoRetrigger) {
+				for(size_t n = 0; n < kNumSplits; ++n)
+				{
+					if(envelopeReleaseStarts[n] >= 0)
+						releaseStarts[n] = true;
+				}
+			}
+		}
 
 		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<bool,kNumSplits> hasTouch;
@@ -2286,6 +2354,7 @@ public:
 				if(qrecStartNow[n])
 				{
 					gGestureRecorder.startRecording(n + recordOffset);
+					envelopeReleaseStarts[n] = -1;
 					qrec.recording = true;
 					qrec.periodsInRecording = 0;
 				} else if(qrecStopNow[n])
@@ -2325,6 +2394,7 @@ public:
 				{
 					if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
 						gGestureRecorder.startRecording(n);
+						envelopeReleaseStarts[n] = -1;
 					} else if(0 == hasTouch[n]) {
 						// going to 0 touches
 
@@ -2365,10 +2435,11 @@ public:
 				idx += recordOffset;
 			if(inputMode == kInputModeTrigger || gGestureRecorder.isRecording(idx))
 			{
-				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow);
+				if(releaseStarts[n])
+					gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
+				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, envelopeReleaseStarts[n]);
 			}
 		}
-
 
 		std::array<bool,kNumSplits> directControl = { false, false };
 		switch(inputMode)
@@ -2598,6 +2669,7 @@ private:
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<size_t,kNumSplits> periodsInTables {1, 1};
 	std::array<bool,kNumSplits> hadTouch {};
+	std::array<ssize_t,kNumSplits> envelopeReleaseStarts { -1, -1 };
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
