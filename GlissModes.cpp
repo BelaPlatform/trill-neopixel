@@ -1083,27 +1083,27 @@ public:
 	{
 		if(n >= kNumRecs)
 			return {0, false};
-		if(kRecJustStarted == rs[n].state)
-		{
-			rs[n].firstFrameId = frameId;
-			rs[n].state = kRec;
-			rs[n].recCounter = 0;
-		}
-		else if(kPlayJustStarted == rs[n].state)
-		{
-			if(loop)
-				rs[n].playHead = 0;
-			rs[n].state = kPlay;
-		}
 		HalfGesture_t out;
-		if(kRec == rs[n].state)
+		switch(rs[n].state)
 		{
+		case kRecJustStarted:
+			rs[n].firstFrameId = frameId;
+			rs[n].recCounter = 0;
+			rs[n].state = kRec;
+			// NOBREAK
+		case kRec:
 			rs[n].recCounter++;
 			if(frameId == rs[n].lastFrameId)
 				return rs[n].lastOut;
 			out = { rs[n].r.record(touch).sample, true };
 			rs[n].activity |= touch > 0;
-		} else {
+			break;
+		case kPlayJustStarted:
+			if(loop)
+				rs[n].playHead = 0;
+			rs[n].state = kPlay;
+			// NOBREAK
+		case kPlay:
 			if(retriggerNow)
 				resumePlaybackFrom(n, 0);
 			if(rs[n].r.size()) {
@@ -1124,6 +1124,7 @@ public:
 					out = {0, false};
 			} else
 				out = {0, false};
+			break;
 		}
 		rs[n].lastFrameId = frameId;
 		return rs[n].lastOut = out;
