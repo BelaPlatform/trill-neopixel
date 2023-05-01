@@ -1089,6 +1089,12 @@ public:
 			rs[n].state = kRec;
 			rs[n].recCounter = 0;
 		}
+		else if(kPlayJustStarted == rs[n].state)
+		{
+			if(loop)
+				rs[n].playHead = 0;
+			rs[n].state = kPlay;
+		}
 		HalfGesture_t out;
 		if(kRec == rs[n].state)
 		{
@@ -1103,8 +1109,6 @@ public:
 			if(rs[n].r.size()) {
 				size_t idx = size_t(rs[n].playHead);
 				if(idx < rs[n].r.size()) {
-					if(rs[n].playHead >= rs[n].r.size() && loop)
-						rs[n].playHead -= rs[n].r.size(); // loop back keeping phase offset
 					out = {rs[n].r.getData()[idx], true};
 					if(autoFreezeAt >= 0)
 					{
@@ -1113,6 +1117,8 @@ public:
 					}
 					if(!rs[n].frozen)
 						rs[n].playHead += rs[n].playbackInc;
+					if(rs[n].playHead >= rs[n].r.size() && loop)
+						rs[n].playHead -= rs[n].r.size(); // loop back keeping phase offset
 				}
 				else
 					out = {0, false};
