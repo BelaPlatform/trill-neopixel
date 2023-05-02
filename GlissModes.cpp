@@ -2216,6 +2216,11 @@ public:
 			break;
 			}
 		}
+		enum StopMode {
+			kStopNone = 0,
+			kStopNowOnEdge, // stopping now and we are on an edge
+		};
+		std::array<StopMode,kNumSplits> qrecStopNow {kStopNone, kStopNone};
 		std::array<bool,kNumSplits> releaseStarts {false, false};
 		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
 		{
@@ -2280,7 +2285,6 @@ public:
 		bool analogFallingEdge = (!analogInHigh && pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
-		std::array<bool,kNumSplits> qrecStopNow {false, false};
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		if(analogRisingEdge)
 		{
@@ -2328,8 +2332,8 @@ public:
 							break;
 						case kArmedForStop:
 						{
-							bool thisShouldStop = true;
-							bool refShouldStop = false;
+							bool thisShouldStop = kStopNowOnEdge;
+							bool refShouldStop = kStopNone;
 							if(qrec.isSynced)
 							{
 								// only stop recording if on a multiple
@@ -2344,12 +2348,12 @@ public:
 							if(thisShouldStop)
 							{
 								qrec.armedFor = kArmedForNone;
-								qrecStopNow[n] = true;
+								qrecStopNow[n] = kStopNowOnEdge;
 							}
 							if(refShouldStop)
 							{
 								qrecs[ref].armedFor = kArmedForNone;
-								qrecStopNow[ref] = true;
+								qrecStopNow[ref] = kStopNowOnEdge;
 							}
 						}
 							break;
@@ -2399,7 +2403,7 @@ public:
 					envelopeReleaseStarts[n] = -1;
 					qrec.recording = qrecStartNow[n];
 					qrec.periodsInRecording = 0;
-				} else if(qrecStopNow[n])
+				} else if(kStopNone != qrecStopNow[n])
 				{
 					bool valid = true;
 					if(kRecTentative == qrec.recording)
