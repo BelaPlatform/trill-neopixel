@@ -2159,7 +2159,7 @@ public:
 			for(auto& qrec : qrecs)
 			{
 				qrec.armedFor = kArmedForNone;
-				qrec.recording = false;
+				qrec.recording = kRecNone;
 			}
 			lastIgnoredPressId = performanceBtn.pressId;
 		}
@@ -2172,14 +2172,14 @@ public:
 				{
 					if(kArmedForStart == qrec.armedFor || qrec.recording)
 					{
-						if(qrec.recording){
+						if(kRecActual == qrec.recording){
 							// probably just started recording because between
 							// the first click and the double click a new clock edge
 							// came in
 							printf("sync when %d\n\r", qrec.periodsInRecording);
 						}
 						qrec.armedFor = kArmedForStartSynced;
-						qrec.recording = false;
+						qrec.recording = kRecNone;
 					}
 				}
 				lastIgnoredPressId = performanceBtn.pressId;
@@ -2233,26 +2233,34 @@ public:
 			case kInputModeClock:
 				for(auto& qrec : qrecs)
 				{
-					if(qrec.recording) {
-						// printf("%lu armedForStop\n\r", HAL_GetTick());
-						qrec.armedFor = kArmedForStop;
-					} else {
-						// printf("%lu armedForStart\n\r", HAL_GetTick());
+					switch(qrec.recording)
+					{
+					case kRecTentative:
+						// NOBREAK
+					case kRecNone:
 						qrec.armedFor = kArmedForStart;
+					break;
+					case kRecActual:
+						qrec.armedFor = kArmedForStop;
+					break;
 					}
 				}
 				break;
 			}
 		}
-		tri.buttonLedWrite(0, qrecs[0].armedFor || qrecs[0].recording || qrecs[1].armedFor || qrecs[1].recording);
+		tri.buttonLedWrite(0,
+				qrecs[0].armedFor
+				|| kRecActual == qrecs[0].recording
+				|| qrecs[1].armedFor
+				|| kRecActual == qrecs[1].recording
+				);
 		// detect edges on analog in
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		bool analogFallingEdge = (!analogInHigh && pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
-
-		std::array<bool,kNumSplits> qrecStartNow {false , false};
+		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 		std::array<bool,kNumSplits> qrecStopNow {false, false};
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		if(analogRisingEdge)
@@ -2268,7 +2276,7 @@ public:
 					for(size_t n = 0; n < qrecs.size(); ++n)
 					{
 						auto& qrec = qrecs[n];
-						if(qrec.recording)
+						if(kRecNone != qrec.recording)
 							qrec.periodsInRecording++;
 						qrec.periodsInPlayback++;
 						if(qrec.periodsInPlayback >= periodsInTables[n])
@@ -2296,7 +2304,7 @@ public:
 						case kArmedForStart:
 							qrec.armedFor = kArmedForNone;
 							qrec.isSynced = isSynced;
-							qrecStartNow[n] = true;
+							qrecStartNow[n] = kRecActual;
 							break;
 						case kArmedForStop:
 						{
@@ -2362,19 +2370,26 @@ public:
 				{
 					gGestureRecorder.startRecording(n + recordOffset);
 					envelopeReleaseStarts[n] = -1;
-					qrec.recording = true;
+					qrec.recording = qrecStartNow[n];
 					qrec.periodsInRecording = 0;
 				} else if(qrecStopNow[n])
 				{
-					qrec.recording = false;
+					bool valid = true;
+					if(isSplit())
+					{
+						// if non split, always keep the new one. If split, only keep if something was recorded onto it
+						if(!gGestureRecorder.rs[n + recordOffset].activity)
+							valid = false;
+					}
+					qrec.recording = kRecNone;
 					gGestureRecorder.stopRecording(n + recordOffset, false);
-					// if non split, always keep the new one. If split, only keep if something was recorded onto it
-					if(!isSplit() || gGestureRecorder.rs[n + recordOffset].activity)
+					if(valid)
 					{
 						gGestureRecorder.rs.swap(n, n + recordOffset);
 						periodsInTables[n] = qrec.periodsInRecording;
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
+						printf("got %u\n\r", periodsInTables[n]);
 					}
 				}
 				// keep oscillators in phase with external clock pulses
@@ -2458,7 +2473,7 @@ public:
 			for(size_t n = 0; n < currentSplits(); ++n)
 			{
 				// if actually doing something while recording, pass through current touch
-				if((qrecs[n].recording && gGestureRecorder.rs[n + recordOffset].activity))
+				if(kRecActual == qrecs[n].recording && gGestureRecorder.rs[n + recordOffset].activity)
 					directControl[n] = true;
 				// if a finger is on the sensor and we are not recording, pass through current touch
 				if(hasTouch[n])
@@ -2664,11 +2679,16 @@ private:
 		kArmedForStop,
 		kArmedForStartSynced,
 	};
+	enum RecordingMode {
+		kRecNone = 0,
+		kRecTentative,
+		kRecActual,
+	};
 	struct QuantisedRecorder {
 		size_t periodsInRecording;
 		size_t periodsInPlayback;
 		ArmedFor armedFor;
-		bool recording;
+		RecordingMode recording;
 		bool isSynced;
 	};
 	std::array<QuantisedRecorder,kNumSplits> qrecs {};
