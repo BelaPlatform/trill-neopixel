@@ -2148,6 +2148,7 @@ public:
 		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
+		uint64_t currentFrames = context->audioFramesElapsed;
 
 		// handle button
 		if(!(!autoRetrigger && kInputModeTrigger == inputMode) && // when in envelope mode, no reason to erase recordings. We use the button for other stuff here
@@ -2231,22 +2232,40 @@ public:
 				}
 				break;
 			case kInputModeClock:
+			{
+				// how late can a button press be to be considered as
+				// belonging to the previous edge
+				// this is clock-dependent with an upper limit
+				uint64_t maxDelay = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
+				bool closeEnough = currentFrames - lastAnalogRisingEdgeFrames < maxDelay;
 				for(auto& qrec : qrecs)
 				{
 					switch(qrec.recording)
 					{
 					case kRecTentative:
+						// a button press came in slightly late, but we let it
+						// pass through as if it had arrived on time,
+						// given how we are already tentatively recording
+						if(closeEnough)
+						{
+							printf("g\n\r");
+							qrec.recording = kRecActual;
+							break;
+						}
+						// otherwise arm for recording on next edge
+						qrec.recording = kRecNone;
 						// NOBREAK
 					case kRecNone:
 						qrec.armedFor = kArmedForStart;
-					break;
+						break;
 					case kRecActual:
 						qrec.armedFor = kArmedForStop;
-					break;
-					}
+						break;
+					} // switch qrec.recording
 				}
+			} // case kInputModeClock:
 				break;
-			}
+			} // switch inputMode
 		}
 		tri.buttonLedWrite(0,
 				qrecs[0].armedFor
@@ -2265,6 +2284,7 @@ public:
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		if(analogRisingEdge)
 		{
+			lastAnalogRisingEdgeFrames = currentFrames;
 			switch(inputMode.get())
 			{
 				case kInputModeTrigger:
@@ -2334,6 +2354,13 @@ public:
 						}
 							break;
 						default:
+							if(kRecNone == qrec.recording || kRecTentative == qrec.recording)
+							{
+								// start a tentative recording that will only be validated
+								// if a button press comes in in the next few milliseconds
+								qrecStartNow[n] = kRecTentative;
+								qrec.periodsInRecording = 0;
+							}
 							break;
 						}
 					}
@@ -2375,6 +2402,8 @@ public:
 				} else if(qrecStopNow[n])
 				{
 					bool valid = true;
+					if(kRecTentative == qrec.recording)
+						valid = false;
 					if(isSplit())
 					{
 						// if non split, always keep the new one. If split, only keep if something was recorded onto it
@@ -2389,7 +2418,7 @@ public:
 						periodsInTables[n] = qrec.periodsInRecording;
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
-						printf("got %u\n\r", periodsInTables[n]);
+//						printf("got %u\n\r", periodsInTables[n]);
 					}
 				}
 				// keep oscillators in phase with external clock pulses
@@ -2698,6 +2727,7 @@ private:
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<ssize_t,kNumSplits> envelopeReleaseStarts { -1, -1 };
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
+	uint64_t lastAnalogRisingEdgeFrames = 0;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 
