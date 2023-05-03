@@ -782,7 +782,7 @@ public:
 	virtual void startRecording()
 	{
 		active = true;
-		start = end = current = 0;
+		resize(0);
 		full = false;
 	}
 	ValidSample record(const sample_t& in)
@@ -805,6 +805,12 @@ public:
 			start = end;
 			increment(start);
 		}
+	}
+	void resize(size_t newEnd)
+	{
+		newEnd = std::min(newEnd, data.size());
+		current = end = newEnd;
+		full = (newEnd == data.size());
 	}
 #if 0
 	ValidSample play(bool loop)
