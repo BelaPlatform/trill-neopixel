@@ -2617,7 +2617,7 @@ public:
 				assert(periodsInTables[c] > 0);
 				if(!periodsInTables[c])
 					periodsInTables[c] = 1;
-				freq = context->analogSampleRate / gClockPeriod / periodsInTables[c];
+				freq = getOscillatorFreq(context, c);
 			}
 			float normFreq = freq / context->analogSampleRate;
 			for(size_t n = 0; n < context->analogFrames; ++n)
@@ -2690,6 +2690,10 @@ public:
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
+	float getOscillatorFreq(BelaContext* context, size_t c)
+	{
+		return context->analogSampleRate / gClockPeriod / periodsInTables[c];
+	}
 	bool isSize(size_t n)
 	{
 		switch(splitMode)
