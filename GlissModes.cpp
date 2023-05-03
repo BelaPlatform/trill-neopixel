@@ -1276,8 +1276,12 @@ public:
 	ParameterContinuous(ParameterUpdateCapable* that, float value = 0) : that(that), value(value) {}
 	void set(float newValue)
 	{
-		value = newValue;
+		setNoUpdate(newValue);
 		that->updated(*this);
+	}
+	void setNoUpdate(float newValue) // only call this if you really know what you are doing
+	{
+		value = newValue;
 	}
 	float get() const
 	{
@@ -3144,6 +3148,7 @@ public:
 			gOutMode.fill(kOutModeManualBlock);
 			changeState(kDisabled, {0, 0});
 		}
+		buttonState = kButtonNone;
 		// Force initialisation of offsets. Alternatively, always copy them in render()
 		for(auto& o : offsetParameters)
 			updated(o);
@@ -3171,6 +3176,14 @@ public:
 		if(ledSliders.isTouchEnabled())
 			gTouchTracker.process(globalSlider);
 		centroid_t centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
+		if(performanceBtn.doubleClick)
+		{
+			if(kButtonSampling == buttonState)
+				buttonState = kButtonNone;
+			else if(kButtonNone == buttonState)
+				buttonState = kButtonSampling;
+		}
+		bool newTouch = false;
 		if(!centroid.size)
 		{
 			// touch is removed
@@ -3180,7 +3193,10 @@ public:
 			// if it is a new touch, assign this touch to a key, store location as impact location,
 			// mark it as unmoved
 			if(kDisabled == touch.state)
+			{
 				changeState(kInitial, centroid); // note that this may fail and we go back to kDisabled
+				newTouch = true;
+			}
 		}
 		// if it is not a new touch and it has moved enough, mark it as moved
 		if(kInitial == touch.state)
@@ -3319,6 +3335,39 @@ public:
 		}
 		gManualAnOut[0] = out;
 		gManualAnOut[1] = centroid.size;
+		if(kButtonSampling == buttonState)
+		{
+			// override any output that may have happened so far.
+			// We leverage the state machine above even if it's
+			// more complicated than what we need here, as it's
+			// useful to get touch.key and the display below and
+			// keep consistency overall.
+
+			// this works as a little sample and hold
+			if(kKeyInvalid == touch.key)
+			{
+				// TODO: pass-through at audio rate unless key is pressed
+				gManualAnOut[0] = analogRead(context, 0, 0);
+				gManualAnOut[1] = 1;
+			} else {
+				if(newTouch)
+				{
+					// sample
+					float sum = 0;
+					for(size_t n = 0; n < context->analogFrames; ++n)
+						sum += analogRead(context, n, 0);
+					float mean = sum / context->analogFrames;
+					// we cannot simply call update() and update both,
+					// or we will trigger the override at the top of the function.
+					// So we have to set them individually.
+					offsetParameters[touch.key].setNoUpdate(mean);
+					offsets[touch.key] = mean;
+				}
+				// hold
+				gManualAnOut[0] = offsets[touch.key];
+				gManualAnOut[1] = centroid.size;
+			}
+		}
 		// display
 		for(size_t n = 0; n < kNumButtons; ++n)
 		{
@@ -3345,6 +3394,10 @@ private:
 			"kBending",
 			"kDisabled",
 	};
+	enum ButtonState {
+		kButtonNone,
+		kButtonSampling,
+	};
 	void changeState(TouchState newState, const centroid_t& centroid)
 	{
 		S(printf("%s, {%.2f} %.2f_", touchStateNames[newState], centroid.location, out));
@@ -3369,7 +3422,7 @@ private:
 			touch.bendHasLeftStartKeyDeadSpot = false;
 			break;
 		case kDisabled:
-			touch.key = -1;
+			touch.key = kKeyInvalid;
 			break;
 		case kNumStates:
 			break;
@@ -3428,6 +3481,7 @@ private:
 	static constexpr float b0 = float(0.9922070637080485);
 	static constexpr float b1 = float(-0.9922070637080485);
 	static constexpr float a1 = float(-0.9844141274160969);
+	static constexpr size_t kKeyInvalid = -1;
 	struct Touch {
 		TouchState state = kDisabled;
 		size_t key = 0;
@@ -3444,6 +3498,7 @@ private:
 		bool bendHasLeftStartKeyDeadSpot = false;
 	} touch;
 	std::array<centroid_t,kNumButtons> buttons;
+	ButtonState buttonState;
 	std::array<rgb_t,kNumButtons> colors = {{
 		{0, 255, 0},
 		{0, 200, 50},
