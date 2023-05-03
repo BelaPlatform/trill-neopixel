@@ -48,6 +48,7 @@ private:
 	unsigned int diInCh;
 	unsigned int anOutCh[nAnOut];
 	unsigned int diOutCh[nDigOut];
+	size_t debounceCounter {};
 	bool firstRun;
 #ifdef USE_SCOPE
 	float scopeData[kScopeChannels];

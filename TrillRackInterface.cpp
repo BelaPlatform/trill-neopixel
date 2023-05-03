@@ -20,6 +20,7 @@ int TrillRackInterface::setup(unsigned int anInCh, unsigned int anOutCh0, unsign
 	this->anOutCh[1] = anOutCh1;
 	this->diOutCh[0] = diOutCh0;
 	this->diOutCh[1] = diOutCh1;
+	debounceCounter = 0;
 	firstRun = true;
 	anIn = 0;
 	for(unsigned int c = 0; c < nDigOut; ++c)
@@ -124,8 +125,18 @@ void TrillRackInterface::process(BelaContext* context)
 			pinMode(context, 0, c, OUTPUT);
 		return; //true
 	}
-
-	diIn = ::digitalRead(context, 0, diInCh);
+	for(size_t n = 0; n < context->digitalFrames; ++n)
+	{
+		bool currentIn = ::digitalRead(context, 0, diInCh);
+		if(debounceCounter)
+		{
+			debounceCounter--;
+		} else {
+			if(currentIn != diIn)
+				debounceCounter = 0.01f * context->digitalSampleRate; // ms debounce
+			diIn = currentIn;
+		}
+	}
 	anIn = ::analogRead(context, 0, anInCh);
 	tr_render(context);
 	enum { kLedPwmPeriod = 512 };
