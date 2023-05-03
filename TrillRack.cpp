@@ -27,7 +27,7 @@ extern LedSliders ledSlidersAlt;
 extern ButtonView menuBtn;
 extern ButtonView performanceBtn;
 extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates);
-std::array<float,2> gManualAnOut;
+std::array<float,kNumOutChannels> gManualAnOut;
 
 #define STM32_NEOPIXEL
 

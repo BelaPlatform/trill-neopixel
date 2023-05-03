@@ -239,7 +239,7 @@ extern const unsigned int kNumLeds;
 extern std::vector<unsigned int> padsToOrderMap;
 extern NeoPixelT<kNumLeds> np;
 extern Trill trill;
-extern std::array<float,2> gManualAnOut;
+extern std::array<float,kNumOutChannels> gManualAnOut;
 
 std::array<Oscillator, 2> oscillators;
 const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{{0, 0, 255}, {0, 255, 0}}};
