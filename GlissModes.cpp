@@ -1160,6 +1160,14 @@ public:
 			return kRec == rs[n].state || kRecJustStarted == rs[n].state;
 		return false;
 	}
+	void trimTo(size_t n, size_t recCount, size_t recSize)
+	{
+		if(n < kNumRecs)
+		{
+			rs[n].recCounter = recCount;
+			rs[n].r.resize(recSize);
+		}
+	}
 	static constexpr size_t kNumRecs = 4;
 	enum State {
 		kPlay = 0,
@@ -2154,7 +2162,7 @@ public:
 		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
-		uint64_t currentFrames = context->audioFramesElapsed;
+		uint64_t currentSamples = context->audioFramesElapsed;
 
 		// handle button
 		if(!(!autoRetrigger && kInputModeTrigger == inputMode) && // when in envelope mode, no reason to erase recordings. We use the button for other stuff here
@@ -2225,8 +2233,10 @@ public:
 		enum StopMode {
 			kStopNone = 0,
 			kStopNowOnEdge, // stopping now and we are on an edge
+			kStopNowLate, // stopping now and the edge has passed
 		};
 		std::array<StopMode,kNumSplits> qrecStopNow {kStopNone, kStopNone};
+		std::array<uint32_t,kNumSplits> stopLateSamples {};
 		std::array<bool,kNumSplits> releaseStarts {false, false};
 		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
 		{
@@ -2247,10 +2257,14 @@ public:
 				// how late can a button press be to be considered as
 				// belonging to the previous edge
 				// this is clock-dependent with an upper limit
-				uint64_t maxDelay = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
-				bool closeEnough = currentFrames - lastAnalogRisingEdgeFrames < maxDelay;
-				for(auto& qrec : qrecs)
+				uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
+				uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
+				bool closeEnough = (lateSamples < maxDelaySamples);
+				for(size_t n = 0; n < kNumSplits; ++n)
 				{
+					auto& qrec = qrecs[n];
+					if(closeEnough && 0 == n)
+						printf("C %.3fs\n\r", lateSamples / context->analogSampleRate);
 					switch(qrec.recording)
 					{
 					case kRecTentative:
@@ -2259,7 +2273,6 @@ public:
 						// given how we are already tentatively recording
 						if(closeEnough)
 						{
-							printf("g\n\r");
 							qrec.recording = kRecActual;
 							break;
 						}
@@ -2270,7 +2283,14 @@ public:
 						qrec.armedFor = kArmedForStart;
 						break;
 					case kRecActual:
-						qrec.armedFor = kArmedForStop;
+						if(closeEnough && !qrec.isSynced)
+						{
+							qrecStopNow[n] = kStopNowLate;
+							stopLateSamples[n] = lateSamples;
+						} else {
+							// wait for next edge
+							qrec.armedFor = kArmedForStop;
+						}
 						break;
 					} // switch qrec.recording
 				}
@@ -2292,9 +2312,12 @@ public:
 		pastAnalogInHigh = analogInHigh;
 		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
+		size_t recordOffset = 0;
+		if(kInputModeClock == inputMode)
+			recordOffset += GestureRecorder::kNumRecs / 2;
 		if(analogRisingEdge)
 		{
-			lastAnalogRisingEdgeFrames = currentFrames;
+			lastAnalogRisingEdgeSamples = currentSamples;
 			switch(inputMode.get())
 			{
 				case kInputModeTrigger:
@@ -2302,10 +2325,10 @@ public:
 					break;
 				case kInputModeClock:
 				{
-					// first process periods
 					for(size_t n = 0; n < qrecs.size(); ++n)
 					{
 						auto& qrec = qrecs[n];
+						// process periods
 						if(kRecNone != qrec.recording)
 							qrec.periodsInRecording++;
 						qrec.periodsInPlayback++;
@@ -2322,6 +2345,7 @@ public:
 							ref = !n; // sync to the other split
 						else
 							ref = n; // sync to itself
+						// TODO: this if should be part of the switch below?
 						if(kArmedForStartSynced == qrec.armedFor)
 						{
 							if(qrecResetPhase[ref]) {
@@ -2373,6 +2397,11 @@ public:
 							}
 							break;
 						}
+						if(kRecActual == qrec.recording|| kRecTentative == qrec.recording)
+						{
+							qrec.recCounterAtLastEdge = gGestureRecorder.rs[n + recordOffset].recCounter;
+							qrec.recSizeAtLastEdge = gGestureRecorder.rs[n + recordOffset].r.size();
+						}
 					}
 					break;
 				}
@@ -2394,11 +2423,9 @@ public:
 		for(size_t n = 0; n < currentSplits(); ++n)
 			hasTouch[n] = touches[n].size > 0;
 
-		size_t recordOffset = 0;
 		// control start/stop recording
 		if(kInputModeClock == inputMode)
 		{
-			recordOffset += GestureRecorder::kNumRecs / 2;
 			// start/stop recording based on qrec and input edges
 			for(size_t n = 0; n < kNumSplits; ++n)
 			{
@@ -2409,8 +2436,16 @@ public:
 					envelopeReleaseStarts[n] = -1;
 					qrec.recording = qrecStartNow[n];
 					qrec.periodsInRecording = 0;
-				} else if(kStopNone != qrecStopNow[n])
+				}
+				float phaseOffset = 0;
+				if(kStopNowOnEdge == qrecStopNow[n] || kStopNowLate == qrecStopNow[n])
 				{
+					if(kStopNowLate == qrecStopNow[n])
+					{
+						// the edge has passed already. First we need to
+						// shorten the recording discarding the last few frames
+						gGestureRecorder.trimTo(n + recordOffset, qrec.recCounterAtLastEdge, qrec.recSizeAtLastEdge);
+					}
 					bool valid = true;
 					if(kRecTentative == qrec.recording)
 						valid = false;
@@ -2428,12 +2463,18 @@ public:
 						periodsInTables[n] = qrec.periodsInRecording;
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
-//						printf("got %u\n\r", periodsInTables[n]);
+						printf("%u periods\n\r", periodsInTables[n]);
+						if(kStopNowLate == qrecStopNow[n])
+						{
+							// adjust the phase to make up for the lost time
+							float normFreq = getOscillatorFreq(context, n) / context->analogSampleRate;
+							phaseOffset = stopLateSamples[n] * normFreq * 2.f * float(M_PI);
+						}
 					}
 				}
 				// keep oscillators in phase with external clock pulses
 				if(qrecResetPhase[n]) {
-					oscs[n].setPhase(-M_PI);
+					oscs[n].setPhase(-M_PI + phaseOffset);
 					qrec.periodsInPlayback = 0;
 				}
 			}
@@ -2730,6 +2771,8 @@ private:
 	struct QuantisedRecorder {
 		size_t periodsInRecording;
 		size_t periodsInPlayback;
+		size_t recCounterAtLastEdge;
+		size_t recSizeAtLastEdge;
 		ArmedFor armedFor;
 		RecordingMode recording;
 		bool isSynced;
@@ -2741,7 +2784,7 @@ private:
 	std::array<bool,kNumSplits> hadTouch {};
 	std::array<ssize_t,kNumSplits> envelopeReleaseStarts { -1, -1 };
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
-	uint64_t lastAnalogRisingEdgeFrames = 0;
+	uint64_t lastAnalogRisingEdgeSamples = 0;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 
