@@ -4550,7 +4550,11 @@ public:
 				.location = slider.compoundTouchLocation(),
 				.size = slider.compoundTouchSize(),
 			};
-			if(!hasDoneSetup)
+			// for some reason we are called with location and size = 0 at least once
+			// When we start.
+			// Work around that by checking for frame.size before starting
+			// TODO: figure out the root cause and fix it
+			if(!hasDoneSetup && frame.size)
 			{
 				// this can't be moved to constructor because
 				// we don't have the slider there.
