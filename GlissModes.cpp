@@ -3173,10 +3173,13 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData)
 	{
+		gInUsesRange = false;
+		gOutUsesRange[0] = false;
+		gOutUsesRange[1] = true;
 		if(pitchBeingAdjusted >= 0)
 		{
 			// if we are adjusting the pitch, output that instead
-			gManualAnOut[0] = offsets[pitchBeingAdjusted];
+			gManualAnOut[0] = getOutForKey(pitchBeingAdjusted);
 			gManualAnOut[1] = 1;
 			pitchBeingAdjustedCount++;
 			// hold it for a few blocks
@@ -3324,10 +3327,10 @@ public:
 		switch(touch.state)
 		{
 		case kInitial:
-			out = offsets[touch.key];
+			out = getOutForKey(touch.key);
 			break;
 		case kMoved:
-			out = offsets[touch.key] + touch.mod * modRange * 2.f;
+			out = getOutForKey(touch.key) + touch.mod * modRange * 4.f;
 			break;
 		case kBending:
 		{
@@ -3348,7 +3351,7 @@ public:
 					bendIdx = (centroid.location - touch.initialLocation) / (destLoc - touch.initialLocation);
 				else // in the dead spot
 					bendIdx = 1;
-				float destOut = offsets[bendDestKey];
+				float destOut = getOutForKey(bendDestKey);
 				bendRange = destOut - touch.initialOut;
 			}
 #if 0
@@ -3386,7 +3389,7 @@ public:
 			if(kKeyInvalid == touch.key)
 			{
 				// TODO: pass-through at audio rate unless key is pressed
-				gManualAnOut[0] = analogRead(context, 0, 0);
+				gManualAnOut[0] = quantise(analogRead(context, 0, 0));
 				gManualAnOut[1] = 1;
 			} else {
 				if(newTouch)
@@ -3403,7 +3406,7 @@ public:
 					offsets[touch.key] = mean;
 				}
 				// hold
-				gManualAnOut[0] = offsets[touch.key];
+				gManualAnOut[0] = getOutForKey(touch.key);
 				gManualAnOut[1] = centroid.size;
 			}
 		}
@@ -3444,6 +3447,19 @@ private:
 		kButtonNone,
 		kButtonSampling,
 	};
+	float getOutForKey(size_t key)
+	{
+		if(key >=  offsets.size())
+			return 0;
+		return quantise(offsets[key]);
+	}
+	float quantise(float in, bool force = false)
+	{
+		if(quantised || force)
+			return quantiseToSemitones(in);
+		else
+			return in;
+	}
 	void changeState(TouchState newState, const centroid_t& centroid)
 	{
 		S(printf("%s, {%.2f} %.2f_", touchStateNames[newState], centroid.location, out));
@@ -3618,6 +3634,7 @@ public:
 	}) presetFieldData;
 private:
 	float out = 0;
+	// do not retrieve offsets directly, use getOutForKey() instead
 	std::array<float,kNumButtons> offsets;
 	int pitchBeingAdjusted = -1;
 	unsigned int pitchBeingAdjustedCount = 0;
