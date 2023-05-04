@@ -3187,15 +3187,27 @@ public:
 		if(!centroid.size)
 		{
 			// touch is removed
-			if(kDisabled != touch.state)
+			if(kDisabled != touch.state && kHold != touch.state)
 				changeState(kDisabled, centroid);
 		} else {
 			// if it is a new touch, assign this touch to a key, store location as impact location,
 			// mark it as unmoved
-			if(kDisabled == touch.state)
+			if(kDisabled == touch.state || (kHold == touch.state && touch.holdHasReleased))
 			{
 				changeState(kInitial, centroid); // note that this may fail and we go back to kDisabled
 				newTouch = true;
+			}
+		}
+		if(performanceBtn.offset)
+		{
+			// if holding, release
+			if(kHold == touch.state)
+				changeState(kDisabled, centroid);
+			// if there is a press, hold
+			if(kDisabled != touch.state)
+			{
+				changeState(kHold, centroid);
+				touch.holdHasReleased = false;
 			}
 		}
 		// if it is not a new touch and it has moved enough, mark it as moved
@@ -3263,6 +3275,11 @@ public:
 				}
 			}
 		}
+		if(kHold == touch.state)
+		{
+			if(!centroid.size)
+				touch.holdHasReleased = true;
+		}
 		// mode-specific processing
 		switch(touch.state)
 		{
@@ -3280,6 +3297,8 @@ public:
 		}
 			break;
 		case kBending:
+			break;
+		case kHold:
 			break;
 		case kDisabled:
 		case kNumStates:
@@ -3329,12 +3348,17 @@ public:
 			out = touch.initialOut + bendIdx * bendRange;
 		}
 			break;
+		case kHold:
+			out = pastOuts[0];
+			centroid.size = pastOuts[1];
+			break;
 		case kDisabled:
 		case kNumStates:
 			break;
 		}
 		gManualAnOut[0] = out;
 		gManualAnOut[1] = centroid.size;
+		pastOuts = gManualAnOut;
 		if(kButtonSampling == buttonState)
 		{
 			// override any output that may have happened so far.
@@ -3385,6 +3409,7 @@ private:
 		kInitial,
 		kMoved,
 		kBending,
+		kHold,
 		kDisabled,
 		kNumStates,
 	} TouchState;
@@ -3420,6 +3445,9 @@ private:
 			touch.bendStartLocation = centroid.location;
 			touch.bendDeadTime = 0;
 			touch.bendHasLeftStartKeyDeadSpot = false;
+			break;
+		case kHold:
+			touch.holdHasReleased = false;
 			break;
 		case kDisabled:
 			touch.key = kKeyInvalid;
@@ -3496,9 +3524,11 @@ private:
 		size_t bendDeadTime = 0;
 		size_t bendDeadKey = -1;
 		bool bendHasLeftStartKeyDeadSpot = false;
+		bool holdHasReleased = false;
 	} touch;
 	std::array<centroid_t,kNumButtons> buttons;
 	ButtonState buttonState;
+	std::array<float,kNumOutChannels> pastOuts;
 	std::array<rgb_t,kNumButtons> colors = {{
 		{0, 255, 0},
 		{0, 200, 50},
