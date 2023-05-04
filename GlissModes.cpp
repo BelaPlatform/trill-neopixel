@@ -3400,6 +3400,12 @@ public:
 				//TODO: have setPixelColor obey "enabled"
 				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
 				float coeff = (n == touch.key) ? 1 : 0.1;
+				if(kButtonSampling == buttonState && n != touch.key)
+				{
+					// inactive keys while sampling have a triangle pattern
+					float period = 0.5f * context->analogSampleRate;
+					coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / kNumButtons), period);
+				}
 				np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
 			}
 		}
