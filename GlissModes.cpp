@@ -2110,6 +2110,21 @@ static inline float vToOut(float v)
 	return (v + 5.f) / 15.f;
 }
 
+static inline float normToSemi(float in)
+{
+	return in * 15.f * 12.f;
+}
+
+static inline float semiToNorm(float in)
+{
+	return in / 15.f / 12.f;
+}
+
+static inline float quantiseToSemitones(float norm)
+{
+	return semiToNorm(int(normToSemi(norm) + 0.5f));
+}
+
 static float interpolatedRead(const float* table, size_t size, float idx)
 {
 	float n = size * idx;
