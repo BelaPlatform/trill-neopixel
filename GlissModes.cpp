@@ -3563,7 +3563,6 @@ private:
 		bool bendHasLeftStartKeyDeadSpot = false;
 		bool holdHasReleased = false;
 	} touch;
-	std::array<centroid_t,kNumButtons> buttons;
 	ButtonState buttonState;
 	std::array<float,kNumOutChannels> pastOuts;
 	std::array<rgb_t,kNumButtons> colors = {{
