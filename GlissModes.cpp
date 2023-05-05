@@ -17,6 +17,19 @@ size_t msToNumBlocks(BelaContext* context, float ms)
 	return std::round(context->analogSampleRate * ms / 1000.f / context->analogFrames);
 }
 
+static ButtonView ButtonViewSimplify(const ButtonView& in)
+{
+	ButtonView btn = in;
+	if(btn.tripleClick)
+	{
+		btn.doubleClick = false;
+		btn.onset = false;
+	}
+	if(btn.doubleClick)
+		btn.onset = false;
+	return btn;
+}
+
 class TouchTracker
 {
 public:
@@ -3146,6 +3159,7 @@ private:
 	uint32_t lastClockPeriodUpdateCounter = gClockPeriodUpdateCounter;
 } gBalancedOscsMode;
 
+#define clickprintf(...) // use to enable debug printing in case of need
 class ExprButtonsMode : public PerformanceMode
 {
 public:
@@ -3175,6 +3189,7 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData)
 	{
+		ButtonView btn = ButtonViewSimplify(performanceBtn);
 		gInUsesRange = false;
 		gOutUsesRange[0] = false;
 		gOutUsesRange[1] = true;
@@ -3196,12 +3211,14 @@ public:
 		if(ledSliders.isTouchEnabled())
 			gTouchTracker.process(globalSlider);
 		centroid_t centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
-		if(performanceBtn.tripleClick)
+		if(btn.tripleClick)
 		{
-			if(kPageSampling == page)
+			clickprintf("t%d%d->", onClickGroupStartWas, page);
+			if(kPageSampling == page || kPageSampling == onClickGroupStartWas)
 				page = kPagePerf;
 			else
 				page = kPageSampling;
+			clickprintf("%d\n\r", page);
 		}
 		if(globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
 			seqMode = !seqMode;
@@ -3221,7 +3238,7 @@ public:
 				newTouch = true;
 			}
 		}
-		if(performanceBtn.offset && !seqMode)
+		if(btn.offset && !seqMode)
 		{
 			// if holding, release
 			if(kHold == touch.state)
@@ -3459,20 +3476,25 @@ public:
 #endif
 			}
 			// single click enters (or exits) set mode page
-			if(performanceBtn.onset)
+			if(btn.onset)
 			{
+				Page stash = page;
 				if(kPageSetMode == page)
 					page = kPagePerf;
 				else
 					page = kPageSetMode;
+				onClickGroupStartWas = stash;
+				clickprintf("s%d%d\n\r", onClickGroupStartWas, page);
 			}
 			// double click enters (or exits) set enable page
-			if(performanceBtn.doubleClick)
+			if(btn.doubleClick)
 			{
-				if(kPageSetEnable == page)
+				clickprintf("d%d%d->", onClickGroupStartWas, page);
+				if(kPageSetEnable == page || kPageSetEnable == onClickGroupStartWas)
 					page = kPagePerf;
 				else
 					page = kPageSetEnable;
+				clickprintf("%d\n\r", page);
 			}
 			if(kKeyInvalid != touch.key)
 			{
@@ -3743,6 +3765,9 @@ private:
 		kPageSampling,
 	};
 	Page page = kPagePerf;
+	// this is used in order to ignore effect of single and {single,double} click when
+	// processing a double or triple click, respectively.
+	Page onClickGroupStartWas = kPagePerf;
 	size_t seqCurrentStep = 0;
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
