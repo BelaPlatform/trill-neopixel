@@ -3165,7 +3165,7 @@ public:
 			gOutMode.fill(kOutModeManualBlock);
 			changeState(kDisabled, {0, 0});
 		}
-		buttonState = kButtonNone;
+		page = kPagePerf;
 		// Force initialisation of offsets. Alternatively, always copy them in render()
 		for(auto& o : offsetParameters)
 			updated(o);
@@ -3198,10 +3198,10 @@ public:
 		centroid_t centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
 		if(performanceBtn.tripleClick)
 		{
-			if(kButtonSampling == buttonState)
-				buttonState = kButtonNone;
-			else if(kButtonNone == buttonState)
-				buttonState = kButtonSampling;
+			if(kPageSampling == page)
+				page = kPagePerf;
+			else
+				page = kPageSampling;
 		}
 		if(globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
 			seqMode = !seqMode;
@@ -3382,7 +3382,7 @@ public:
 		gManualAnOut[0] = out;
 		gManualAnOut[1] = centroid.size;
 		pastOuts = gManualAnOut;
-		if(kButtonSampling == buttonState)
+		if(kPageSampling == page)
 		{
 			// override any output that may have happened so far.
 			// We leverage the state machine above even if it's
@@ -3419,7 +3419,7 @@ public:
 		bool analogInHigh = tri.analogRead() > 0.5;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
-		if(seqMode && kButtonSampling != buttonState)
+		if(seqMode && kPageSampling != page)
 		{
 			if(analogRisingEdge)
 			{
@@ -3496,6 +3496,8 @@ public:
 					if(newTouch)
 						stepsEnabled[touch.key] = !stepsEnabled[touch.key];
 					break;
+				case kPageSampling:
+					break;
 				}
 			}
 			vizKey = seqCurrentStep;
@@ -3543,7 +3545,7 @@ public:
 			{
 				float coeff = (n == vizKey) ? 1 : 0.1;
 				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
-				if(seqMode && kButtonSampling != buttonState)
+				if(seqMode && kPageSampling != page)
 				{
 					rgb_t color;
 					coeff *= stepsEnabled[n];
@@ -3576,11 +3578,13 @@ public:
 					case kPageSetEnable:
 						coeff *=  triangle > 0.7f;
 						break;
+					case kPageSampling: // shouldn't be here anyhow
+						break;
 					}
 					np.setPixelColor(pixel, color.r * coeff, color.g * coeff, color.b * coeff);
 				} else {
 					//TODO: have setPixelColor obey "enabled"
-					if(kButtonSampling == buttonState && n != vizKey)
+					if(kPageSampling == page && n != vizKey)
 					{
 						// inactive keys while sampling have a triangle pattern
 						float period = 0.5f * context->analogSampleRate;
@@ -3605,10 +3609,6 @@ private:
 			"kMoved",
 			"kBending",
 			"kDisabled",
-	};
-	enum ButtonState {
-		kButtonNone,
-		kButtonSampling,
 	};
 	float getOutForKey(size_t key)
 	{
@@ -3734,13 +3734,13 @@ private:
 	};
 	std::array<bool,kNumButtons> stepsEnabled = FILL_ARRAY(stepsEnabled, true);
 	std::array<StepMode,kNumButtons> stepsMode = FILL_ARRAY(stepsMode, kStepNormal);
-	ButtonState buttonState;
 	std::array<float,kNumOutChannels> pastOuts;
 	size_t pastNumTouches = 0;
 	enum Page {
 		kPagePerf,
 		kPageSetMode,
 		kPageSetEnable,
+		kPageSampling,
 	};
 	Page page = kPagePerf;
 	size_t seqCurrentStep = 0;
