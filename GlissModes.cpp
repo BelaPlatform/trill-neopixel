@@ -3160,6 +3160,8 @@ private:
 } gBalancedOscsMode;
 
 #define clickprintf(...) // use to enable debug printing in case of need
+static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter);
+
 class ExprButtonsMode : public PerformanceMode
 {
 public:
@@ -3403,9 +3405,17 @@ public:
 		{
 			// override any output that may have happened so far.
 			// We leverage the state machine above even if it's
-			// more complicated than what we need here, as it's
-			// useful to get touch.key and the display below and
-			// keep consistency overall.
+			// more complicated than / slightly different from
+			// what we need here
+			if(kBending == touch.state)
+			{
+				// if bending, we enter the slider menu that allows manually setting the pitch
+				if(!gAlt)
+				{
+					menu_enterSingleSlider(colors[touch.key], offsetParameters[touch.key]);
+					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
+				}
+			}
 
 			// this works as a little sample and hold
 			if(kKeyInvalid == touch.key)
@@ -3413,30 +3423,46 @@ public:
 				// TODO: pass-through at audio rate unless key is pressed
 				gManualAnOut[0] = quantise(analogRead(context, 0, 0));
 				gManualAnOut[1] = 1;
-			} else {
+			}
+			if(kInitial == touch.state)
+			{
 				if(newTouch)
 				{
 					// sample
 					float sum = 0;
 					for(size_t n = 0; n < context->analogFrames; ++n)
 						sum += analogRead(context, n, 0);
-					float mean = sum / context->analogFrames;
-					// we cannot simply call update() and update both,
-					// or we will trigger the override at the top of the function.
-					// So we have to set them individually.
-					offsetParameters[touch.key].setNoUpdate(mean);
-					offsets[touch.key] = mean;
+					sampled = sum / context->analogFrames;
+					sampledKey = touch.key;
+					// we postpone assigning to offsets so that if we get
+					// into bending to set the voltage via slider, we do not
+					// accidentally assign it the sampled input on press
 				}
 				// hold
-				gManualAnOut[0] = getOutForKey(touch.key);
+				gManualAnOut[0] = quantise(sampled);
 				gManualAnOut[1] = centroid.size;
 			}
+			if(kDisabled == touch.state && kInitial == samplingPastTouchState)
+			{
+				// upon release, we finally assign
+
+				// we cannot simply call update() and update both,
+				// or we will trigger the pitchBeingAdjusted override
+				// so we have to set each of them individually.
+				if(kKeyInvalid !=  sampledKey)
+				{
+					offsetParameters[sampledKey].setNoUpdate(sampled);
+					offsets[sampledKey] = sampled;
+				}
+			}
+			samplingPastTouchState = touch.state;
 		}
+
 		size_t vizKey;
 		bool analogInHigh = tri.analogRead() > 0.5;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
-		if(seqMode && kPageSampling != page)
+		if(seqMode)
 		{
 			if(analogRisingEdge)
 			{
@@ -3764,6 +3790,9 @@ private:
 		kPageSetEnable,
 		kPageSampling,
 	};
+	float sampled = 0;
+	size_t sampledKey = kKeyInvalid;
+	TouchState samplingPastTouchState = kDisabled;
 	Page page = kPagePerf;
 	// this is used in order to ignore effect of single and {single,double} click when
 	// processing a double or triple click, respectively.
@@ -4861,6 +4890,7 @@ public:
 	uint32_t initialTime = 0;
 	bool tracking = false;
 	bool hasDoneSetup = false;
+	bool hasHadTouch = false;
 };
 
 class MenuItemTypeQuantised : public MenuItemType {
@@ -5525,6 +5555,7 @@ static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor,
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
 
+#if 0
 static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
 static MenuItemTypeEnterContinuous exprButtonsModeOffset1("gExprButtonsModeOffset1", buttonColor, gExprButtonsMode.offsetParameters[1]);
 static MenuItemTypeEnterContinuous exprButtonsModeOffset2("gExprButtonsModeOffset2", buttonColor, gExprButtonsMode.offsetParameters[2]);
@@ -5543,9 +5574,10 @@ static MenuPage exprButtonsModeOffsets {
 };
 
 static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20, exprButtonsModeOffsets);
+#endif
 
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
-		&exprButtonsModeEnterOffsets,
+		&disabled,
 		&exprButtonsModeModRange,
 		&exprButtonsModeQuantised,
 };
@@ -5840,6 +5872,13 @@ static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool botto
 	gAlt = 1;
 	displayScaleMeterOutputModeMenuItem = MenuItemTypeDisplayScaleMeterOutputMode(color, bottomEnv, topEnv);
 	menu_in(displayScaleMeterOutputModeMenu);
+}
+
+static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter)
+{
+	gAlt = 1;
+	singleSliderMenuItem = MenuItemTypeSlider(color, &parameter);
+	menu_in(singleSliderMenu);
 }
 
 static std::vector<MenuPage*> menuStack;
