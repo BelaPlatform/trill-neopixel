@@ -3461,28 +3461,28 @@ public:
 			// single click enters (or exits) set mode page
 			if(performanceBtn.onset)
 			{
-				if(kSeqPageSetMode == seqPage)
-					seqPage = kSeqPagePerf;
+				if(kPageSetMode == page)
+					page = kPagePerf;
 				else
-					seqPage = kSeqPageSetMode;
+					page = kPageSetMode;
 			}
 			// double click enters (or exits) set enable page
 			if(performanceBtn.doubleClick)
 			{
-				if(kSeqPageSetEnable == seqPage)
-					seqPage = kSeqPagePerf;
+				if(kPageSetEnable == page)
+					page = kPagePerf;
 				else
-					seqPage = kSeqPageSetEnable;
+					page = kPageSetEnable;
 			}
 			if(kKeyInvalid != touch.key)
 			{
 				// if we have a touch
-				switch(seqPage)
+				switch(page)
 				{
-				case kSeqPagePerf:
+				case kPagePerf:
 					seqCurrentStep = touch.key; // reset to key
 					break;
-				case kSeqPageSetMode:
+				case kPageSetMode:
 					if(newTouch)
 					{
 						// each new key press cycles through step states
@@ -3492,7 +3492,7 @@ public:
 							mode = kStepNormal;
 					}
 					break;
-				case kSeqPageSetEnable:
+				case kPageSetEnable:
 					if(newTouch)
 						stepsEnabled[touch.key] = !stepsEnabled[touch.key];
 					break;
@@ -3565,15 +3565,15 @@ public:
 					// TODO: animating buttons while they are traversed by the sequencer
 					// gives a messy result. Try syncing it to the clock input, or use a
 					// different display strategy (e.g.: button?)
-					switch(seqPage)
+					switch(page)
 					{
-					case kSeqPagePerf:
+					case kPagePerf:
 						coeff *= 1.f;
 						break;
-					case kSeqPageSetMode:
+					case kPageSetMode:
 						coeff *=  0.1f + 0.9f * triangle;
 						break;
-					case kSeqPageSetEnable:
+					case kPageSetEnable:
 						coeff *=  triangle > 0.7f;
 						break;
 					}
@@ -3737,12 +3737,12 @@ private:
 	ButtonState buttonState;
 	std::array<float,kNumOutChannels> pastOuts;
 	size_t pastNumTouches = 0;
-	enum SeqPage {
-		kSeqPagePerf,
-		kSeqPageSetMode,
-		kSeqPageSetEnable,
+	enum Page {
+		kPagePerf,
+		kPageSetMode,
+		kPageSetEnable,
 	};
-	SeqPage seqPage = kSeqPagePerf;
+	Page page = kPagePerf;
 	size_t seqCurrentStep = 0;
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
