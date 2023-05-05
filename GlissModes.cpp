@@ -2812,6 +2812,8 @@ static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColo
 static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv);
 static void menu_up();
 
+#define FILL_ARRAY(name, value) [](){decltype(name) a; a.fill(value); return a;}();
+
 class ScaleMeterMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
@@ -3176,7 +3178,7 @@ public:
 		gInUsesRange = false;
 		gOutUsesRange[0] = false;
 		gOutUsesRange[1] = true;
-		if(pitchBeingAdjusted >= 0)
+		if(pitchBeingAdjusted >= 0 && !seqMode)
 		{
 			// if we are adjusting the pitch, output that instead
 			gManualAnOut[0] = getOutForKey(pitchBeingAdjusted);
@@ -3194,18 +3196,21 @@ public:
 		if(ledSliders.isTouchEnabled())
 			gTouchTracker.process(globalSlider);
 		centroid_t centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
-		if(performanceBtn.doubleClick)
+		if(performanceBtn.tripleClick)
 		{
 			if(kButtonSampling == buttonState)
 				buttonState = kButtonNone;
 			else if(kButtonNone == buttonState)
 				buttonState = kButtonSampling;
 		}
+		if(globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
+			seqMode = !seqMode;
+		pastNumTouches = globalSlider.getNumTouches();
 		bool newTouch = false;
 		if(!centroid.size)
 		{
 			// touch is removed
-			if(kDisabled != touch.state && kHold != touch.state)
+			if(kDisabled != touch.state && (kHold != touch.state || seqMode))
 				changeState(kDisabled, centroid);
 		} else {
 			// if it is a new touch, assign this touch to a key, store location as impact location,
@@ -3216,7 +3221,7 @@ public:
 				newTouch = true;
 			}
 		}
-		if(performanceBtn.offset)
+		if(performanceBtn.offset && !seqMode)
 		{
 			// if holding, release
 			if(kHold == touch.state)
@@ -3410,21 +3415,179 @@ public:
 				gManualAnOut[1] = centroid.size;
 			}
 		}
+		size_t vizKey;
+		bool analogInHigh = tri.analogRead() > 0.5;
+		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
+		pastAnalogInHigh = analogInHigh;
+		if(seqMode && kButtonSampling != buttonState)
+		{
+			if(analogRisingEdge)
+			{
+				size_t attempts = 0;
+				do
+				{
+					attempts++;
+					seqCurrentStep++;
+					if(seqCurrentStep >= kNumButtons)
+						seqCurrentStep = 0;
+				} while (!stepsEnabled[seqCurrentStep] && attempts < kNumButtons);
+#if 0 // print step state
+				for(size_t n = 0; n < kNumButtons; ++n)
+				{
+					char sym0 = stepsEnabled[n] ? '_' : 'X';
+					if(stepsEnabled[n] && seqCurrentStep == n)
+						sym0 = '*';
+					char sym1 = 'O';
+					switch(stepsMode[n])
+					{
+					case kStepNormal:
+						sym1 = 'N';
+						break;
+					case kStepMuted:
+						sym1 = 'M';
+						break;
+					case kStepHold:
+						sym1 = 'H';
+						break;
+					case kStepModesNum:
+						sym1 = 'o';
+						break;
+					}
+					printf("%c%c,", sym0, sym1);
+				}
+				printf("\n\r");
+#endif
+			}
+			// single click enters (or exits) set mode page
+			if(performanceBtn.onset)
+			{
+				if(kSeqPageSetMode == seqPage)
+					seqPage = kSeqPagePerf;
+				else
+					seqPage = kSeqPageSetMode;
+			}
+			// double click enters (or exits) set enable page
+			if(performanceBtn.doubleClick)
+			{
+				if(kSeqPageSetEnable == seqPage)
+					seqPage = kSeqPagePerf;
+				else
+					seqPage = kSeqPageSetEnable;
+			}
+			if(kKeyInvalid != touch.key)
+			{
+				// if we have a touch
+				switch(seqPage)
+				{
+				case kSeqPagePerf:
+					seqCurrentStep = touch.key; // reset to key
+					break;
+				case kSeqPageSetMode:
+					if(newTouch)
+					{
+						// each new key press cycles through step states
+						StepMode& mode = stepsMode[touch.key];
+						mode = StepMode(mode + 1);
+						if(kStepModesNum == mode)
+							mode = kStepNormal;
+					}
+					break;
+				case kSeqPageSetEnable:
+					if(newTouch)
+						stepsEnabled[touch.key] = !stepsEnabled[touch.key];
+					break;
+				}
+			}
+			vizKey = seqCurrentStep;
+			size_t outKey = kKeyInvalid;
+			switch(stepsMode[seqCurrentStep])
+			{
+			case kStepNormal:
+				outKey = seqCurrentStep;
+				break;
+			case kStepMuted:
+				outKey = kKeyInvalid;
+				break;
+			case kStepHold:
+			{
+				size_t step = seqCurrentStep;
+				// go back looking for the step to hold
+				do
+				{
+					if(0 == step)
+						step = kNumButtons;
+					step--;
+					if(kStepNormal == stepsMode[step])
+						break;
+				} while(step != seqCurrentStep);
+				if(step == seqCurrentStep) // no step to hold
+					outKey = kKeyInvalid;
+				else
+					outKey = step;
+			}
+			default:
+				break;
+			}
+			gManualAnOut[0] = getOutForKey(outKey);
+			size_t lowestEnabled = 0;
+			while(lowestEnabled < stepsEnabled.size() && !stepsEnabled[lowestEnabled])
+				lowestEnabled++;
+			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
+		} else {
+			vizKey = touch.key;
+		}
 		// display
 		for(size_t n = 0; n < kNumButtons; ++n)
 		{
 			if(!gAlt)
 			{
-				//TODO: have setPixelColor obey "enabled"
+				float coeff = (n == vizKey) ? 1 : 0.1;
 				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
-				float coeff = (n == touch.key) ? 1 : 0.1;
-				if(kButtonSampling == buttonState && n != touch.key)
+				if(seqMode && kButtonSampling != buttonState)
 				{
-					// inactive keys while sampling have a triangle pattern
-					float period = 0.5f * context->analogSampleRate;
-					coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / kNumButtons), period);
+					rgb_t color;
+					coeff *= stepsEnabled[n];
+					switch(stepsMode[n])
+					{
+					case kStepModesNum:
+					case kStepNormal:
+						color = {0, 0, 255};
+						break;
+					case kStepHold:
+						color = {180, 180, 0};
+						break;
+					case kStepMuted:
+						color = {200, 0 , 0};
+						break;
+					}
+					float period = 0.3f * context->analogSampleRate;
+					float triangle = simpleTriangle(context->audioFramesElapsed, period);
+					// TODO: animating buttons while they are traversed by the sequencer
+					// gives a messy result. Try syncing it to the clock input, or use a
+					// different display strategy (e.g.: button?)
+					switch(seqPage)
+					{
+					case kSeqPagePerf:
+						coeff *= 1.f;
+						break;
+					case kSeqPageSetMode:
+						coeff *=  0.1f + 0.9f * triangle;
+						break;
+					case kSeqPageSetEnable:
+						coeff *=  triangle > 0.7f;
+						break;
+					}
+					np.setPixelColor(pixel, color.r * coeff, color.g * coeff, color.b * coeff);
+				} else {
+					//TODO: have setPixelColor obey "enabled"
+					if(kButtonSampling == buttonState && n != vizKey)
+					{
+						// inactive keys while sampling have a triangle pattern
+						float period = 0.5f * context->analogSampleRate;
+						coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / kNumButtons), period);
+					}
+					np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
 				}
-				np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
 			}
 		}
 	}
@@ -3563,8 +3726,26 @@ private:
 		bool bendHasLeftStartKeyDeadSpot = false;
 		bool holdHasReleased = false;
 	} touch;
+	enum StepMode {
+		kStepNormal,
+		kStepHold,
+		kStepMuted,
+		kStepModesNum,
+	};
+	std::array<bool,kNumButtons> stepsEnabled = FILL_ARRAY(stepsEnabled, true);
+	std::array<StepMode,kNumButtons> stepsMode = FILL_ARRAY(stepsMode, kStepNormal);
 	ButtonState buttonState;
 	std::array<float,kNumOutChannels> pastOuts;
+	size_t pastNumTouches = 0;
+	enum SeqPage {
+		kSeqPagePerf,
+		kSeqPageSetMode,
+		kSeqPageSetEnable,
+	};
+	SeqPage seqPage = kSeqPagePerf;
+	size_t seqCurrentStep = 0;
+	bool seqMode = false;
+	bool pastAnalogInHigh = false;
 	std::array<rgb_t,kNumButtons> colors = {{
 		{0, 255, 0},
 		{0, 200, 50},
