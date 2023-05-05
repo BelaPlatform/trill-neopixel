@@ -4667,6 +4667,30 @@ protected:
 	rgb_t color;
 };
 
+class ButtonAnimationSmoothQuantised : public ButtonAnimation {
+public:
+	ButtonAnimationSmoothQuantised(rgb_t color) :
+		color(color) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		const unsigned int period = 1500;
+		float coeff = simpleTriangle(ms, period);
+		if(0 == value) // smooth
+		{
+			// nothing to do. Just smooth.
+		} else { // quantised
+			float steps = 4;
+			coeff = int(coeff * steps + 0.5f) / steps;
+		}
+		rgb_t c;
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	rgb_t color;
+};
+
 class MenuItemType
 {
 public:
@@ -5471,8 +5495,10 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 		&balancedOscModeWaveform,
 };
 
-static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised);
-static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange);
+static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColor};
+static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
+static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
+static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
 
 static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
 static MenuItemTypeEnterContinuous exprButtonsModeOffset1("gExprButtonsModeOffset1", buttonColor, gExprButtonsMode.offsetParameters[1]);
@@ -5762,8 +5788,8 @@ static constexpr rgb_t globalSettingsRangeOtherColor = {255, 0, 0};
 static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseNormalisedForIntegerVolts);
 static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseNormalisedForIntegerVolts);
 static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseNormalisedForIntegerVolts);
-static ButtonAnimationTriangle animationTriangle(globalSettingsColor, 3000);
-static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangle);
+static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
+static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
 static constexpr rgb_t jacksOnTopButtonColor {0, 0, 180};
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
