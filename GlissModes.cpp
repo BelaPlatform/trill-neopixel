@@ -1289,12 +1289,8 @@ public:
 	ParameterContinuous(ParameterUpdateCapable* that, float value = 0) : that(that), value(value) {}
 	void set(float newValue)
 	{
-		setNoUpdate(newValue);
-		that->updated(*this);
-	}
-	void setNoUpdate(float newValue) // only call this if you really know what you are doing
-	{
 		value = newValue;
+		that->updated(*this);
 	}
 	float get() const
 	{
@@ -3447,15 +3443,8 @@ public:
 			if(kDisabled == touch.state && kInitial == samplingPastTouchState)
 			{
 				// upon release, we finally assign
-
-				// we cannot simply call update() and update both,
-				// or we will trigger the pitchBeingAdjusted override
-				// so we have to set each of them individually.
 				if(kKeyInvalid !=  sampledKey)
-				{
-					offsetParameters[sampledKey].setNoUpdate(sampled);
-					offsets[sampledKey] = sampled;
-				}
+					offsetParameters[sampledKey].set(sampled);
 			}
 			samplingPastTouchState = touch.state;
 		}
