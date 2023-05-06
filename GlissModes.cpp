@@ -3195,17 +3195,17 @@ public:
 		gInUsesRange = false;
 		gOutUsesRange[0] = false;
 		gOutUsesRange[1] = true;
-		if(pitchBeingAdjusted >= 0 && !seqMode)
+		if(kKeyInvalid = keyBeingAdjusted && !seqMode)
 		{
 			// if we are adjusting the pitch, output that instead
-			gManualAnOut[0] = getOutForKey(pitchBeingAdjusted);
+			gManualAnOut[0] = getOutForKey(keyBeingAdjusted);
 			gManualAnOut[1] = 1;
-			pitchBeingAdjustedCount++;
+			keyBeingAdjustedCount++;
 			// hold it for a few blocks
-			if(pitchBeingAdjustedCount >= kPitchBeingAdjustedCountMax)
+			if(keyBeingAdjustedCount >= kPitchBeingAdjustedCountMax)
 			{
-				pitchBeingAdjustedCount = 0;
-				pitchBeingAdjusted = -1;
+				keyBeingAdjustedCount = 0;
+				keyBeingAdjusted = kKeyInvalid;
 			}
 			return;
 		}
@@ -3824,8 +3824,8 @@ public:
 				if(p.same(offsetParameters[n]))
 				{
 					offsets[n] = offsetParameters[n];
-					pitchBeingAdjusted = n;
-					pitchBeingAdjustedCount = 0;
+					keyBeingAdjusted = n;
+					keyBeingAdjustedCount = 0;
 					break;
 				}
 			}
@@ -3874,8 +3874,8 @@ private:
 	float out = 0;
 	// do not retrieve offsets directly, use getOutForKey() instead
 	std::array<float,kNumButtons> offsets;
-	int pitchBeingAdjusted = -1;
-	unsigned int pitchBeingAdjustedCount = 0;
+	int keyBeingAdjusted = -1;
+	unsigned int keyBeingAdjustedCount = 0;
 	static constexpr unsigned int kPitchBeingAdjustedCountMax = 10;
 } gExprButtonsMode;
 
