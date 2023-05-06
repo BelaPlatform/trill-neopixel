@@ -3354,7 +3354,7 @@ public:
 			out = getOutForKey(touch.key);
 			break;
 		case kMoved:
-			out = getOutForKey(touch.key) + touch.mod * modRange * 4.f;
+			out = getOutForKey(touch.key) + touch.mod * modRange * 1.f;
 			break;
 		case kBending:
 		{
