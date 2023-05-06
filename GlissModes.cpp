@@ -3209,10 +3209,14 @@ public:
 			}
 			return;
 		}
+		centroid_t centroid;
 		// normal processing
 		if(ledSliders.isTouchEnabled())
+		{
 			gTouchTracker.process(globalSlider);
-		centroid_t centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
+			centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
+		} else // ensure the touch tracker is updated. TODO: other modes should do the same?
+			centroid = centroid_t {0, 0};
 		if(btn.tripleClick)
 		{
 			clickprintf("t%d%d->", onClickGroupStartWas, page);
