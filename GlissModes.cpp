@@ -3217,6 +3217,8 @@ public:
 			centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
 		} else // ensure the touch tracker is updated. TODO: other modes should do the same?
 			centroid = centroid_t {0, 0};
+		if(btn.onset)
+			onClickGroupStartWas = page;
 		if(btn.tripleClick)
 		{
 			clickprintf("t%d%d->", onClickGroupStartWas, page);
@@ -3508,12 +3510,10 @@ public:
 			// single click enters (or exits) set mode page
 			if(btn.onset)
 			{
-				Page stash = page;
 				if(kPageSetMode == page)
 					page = kPagePerf;
 				else
 					page = kPageSetMode;
-				onClickGroupStartWas = stash;
 				clickprintf("s%d%d\n\r", onClickGroupStartWas, page);
 			}
 			// double click enters (or exits) set enable page
