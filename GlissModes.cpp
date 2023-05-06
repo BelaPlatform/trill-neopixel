@@ -3195,20 +3195,15 @@ public:
 		gInUsesRange = false;
 		gOutUsesRange[0] = false;
 		gOutUsesRange[1] = true;
-		if(kKeyInvalid = keyBeingAdjusted && !seqMode)
+		if(gAlt && kKeyInvalid != keyBeingAdjusted && !seqMode)
 		{
 			// if we are adjusting the pitch, output that instead
 			gManualAnOut[0] = getOutForKey(keyBeingAdjusted);
 			gManualAnOut[1] = 1;
-			keyBeingAdjustedCount++;
-			// hold it for a few blocks
-			if(keyBeingAdjustedCount >= kPitchBeingAdjustedCountMax)
-			{
-				keyBeingAdjustedCount = 0;
-				keyBeingAdjusted = kKeyInvalid;
-			}
 			return;
 		}
+		if(!gAlt)
+			keyBeingAdjusted = kKeyInvalid;
 		centroid_t centroid;
 		// normal processing
 		if(ledSliders.isTouchEnabled())
@@ -3418,6 +3413,7 @@ public:
 				// if bending, we enter the slider menu that allows manually setting the pitch
 				if(!gAlt)
 				{
+					keyBeingAdjusted = touch.key;
 					menu_enterSingleSlider(colors[touch.key], offsetParameters[touch.key]);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
 				}
@@ -3824,8 +3820,7 @@ public:
 				if(p.same(offsetParameters[n]))
 				{
 					offsets[n] = offsetParameters[n];
-					keyBeingAdjusted = n;
-					keyBeingAdjustedCount = 0;
+					keyBeingAdjusted = n; // probably unnecessary
 					break;
 				}
 			}
@@ -3874,9 +3869,7 @@ private:
 	float out = 0;
 	// do not retrieve offsets directly, use getOutForKey() instead
 	std::array<float,kNumButtons> offsets;
-	int keyBeingAdjusted = -1;
-	unsigned int keyBeingAdjustedCount = 0;
-	static constexpr unsigned int kPitchBeingAdjustedCountMax = 10;
+	size_t keyBeingAdjusted = kKeyInvalid;
 } gExprButtonsMode;
 
 
