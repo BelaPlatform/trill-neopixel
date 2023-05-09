@@ -9,7 +9,7 @@
 typedef LedSlider::centroid_t centroid_t;
 static constexpr size_t kNumSplits = 2;
 
-#define ENABLE_BALANCED_OSCS_MODE
+//#define ENABLE_BALANCED_OSCS_MODE
 constexpr size_t kNumModes = 5 // ...
 #ifdef ENABLE_BALANCED_OSCS_MODE
 		+ 1
