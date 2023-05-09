@@ -58,11 +58,6 @@ struct FrameData {
 	bool isNew;
 };
 //#define TEST_MODE
-#ifdef TEST_MODE
-constexpr size_t kNumModes = 7;
-#else // TEST_MODE
-constexpr size_t kNumModes = 6;
-#endif // TEST_MODE
 
 #include <Utilities.h>
 static inline float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)

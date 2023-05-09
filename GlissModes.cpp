@@ -9,6 +9,16 @@
 typedef LedSlider::centroid_t centroid_t;
 static constexpr size_t kNumSplits = 2;
 
+#define ENABLE_BALANCED_OSCS_MODE
+constexpr size_t kNumModes = 5 // ...
+#ifdef ENABLE_BALANCED_OSCS_MODE
+		+ 1
+#endif // ENABLE_BALANCED_OSCS_MODE
+#ifdef TEST_MODE
+		+ 1
+#endif // TEST_MODE
+		; // kNumModes
+
 #include <cmath>
 size_t msToNumBlocks(BelaContext* context, float ms)
 {
@@ -3022,6 +3032,7 @@ private:
 	float rms;
 } gScaleMeterMode;
 
+#ifdef ENABLE_BALANCED_OSCS_MODE
 class BalancedOscsMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
@@ -3154,6 +3165,7 @@ private:
 	float divisionPoint = 0.5;
 	uint32_t lastClockPeriodUpdateCounter = gClockPeriodUpdateCounter;
 } gBalancedOscsMode;
+#endif // ENABLE_BALANCED_OSCS_MODE
 
 #define clickprintf(...) // use to enable debug printing in case of need
 static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter);
@@ -4401,7 +4413,9 @@ static std::array<PerformanceMode*,kNumModes> performanceModes = {
 	&gDirectControlMode,
 	&gRecorderMode,
 	&gScaleMeterMode,
+#ifdef ENABLE_BALANCED_OSCS_MODE
 	&gBalancedOscsMode,
+#endif // ENABLE_BALANCED_OSCS_MODE
 	&gExprButtonsMode,
 	&gCalibrationMode,
 };
@@ -5525,6 +5539,7 @@ static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeOutputMode,
 };
 
+#ifdef ENABLE_BALANCED_OSCS_MODE
 static ButtonAnimationWaveform animationWaveform{buttonColor};
 static MenuItemTypeDiscrete balancedOscModeWaveform("balancedOscModeWaveform", buttonColor, &gBalancedOscsMode.waveform, &animationWaveform);
 static ButtonAnimationRecorderInputMode animationBalancedOscsInputMode{buttonColor};
@@ -5535,6 +5550,7 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 		&balancedOscModeInputModeAndFrequency,
 		&balancedOscModeWaveform,
 };
+#endif // ENABLE_BALANCED_OSCS_MODE
 
 static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColor};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
@@ -5581,7 +5597,9 @@ static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modes
 		&directControlModeMenu,
 		&recorderModeMenu,
 		&scaleMeterModeMenu,
+#ifdef ENABLE_BALANCED_OSCS_MODE
 		&balancedOscsModeMenu,
+#endif // ENABLE_BALANCED_OSCS_MODE
 		&exprButtonsModeMenu,
 		&emptyModeMenu, // calibration mode
 };
