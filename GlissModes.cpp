@@ -1563,13 +1563,28 @@ private:
 } gTestMode;
 #endif // TEST_MODE
 
+#define type_unref(A) std::remove_reference<decltype(A)>::type
+// unaligned target assign with type conversion
+#define UN_T_ASS(dst, src) { \
+	type_unref(dst) cpy; \
+	cpy = src; /* apply any conversion */ \
+	memcpy(&dst, &cpy, sizeof(dst)); \
+}
+
+// unaligned source assign
+#define UN_S_ASS(dst, src) { \
+	static_assert(std::is_same<type_unref(dst), type_unref(src)>::value); \
+	memcpy(&dst, &src, sizeof(dst)); \
+}
+
+#define DEFAULTER_PROCESS(A) UN_T_ASS(pfd->A, that->A)
 #define genericDefaulter2(CLASS,A,B) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	pfd->A = that->A; \
-	pfd->B = that->B; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
 }
 
 #define genericDefaulter3(CLASS,A,B,C) \
@@ -1577,9 +1592,9 @@ private:
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	pfd->A = that->A; \
-	pfd->B = that->B; \
-	pfd->C = that->C; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	DEFAULTER_PROCESS(C); \
 }
 
 #define genericDefaulter2PlusArray(CLASS,A,B,C) \
@@ -1587,10 +1602,10 @@ private:
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	pfd->A = that->A; \
-	pfd->B = that->B; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
 	for(size_t n = 0; n < that->C.size(); ++n) \
-		pfd->C[n] = that->C[n]; \
+		UN_T_ASS(pfd->C[n], that->C[n]); \
 }
 
 #define genericDefaulter7(CLASS,A,B,C,D,E,F,G) \
@@ -1598,13 +1613,13 @@ private:
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	pfd->A = that->A; \
-	pfd->B = that->B; \
-	pfd->C = that->C; \
-	pfd->D = that->D; \
-	pfd->E = that->E; \
-	pfd->F = that->F; \
-	pfd->G = that->G; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	DEFAULTER_PROCESS(C); \
+	DEFAULTER_PROCESS(D); \
+	DEFAULTER_PROCESS(E); \
+	DEFAULTER_PROCESS(F); \
+	DEFAULTER_PROCESS(G); \
 }
 
 #define genericDefaulter9(CLASS,A,B,C,D,E,F,G,H,I) \
@@ -1612,15 +1627,15 @@ private:
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	pfd->A = that->A; \
-	pfd->B = that->B; \
-	pfd->C = that->C; \
-	pfd->D = that->D; \
-	pfd->E = that->E; \
-	pfd->F = that->F; \
-	pfd->G = that->G; \
-	pfd->H = that->H; \
-	pfd->I = that->I; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	DEFAULTER_PROCESS(C); \
+	DEFAULTER_PROCESS(D); \
+	DEFAULTER_PROCESS(E); \
+	DEFAULTER_PROCESS(F); \
+	DEFAULTER_PROCESS(G); \
+	DEFAULTER_PROCESS(H); \
+	DEFAULTER_PROCESS(I); \
 }
 
 #define genericDefaulter12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
@@ -1628,45 +1643,52 @@ private:
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	pfd->A = that->A; \
-	pfd->B = that->B; \
-	pfd->C = that->C; \
-	pfd->D = that->D; \
-	pfd->E = that->E; \
-	pfd->F = that->F; \
-	pfd->G = that->G; \
-	pfd->H = that->H; \
-	pfd->I = that->I; \
-	pfd->J = that->J; \
-	pfd->K = that->K; \
-	pfd->L = that->L; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	DEFAULTER_PROCESS(C); \
+	DEFAULTER_PROCESS(D); \
+	DEFAULTER_PROCESS(E); \
+	DEFAULTER_PROCESS(F); \
+	DEFAULTER_PROCESS(G); \
+	DEFAULTER_PROCESS(H); \
+	DEFAULTER_PROCESS(I); \
+	DEFAULTER_PROCESS(J); \
+	DEFAULTER_PROCESS(K); \
+	DEFAULTER_PROCESS(L); \
+}
+
+#define LOADER_PROCESS(A) { \
+		type_unref(pfd->A) a; \
+		UN_S_ASS(a, pfd->A); \
+		that->A.set(a); \
+		that->presetFieldData.A = a; \
 }
 
 #define genericLoadCallback2(CLASS,A,B) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
-	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
 }
 
 #define genericLoadCallback3(CLASS,A,B,C) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
-	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
-	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	LOADER_PROCESS(C); \
 }
 
 #define genericLoadCallback2PlusArray(CLASS,A,B,C) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
-	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
 	for(size_t n = 0; n < that->C.size(); ++n) { \
-		that->C[n].set(pfd->C[n]); that->presetFieldData.C[n] = pfd->C[n]; \
+		LOADER_PROCESS(C[n]); \
 	} \
 }
 
@@ -1674,46 +1696,46 @@ private:
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
-	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
-	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
-	that->D.set(pfd->D); that->presetFieldData.D = pfd->D; \
-	that->E.set(pfd->E); that->presetFieldData.E = pfd->E; \
-	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
-	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	LOADER_PROCESS(C); \
+	LOADER_PROCESS(D); \
+	LOADER_PROCESS(E); \
+	LOADER_PROCESS(F); \
+	LOADER_PROCESS(G); \
 }
 
 #define genericLoadCallback9(CLASS,A,B,C,D,E,F,G,H,I) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
-	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
-	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
-	that->D.set(pfd->D); that->presetFieldData.D = pfd->D; \
-	that->E.set(pfd->E); that->presetFieldData.E = pfd->E; \
-	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
-	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
-	that->H.set(pfd->H); that->presetFieldData.H = pfd->H; \
-	that->I.set(pfd->I); that->presetFieldData.I = pfd->I; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	LOADER_PROCESS(C); \
+	LOADER_PROCESS(D); \
+	LOADER_PROCESS(E); \
+	LOADER_PROCESS(F); \
+	LOADER_PROCESS(G); \
+	LOADER_PROCESS(H); \
+	LOADER_PROCESS(I); \
 }
 
 #define genericLoadCallback12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
-	that->A.set(pfd->A); that->presetFieldData.A = pfd->A; \
-	that->B.set(pfd->B); that->presetFieldData.B = pfd->B; \
-	that->C.set(pfd->C); that->presetFieldData.C = pfd->C; \
-	that->D.set(pfd->D); that->presetFieldData.D = pfd->D; \
-	that->E.set(pfd->E); that->presetFieldData.E = pfd->E; \
-	that->F.set(pfd->F); that->presetFieldData.F = pfd->F; \
-	that->G.set(pfd->G); that->presetFieldData.G = pfd->G; \
-	that->H.set(pfd->H); that->presetFieldData.H = pfd->H; \
-	that->I.set(pfd->I); that->presetFieldData.I = pfd->I; \
-	that->J.set(pfd->J); that->presetFieldData.J = pfd->J; \
-	that->K.set(pfd->K); that->presetFieldData.K = pfd->K; \
-	that->L.set(pfd->L); that->presetFieldData.L = pfd->L; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	LOADER_PROCESS(C); \
+	LOADER_PROCESS(D); \
+	LOADER_PROCESS(E); \
+	LOADER_PROCESS(F); \
+	LOADER_PROCESS(G); \
+	LOADER_PROCESS(H); \
+	LOADER_PROCESS(I); \
+	LOADER_PROCESS(J); \
+	LOADER_PROCESS(K); \
+	LOADER_PROCESS(L); \
 }
 
 template <typename T>
@@ -3980,10 +4002,10 @@ void updatePreset() override
 {
 	UPDATE_PRESET_FIELD2(calibrationOut, calibrationIn);
 }
-struct PresetFieldData_t { // no "PACKED" because of misleading warning from gcc
-	CalibrationDataParameter calibrationOut;
-	CalibrationDataParameter calibrationIn;
-} presetFieldData;
+PACKED_STRUCT(PresetFieldData_t {
+	CalibrationData calibrationOut;
+	CalibrationData calibrationIn;
+}) presetFieldData;
 void setup()
 {
 	count = 0;
