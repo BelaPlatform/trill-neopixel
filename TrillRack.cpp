@@ -15,7 +15,6 @@ constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_setup(double);
 extern void performanceMode_render(BelaContext*, FrameData*);
-extern bool menu_setup(double);
 extern void menu_render(BelaContext*, FrameData*);
 extern bool menuShouldChangeMode();
 extern float getGnd();
@@ -639,23 +638,35 @@ void tr_render(BelaContext* context)
 	if(newFrame)
 		globalSlider.process(trill.rawData.data());
 	size_t numTouches = globalSlider.getNumTouches();
-	static bool preMenuActive = false;
+	static enum {
+		kMenuChangeDisabled = 0,
+		kMenuPre,
+		kMenuLocalSettings,
+		kMenuGlobalSettings,
+	} menuState = kMenuChangeDisabled;
 	if(btn.pressed)
 	{
-		const size_t kTouchesForMenu = 2;
+		const size_t kTouchesForLocalSettings = 2;
+		const size_t kTouchesForGlobalSettings = 3;
 		if(numTouches && !hadTouch) // we start touching
-			preMenuActive = true;
+			menuState = kMenuPre;
 		if(!numTouches) // we no longer touch
-			preMenuActive = false;
-		if(1 != gAlt && preMenuActive && numTouches >= kTouchesForMenu)
+			menuState = kMenuChangeDisabled;
+		if(1 != gAlt && kMenuPre == menuState && kTouchesForLocalSettings == numTouches)
 		{
-			//button is on + touches: enter alt mode
+			//button is on + kTouchesForModeMenu touches: enter alt mode
 			gAlt = 1;
 			menu_setup(0);
-			preMenuActive = false;
+			menuState = kMenuLocalSettings;
+		}
+		if(gAlt && kMenuLocalSettings == menuState && kTouchesForGlobalSettings == numTouches)
+		{
+			//menu is on + button is on + kTouchesForSettingsMenu touches: enter global settings
+			menu_setup(1);
+			menuState = kMenuGlobalSettings;
 		}
 	} else
-		preMenuActive = false; // shouldn't be needed, but, you know ...
+		menuState = kMenuChangeDisabled; // shouldn't be needed, but, you know ...
 	hadTouch = numTouches > 0;
 	bool menuActive = (1 == gAlt);
 
@@ -699,7 +710,7 @@ void tr_render(BelaContext* context)
 	oldAlt = gAlt;
 
 	// multiplexer part 2
-	bool performanceActive = (0 == gAlt) && !menuActive && !preMenuActive;
+	bool performanceActive = (0 == gAlt) && !menuActive && kMenuChangeDisabled == menuState;
 	performanceBtn = (performanceActive && !menuExitWaitingButtonRelease) ? btn : disBtn;
 	ledSliders.enableTouch(performanceActive && !menuExitWaitingTouchRelease);
 	ledSliders.enableLeds(performanceActive);

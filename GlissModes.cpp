@@ -5268,7 +5268,6 @@ public:
 	Type type;
 };
 
-int menu_setup(double);
 static void menu_in(MenuPage& menu);
 static MenuPage* activeMenu;
 
@@ -5760,7 +5759,6 @@ static void doOutRangeOverride(size_t c)
 	pastC = c;
 }
 
-static MenuItemTypeEnterSubmenu enterGlobalSettings("GlobalSettings", {120, 120, 0}, 20, globalSettingsMenu);
 class GlobalSettings : public ParameterUpdateCapable {
 public:
 	void updated(Parameter& p)
@@ -5994,7 +5992,7 @@ static void menu_update()
 			&singleSliderMenuItem,
 		};
 		mainMenu.items = {
-			&enterGlobalSettings,
+			&disabled, // mode-dependent
 			&disabled, // mode-dependent
 			&disabled, // mode-dependent
 			&disabled, // mode-dependent
@@ -6121,9 +6119,9 @@ int menu_dosetup(MenuPage& menu)
 	return true;
 }
 
-int menu_setup(double)
+int menu_setup(size_t page)
 {
-	return menu_dosetup(mainMenu);
+	return menu_dosetup(0 == page ? mainMenu : globalSettingsMenu);
 }
 
 void menu_render(BelaContext*, FrameData* frameData)

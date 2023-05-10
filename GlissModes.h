@@ -80,3 +80,5 @@ extern std::array<bool,2> gOutIsSize;
 
 #include <libraries/Trill/CentroidDetection.h>
 extern CentroidDetectionScaled globalSlider;
+
+extern int menu_setup(size_t page);
