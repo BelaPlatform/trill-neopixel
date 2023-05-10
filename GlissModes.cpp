@@ -3575,7 +3575,7 @@ public:
 #endif
 			}
 			// single click enters (or exits) set mode page
-			if(btn.onset)
+			if(btn.offset)
 			{
 				if(kPageSetMode == page)
 					page = kPagePerf;
