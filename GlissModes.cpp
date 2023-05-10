@@ -2872,6 +2872,7 @@ static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool botto
 static void menu_up();
 
 #define FILL_ARRAY(name, value) [](){decltype(name) a; a.fill(value); return a;}();
+static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx);
 
 class ScaleMeterMode : public PerformanceMode {
 public:
@@ -2979,7 +2980,7 @@ public:
 		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeMax, outRangeMin);
 		inDisplay = analogReadMapped(context, 0, 0);
 		// displays if in pure performance mode
-		centroid_t centroids[2];
+		std::array<centroid_t,kNumOutChannels> centroids;
 		// display actual output range
 		centroids[0].location = outDisplay;
 		centroids[0].size = kFixedCentroidSize;
@@ -2990,7 +2991,11 @@ public:
 			centroids[1].size = kFixedCentroidSize;
 			numCentroids++;
 		}
-		ledSliders.sliders[0].setLedsCentroids(centroids, numCentroids);
+		constexpr rgb_t gn = {0, 255, 0};
+		constexpr rgb_t rd = {255, 0, 0};
+		ledSliders.sliders[0].directBegin();
+		for(size_t n = 0; n < centroids.size(); ++n)
+			ledSliders.sliders[0].directWriteCentroid(centroids[n], crossfade(gn, rd, centroids[n].location));
 	}
 
 	void updated(Parameter& p)
