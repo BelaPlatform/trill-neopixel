@@ -3628,9 +3628,10 @@ public:
 			vizKey = touch.key;
 		}
 		// display
-		for(size_t n = 0; n < kNumButtons; ++n)
+		if(!gAlt)
 		{
-			if(!gAlt)
+			np.clear();
+			for(size_t n = 0; n < kNumButtons; ++n)
 			{
 				float coeff = (n == vizKey) ? 1 : 0.1;
 				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
