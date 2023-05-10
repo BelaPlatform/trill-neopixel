@@ -6202,10 +6202,7 @@ void menu_render(BelaContext*, FrameData* frameData)
 		return;
 	// process these regardless to ensure the display is updated
 	// (i.e.: if menuJustEntered, this will make sure the buttons are shown)
-	static uint32_t pastFrameId = 0;
-	if(pastFrameId != frameData->id)
-		ledSlidersAlt.process(trill.rawData.data());
-	pastFrameId = frameData->id;
+	ledSlidersAlt.process(trill.rawData.data()); // TODO: calling this only on frameData.isNew causes troubles when gJacksOnTop. Investigate why
 	// update touches
 	if(menuJustEntered)
 	{
