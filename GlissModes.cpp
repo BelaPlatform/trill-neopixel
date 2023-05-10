@@ -2929,7 +2929,7 @@ public:
 			float input = analogReadMapped(context, n, 0);
 			// let's trust compiler + branch predictor to do a good job here
 			float envIn;
-			if(kCouplingAc == coupling)
+			if(kCouplingAc == coupling || kCouplingAcRms == coupling)
 			{
 				//high pass
 				// [b, a] = butter(1, 10/44250, 'high')
@@ -2942,6 +2942,17 @@ public:
 				y1 = y;
 				// times 2 to compensate for abs()
 				envIn = abs(y) * 2.f;
+				if(kCouplingAcRms == coupling)
+				{
+					uint16_t newRmsVal = envIn * envIn * 65536.f;
+					uint16_t oldRmsVal = rmsBuffer[rmsIdx];
+					rmsAcc = rmsAcc + newRmsVal - oldRmsVal;
+					rmsBuffer[rmsIdx] = newRmsVal;
+					rmsIdx++;
+					if(rmsIdx >= rmsBuffer.size())
+						rmsIdx = 0;
+					envIn = rmsAcc / 65536.f / float(rmsBuffer.size()) * 100.f;
+				}
 			} else {
 				envIn = input;
 			}
@@ -2991,6 +3002,7 @@ public:
 			centroids[1].size = kFixedCentroidSize;
 			numCentroids++;
 		}
+//		ledSliders.sliders[0].setLedsCentroids(centroids, numCentroids);
 		constexpr rgb_t gn = {0, 255, 0};
 		constexpr rgb_t rd = {255, 0, 0};
 		ledSliders.sliders[0].directBegin();
@@ -3011,6 +3023,14 @@ public:
 			par = mapAndConstrain(par, 0, 1, 0.000005, 0.08);
 			decay = 1.f - par;
 		}
+		else if(p.same(coupling)) {
+			if(kCouplingAcRms == coupling)
+			{
+				rmsIdx = 0;
+				rmsBuffer.fill(0);
+				rmsAcc = 0;
+			}
+		}
 		else if(p.same(outRangeMax) || p.same(outRangeMin)) {
 		}
 		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
@@ -3023,6 +3043,7 @@ public:
 	enum {
 		kCouplingDc,
 		kCouplingAc,
+		kCouplingAcRms,
 		kCouplingNum,
 	};
 	enum {
@@ -3075,6 +3096,9 @@ private:
 	float env;
 	size_t count;
 	float rms;
+	std::array<uint16_t,512> rmsBuffer;
+	size_t rmsIdx = 0;
+	float rmsAcc = 0;
 } gScaleMeterMode;
 
 #ifdef ENABLE_BALANCED_OSCS_MODE
