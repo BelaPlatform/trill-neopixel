@@ -5603,7 +5603,7 @@ public:
 	void process(LedSlider& slider) override {}
 };
 
-constexpr size_t kMaxModeParameters = 3;
+constexpr size_t kMaxModeParameters = 4;
 static const rgb_t buttonColor {0, 255, 255};
 static const rgb_t buttonColorSimilar {0, 0, 255};
 static MenuItemTypeDisabled disabled;
@@ -5631,6 +5631,7 @@ static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", but
 static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
+		&disabled,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
@@ -5641,6 +5642,7 @@ static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", butto
 static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColors};
 static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
+		&disabled,
 		&recorderModeInputMode,
 		&recorderModeRetrigger,
 		&recorderModeSplit,
@@ -5652,6 +5654,7 @@ static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleM
 static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling, &animationSingleStillTriangle);
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColor, gScaleMeterMode.cutoff);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
+		&disabled,
 		&scaleMeterModeCutoff,
 		&scaleMeterModeCoupling,
 		&scaleMeterModeOutputMode,
@@ -5664,6 +5667,7 @@ static ButtonAnimationRecorderInputMode animationBalancedOscsInputMode{buttonCol
 static MenuItemTypeDiscreteContinuous balancedOscModeInputModeAndFrequency("balancedOscModeInputModeAndFrequency", buttonColor,
 		gBalancedOscsMode.inputMode, gBalancedOscsMode.centreFrequency, &animationBalancedOscsInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
+		&disabled,
 		&disabled,
 		&balancedOscModeInputModeAndFrequency,
 		&balancedOscModeWaveform,
@@ -5698,11 +5702,13 @@ static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20,
 
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&disabled,
+		&disabled,
 		&exprButtonsModeModRange,
 		&exprButtonsModeQuantised,
 };
 
 static std::array<MenuItemType*,kMaxModeParameters> emptyModeMenu = {
+		&disabled,
 		&disabled,
 		&disabled,
 		&disabled,
@@ -6042,13 +6048,13 @@ static void menu_update()
 		// TODO: when refactoring mode switching, maybe ensure the menu's content and visualisation
 		// gets updated directly when updating mode
 
-		if(mainMenu.items[1 + n] != (*menuItems)[n])
+		if(mainMenu.items[n] != (*menuItems)[n])
 		{
 			MenuItemType* newItem = (*menuItems)[n];
 			// validate all items before adding them
 			if(!newItem)
 				newItem = &disabled;
-			mainMenu.items[1 + n] = newItem;
+			mainMenu.items[n] = newItem;
 			hasChanged = true;
 		}
 	}
