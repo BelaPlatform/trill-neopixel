@@ -1974,13 +1974,21 @@ public:
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
-			if(ms <= 0)
+			if(ms < 0)
 			{
 				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-			}
-			if(ms < 0)
 				return true;
-			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+			}
+			rgb_t monoColors[2] = {
+					colors[0],
+					colors[0],
+			};
+			if(0 == ms)
+				ledSlidersSetupTwoSliders(guardPads, monoColors, LedSlider::MANUAL_CENTROIDS); // monochrome blink
+			bool ret = modeChangeBlinkSplit(ms, monoColors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+			if(ret)
+				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS); // finish off with proper colors
+			return ret;
 		} else {
 			if(ms <= 0)
 			{
@@ -2202,11 +2210,21 @@ public:
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
-			if(ms <= 0)
-				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
 			if(ms < 0)
+			{
+				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
 				return true;
-			return modeChangeBlinkSplit(ms, colors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+			}
+			rgb_t monoColors[2] = {
+					colors[0],
+					colors[0],
+			};
+			if(0 == ms)
+				ledSlidersSetupTwoSliders(guardPads, monoColors, LedSlider::MANUAL_CENTROIDS);
+			bool ret = modeChangeBlinkSplit(ms, monoColors, kNumLeds / 2 - guardPads, kNumLeds / 2);
+			if(ret)
+				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+			return ret;
 		}
 		else
 		{
