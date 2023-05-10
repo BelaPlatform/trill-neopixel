@@ -3146,7 +3146,7 @@ public:
 			.defaulter = genericDefaulter3(BalancedOscsMode, waveform, centreFrequency, inputMode),
 			.loadCallback = genericLoadCallback3(BalancedOscsMode, waveform, centreFrequency, inputMode),
 		};
-		presetDescSet(3, &presetDesc);
+		presetDescSet(6, &presetDesc);
 	}
 	typedef enum {
 		kInputModeTrig,
@@ -3850,7 +3850,7 @@ public:
 			.defaulter = genericDefaulter2PlusArray(ExprButtonsMode, quantised, modRange, offsetParameters),
 			.loadCallback = genericLoadCallback2PlusArray(ExprButtonsMode, quantised, modRange, offsetParameters),
 		};
-		presetDescSet(4, &presetDesc);
+		presetDescSet(3, &presetDesc);
 	}
 	ParameterEnumT<2> quantised {this, true};
 	ParameterContinuous modRange {this, 0.5};
@@ -3965,7 +3965,7 @@ CalibrationProcedure() :
 		.defaulter = genericDefaulter2(CalibrationProcedure, calibrationOut, calibrationIn),
 		.loadCallback = genericLoadCallback2(CalibrationProcedure, calibrationOut, calibrationIn),
 	};
-	presetDescSet(5, &presetDesc);
+	presetDescSet(4, &presetDesc);
 }
 void updated(Parameter& p)
 {
@@ -5768,7 +5768,7 @@ public:
 							inRangeMin, inRangeMax, inRangeEnum,
 								sizeScaleCoeff, jacksOnTop, newMode),
 		};
-		presetDescSet(6, &presetDesc);
+		presetDescSet(5, &presetDesc);
 	}
 	ParameterEnumT<kCvRangeNum,CvRange> outRangeTopEnum {this, kCvRangePositive10};
 	ParameterContinuous outRangeTopMin {this, 0.2};
