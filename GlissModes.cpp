@@ -3306,9 +3306,12 @@ public:
 			centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
 		} else // ensure the touch tracker is updated. TODO: other modes should do the same?
 			centroid = centroid_t {0, 0};
-		if(btn.onset)
+		if(btn.offset)
+		{
+			clickprintf("o%d%d\n\r", onClickGroupStartWas, page);
 			onClickGroupStartWas = page;
-		if(btn.tripleClick)
+		}
+		if(btn.tripleClickOffset)
 		{
 			clickprintf("t%d%d->", onClickGroupStartWas, page);
 			if(kPageSampling == page || kPageSampling == onClickGroupStartWas)
@@ -3614,7 +3617,7 @@ public:
 				clickprintf("s%d%d\n\r", onClickGroupStartWas, page);
 			}
 			// double click enters (or exits) set enable page
-			if(btn.doubleClick)
+			if(btn.doubleClickOffset)
 			{
 				clickprintf("d%d%d->", onClickGroupStartWas, page);
 				if(kPageSetEnable == page || kPageSetEnable == onClickGroupStartWas)
