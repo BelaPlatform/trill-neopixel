@@ -19,6 +19,19 @@ typedef struct {
 			return b;
 		}
 	}
+	// TODO: how do you refactor this and the above to share code?
+	uint8_t operator[](size_t n) const {
+		switch(n)
+		{
+		default:
+		case 0:
+			return r;
+		case 1:
+			return g;
+		case 2:
+			return b;
+		}
+	}
 	size_t size() const {
 		return 3;
 	}
