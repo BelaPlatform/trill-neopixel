@@ -642,12 +642,14 @@ void tr_render(BelaContext* context)
 		kMenuChangeDisabled = 0,
 		kMenuPre,
 		kMenuLocalSettings,
-		kMenuGlobalSettings,
+		kMenuGlobalSettings0,
+		kMenuGlobalSettings1,
 	} menuState = kMenuChangeDisabled;
 	if(btn.pressed)
 	{
 		const size_t kTouchesForLocalSettings = 2;
-		const size_t kTouchesForGlobalSettings = 3;
+		const size_t kTouchesForGlobalSettings0 = 3;
+		const size_t kTouchesForGlobalSettings1 = 4;
 		if(numTouches && !hadTouch) // we start touching
 			menuState = kMenuPre;
 		if(!numTouches) // we no longer touch
@@ -659,11 +661,15 @@ void tr_render(BelaContext* context)
 			menu_setup(0);
 			menuState = kMenuLocalSettings;
 		}
-		if(gAlt && kMenuLocalSettings == menuState && kTouchesForGlobalSettings == numTouches)
+		if(gAlt && kMenuLocalSettings == menuState && kTouchesForGlobalSettings0 == numTouches)
 		{
-			//menu is on + button is on + kTouchesForSettingsMenu touches: enter global settings
 			menu_setup(1);
-			menuState = kMenuGlobalSettings;
+			menuState = kMenuGlobalSettings0;
+		}
+		if(gAlt && kMenuGlobalSettings0 == menuState && kTouchesForGlobalSettings1 == numTouches)
+		{
+			menu_setup(2);
+			menuState = kMenuGlobalSettings1;
 		}
 	} else
 		menuState = kMenuChangeDisabled; // shouldn't be needed, but, you know ...

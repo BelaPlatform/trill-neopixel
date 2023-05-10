@@ -3300,7 +3300,7 @@ public:
 				page = kPageSampling;
 			clickprintf("%d\n\r", page);
 		}
-		if(globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
+		if(!gAlt && globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
 			seqMode = !seqMode;
 		pastNumTouches = globalSlider.getNumTouches();
 		bool newTouch = false;
@@ -5317,7 +5317,8 @@ private:
 };
 
 MenuPage mainMenu("main");
-MenuPage globalSettingsMenu("global settings");
+MenuPage globalSettingsMenu0("global settings 0");
+MenuPage globalSettingsMenu1("global settings 1");
 
 static MenuItemTypeSlider singleSliderMenuItem;
 // this is a submenu consisting of a continuous slider(no buttons). Before entering it,
@@ -6017,12 +6018,19 @@ static void menu_update()
 	if(!inited)
 	{
 		inited = true;
-		globalSettingsMenu.items = {
+		globalSettingsMenu0.items = {
 			&globalSettingsJacksOnTop,
 			&globalSettingsSizeScale,
 			&globalSettingsOutBottomRange,
 			&globalSettingsOutTopRange,
 			&globalSettingsInRange,
+		};
+		globalSettingsMenu1.items = {
+			&disabled,
+			&disabled,
+			&disabled,
+			&disabled,
+			&disabled,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,
@@ -6157,7 +6165,20 @@ int menu_dosetup(MenuPage& menu)
 
 int menu_setup(size_t page)
 {
-	return menu_dosetup(0 == page ? mainMenu : globalSettingsMenu);
+	MenuPage* menu;
+	switch(page){
+	default:
+	case 0:
+		menu = &mainMenu;
+		break;
+	case 1:
+		menu = &globalSettingsMenu0;
+		break;
+	case 2:
+		menu = &globalSettingsMenu1;
+		break;
+	}
+	return menu_dosetup(*menu);
 }
 
 void menu_render(BelaContext*, FrameData* frameData)
