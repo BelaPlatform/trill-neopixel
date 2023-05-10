@@ -135,6 +135,7 @@ public:
 	virtual uint8_t getPixelChannel(size_t n, size_t c) = 0;
 	virtual void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) = 0;
 	virtual void clear() = 0;
+	virtual void scaleBy(float gain) = 0;
 protected:
 	Stm32NeoPixel* snp = nullptr;
 };
@@ -177,6 +178,16 @@ public:
 	void clear() override
 	{
 		memset(buffer.data(), 0, buffer.size() * sizeof(buffer[0]));
+	}
+	void scaleBy(float gain) override
+	{
+		uint8_t maxVal = 0;
+		for(auto& b : buffer)
+			maxVal = std::max(maxVal, b);
+		float maxGain = 255.f / maxVal;
+		gain = std::min(maxGain, gain);
+		for(auto& b : buffer)
+			b = std::min(255.f, b * gain); // this clipping shouldn't be needed
 	}
 private:
 	std::array<uint8_t,kNumLeds * 3> buffer;
