@@ -754,7 +754,10 @@ void tr_render(BelaContext* context)
 	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
 	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.
 	if(tr_ledsUpdateRequested())
+	{
+		np.scaleBy(gBrightness);
 		np.show();
+	}
 //	tri.buttonLedWrite(gMtrClkTriggerLED);
 	
 	// write analog outputs

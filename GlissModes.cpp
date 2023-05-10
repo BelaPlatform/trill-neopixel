@@ -8,6 +8,7 @@
 #include "packed.h"
 typedef LedSlider::centroid_t centroid_t;
 static constexpr size_t kNumSplits = 2;
+float gBrightness = 1;
 
 //#define ENABLE_BALANCED_OSCS_MODE
 constexpr size_t kNumModes = 5 // ...
@@ -5847,6 +5848,10 @@ public:
 			setAllSizeScales(coeff);
 			doOverride(1, globalSlider.compoundTouchSize(), false, true);
 		}
+		else if(p.same(brightness)) {
+			str = "brightness";
+			gBrightness = brightness * 5.f;
+		}
 		else if(p.same(newMode)) {
 			str = "newMode";
 			requestNewMode(newMode);
@@ -5905,6 +5910,7 @@ public:
 	ParameterContinuous inRangeMax {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, false};
+	ParameterContinuous brightness {this, 0.2};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
 		float outRangeTopMin;
@@ -5978,6 +5984,7 @@ static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeSc
 static constexpr rgb_t jacksOnTopButtonColor {0, 0, 180};
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
+static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, gGlobalSettings.brightness);
 
 static bool menuJustEntered;
 
@@ -6030,7 +6037,7 @@ static void menu_update()
 			&disabled,
 			&disabled,
 			&disabled,
-			&disabled,
+			&globalSettingsBrightness,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,

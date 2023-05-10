@@ -67,6 +67,7 @@ static inline float mapAndConstrain(float x, float in_min, float in_max, float o
 	return value;
 }
 
+extern float gBrightness;
 extern bool gJacksOnTop;
 extern uint8_t gNewMode;
 extern struct Override {
