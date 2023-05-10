@@ -3008,7 +3008,14 @@ public:
 		constexpr rgb_t rd = {255, 0, 0};
 		ledSliders.sliders[0].directBegin();
 		for(size_t n = 0; n < centroids.size(); ++n)
-			ledSliders.sliders[0].directWriteCentroid(centroids[n], crossfade(gn, rd, centroids[n].location));
+		{
+			rgb_t color;
+			if(kCouplingDc == coupling)
+				color = signalColor;
+			else
+				color = crossfade(gn, rd, centroids[n].location);
+			ledSliders.sliders[0].directWriteCentroid(centroids[n], color);
+		}
 	}
 
 	void updated(Parameter& p)
