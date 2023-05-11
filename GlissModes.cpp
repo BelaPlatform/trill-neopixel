@@ -3252,6 +3252,7 @@ class ExprButtonsMode : public PerformanceMode
 public:
 	bool setup(double ms)
 	{
+		setNumButtons(kMaxNumButtons);
 		gOutIsSize = {false, true};
 		if(ms <= 0)
 		{
@@ -3824,12 +3825,12 @@ private:
 		}
 		return false;
 	}
-	static float getMidLocationFromKey(size_t key)
+	float getMidLocationFromKey(size_t key)
 	{
 		return key * step + step * 0.5f;
 	}
 
-	static ssize_t getKeyFromLocation(float location)
+	ssize_t getKeyFromLocation(float location)
 	{
 		size_t key;
 		// identify candidate key
@@ -3847,12 +3848,22 @@ private:
 			return -1;
 		return key;
 	}
-	static constexpr size_t kNumButtons = 5;
-	static constexpr float step = 1.f / kNumButtons;
-	static constexpr float kMaxDistanceFromCenter = step * 0.85f;
-	static constexpr float kMoveThreshold = step * 0.1f;
-	static constexpr float kBendStartThreshold = step * 0.4f; // could be same as kMaxDistanceFromCenter?
-	static constexpr float kBendDeadSpot = step * 0.2f;
+	static constexpr size_t kMaxNumButtons = 5;
+	void setNumButtons(size_t newNumButtons)
+	{
+		kNumButtons = std::min(newNumButtons, kMaxNumButtons);
+		step = 1.f / kNumButtons;
+		kMaxDistanceFromCenter = step * 0.85f;
+		kMoveThreshold = step * 0.1f;
+		kBendStartThreshold = step * 0.4f; // could be same as kMaxDistanceFromCenter?
+		kBendDeadSpot = step * 0.2f;
+	}
+	size_t kNumButtons;
+	float step;
+	float kMaxDistanceFromCenter;
+	float kMoveThreshold;
+	float kBendStartThreshold;
+	float kBendDeadSpot;
 	static constexpr size_t kBendDeadSpotMaxCount = 40;
 	static constexpr float b0 = float(0.9922070637080485);
 	static constexpr float b1 = float(-0.9922070637080485);
@@ -3881,8 +3892,8 @@ private:
 		kStepMuted,
 		kStepModesNum,
 	};
-	std::array<bool,kNumButtons> stepsEnabled = FILL_ARRAY(stepsEnabled, true);
-	std::array<StepMode,kNumButtons> stepsMode = FILL_ARRAY(stepsMode, kStepNormal);
+	std::array<bool,kMaxNumButtons> stepsEnabled = FILL_ARRAY(stepsEnabled, true);
+	std::array<StepMode,kMaxNumButtons> stepsMode = FILL_ARRAY(stepsMode, kStepNormal);
 	std::array<float,kNumOutChannels> pastOuts;
 	size_t pastNumTouches = 0;
 	enum Page {
@@ -3901,7 +3912,7 @@ private:
 	size_t seqCurrentStep = 0;
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
-	std::array<rgb_t,kNumButtons> colors = {{
+	std::array<rgb_t,kMaxNumButtons> colors = {{
 		{0, 255, 0},
 		{0, 200, 50},
 		{0, 150, 100},
@@ -3916,7 +3927,7 @@ public:
 		} else if(p.same(quantised)) {
 
 		} else {
-			for(size_t n = 0; n < kNumButtons; ++n)
+			for(size_t n = 0; n < kMaxNumButtons; ++n)
 			{
 				if(p.same(offsetParameters[n]))
 				{
@@ -3954,7 +3965,7 @@ public:
 	}
 	ParameterEnumT<2> quantised {this, true};
 	ParameterContinuous modRange {this, 0.5};
-	std::array<ParameterContinuous,kNumButtons> offsetParameters {
+	std::array<ParameterContinuous,kMaxNumButtons> offsetParameters {
 		ParameterContinuous(this, 0.5),
 		ParameterContinuous(this, 0.6),
 		ParameterContinuous(this, 0.7),
@@ -3963,13 +3974,13 @@ public:
 	};
 	PACKED_STRUCT(PresetFieldData_t {
 		float modRange;
-		std::array<float,kNumButtons> offsetParameters;
+		std::array<float,kMaxNumButtons> offsetParameters;
 		uint8_t quantised;
 	}) presetFieldData;
 private:
 	float out = 0;
 	// do not retrieve offsets directly, use getOutForKey() instead
-	std::array<float,kNumButtons> offsets;
+	std::array<float,kMaxNumButtons> offsets;
 	size_t keyBeingAdjusted = kKeyInvalid;
 	uint32_t frameId = -1;
 } gExprButtonsMode;
