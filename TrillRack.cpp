@@ -609,7 +609,9 @@ void tr_render(BelaContext* context)
 	static uint32_t lastLastOnsetTime = 0;
 	static ButtonView btn; // reflects reality
 	static bool wasPressed = !tri.digitalRead(0);
-	btn = {false, false, false, false, false, false, btn.pressId, btn.pressDuration};
+	static uint32_t doubleClickPressId = -1;
+	static uint32_t tripleClickPressId = -1;
+	btn = {false, false, false, false, false, false, false, false, btn.pressId, btn.pressDuration};
 	bool isPressed = !tri.digitalRead(0);
 	btn.enabled = true;
 	btn.offset = wasPressed && !isPressed;
@@ -621,11 +623,24 @@ void tr_render(BelaContext* context)
 			btn.pressId = 0;
 		btn.pressDuration = 0;
 		if(timeNow - lastLastOnsetTime < kTripleClickTime)
+		{
 			btn.tripleClick = true;
+			tripleClickPressId = btn.pressId;
+		}
 		else if(timeNow - lastOnsetTime < kDoubleClickTime)
+		{
 			btn.doubleClick = true;
+			doubleClickPressId = btn.pressId;
+		}
 		lastLastOnsetTime = lastOnsetTime;
 		lastOnsetTime = timeNow;
+	}
+	if(btn.offset)
+	{
+		 if(btn.pressId == tripleClickPressId)
+			 btn.tripleClickOffset = true;
+		 else if(btn.pressId == doubleClickPressId)
+			btn.doubleClickOffset = true;
 	}
 	btn.pressed = isPressed;
 	if(btn.pressed)

@@ -38,6 +38,13 @@ static ButtonView ButtonViewSimplify(const ButtonView& in)
 	}
 	if(btn.doubleClick)
 		btn.onset = false;
+	if(btn.tripleClickOffset)
+	{
+		btn.doubleClickOffset = false;
+		btn.offset = false;
+	}
+	if(btn.doubleClickOffset)
+		btn.offset = false;
 	return btn;
 }
 

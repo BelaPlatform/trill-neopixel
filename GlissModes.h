@@ -39,6 +39,8 @@ struct ButtonView {
 	bool enabled;
 	bool doubleClick;
 	bool tripleClick;
+	bool doubleClickOffset;
+	bool tripleClickOffset;
 	uint32_t pressId;
 	uint32_t pressDuration;
 	static constexpr uint32_t kPressIdInvalid = -1;
