@@ -3404,7 +3404,7 @@ public:
 				{
 					// if we are here long enough, start a new touch here
 					changeState(kInitial, centroid);
-					changeState(kMoved, centroid);
+					// TODO: should we get to kMoved already?
 				}
 			}
 		}
