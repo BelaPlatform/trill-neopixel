@@ -2992,7 +2992,7 @@ public:
 		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeMax, outRangeMin);
 		inDisplay = analogReadMapped(context, 0, 0);
 		// displays if in pure performance mode
-		std::array<centroid_t,kNumOutChannels> centroids;
+		std::array<centroid_t,kNumOutChannels> centroids {};
 		// display actual output range
 		centroids[0].location = outDisplay;
 		centroids[0].size = kFixedCentroidSize;
