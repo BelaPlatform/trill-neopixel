@@ -3512,7 +3512,7 @@ public:
 			}
 
 			// this works as a little sample and hold
-			if(kKeyInvalid == touch.key)
+			if(kDisabled == touch.state)
 			{
 				// TODO: pass-through at audio rate unless key is pressed
 				gManualAnOut[0] = quantise(analogRead(context, 0, 0));
@@ -3607,7 +3607,7 @@ public:
 					page = kPageSetEnable;
 				clickprintf("%d\n\r", page);
 			}
-			if(kKeyInvalid != touch.key)
+			if(kDisabled != touch.state)
 			{
 				// if we have a touch
 				switch(page)
@@ -3669,7 +3669,8 @@ public:
 				lowestEnabled++;
 			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
 		} else {
-			vizKey = touch.key;
+			// if not seqMode
+			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 		}
 		// display
 		if(!gAlt)
@@ -3789,7 +3790,6 @@ private:
 			touch.holdHasReleased = false;
 			break;
 		case kDisabled:
-			touch.key = kKeyInvalid;
 			break;
 		case kNumStates:
 			break;
