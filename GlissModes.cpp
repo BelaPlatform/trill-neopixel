@@ -3691,6 +3691,8 @@ public:
 			// if not seqMode
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 		}
+		// turn on yellow LED if we are performing and bending
+		tri.buttonLedWrite(0, kBending == touch.state && !seqMode && kPagePerf == page);
 		// display
 		if(!gAlt)
 		{
