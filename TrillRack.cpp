@@ -568,6 +568,7 @@ void tr_render(BelaContext* context)
 		return;
 	}
 #endif // STM32
+	np.clear(); // clear display before we start writing to it
 	processMidiMessage();
 	triggerInToClock(context);
 
