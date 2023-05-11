@@ -3488,6 +3488,14 @@ public:
 			centroid.size = pastOuts[1];
 			break;
 		case kDisabled:
+		{
+			// on release we may have a different out from the nominal pitch
+			// e.g.: if we released from kMoved or kBending
+			// here we smoothly get back to nominal pitch
+			float alpha = 0.95;
+			out = alpha * out + (1.f - alpha) * getOutForKey(touch.key);
+		}
+			break;
 		case kNumStates:
 			break;
 		}
