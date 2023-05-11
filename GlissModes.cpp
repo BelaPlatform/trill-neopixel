@@ -3289,6 +3289,7 @@ public:
 		}
 		if(!gAlt)
 			keyBeingAdjusted = kKeyInvalid;
+		frameId = frameData->id;
 		centroid_t centroid;
 		// normal processing
 		if(ledSliders.isTouchEnabled())
@@ -3338,8 +3339,12 @@ public:
 				touch.holdHasReleased = false;
 			}
 		}
+		// the first touch have a spurious location (it's an artifact of the sensor)
+		// therefore the touch is only kGood after at least one frame has passed
+		if(kInitial == touch.state && touch.initialFrameId != frameId)
+			changeState(kGood, centroid);
 		// if it is not a new touch and it has moved enough, mark it as moved
-		if(kInitial == touch.state)
+		if(kGood == touch.state)
 		{
 			if(fabsf(centroid.location - touch.initialLocation) > kMoveThreshold)
 				changeState(kMoved, centroid);
@@ -3412,6 +3417,7 @@ public:
 		switch(touch.state)
 		{
 		case kInitial:
+		case kGood:
 			break;
 		case kMoved:
 		{
@@ -3437,6 +3443,7 @@ public:
 		switch(touch.state)
 		{
 		case kInitial:
+		case kGood:
 			out = getOutForKey(touch.key);
 			break;
 		case kMoved:
@@ -3529,7 +3536,7 @@ public:
 				gManualAnOut[0] = quantise(sampled);
 				gManualAnOut[1] = centroid.size;
 			}
-			if(kDisabled == touch.state && kInitial == samplingPastTouchState)
+			if(kDisabled == touch.state && kGood == samplingPastTouchState)
 			{
 				// upon release, we finally assign
 				if(kKeyInvalid !=  sampledKey)
@@ -3725,6 +3732,7 @@ public:
 private:
 	typedef enum {
 		kInitial,
+		kGood,
 		kMoved,
 		kBending,
 		kHold,
@@ -3733,8 +3741,10 @@ private:
 	} TouchState;
 	const std::array<const char*,kNumStates> touchStateNames {
 			"kInitial",
+			"kGood",
 			"kMoved",
 			"kBending",
+			"kHold",
 			"kDisabled",
 	};
 	float getOutForKey(size_t key)
@@ -3765,6 +3775,8 @@ private:
 				changeState(kDisabled, centroid);
 		}
 			break;
+		case kGood:
+			break;
 		case kMoved:
 			touch.filt = {0};
 			break;
@@ -3786,6 +3798,7 @@ private:
 		touch.state = newState;
 		touch.initialLocation = centroid.location;
 		touch.initialOut = out;
+		touch.initialFrameId = frameId;
 	}
 	bool shouldBend(const centroid_t& centroid)
 	{
@@ -3842,6 +3855,7 @@ private:
 		size_t key = 0;
 		float initialLocation = 0;
 		float initialOut = 0;
+		uint32_t initialFrameId;
 		float bendStartLocation = 0;
 		float mod = 0;
 		struct {
@@ -3949,6 +3963,7 @@ private:
 	// do not retrieve offsets directly, use getOutForKey() instead
 	std::array<float,kNumButtons> offsets;
 	size_t keyBeingAdjusted = kKeyInvalid;
+	uint32_t frameId = -1;
 } gExprButtonsMode;
 
 
