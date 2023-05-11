@@ -3252,7 +3252,7 @@ class ExprButtonsMode : public PerformanceMode
 public:
 	bool setup(double ms)
 	{
-		setNumButtons(kMaxNumButtons);
+		updateNumButtons();
 		gOutIsSize = {false, true};
 		if(ms <= 0)
 		{
@@ -3849,9 +3849,9 @@ private:
 		return key;
 	}
 	static constexpr size_t kMaxNumButtons = 5;
-	void setNumButtons(size_t newNumButtons)
+	void updateNumButtons()
 	{
-		kNumButtons = std::min(newNumButtons, kMaxNumButtons);
+		kNumButtons = std::min(kMaxNumButtons - numButtonsParameter, static_cast<size_t>(kMaxNumButtons));
 		step = 1.f / kNumButtons;
 		kMaxDistanceFromCenter = step * 0.85f;
 		kMoveThreshold = step * 0.1f;
@@ -3926,6 +3926,8 @@ public:
 
 		} else if(p.same(quantised)) {
 
+		} else if (p.same(numButtonsParameter)) {
+			updateNumButtons();
 		} else {
 			for(size_t n = 0; n < kMaxNumButtons; ++n)
 			{
@@ -3972,6 +3974,7 @@ public:
 		ParameterContinuous(this, 0.8),
 		ParameterContinuous(this, 0.9),
 	};
+	ParameterEnumT<4> numButtonsParameter {this, 0};
 	PACKED_STRUCT(PresetFieldData_t {
 		float modRange;
 		std::array<float,kMaxNumButtons> offsetParameters;
@@ -4680,6 +4683,44 @@ public:
 protected:
 	rgb_t color;
 	uint32_t period;
+};
+
+class ButtonAnimationCounter : public ButtonAnimation {
+public:
+	ButtonAnimationCounter(AnimationColors& colors, uint32_t sshort, uint32_t llong) :
+		colors(colors), sshort(sshort), llong(llong), counter(0), lastTime(0) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		rgb_t color = colors[getIdx(value)];
+		size_t blinks = 5 - value;
+		uint32_t time = HAL_GetTick();
+		uint32_t period;
+		float coeff = 0;
+		if(counter < blinks)
+		{
+			period = sshort;
+			if(time - lastTime < period / 3)
+				coeff = 1;
+		}
+		else
+			period = llong;
+		if(time - lastTime > period)
+		{
+			counter++;
+			if(counter > blinks)
+				counter = 0;
+			lastTime = time;
+		}
+		for(size_t n = 0; n < color.size(); ++n)
+			color[n] *= coeff;
+		ledSlider.setColor(color);
+	};
+protected:
+	AnimationColors& colors;
+	uint32_t sshort;
+	uint32_t llong;
+	ssize_t offset;
+	size_t counter;
+	uint32_t lastTime;
 };
 
 class ButtonAnimationSolid: public ButtonAnimation {
@@ -5719,8 +5760,10 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 
 static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
+static ButtonAnimationCounter animationCounterNumButtons {buttonColors, 300, 800};
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
+static MenuItemTypeDiscrete exprButtonsModeNumButtons("gExprButtonsNumButtons", buttonColor, &gExprButtonsMode.numButtonsParameter, &animationCounterNumButtons);
 
 #if 0
 static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
@@ -5745,7 +5788,7 @@ static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20,
 
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&disabled,
-		&disabled,
+		&exprButtonsModeNumButtons,
 		&exprButtonsModeModRange,
 		&exprButtonsModeQuantised,
 };
