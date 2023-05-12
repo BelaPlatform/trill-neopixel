@@ -11,6 +11,7 @@
 extern "C" {
 int tr_setup();
 void tr_mainLoop();
+void tr_clearLeds();
 void tr_render(BelaContext* context);
 void tr_newData(const uint8_t* newData, size_t len);
 void tr_process(BelaContext* ptr);

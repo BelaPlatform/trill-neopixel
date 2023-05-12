@@ -344,6 +344,15 @@ void tr_mainLoop()
 #endif // TEST_MODE
 }
 
+void tr_clearLeds()
+{
+#ifdef STM32_NEOPIXEL
+	np.setSnp(&snp);
+#endif // STM32_NEOPIXEL
+	np.clear();
+	np.show();
+}
+
 static int gShouldScan = 1;
 
 void tr_requestScan(int val)
