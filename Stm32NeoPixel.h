@@ -131,7 +131,7 @@ public:
 		this->snp = snp;
 	}
 	virtual size_t getNumPixels() = 0;
-	virtual void show() = 0;
+	virtual int show() = 0;
 	virtual uint8_t getPixelChannel(size_t n, size_t c) = 0;
 	virtual void setPixelColor(size_t n, uint8_t r, uint8_t g, uint8_t b) = 0;
 	virtual void clear() = 0;
@@ -153,10 +153,12 @@ public:
 			for(size_t c = 0; c < kNumBytesPerPixel; ++c)
 				std::swap(buffer[kNumBytesPerPixel * n + c], buffer[kNumBytesPerPixel * ( kNumLeds - n - 1) + c]);
 	}
-	void show() override
+	int show() override
 	{
 		if(snp)
-			snp->send(buffer.data(), buffer.size());
+			return snp->send(buffer.data(), buffer.size());
+		else
+			return -1;
 	}
 	uint8_t getPixelChannel(size_t n, size_t c) override
 	{
