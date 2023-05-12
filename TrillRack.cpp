@@ -146,6 +146,10 @@ static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
 	// program change channel 1, program 2, (i.e.: 0x0 and 0x1 respectively)
 	if(0x0c == msg[0] && 0xc0 == msg[1] && 0x01 == msg[2])
 	{
+		np.clear();
+		np.setPixelColor(kNumLeds - 1, 0, 255, 0);
+		while(np.show() < 0)
+			; // wait till successfully turned off LEDs
 		printf("Jumping to bootloader\n\r");
 		bootloaderResetTo();
 	}
