@@ -262,7 +262,7 @@ int tr_setup()
 			if(!(channelMask & (1 << n))) // decrement once for every skipped channel
 				p--;
 	}
-	globalSlider.setup(padsToOrderMap, 4, 1);
+	globalSlider.setup(padsToOrderMap, 5, 1);
 #ifdef STM32_NEOPIXEL
 	np.setSnp(&snp);
 #endif // STM32_NEOPIXEL
@@ -679,6 +679,7 @@ void tr_render(BelaContext* context)
 		const size_t kTouchesForLocalSettings = 2;
 		const size_t kTouchesForGlobalSettings0 = 3;
 		const size_t kTouchesForGlobalSettings1 = 4;
+		const size_t kTouchesForFactoryTest = 5;
 		if(numTouches && !hadTouch) // we start touching
 			menuState = kMenuPre;
 		if(!numTouches) // we no longer touch
@@ -699,6 +700,10 @@ void tr_render(BelaContext* context)
 		{
 			menu_setup(2);
 			menuState = kMenuGlobalSettings1;
+		}
+		if(gAlt && kTouchesForFactoryTest == numTouches)
+		{
+			menu_setup(3);
 		}
 	} else
 		menuState = kMenuChangeDisabled; // shouldn't be needed, but, you know ...

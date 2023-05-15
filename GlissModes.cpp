@@ -6471,6 +6471,11 @@ int menu_dosetup(MenuPage& menu)
 
 int menu_setup(size_t page)
 {
+	if(3 == page)
+	{
+		requestNewMode(kFactoryTestModeIdx);
+		return true;
+	}
 	MenuPage* menu;
 	switch(page){
 	default:
@@ -6513,4 +6518,6 @@ void menu_render(BelaContext*, FrameData* frameData)
 	}
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 		activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
+	if(&globalSettingsMenu1 == activeMenu && 4 == globalSlider.getNumTouches())
+		requestNewMode(kFactoryTestModeIdx);
 }
