@@ -4402,7 +4402,6 @@ public:
 	{}
 	bool setup(double ms){
 		gCalibrationProcedure.setup();
-		gOutMode.fill(kOutModeManualBlock);
 		resetDemoMode();
 		ledSlidersSetupOneSlider(
 			baseColor,
@@ -4412,6 +4411,7 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
+		gOutMode.fill(kOutModeManualBlock);
 		// these may be overridden below if calibration is done
 		gOutUsesCalibration = false;
 		gInUsesCalibration = false;
@@ -4438,6 +4438,7 @@ public:
 						break;
 					}
 				}
+				//TODO: replace with performanceBtn.tripleClick
 			}
 			if(shouldToggle)
 			{
@@ -4545,18 +4546,22 @@ static std::array<PerformanceMode*,kNumModes> performanceModes = {
 #endif // ENABLE_BALANCED_OSCS_MODE
 	&gExprButtonsMode,
 	&gCalibrationMode,
+	&gFactoryTestMode,
 };
-static const ssize_t kCalibrationModeIdx = []{
-		auto it = std::find(performanceModes.begin(), performanceModes.end(), &gCalibrationMode);
-		int idx = -1;
-		if(it != performanceModes.end())
-			idx = it - performanceModes.begin();
-		assert(idx >= 0);
-		// while we are at it, a sanity check that all modes have been init'ed
-		for(auto& m : performanceModes)
-			assert(m);
-		return idx;
-}();
+
+static size_t findModeIdx(const PerformanceMode& mode)
+{
+	auto it = std::find(performanceModes.begin(), performanceModes.end(), &mode);
+	int idx = -1;
+	if(it != performanceModes.end())
+		idx = it - performanceModes.begin();
+	assert(idx >= 0);
+	// while we are at it, a sanity check that all modes have been init'ed
+	for(auto& m : performanceModes)
+		assert(m);
+	return idx;
+}
+static const ssize_t kCalibrationModeIdx = findModeIdx(gCalibrationMode);
 
 bool performanceMode_setup(double ms)
 {
