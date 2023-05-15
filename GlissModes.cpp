@@ -11,7 +11,7 @@ static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 
 //#define ENABLE_BALANCED_OSCS_MODE
-constexpr size_t kNumModes = 5 // ...
+constexpr size_t kNumModes = 6 // ...
 #ifdef ENABLE_BALANCED_OSCS_MODE
 		+ 1
 #endif // ENABLE_BALANCED_OSCS_MODE
@@ -4532,6 +4532,204 @@ public:
 	}
 } gCalibrationMode(kCalibrationColor);
 
+class FactoryTestMode: public PerformanceMode {
+public:
+	bool setup(double ms) override
+	{
+		gOutMode.fill(kOutModeManualSample);
+		stateSuccess = false;
+		state = kNumStates;
+		nextState();
+		return true;
+	}
+	void render(BelaContext* context, FrameData* frameData) override
+	{
+		if(!gAlt)
+			np.clear();
+		if(stateSuccess)
+		{
+			// display a green LED and wait for button press to start next test
+			tri.buttonLedWrite(0, true);
+		} else {
+			tri.buttonLedWrite(0, false);
+			switch(state)
+			{
+			case kStateButton:
+			{
+				bool value = countMs < 300;
+				if(countMs > 600)
+					countMs = 0;
+				tri.buttonLedWrite(1, value);
+				// this requires visual testing, so here we assume it is successful
+				testSuccessful[state] = true;
+			}
+				break;
+			case kStateSliderLeds:
+			{
+				int n = stateSliderLedCount % kNumLeds;
+				if(!gAlt)
+					np.setPixelColor(n, 190, 190, 190);
+				if(countMs > 300)
+				{
+					stateSliderLedCount++;
+					countMs = 0;
+				}
+				if(stateSliderLedCount >= kNumLeds)
+					stateSliderLedCount = 0;
+				// this requires visual testing, so here we assume it is successful
+				testSuccessful[state] = true;
+			}
+				break;
+			case kStatePads:
+			{
+				extern std::vector<unsigned int> padsToOrderMap;
+				bool success = true; // tentative
+				std::array<bool,kNumLeds> allGood;
+				allGood.fill(true);
+				const std::vector<float>& rawData = trill.rawData;
+				for(size_t n = 0; n < rawData.size() && n < padStates.size(); ++n)
+				{
+					PadState& t = padStates[n];
+					const float v = rawData[padsToOrderMap[n]];
+					size_t led = kNumLeds * n / float(kNumPads);
+					bool good = false;
+					switch(t)
+					{
+					case kPadStateInitial:
+						if(0 == v)
+							t = kPadStateHasHadZero;
+						break;
+					case kPadStateHasHadZero:
+						if(v > 0.1)
+							t = kPadStateHasHadValue;
+						break;
+					case kPadStateHasHadValue:
+						// nothing to do
+						good = true;
+						break;
+					}
+					if(!good)
+					{
+						success = false;
+						allGood[led] = false;
+					}
+				}
+				// after we set all allGood, we  write them to the leds
+				if(!gAlt)
+				{
+					for(size_t n = 0; n < np.getNumPixels(); ++n)
+						np.setPixelColor(n, allGood[n] ? 0 : 127, allGood[n] ? 0 : 127, 0);
+				}
+				if(success)
+					stateSuccess = true;
+			}
+				break;
+			case kStateAnalog:
+				if(gCalibrationProcedure.done())
+				{
+					// calibration is done, check if its values make sense
+					if(
+						getCalibrationInput().values[0] > 0
+						&& getCalibrationInput().values[2] < 4095.f/4096.f
+						&& getCalibrationOutput().values[0] > 0
+						&& getCalibrationOutput().values[2] < 4095.f/4096.f
+					)
+						stateSuccess = true;
+					else
+						;
+				} else // process until calibration is done
+					gCalibrationMode.render(context, frameData);
+				break;
+			case kNumStates:
+				bool success = true;
+				for(auto& t : testSuccessful)
+				{
+					if(!t)
+						success = false;
+				}
+				if(!gAlt)
+				{
+					rgb_t color;
+					if(success)
+						color = {0, 127, 0};
+					else
+						color = {127, 0, 0};
+					for(size_t n = 0; n < np.getNumPixels(); ++n)
+						np.setPixelColor(n, color.r, color.g, color.b);
+				}
+			}
+		}
+		if(kStateAnalog == state && !gCalibrationProcedure.done())
+		{
+			// global settings set and buttons caught by gCalibrationMode
+		} else {
+			if(performanceBtn.offset)
+				nextState();
+			gOutMode.fill(kOutModeManualSample);
+			gInUsesCalibration = false;
+			gInUsesRange = false;
+			gOutUsesCalibration = false;
+			gOutUsesRange = { false, false };
+		}
+		countMs += context->analogFrames / context->analogSampleRate * 1000;
+	}
+
+	void updatePreset() override
+	{}
+private:
+	void nextState() {
+		if(stateSuccess)
+			testSuccessful[state] = true;
+		stateSuccess = false;
+		int newState = (int)this->state + 1;
+		if(newState > kNumStates)
+			newState = 0;
+		countMs = 0;
+		this->state = State(newState);
+		initState();
+	}
+	void initState()
+	{
+		// update global states
+		switch(state)
+		{
+		case kStateButton:
+			testSuccessful.fill(false);
+			break;
+		case kStateSliderLeds:
+			stateSliderLedCount = 0;
+			break;
+		case kStatePads:
+			padStates.fill(kPadStateInitial);
+			break;
+		case kStateAnalog:
+			gCalibrationMode.setup(-1);
+			break;
+		case kNumStates:
+			break;
+		}
+		countMs = 0;
+	}
+	double countMs = 0;
+	enum State {
+		kStateButton,
+		kStateSliderLeds,
+		kStatePads,
+		kStateAnalog,
+		kNumStates,
+	};
+	State state = kStateButton;
+	size_t stateSliderLedCount;
+	enum PadState {
+		kPadStateInitial,
+		kPadStateHasHadZero,
+		kPadStateHasHadValue,
+	};
+	std::array<PadState,kNumPads> padStates;
+	std::array<bool,kNumStates> testSuccessful;
+	bool stateSuccess = false;
+} gFactoryTestMode;
+
 uint8_t gNewMode = 0; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
 
 static std::array<PerformanceMode*,kNumModes> performanceModes = {
@@ -4562,6 +4760,7 @@ static size_t findModeIdx(const PerformanceMode& mode)
 	return idx;
 }
 static const ssize_t kCalibrationModeIdx = findModeIdx(gCalibrationMode);
+static const ssize_t kFactoryTestModeIdx = findModeIdx(gFactoryTestMode);
 
 bool performanceMode_setup(double ms)
 {
@@ -5352,7 +5551,7 @@ static void requestNewMode(int mode);
 static void requestIncMode()
 {
 	int newMode = (gNewMode + 1) % kNumModes;
-	if(kCalibrationModeIdx == newMode)
+	if(kCalibrationModeIdx == newMode || kFactoryTestModeIdx == newMode)
 		 // calibration mode is skipped when incrementing
 		newMode = (newMode + 1) % kNumModes;
 	requestNewMode(newMode);
