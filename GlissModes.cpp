@@ -4730,8 +4730,6 @@ private:
 	bool stateSuccess = false;
 } gFactoryTestMode;
 
-uint8_t gNewMode = 0; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
-
 static std::array<PerformanceMode*,kNumModes> performanceModes = {
 #ifdef TEST_MODE
 	&gTestMode,
@@ -4761,6 +4759,7 @@ static size_t findModeIdx(const PerformanceMode& mode)
 }
 static const ssize_t kCalibrationModeIdx = findModeIdx(gCalibrationMode);
 static const ssize_t kFactoryTestModeIdx = findModeIdx(gFactoryTestMode);
+uint8_t gNewMode = kFactoryTestModeIdx; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
 
 bool performanceMode_setup(double ms)
 {
