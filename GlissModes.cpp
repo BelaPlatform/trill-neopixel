@@ -5555,10 +5555,11 @@ static void requestNewMode(int mode);
 
 static void requestIncMode()
 {
-	int newMode = (gNewMode + 1) % kNumModes;
-	if(kCalibrationModeIdx == newMode || kFactoryTestModeIdx == newMode)
-		 // calibration mode is skipped when incrementing
+	int newMode = gNewMode;
+	 // special modes are skipped when incrementing
+	do
 		newMode = (newMode + 1) % kNumModes;
+	while(kCalibrationModeIdx == newMode || kFactoryTestModeIdx == newMode);
 	requestNewMode(newMode);
 }
 
