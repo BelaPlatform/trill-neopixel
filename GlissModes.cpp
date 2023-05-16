@@ -4587,10 +4587,16 @@ public:
 				std::array<bool,kNumLeds> allGood;
 				allGood.fill(true);
 				const std::vector<float>& rawData = trill.rawData;
-				for(size_t n = 0; n < rawData.size() && n < padStates.size(); ++n)
+				assert(padsToOrderMap.size() == kNumPads);
+				assert(padStates.size() == kNumPads);
+				for(size_t n = 0; n < kNumPads; ++n)
 				{
 					PadState& t = padStates[n];
-					const float v = rawData[padsToOrderMap[n]];
+					size_t orderIdx = gJacksOnTop ? padsToOrderMap.size() - 1 - n : n;
+					size_t pad = padsToOrderMap[orderIdx];
+					if(pad >= rawData.size())
+						continue;
+					const float v = rawData[pad];
 					size_t led = kNumLeds * n / float(kNumPads);
 					bool good = false;
 					switch(t)
