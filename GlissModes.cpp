@@ -2937,7 +2937,7 @@ public:
 			float input = analogReadMapped(context, n, 0);
 			// let's trust compiler + branch predictor to do a good job here
 			float envIn;
-			if(kCouplingAc == coupling || kCouplingAcRms == coupling)
+			if(kCouplingAcRms == coupling)
 			{
 				//high pass
 				// [b, a] = butter(1, 10/44250, 'high')
@@ -2950,17 +2950,15 @@ public:
 				y1 = y;
 				// times 2 to compensate for abs()
 				envIn = abs(y) * 2.f;
-				if(kCouplingAcRms == coupling)
-				{
-					uint16_t newRmsVal = envIn * envIn * 65536.f;
-					uint16_t oldRmsVal = rmsBuffer[rmsIdx];
-					rmsAcc = rmsAcc + newRmsVal - oldRmsVal;
-					rmsBuffer[rmsIdx] = newRmsVal;
-					rmsIdx++;
-					if(rmsIdx >= rmsBuffer.size())
-						rmsIdx = 0;
-					envIn = std::min(1.f, rmsAcc / 65536.f / float(rmsBuffer.size()));
-				}
+				// compute RMS
+				uint16_t newRmsVal = envIn * envIn * 65536.f;
+				uint16_t oldRmsVal = rmsBuffer[rmsIdx];
+				rmsAcc = rmsAcc + newRmsVal - oldRmsVal;
+				rmsBuffer[rmsIdx] = newRmsVal;
+				rmsIdx++;
+				if(rmsIdx >= rmsBuffer.size())
+					rmsIdx = 0;
+				envIn = std::min(1.f, rmsAcc / 65536.f / float(rmsBuffer.size()));
 			} else {
 				envIn = input;
 			}
@@ -3057,7 +3055,6 @@ public:
 	}
 	enum {
 		kCouplingDc,
-		kCouplingAc,
 		kCouplingAcRms,
 		kCouplingNum,
 	};
