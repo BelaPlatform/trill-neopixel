@@ -3038,7 +3038,7 @@ public:
 			par *= par;
 			par *= par;
 			par *= par;
-			par = mapAndConstrain(par, 0, 1, 0.000005, 0.08);
+			par = mapAndConstrain(par, 0, 1, 0.000006, 0.0008);
 			decay = 1.f - par;
 		}
 		else if(p.same(coupling)) {
