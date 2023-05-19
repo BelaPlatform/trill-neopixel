@@ -2976,10 +2976,10 @@ public:
 			switch (outputMode)
 			{
 			case kOutputModeNN: // top pass-through, bottom pass-through
-				outs[0] = outs[1] = input;
+				outs[0] = outs[1] = envIn;
 				break;
 			case kOutputModeNE: // top pass-through, bottom envelope
-				outs[0] = input;
+				outs[0] = envIn;
 				outs[1] = env;
 				break;
 			case kOutputModeEE: // top envelope, bottom envelope
