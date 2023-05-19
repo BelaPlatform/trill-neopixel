@@ -2932,6 +2932,8 @@ public:
 				return;
 			}
 		}
+		float outVizThrough = 0;
+		float outVizEnv = 0;
 		for(size_t n = 0; n < context->analogFrames; ++n)
 		{
 			float input = analogReadMapped(context, n, 0);
@@ -2970,6 +2972,8 @@ public:
 				env = env * decay;
 			}
 
+			outVizThrough = envIn;
+			outVizEnv = env;
 			float outs[kNumOutChannels] = {0};
 			switch (outputMode)
 			{
@@ -2994,21 +2998,22 @@ public:
 			}
 		}
 		// displays if in In/OutRange mode
-		outDisplay = mapAndConstrain(analogReadMapped(context, 0, 0), 0, 1, outRangeMax, outRangeMin);
-		inDisplay = analogReadMapped(context, 0, 0);
+		outDisplay = mapAndConstrain(outVizThrough, 0, 1, outRangeMax, outRangeMin);
+		inDisplay = analogRead(context, 0, 0); // we always display the input range full-scale.
 		// displays if in pure performance mode
 		std::array<centroid_t,kNumOutChannels> centroids {};
-		// display actual output range
-		centroids[0].location = outDisplay;
-		centroids[0].size = kFixedCentroidSize;
-		size_t numCentroids = 1;
-		if(kOutputModeNN != outputMode)
+		bool hasEnvelope = kOutputModeNN != outputMode;
+		bool hasNormal = kOutputModeEE != outputMode;
+		if(hasNormal)
 		{
-			centroids[1].location = mapAndConstrain(env, 0, 1, outRangeMax, outRangeMin);
-			centroids[1].size = kFixedCentroidSize;
-			numCentroids++;
+			centroids[0].location = outDisplay;
+			centroids[0].size = kFixedCentroidSize;
 		}
-//		ledSliders.sliders[0].setLedsCentroids(centroids, numCentroids);
+		if(hasEnvelope)
+		{
+			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMax, outRangeMin);
+			centroids[1].size = kFixedCentroidSize;
+		}
 		constexpr rgb_t gn = {0, 255, 0};
 		constexpr rgb_t rd = {255, 0, 0};
 		ledSliders.sliders[0].directBegin();
@@ -3018,7 +3023,7 @@ public:
 			if(kCouplingDc == coupling)
 				color = signalColor;
 			else
-				color = crossfade(gn, rd, centroids[n].location);
+				color = crossfade(gn, rd, map(centroids[n].location, outRangeMax, outRangeMin, 0, 1));
 			ledSliders.sliders[0].directWriteCentroid(centroids[n], color);
 		}
 	}
