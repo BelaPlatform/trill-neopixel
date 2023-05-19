@@ -148,8 +148,9 @@ static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
 	{
 		np.clear();
 		np.setPixelColor(kNumLeds - 1, 0, 255, 0);
-		while(np.show() < 0)
-			; // wait till successfully turned off LEDs
+		// show() may fail if another buffer is being sent right now.
+		// TODO: wait for it but ensure the timer thread has a higher preemption priority than this one
+		np.show();
 		printf("Jumping to bootloader\n\r");
 		bootloaderResetTo();
 	}
