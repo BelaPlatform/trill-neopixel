@@ -2908,6 +2908,8 @@ public:
 
 	void render(BelaContext* context, FrameData* frameData) override
 	{
+		tri.buttonLedWrite(0, 0);
+		tri.buttonLedWrite(1, 0);
 		// we can quickly get into menu mode from here
 		if(!gAlt)
 		{
