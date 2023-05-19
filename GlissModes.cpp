@@ -2959,7 +2959,7 @@ public:
 					rmsIdx++;
 					if(rmsIdx >= rmsBuffer.size())
 						rmsIdx = 0;
-					envIn = rmsAcc / 65536.f / float(rmsBuffer.size()) * 100.f;
+					envIn = std::min(1.f, rmsAcc / 65536.f / float(rmsBuffer.size()));
 				}
 			} else {
 				envIn = input;
