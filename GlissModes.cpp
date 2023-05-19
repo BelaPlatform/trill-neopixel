@@ -3289,6 +3289,7 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData)
 	{
+		constexpr float kDefaultSize = 0.5;
 		ButtonView btn = ButtonViewSimplify(performanceBtn);
 		gInUsesRange = false;
 		gOutUsesRange[0] = false;
@@ -3297,7 +3298,7 @@ public:
 		{
 			// if we are adjusting the pitch, output that instead
 			gManualAnOut[0] = getOutForKey(keyBeingAdjusted);
-			gManualAnOut[1] = 1;
+			gManualAnOut[1] = kDefaultSize;
 			return;
 		}
 		if(!gAlt)
@@ -3540,7 +3541,7 @@ public:
 			{
 				// TODO: pass-through at audio rate unless key is pressed
 				gManualAnOut[0] = quantise(analogRead(context, 0, 0));
-				gManualAnOut[1] = 1;
+				gManualAnOut[1] = kDefaultSize;
 			}
 			if(kInitial == touch.state)
 			{
