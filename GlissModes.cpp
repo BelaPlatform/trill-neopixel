@@ -3016,7 +3016,28 @@ public:
 		}
 		constexpr rgb_t gn = {0, 255, 0};
 		constexpr rgb_t rd = {255, 0, 0};
-		ledSliders.sliders[0].directBegin();
+
+		ledSliders.sliders[0].directBegin(); // clears display
+		if(hasEnvelope && kCouplingAcRms == coupling)
+		{
+			//display color bar
+			if(ledSliders.areLedsEnabled())
+			{
+				size_t start = outRangeMax * kNumLeds;
+				size_t stop = outRangeMin * kNumLeds;
+				size_t centroidLed =  outVizThrough * kNumLeds;
+				if(stop) // stop one LED before centroidLed, so not to steal its smoothness
+					stop = stop - 1;
+				printf("%d %d %d\n\r", start, stop, int(outVizThrough * kNumLeds));
+				for(size_t n = start; n < stop && n < centroidLed; ++n)
+				{
+					rgb_t color = crossfade(gn, rd, map(n, start, stop, 0, 1));
+					for(size_t c = 0; c < color.size(); ++c)
+						color[c] *= 0.14; // dim to avoid using too much current
+					np.setPixelColor(n, color.r, color.g, color.b);
+				}
+			}
+		}
 		for(size_t n = 0; n < centroids.size(); ++n)
 		{
 			rgb_t color;
