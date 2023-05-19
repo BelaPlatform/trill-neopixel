@@ -5437,8 +5437,12 @@ private:
 	{
 		if(preprocessFn)
 			return preprocessFn(in);
-		else
-			return in;
+		else {
+			// at least ensure they are sorted
+			std::array<float,kNumEnds> ret = in;
+			std::sort(ret.begin(), ret.end());
+			return ret;
+		}
 	}
 	virtual void updateDisplay(LedSlider& slider)
 	{
