@@ -3035,10 +3035,13 @@ public:
 			// wrangling the range to make it somehow useful
 			// TODO: put more method into this
 			float par = cutoff;
-			par *= par;
-			par *= par;
-			par *= par;
-			par = mapAndConstrain(par, 0, 1, 0.000006, 0.0008);
+			float bottom = 0.000005;
+			float top = 0.0005;
+			// we want par to be between about bottom and top
+			// we want values to be closer to the bottom when the slider is higher
+			par = 1.f - par;
+			// We want changes to the input to have smaller effect closer to 0.000005
+			par = powf(par, 3) * (top - bottom) + bottom;
 			decay = 1.f - par;
 		}
 		else if(p.same(coupling)) {
