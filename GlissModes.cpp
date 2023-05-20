@@ -3416,7 +3416,7 @@ public:
 				touch.bendHasLeftStartKeyDeadSpot = true;
 			size_t key;
 			// check each key: are we in its dead spot?
-			for(key = 0; key < kNumButtons; ++key)
+			for(key = 0; key < numButtons; ++key)
 			{
 				float range = kBendDeadSpot;
 				float midPoint = getMidLocationFromKey(key);
@@ -3428,7 +3428,7 @@ public:
 					break;
 				}
 			}
-			if(key == kNumButtons) {
+			if(key == numButtons) {
 				// we are not in a dead spot
 				touch.bendDeadTime = 0;
 				if(fabsf(centroid.location - getMidLocationFromKey(touch.key)) < step - kBendDeadSpot)
@@ -3506,7 +3506,7 @@ public:
 			float diff = centroid.location - touch.initialLocation;
 			float bendSign = (diff > 0) ? 1 : -1;
 			size_t bendDestKey = touch.key + bendSign * 1;
-			if(bendDestKey >= kNumButtons) {
+			if(bendDestKey >= numButtons) {
 				// if at edge of keyboard, no bending
 				bendIdx = 0;
 				bendRange = 0;
@@ -3619,11 +3619,11 @@ public:
 				{
 					attempts++;
 					seqCurrentStep++;
-					if(seqCurrentStep >= kNumButtons)
+					if(seqCurrentStep >= numButtons)
 						seqCurrentStep = 0;
-				} while (!seqStepsEnabled[seqCurrentStep] && attempts < kNumButtons);
+				} while (!seqStepsEnabled[seqCurrentStep] && attempts < numButtons);
 #if 0 // print step state
-				for(size_t n = 0; n < kNumButtons; ++n)
+				for(size_t n = 0; n < numButtons; ++n)
 				{
 					char sym0 = seqStepsEnabled[n] ? '_' : 'X';
 					if(seqStepsEnabled[n] && seqCurrentStep == n)
@@ -3711,7 +3711,7 @@ public:
 				do
 				{
 					if(0 == step)
-						step = kNumButtons;
+						step = numButtons;
 					step--;
 					if(kStepNormal == seqStepsMode[step])
 						break;
@@ -3739,7 +3739,7 @@ public:
 		if(!gAlt)
 		{
 			np.clear();
-			for(size_t n = 0; n < kNumButtons; ++n)
+			for(size_t n = 0; n < numButtons; ++n)
 			{
 				float coeff = (n == vizKey) ? 1 : 0.1;
 				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
@@ -3786,7 +3786,7 @@ public:
 					{
 						// inactive keys while sampling have a triangle pattern
 						float period = 0.5f * context->analogSampleRate;
-						coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / kNumButtons), period);
+						coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / numButtons), period);
 					}
 					np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
 				}
@@ -3873,7 +3873,7 @@ private:
 			// and that we are not bending towards the outer edges of the keyboard
 			if(
 				(diff < 0 && key > 0)
-				|| (diff > 0 && key < (kNumButtons - 1))
+				|| (diff > 0 && key < (numButtons - 1))
 				)
 				return true;
 		}
@@ -3888,13 +3888,13 @@ private:
 	{
 		size_t key;
 		// identify candidate key
-		for(key = 0; key < kNumButtons; ++key)
+		for(key = 0; key < numButtons; ++key)
 		{
 			float top = (key + 1) * step;
 			if(location <= top)
 				break;
 		}
-		if(kNumButtons == key)
+		if(numButtons == key)
 			return -1; // weird ...
 		// validate that we are not _too far_ from the center
 		float centre = getMidLocationFromKey(key);
@@ -3905,14 +3905,14 @@ private:
 	static constexpr size_t kMaxNumButtons = 5;
 	void updateNumButtons()
 	{
-		kNumButtons = std::min(kMaxNumButtons - numButtonsParameter, static_cast<size_t>(kMaxNumButtons));
-		step = 1.f / kNumButtons;
+		numButtons = std::min(kMaxNumButtons - numButtonsParameter, static_cast<size_t>(kMaxNumButtons));
+		step = 1.f / numButtons;
 		kMaxDistanceFromCenter = step * 0.85f;
 		kMoveThreshold = step * 0.1f;
 		kBendStartThreshold = step * 0.4f; // could be same as kMaxDistanceFromCenter?
 		kBendDeadSpot = step * 0.2f;
 	}
-	size_t kNumButtons;
+	size_t numButtons;
 	float step;
 	float kMaxDistanceFromCenter;
 	float kMoveThreshold;
