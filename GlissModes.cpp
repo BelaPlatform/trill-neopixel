@@ -3309,7 +3309,7 @@ public:
 			gOutMode.fill(kOutModeManualBlock);
 			changeState(kDisabled, {0, 0});
 		}
-		page = kPagePerf;
+		changePage(kPagePerf);
 		// Force initialisation of offsets. Alternatively, always copy them in render()
 		for(auto& o : offsetParameters)
 			updated(o);
@@ -3352,9 +3352,9 @@ public:
 		{
 			clickprintf("d%d%d->", onClickGroupStartWas, page);
 			if(kPageSetEnable == page || kPageSetEnable == onClickGroupStartWas)
-				page = kPagePerf;
+				changePage(kPagePerf);
 			else
-				page = kPageSetEnable;
+				changePage(kPageSetEnable);
 			clickprintf("%d\n\r", page);
 		}
 		// triple click enters (or exits) sampling page (both keys an sequencer)
@@ -3362,9 +3362,9 @@ public:
 		{
 			clickprintf("t%d%d->", onClickGroupStartWas, page);
 			if(kPageSampling == page || kPageSampling == onClickGroupStartWas)
-				page = kPagePerf;
+				changePage(kPagePerf);
 			else
-				page = kPageSampling;
+				changePage(kPageSampling);
 			clickprintf("%d\n\r", page);
 		}
 		if(!gAlt && globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
@@ -3670,9 +3670,9 @@ public:
 			if(btn.offset)
 			{
 				if(kPageSetMode == page)
-					page = kPagePerf;
+					changePage(kPagePerf);
 				else
-					page = kPageSetMode;
+					changePage(kPageSetMode);
 				clickprintf("s%d%d\n\r", onClickGroupStartWas, page);
 			}
 			if(kDisabled != touch.state)
@@ -3802,6 +3802,12 @@ public:
 	}
 private:
 	typedef enum {
+		kPagePerf,
+		kPageSetMode,
+		kPageSetEnable,
+		kPageSampling,
+	} Page;
+	typedef enum {
 		kInitial,
 		kGood,
 		kMoved,
@@ -3830,6 +3836,10 @@ private:
 			return quantiseToSemitones(in);
 		else
 			return in;
+	}
+	void changePage(Page newPage)
+	{
+		page = newPage;
 	}
 	void changeState(TouchState newState, const centroid_t& centroid)
 	{
@@ -3958,12 +3968,6 @@ private:
 	std::array<float,kNumOutChannels> pastOuts;
 	TouchTracker::Id pastTouchId;
 	size_t pastNumTouches = 0;
-	enum Page {
-		kPagePerf,
-		kPageSetMode,
-		kPageSetEnable,
-		kPageSampling,
-	};
 	float sampled = 0;
 	size_t sampledKey = kKeyInvalid;
 	TouchState samplingPastTouchState = kDisabled;
