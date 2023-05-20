@@ -4603,13 +4603,20 @@ public:
 				if(countMs > 600)
 					countMs = 0;
 				tri.buttonLedWrite(1, value);
+				tri.buttonLedWrite(0, !value);
+				if(!gAlt)
+				{
+					rgb_t color = value ? rgb_t{25, 0, 0} : rgb_t{0, 0, 25};
+					for(size_t n = 0; n < np.getNumPixels(); ++n)
+						np.setPixelColor(n, color.r, color.g, color.b);
+				}
 				// this requires visual testing, so here we assume it is successful
 				testSuccessful[state] = true;
 			}
 				break;
 			case kStateSliderLeds:
 			{
-				int n = stateSliderLedCount % kNumLeds;
+				size_t n = stateSliderLedCount % kNumLeds;
 				if(!gAlt)
 					np.setPixelColor(n, 190, 190, 190);
 				if(countMs > 300)
