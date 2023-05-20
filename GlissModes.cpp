@@ -3597,7 +3597,7 @@ public:
 			case kNumStates:
 				break;
 			}
-			if(kDisabled == touch.state && kGood == samplingPastTouchState)
+			if(kDisabled == touch.state && (kGood == samplingPastTouchState || kInitial == samplingPastTouchState || kMoved == samplingPastTouchState))
 			{
 				// upon release, we finally assign
 				if(kKeyInvalid !=  sampledKey)
