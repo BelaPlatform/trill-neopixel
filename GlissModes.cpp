@@ -3347,6 +3347,17 @@ public:
 			clickprintf("o%d%d\n\r", onClickGroupStartWas, page);
 			onClickGroupStartWas = page;
 		}
+		// double click enters (or exits) set enable page (both keys an sequencer)
+		if(btn.doubleClickOffset)
+		{
+			clickprintf("d%d%d->", onClickGroupStartWas, page);
+			if(kPageSetEnable == page || kPageSetEnable == onClickGroupStartWas)
+				page = kPagePerf;
+			else
+				page = kPageSetEnable;
+			clickprintf("%d\n\r", page);
+		}
+		// triple click enters (or exits) sampling page (both keys an sequencer)
 		if(btn.tripleClickOffset)
 		{
 			clickprintf("t%d%d->", onClickGroupStartWas, page);
@@ -3657,16 +3668,6 @@ public:
 				else
 					page = kPageSetMode;
 				clickprintf("s%d%d\n\r", onClickGroupStartWas, page);
-			}
-			// double click enters (or exits) set enable page
-			if(btn.doubleClickOffset)
-			{
-				clickprintf("d%d%d->", onClickGroupStartWas, page);
-				if(kPageSetEnable == page || kPageSetEnable == onClickGroupStartWas)
-					page = kPagePerf;
-				else
-					page = kPageSetEnable;
-				clickprintf("%d\n\r", page);
 			}
 			if(kDisabled != touch.state)
 			{
