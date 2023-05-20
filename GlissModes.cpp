@@ -3372,6 +3372,8 @@ public:
 		pastNumTouches = globalSlider.getNumTouches();
 
 		centroid_t& centroid = twi.touch;
+		// NOTE: newTouch is true only on the _first_ kInitial frame (i.e.: new twi.id)
+		bool newTouch = false;
 		if(TouchTracker::kIdInvalid == twi.id)
 		{
 			// touch is removed
@@ -3382,6 +3384,7 @@ public:
 			// mark it as unmoved
 			if(kDisabled == touch.state || (kHold == touch.state && touch.holdHasReleased) || pastTouchId != twi.id)
 			{
+				newTouch = true;
 				changeState(kInitial, centroid); // note that this may fail and we go back to kDisabled
 			}
 		}
@@ -3400,7 +3403,7 @@ public:
 			}
 		}
 		// the first touch have a spurious location (it's an artifact of the sensor)
-		// therefore the touch is only kGood after at least one frame has passed
+		// therefore the touch is only kGood after a new frameId is received
 		if(kInitial == touch.state && touch.initialFrameId != frameId)
 			changeState(kGood, centroid);
 		// if it is not a new touch and it has moved enough, mark it as moved
@@ -3586,12 +3589,15 @@ public:
 				break;
 			case kInitial:
 			{
-				// sample
-				float sum = 0;
-				for(size_t n = 0; n < context->analogFrames; ++n)
-					sum += analogRead(context, n, 0);
-				sampled = sum / context->analogFrames;
-				sampledKey = touch.key;
+				if(newTouch)
+				{
+					// sample
+					float sum = 0;
+					for(size_t n = 0; n < context->analogFrames; ++n)
+						sum += analogRead(context, n, 0);
+					sampled = sum / context->analogFrames;
+					sampledKey = touch.key;
+				}
 				// we postpone assigning to offsets so that if we get
 				// into bending to set the voltage via slider, we do not
 				// accidentally assign it the sampled input on press
@@ -3678,7 +3684,7 @@ public:
 					seqCurrentStep = touch.key; // reset to key
 					break;
 				case kPageSetMode:
-					if(kInitial == touch.state)
+					if(newTouch)
 					{
 						// each new key press cycles through step states
 						StepMode& mode = seqStepsMode[touch.key];
@@ -3688,7 +3694,7 @@ public:
 					}
 					break;
 				case kPageSetEnable:
-					if(kInitial == touch.state)
+					if(newTouch)
 						seqStepsEnabled[touch.key] = !seqStepsEnabled[touch.key];
 					break;
 				case kPageSampling:
