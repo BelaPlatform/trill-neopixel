@@ -3368,7 +3368,10 @@ public:
 			clickprintf("%d\n\r", page);
 		}
 		if(!gAlt && globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
+		{
 			seqMode = !seqMode;
+			updateNumButtons();
+		}
 		pastNumTouches = globalSlider.getNumTouches();
 
 		centroid_t& centroid = twi.touch;
@@ -3737,6 +3740,16 @@ public:
 				lowestEnabled++;
 			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
 		} else {
+			if(kPageSetEnable == page)
+			{
+				if(newTouch)
+				{
+					keysEnabled[touch.key] = !keysEnabled[touch.key];
+					updateNumButtons();
+				}
+				gManualAnOut[0] = kNoOutput;
+				gManualAnOut[1] = kNoOutput;
+			}
 			// if not seqMode
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 		}
@@ -3826,9 +3839,12 @@ private:
 	};
 	float getOutForKey(size_t key)
 	{
-		if(key >=  offsets.size())
+		if(key >= numButtons)
 			return 0;
-		return quantise(offsets[key]);
+		size_t actualKey = keysIdx[key];
+		if(actualKey >= offsets.size())
+			return 0;
+		return quantise(offsets[actualKey]);
 	}
 	float quantise(float in, bool force = false)
 	{
@@ -3840,6 +3856,7 @@ private:
 	void changePage(Page newPage)
 	{
 		page = newPage;
+		updateNumButtons();
 	}
 	void changeState(TouchState newState, const centroid_t& centroid)
 	{
@@ -3922,7 +3939,29 @@ private:
 	static constexpr size_t kMaxNumButtons = 5;
 	void updateNumButtons()
 	{
-		numButtons = std::min(kMaxNumButtons - numButtonsParameter, static_cast<size_t>(kMaxNumButtons));
+		// update keysIdx
+		size_t count = 0;
+		for(size_t n = 0; n < keysEnabled.size(); ++n)
+		{
+			if(keysEnabled[n])
+			{
+				keysIdx[count] = n;
+				count++;
+			}
+		}
+		std::fill(keysIdx.begin() + count, keysIdx.end(), kMaxNumButtons);
+#if 0
+		// log the resulting idxs
+		for(size_t n = 0; n < keysEnabled.size(); ++n)
+			printf("%d ", keysIdx[n]);
+		printf("<<\n\r");
+#endif
+
+		if(seqMode || kPageSetEnable == page)
+			numButtons = kMaxNumButtons;
+		else
+			numButtons = std::min(count, static_cast<size_t>(kMaxNumButtons));
+
 		step = 1.f / numButtons;
 		kMaxDistanceFromCenter = step * 0.85f;
 		kMoveThreshold = step * 0.1f;
@@ -3965,6 +4004,8 @@ private:
 	};
 	std::array<bool,kMaxNumButtons> seqStepsEnabled = FILL_ARRAY(seqStepsEnabled, true);
 	std::array<StepMode,kMaxNumButtons> seqStepsMode = FILL_ARRAY(seqStepsMode, kStepNormal);
+	std::array<uint8_t,kMaxNumButtons> keysIdx = FILL_ARRAY(keysIdx, kMaxNumButtons);
+	std::array<bool,kMaxNumButtons> keysEnabled = FILL_ARRAY(keysEnabled, true);
 	std::array<float,kNumOutChannels> pastOuts;
 	TouchTracker::Id pastTouchId;
 	size_t pastNumTouches = 0;
