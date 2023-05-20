@@ -3334,14 +3334,14 @@ public:
 		if(!gAlt)
 			keyBeingAdjusted = kKeyInvalid;
 		frameId = frameData->id;
-		centroid_t centroid;
+		TouchTracker::TouchWithId twi {centroid_t{0, 0}, 0, TouchTracker::kIdInvalid };
 		// normal processing
 		if(ledSliders.isTouchEnabled())
 		{
 			gTouchTracker.process(globalSlider);
-			centroid = gTouchTracker.getNumTouches() ? gTouchTracker.getTouchMostRecent().touch : centroid_t{0, 0};
-		} else // ensure the touch tracker is updated. TODO: other modes should do the same?
-			centroid = centroid_t {0, 0};
+			if(gTouchTracker.getNumTouches())
+				twi = gTouchTracker.getTouchMostRecent();
+		}
 		if(btn.offset)
 		{
 			clickprintf("o%d%d\n\r", onClickGroupStartWas, page);
@@ -3359,8 +3359,10 @@ public:
 		if(!gAlt && globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
 			seqMode = !seqMode;
 		pastNumTouches = globalSlider.getNumTouches();
+
+		centroid_t& centroid = twi.touch;
 		bool newTouch = false;
-		if(!centroid.size)
+		if(TouchTracker::kIdInvalid == twi.id)
 		{
 			// touch is removed
 			if(kDisabled != touch.state && (kHold != touch.state || seqMode))
@@ -3368,12 +3370,14 @@ public:
 		} else {
 			// if it is a new touch, assign this touch to a key, store location as impact location,
 			// mark it as unmoved
-			if(kDisabled == touch.state || (kHold == touch.state && touch.holdHasReleased))
+			if(kDisabled == touch.state || (kHold == touch.state && touch.holdHasReleased) || pastTouchId != twi.id)
 			{
 				changeState(kInitial, centroid); // note that this may fail and we go back to kDisabled
 				newTouch = true;
 			}
 		}
+		// TODO: maybe pastTouchId should be remembered as part of changeState()?
+		pastTouchId = twi.id;
 		if(btn.offset && !seqMode)
 		{
 			// if holding, release
@@ -3943,6 +3947,7 @@ private:
 	std::array<bool,kMaxNumButtons> stepsEnabled = FILL_ARRAY(stepsEnabled, true);
 	std::array<StepMode,kMaxNumButtons> stepsMode = FILL_ARRAY(stepsMode, kStepNormal);
 	std::array<float,kNumOutChannels> pastOuts;
+	TouchTracker::Id pastTouchId;
 	size_t pastNumTouches = 0;
 	enum Page {
 		kPagePerf,
