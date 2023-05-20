@@ -3361,7 +3361,6 @@ public:
 		pastNumTouches = globalSlider.getNumTouches();
 
 		centroid_t& centroid = twi.touch;
-		bool newTouch = false;
 		if(TouchTracker::kIdInvalid == twi.id)
 		{
 			// touch is removed
@@ -3373,7 +3372,6 @@ public:
 			if(kDisabled == touch.state || (kHold == touch.state && touch.holdHasReleased) || pastTouchId != twi.id)
 			{
 				changeState(kInitial, centroid); // note that this may fail and we go back to kDisabled
-				newTouch = true;
 			}
 		}
 		// TODO: maybe pastTouchId should be remembered as part of changeState()?
@@ -3579,18 +3577,16 @@ public:
 			}
 			if(kInitial == touch.state)
 			{
-				if(newTouch)
-				{
-					// sample
-					float sum = 0;
-					for(size_t n = 0; n < context->analogFrames; ++n)
-						sum += analogRead(context, n, 0);
-					sampled = sum / context->analogFrames;
-					sampledKey = touch.key;
-					// we postpone assigning to offsets so that if we get
-					// into bending to set the voltage via slider, we do not
-					// accidentally assign it the sampled input on press
-				}
+				// sample
+				float sum = 0;
+				for(size_t n = 0; n < context->analogFrames; ++n)
+					sum += analogRead(context, n, 0);
+				sampled = sum / context->analogFrames;
+				sampledKey = touch.key;
+				// we postpone assigning to offsets so that if we get
+				// into bending to set the voltage via slider, we do not
+				// accidentally assign it the sampled input on press
+
 				// hold
 				gManualAnOut[0] = quantise(sampled);
 				gManualAnOut[1] = centroid.size;
@@ -3675,7 +3671,7 @@ public:
 					seqCurrentStep = touch.key; // reset to key
 					break;
 				case kPageSetMode:
-					if(newTouch)
+					if(kInitial == touch.state)
 					{
 						// each new key press cycles through step states
 						StepMode& mode = stepsMode[touch.key];
@@ -3685,7 +3681,7 @@ public:
 					}
 					break;
 				case kPageSetEnable:
-					if(newTouch)
+					if(kInitial == touch.state)
 						stepsEnabled[touch.key] = !stepsEnabled[touch.key];
 					break;
 				case kPageSampling:
