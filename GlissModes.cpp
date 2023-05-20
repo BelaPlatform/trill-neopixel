@@ -5350,7 +5350,7 @@ public:
 		if(parameter)
 		{
 			unsigned int quantised = parameter->getMax();
-			centroid_t frame {
+			centroid_t frame = {
 				.location = slider.compoundTouchLocation(),
 				.size = slider.compoundTouchSize(),
 			};
@@ -5358,6 +5358,8 @@ public:
 			gMenuAutoLatcher.process(frame, latched);
 			float pos = fix(frame.location);
 			unsigned int n = (unsigned int)(pos * quantised);
+			if(n >= quantised) // you may reach the top when pos is exactly 1 (or more...)
+				n--;
 			pos = n / float(quantised);
 			if(latched)
 			{
