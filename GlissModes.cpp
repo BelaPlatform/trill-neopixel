@@ -3557,8 +3557,9 @@ public:
 			// We leverage the state machine above even if it's
 			// more complicated than / slightly different from
 			// what we need here
-			if(kBending == touch.state)
+			switch(touch.state)
 			{
+			case kBending:
 				// if bending, we enter the slider menu that allows manually setting the pitch
 				if(!gAlt)
 				{
@@ -3566,16 +3567,13 @@ public:
 					menu_enterSingleSlider(colors[touch.key], offsetParameters[touch.key]);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
 				}
-			}
-
-			// this works as a little sample and hold
-			if(kDisabled == touch.state)
-			{
+				break;
+			case kDisabled:
 				// TODO: pass-through at audio rate unless key is pressed
 				gManualAnOut[0] = quantise(analogRead(context, 0, 0));
 				gManualAnOut[1] = kDefaultSize;
-			}
-			if(kInitial == touch.state)
+				break;
+			case kInitial:
 			{
 				// sample
 				float sum = 0;
@@ -3586,10 +3584,18 @@ public:
 				// we postpone assigning to offsets so that if we get
 				// into bending to set the voltage via slider, we do not
 				// accidentally assign it the sampled input on press
-
+			}
+				// no break
+			case kMoved:
+			case kGood:
 				// hold
 				gManualAnOut[0] = quantise(sampled);
 				gManualAnOut[1] = centroid.size;
+				break;
+			case kHold:
+				// won't be here
+			case kNumStates:
+				break;
 			}
 			if(kDisabled == touch.state && kGood == samplingPastTouchState)
 			{
