@@ -3992,8 +3992,6 @@ public:
 
 		} else if(p.same(quantised)) {
 
-		} else if (p.same(numButtonsParameter)) {
-			updateNumButtons();
 		} else {
 			for(size_t n = 0; n < kMaxNumButtons; ++n)
 			{
@@ -4040,7 +4038,6 @@ public:
 		ParameterContinuous(this, 0.8),
 		ParameterContinuous(this, 0.9),
 	};
-	ParameterEnumT<4> numButtonsParameter {this, 0};
 	PACKED_STRUCT(PresetFieldData_t {
 		float modRange;
 		std::array<float,kMaxNumButtons> offsetParameters;
@@ -6051,10 +6048,9 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 
 static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
-static ButtonAnimationCounter animationCounterNumButtons {buttonColors, 300, 800};
+//static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
-static MenuItemTypeDiscrete exprButtonsModeNumButtons("gExprButtonsNumButtons", buttonColor, &gExprButtonsMode.numButtonsParameter, &animationCounterNumButtons);
 
 #if 0
 static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
@@ -6079,7 +6075,7 @@ static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20,
 
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&disabled,
-		&exprButtonsModeNumButtons,
+		&disabled,
 		&exprButtonsModeModRange,
 		&exprButtonsModeQuantised,
 };
