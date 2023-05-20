@@ -2934,6 +2934,12 @@ public:
 				return;
 			}
 		}
+		if(inDisplayUpdated)
+		{
+			inDisplayUpdated--;
+			// ugly workaround to turn on the green LED when in the "clipping" page
+			tri.buttonLedWrite(0, 1);
+		}
 		float outVizThrough = 0;
 		float outVizEnv = 0;
 		for(size_t n = 0; n < context->analogFrames; ++n)
@@ -3122,8 +3128,9 @@ public:
 		int coupling;
 		float cutoff;
 	}) presetFieldData;
-private:
+	size_t inDisplayUpdated;
 	float inDisplay;
+private:
 	float outDisplay;
 	float decay;
 	float analogReadMapped(BelaContext* context, size_t frame, size_t channel)
@@ -5500,6 +5507,8 @@ public:
 		for(size_t n = 0; n < endpointsColor.size(); ++n)
 			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n]);
 		slider.directWriteCentroid({ *display, 0.15 }, displayColor);
+		if(display == &gScaleMeterMode.inDisplay)
+			gScaleMeterMode.inDisplayUpdated = 10;
 	}
 private:
 	rgb_t displayColor;
