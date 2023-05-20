@@ -3761,11 +3761,26 @@ public:
 			np.clear();
 			for(size_t n = 0; n < numButtons; ++n)
 			{
-				float coeff = (n == vizKey) ? 1 : 0.1;
+				float coeff = (n == vizKey) ? 1 : 0.1; // may be overridden
 				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
-				if(seqMode && kPageSampling != page)
+				rgb_t color;
+				float period = 0.3f * context->analogSampleRate;
+				float triangle = simpleTriangle(context->audioFramesElapsed, period);
+				if(kPageSampling == page)
 				{
-					rgb_t color;
+					// same behaviour for seqMode and non-seqMode
+					// always has kmaxNumButtons buttons
+					color = colors[n];
+					if(n == vizKey)
+						coeff = 1;
+					else
+					{
+						// inactive keys while sampling have a triangle pattern
+						float period = 0.5f * context->analogSampleRate;
+						coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / numButtons), period);
+					}
+				} else if (seqMode)
+				{
 					coeff *= seqStepsEnabled[n];
 					switch(seqStepsMode[n])
 					{
@@ -3780,8 +3795,6 @@ public:
 						color = {200, 0 , 0};
 						break;
 					}
-					float period = 0.3f * context->analogSampleRate;
-					float triangle = simpleTriangle(context->audioFramesElapsed, period);
 					// TODO: animating buttons while they are traversed by the sequencer
 					// gives a messy result. Try syncing it to the clock input, or use a
 					// different display strategy (e.g.: button?)
@@ -3799,17 +3812,25 @@ public:
 					case kPageSampling: // shouldn't be here anyhow
 						break;
 					}
-					np.setPixelColor(pixel, color.r * coeff, color.g * coeff, color.b * coeff);
 				} else {
-					//TODO: have setPixelColor obey "enabled"
-					if(kPageSampling == page && n != vizKey)
+					// we are in keys mode
+					size_t idx;
+					if(kPageSetEnable == page)
 					{
-						// inactive keys while sampling have a triangle pattern
-						float period = 0.5f * context->analogSampleRate;
-						coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / numButtons), period);
+						idx = n;
+						//always has kNumMaxButtons buttons
+						coeff *=  (touch.key == idx && touch.state != kDisabled) ? 1 : triangle > 0.7f;
+						coeff *= keysEnabled[idx];
+					} else {
+						idx = keysIdx[n];
 					}
-					np.setPixelColor(pixel, colors[n].r * coeff, colors[n].g * coeff, colors[n].b * coeff);
+					if(idx < kMaxNumButtons)
+						color = colors[idx];
+					else // shouldn't get here
+						color = {0, 0, 0};
 				}
+				//TODO: have setPixelColor obey "enabled"
+				np.setPixelColor(pixel, color.r * coeff, color.g * coeff, color.b * coeff);
 			}
 		}
 	}
