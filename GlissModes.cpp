@@ -3621,15 +3621,15 @@ public:
 					seqCurrentStep++;
 					if(seqCurrentStep >= kNumButtons)
 						seqCurrentStep = 0;
-				} while (!stepsEnabled[seqCurrentStep] && attempts < kNumButtons);
+				} while (!seqStepsEnabled[seqCurrentStep] && attempts < kNumButtons);
 #if 0 // print step state
 				for(size_t n = 0; n < kNumButtons; ++n)
 				{
-					char sym0 = stepsEnabled[n] ? '_' : 'X';
-					if(stepsEnabled[n] && seqCurrentStep == n)
+					char sym0 = seqStepsEnabled[n] ? '_' : 'X';
+					if(seqStepsEnabled[n] && seqCurrentStep == n)
 						sym0 = '*';
 					char sym1 = 'O';
-					switch(stepsMode[n])
+					switch(seqStepsMode[n])
 					{
 					case kStepNormal:
 						sym1 = 'N';
@@ -3680,7 +3680,7 @@ public:
 					if(kInitial == touch.state)
 					{
 						// each new key press cycles through step states
-						StepMode& mode = stepsMode[touch.key];
+						StepMode& mode = seqStepsMode[touch.key];
 						mode = StepMode(mode + 1);
 						if(kStepModesNum == mode)
 							mode = kStepNormal;
@@ -3688,7 +3688,7 @@ public:
 					break;
 				case kPageSetEnable:
 					if(kInitial == touch.state)
-						stepsEnabled[touch.key] = !stepsEnabled[touch.key];
+						seqStepsEnabled[touch.key] = !seqStepsEnabled[touch.key];
 					break;
 				case kPageSampling:
 					break;
@@ -3696,7 +3696,7 @@ public:
 			}
 			vizKey = seqCurrentStep;
 			size_t outKey = kKeyInvalid;
-			switch(stepsMode[seqCurrentStep])
+			switch(seqStepsMode[seqCurrentStep])
 			{
 			case kStepNormal:
 				outKey = seqCurrentStep;
@@ -3713,7 +3713,7 @@ public:
 					if(0 == step)
 						step = kNumButtons;
 					step--;
-					if(kStepNormal == stepsMode[step])
+					if(kStepNormal == seqStepsMode[step])
 						break;
 				} while(step != seqCurrentStep);
 				if(step == seqCurrentStep) // no step to hold
@@ -3726,7 +3726,7 @@ public:
 			}
 			gManualAnOut[0] = getOutForKey(outKey);
 			size_t lowestEnabled = 0;
-			while(lowestEnabled < stepsEnabled.size() && !stepsEnabled[lowestEnabled])
+			while(lowestEnabled < seqStepsEnabled.size() && !seqStepsEnabled[lowestEnabled])
 				lowestEnabled++;
 			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
 		} else {
@@ -3746,8 +3746,8 @@ public:
 				if(seqMode && kPageSampling != page)
 				{
 					rgb_t color;
-					coeff *= stepsEnabled[n];
-					switch(stepsMode[n])
+					coeff *= seqStepsEnabled[n];
+					switch(seqStepsMode[n])
 					{
 					case kStepModesNum:
 					case kStepNormal:
@@ -3946,8 +3946,8 @@ private:
 		kStepMuted,
 		kStepModesNum,
 	};
-	std::array<bool,kMaxNumButtons> stepsEnabled = FILL_ARRAY(stepsEnabled, true);
-	std::array<StepMode,kMaxNumButtons> stepsMode = FILL_ARRAY(stepsMode, kStepNormal);
+	std::array<bool,kMaxNumButtons> seqStepsEnabled = FILL_ARRAY(seqStepsEnabled, true);
+	std::array<StepMode,kMaxNumButtons> seqStepsMode = FILL_ARRAY(seqStepsMode, kStepNormal);
 	std::array<float,kNumOutChannels> pastOuts;
 	TouchTracker::Id pastTouchId;
 	size_t pastNumTouches = 0;
