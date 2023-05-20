@@ -2917,7 +2917,7 @@ public:
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
-				menu_enterRangeDisplay(signalColor, {endpointsColorOut, endpointsColorOut}, true, outRangeMax, outRangeMin, outDisplay);
+				menu_enterRangeDisplay(signalColor, {endpointsColorOut, endpointsColorOut}, true, outRangeMin, outRangeMax, outDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
@@ -3001,12 +3001,12 @@ public:
 				// TODO: combine this mapping with global mapping in tr_render(),
 				// or at least reduce the number of times it gets called here if the compiler is not smart enough
 				// TODO: should env also be mapped?
-				float value = mapAndConstrain(outs[c], 0, 1, outRangeMax, outRangeMin);
+				float value = mapAndConstrain(outs[c], 0, 1, outRangeMin, outRangeMax);
 				analogWriteOnce(context, n, c, value);
 			}
 		}
 		// displays if in In/OutRange mode
-		outDisplay = mapAndConstrain(outVizThrough, 0, 1, outRangeMax, outRangeMin);
+		outDisplay = mapAndConstrain(outVizThrough, 0, 1, outRangeMin, outRangeMax);
 		inDisplay = analogRead(context, 0, 0); // we always display the input range full-scale.
 		// displays if in pure performance mode
 		std::array<centroid_t,kNumOutChannels> centroids {};
@@ -3019,7 +3019,7 @@ public:
 		}
 		if(hasEnvelope)
 		{
-			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMax, outRangeMin);
+			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMin, outRangeMax);
 			centroids[1].size = kFixedCentroidSize;
 		}
 		constexpr rgb_t gn = {0, 255, 0};
@@ -3031,8 +3031,8 @@ public:
 			//display color bar
 			if(ledSliders.areLedsEnabled())
 			{
-				size_t start = outRangeMax * kNumLeds;
-				size_t stop = outRangeMin * kNumLeds;
+				size_t start = outRangeMin * kNumLeds;
+				size_t stop = outRangeMax * kNumLeds;
 				size_t centroidLed =  outVizThrough * kNumLeds;
 				if(stop) // stop one LED before centroidLed, so not to steal its smoothness
 					stop = stop - 1;
@@ -3052,7 +3052,7 @@ public:
 			if(kCouplingDc == coupling)
 				color = signalColor;
 			else
-				color = crossfade(gn, rd, map(centroids[n].location, outRangeMax, outRangeMin, 0, 1));
+				color = crossfade(gn, rd, map(centroids[n].location, outRangeMin, outRangeMax, 0, 1));
 			ledSliders.sliders[0].directWriteCentroid(centroids[n], color);
 		}
 	}
@@ -3081,7 +3081,7 @@ public:
 				rmsAcc = 0;
 			}
 		}
-		else if(p.same(outRangeMax) || p.same(outRangeMin)) {
+		else if(p.same(outRangeMin) || p.same(outRangeMax)) {
 		}
 		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
 		}
@@ -3119,8 +3119,8 @@ public:
 	ParameterEnumT<kOutputModeNum> outputMode {this, 0};
 	ParameterEnumT<kCouplingNum> coupling {this, kCouplingDc};
 	ParameterContinuous cutoff {this, 0.5};
-	ParameterContinuous outRangeMax {this, 0};
-	ParameterContinuous outRangeMin {this, 1};
+	ParameterContinuous outRangeMin {this, 0};
+	ParameterContinuous outRangeMax {this, 1};
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
 	PACKED_STRUCT(PresetFieldData_t {
