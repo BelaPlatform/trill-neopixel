@@ -4163,6 +4163,7 @@ Connected_t connectedState;
 unsigned int findingAdcIdx;
 size_t count;
 float adcAccu;
+size_t noInputStartCount;
 float minDiff;
 uint16_t minCode;
 uint16_t outCode;
@@ -4175,7 +4176,7 @@ float inBottom = 0;
 float inTop = 1;
 static constexpr unsigned kAverageCount = 2000;
 static constexpr unsigned kConnectedStepCount = 20;
-static constexpr unsigned kWaitAfterSetting = 5;
+static constexpr unsigned kWaitAfterSetting = 2;
 static constexpr unsigned kDoneCount = 3000;
 static constexpr unsigned kWaitPostThreshold = 100;
 static constexpr float kAdcConnectedThreshold = 0.1;
@@ -4232,7 +4233,7 @@ void setup()
 	gOutMode.fill(kOutModeManualBlock);
 }
 
-void process()
+void process(BelaContext* context)
 {
 	float anIn = tri.analogRead();
 	gOverride.started = HAL_GetTick();
@@ -4244,15 +4245,27 @@ void process()
 			count = 0;
 			break;
 		case kNoInput:
-			adcAccu += anIn;
-			count++;
-			if(kAverageCount == count)
+			// when this first starts, we may still be using calibration
+			// on the inputs, so wait a couple of blocks to ensure we get
+			// non-calibrated inputs
+			if(noInputStartCount < 2)
 			{
-				calibrationState = kWaitConnect;
-				inGnd = adcAccu / count;
-				printf("inGnd: %.5f, connect an input\n\r", inGnd);
-				outCode = 0; // set this as a test value so we can detect when DAC is connected to ADC
-				count = 0;
+				noInputStartCount++;
+				break;
+			}
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				adcAccu += analogRead(context, n, 0) * (1.f / float(kAverageCount));
+				count++;
+				if(kAverageCount == count)
+				{
+					calibrationState = kWaitConnect;
+					inGnd = adcAccu;
+					printf("inGnd: %.5f, connect an input\n\r", inGnd);
+					outCode = 0; // set this as a test value so we can detect when DAC is connected to ADC
+					count = 0;
+					break;
+				}
 			}
 			break;
 		case kWaitConnect:
@@ -4392,6 +4405,7 @@ void process()
 }
 void start(){
 	calibrationState = kNoInput;
+	noInputStartCount = 0;
 	adcAccu = 0;
 }
 void stop(){
@@ -4537,7 +4551,7 @@ public:
 			gCalibrationProcedure.toggle();
 			resetDemoMode();
 		}
-		gCalibrationProcedure.process();
+		gCalibrationProcedure.process(context);
 
 		Animation animation;
 		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
