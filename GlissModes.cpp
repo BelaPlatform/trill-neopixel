@@ -4289,7 +4289,7 @@ void process()
 						// now that outGnd is set, we can use fromVolt()
 						outTop = fromVolt(kIoTopV);
 						outBottom = fromVolt(kIoBottomV);
-						printf("DAC calibration: %.2fV: %f(%d), %.2fV: %f(%d), %.2fV: %f(%d)\n\r",
+						printf("DAC: %.2fV: %f(%d), %.2fV: %f(%d), %.2fV: %f(%d)\n\r",
 								kIoBottomV, outBottom, toCode(outBottom),
 								kIoGndV, outGnd, toCode(outGnd),
 								kIoTopV, outTop, toCode(outTop));
@@ -4351,10 +4351,10 @@ void process()
 				case kFindingDone:
 					calibrationState = kDone;
 					count = 0;
-					printf("ADC calibration: %.2fV: %f, %.2fV: %f, %.2fV: %f\n\r",
-							kIoBottomV, inBottom,
-							kIoGndV, inGnd,
-							kIoTopV, inTop);
+					printf("ADC: %.2fV: %f(%d), %.2fV: %f(%d), %.2fV: %f(%d)\n\r",
+							kIoBottomV, inBottom, toCode(inBottom),
+							kIoGndV, inGnd, toCode(inGnd),
+							kIoTopV, inTop, toCode(inTop));
 					publishCalibrationData();
 					break;
 			}
