@@ -4753,12 +4753,13 @@ public:
 			case kStateAnalog:
 				if(gCalibrationProcedure.done())
 				{
+					auto& in = getCalibrationInput().values;
+					auto& out = getCalibrationInput().values;
 					// calibration is done, check if its values make sense
-					if(
-						getCalibrationInput().values[0] > 0
-						&& getCalibrationInput().values[2] < 4095.f/4096.f
-						&& getCalibrationOutput().values[0] > 0
-						&& getCalibrationOutput().values[2] < 4095.f/4096.f
+					if(in[0] > 0 && in[0] < 0.1
+						&& in[2] > 0.9 && in[2] < 4095.f/4096.f
+						&& out[0] > 0 && out[0] < 0.1
+						&& out[2] > 0.9 && out[2] < 4095.f/4096.f
 					)
 						stateSuccess = true;
 					else
