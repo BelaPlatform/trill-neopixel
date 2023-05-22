@@ -4659,12 +4659,13 @@ public:
 	{
 		if(!gAlt)
 			np.clear();
+		tri.buttonLedWrite(0, false);
+		tri.buttonLedWrite(1, false);
 		if(stateSuccess)
 		{
 			// display a green LED and wait for button press to start next test
 			tri.buttonLedWrite(0, true);
 		} else {
-			tri.buttonLedWrite(0, false);
 			switch(state)
 			{
 			case kStateButton:
