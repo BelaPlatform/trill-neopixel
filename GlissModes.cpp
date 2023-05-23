@@ -4501,8 +4501,6 @@ class CalibrationMode : public PerformanceMode {
 	uint32_t startTime;
 	size_t demoModeCount;
 	size_t demoModeState;
-	std::array<uint32_t,3> clicks {};
-	size_t clickIdx = 0;
 	void resetDemoMode()
 	{
 		demoModeCount = 0;
@@ -4532,32 +4530,12 @@ public:
 		gOutUsesRange = {false, false};
 		uint32_t tick = HAL_GetTick();
 		// wait for button press to start or stop calibration.
-		if(performanceBtn.offset)
+		ButtonView btn = ButtonViewSimplify(performanceBtn);
+		if(btn.offset ||
+				(btn.tripleClick && gCalibrationProcedure.done()))
 		{
-			clicks[clickIdx++] = tick;
-			if(clicks.size() == clickIdx)
-				clickIdx = 0;
-			bool shouldToggle = true;
-			if(gCalibrationProcedure.done())
-			{
-				// if calibration is done, triple press in a short period
-				// of time is needed to restart
-				uint32_t recentTime = tick - 600; // 600 ms
-				for(auto c : clicks)
-				{
-					if(c < recentTime)
-					{
-						shouldToggle = false;
-						break;
-					}
-				}
-				//TODO: replace with performanceBtn.tripleClick
-			}
-			if(shouldToggle)
-			{
-				gCalibrationProcedure.toggle();
-				resetDemoMode();
-			}
+			gCalibrationProcedure.toggle();
+			resetDemoMode();
 		}
 		gCalibrationProcedure.process();
 
