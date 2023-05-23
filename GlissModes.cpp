@@ -280,7 +280,7 @@ std::array<OutMode,kNumOutChannels> gOutMode { kOutModeManualBlock, kOutModeManu
 int gCounter = 0;
 int gSubMode = 0;
 std::array<bool,2> gOutIsSize;
-bool gJacksOnTop = false;
+bool gJacksOnTop = true;
 Override gOverride;
 static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
@@ -6337,7 +6337,7 @@ public:
 	ParameterContinuous inRangeMin {this, 0.2};
 	ParameterContinuous inRangeMax {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
-	ParameterEnumT<2> jacksOnTop {this, false};
+	ParameterEnumT<2> jacksOnTop {this, true};
 	ParameterContinuous brightness {this, 0.2};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
