@@ -4810,6 +4810,7 @@ private:
 			break;
 		case kStateAnalog:
 			gCalibrationMode.setup(-1);
+			gCalibrationProcedure.start();
 			break;
 		case kNumStates:
 			break;
