@@ -4163,7 +4163,7 @@ Connected_t connectedState;
 unsigned int findingAdcIdx;
 size_t count;
 float adcAccu;
-size_t noInputStartCount;
+size_t startCountBlocks;
 float minDiff;
 uint16_t minCode;
 uint16_t outCode;
@@ -4248,9 +4248,9 @@ void process(BelaContext* context)
 			// when this first starts, we may still be using calibration
 			// on the inputs, so wait a couple of blocks to ensure we get
 			// non-calibrated inputs
-			if(noInputStartCount < 2)
+			if(startCountBlocks < kWaitAfterSetting)
 			{
-				noInputStartCount++;
+				startCountBlocks++;
 				break;
 			}
 			for(size_t n = 0; n < context->analogFrames; ++n)
@@ -4405,7 +4405,7 @@ void process(BelaContext* context)
 }
 void start(){
 	calibrationState = kNoInput;
-	noInputStartCount = 0;
+	startCountBlocks = 0;
 	adcAccu = 0;
 }
 void stop(){
