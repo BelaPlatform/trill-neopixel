@@ -4670,6 +4670,19 @@ public:
 			np.clear();
 		tri.buttonLedWrite(0, false);
 		tri.buttonLedWrite(1, false);
+		if(performanceBtn.offset)
+		{
+			// by checking this early on, we make sure
+			// gPerformanceMode doesn't grab our button presses
+			performanceBtn.offset = false;
+			performanceBtn.tripleClick = false;
+			if(kNumStates == state)
+			{
+				if(++finalButtonCount >= 2)
+					nextState();
+			} else
+				nextState();
+		}
 		if(analogFailed)
 			tri.buttonLedWrite(1, true);
 		if(stateSuccess)
@@ -4802,17 +4815,9 @@ public:
 		}
 		if(kStateAnalog == state && !gCalibrationProcedure.done())
 		{
-			// global settings set and buttons caught by gCalibrationMode
+			// global settings set by gCalibrationMode.
+			// TODO: verify this conditional is not actually needed (i.e.: same results with or without)
 		} else {
-			if(performanceBtn.offset)
-			{
-				if(kNumStates == state)
-				{
-					if(++finalButtonCount >= 2)
-						nextState();
-				} else
-					nextState();
-			}
 			gOutMode.fill(kOutModeManualSample);
 			gInUsesCalibration = false;
 			gInUsesRange = false;
