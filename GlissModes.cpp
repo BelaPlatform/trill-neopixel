@@ -10,14 +10,30 @@ typedef LedSlider::centroid_t centroid_t;
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 
+#define ENABLE_DIRECT_CONTROL_MODE
+#define ENABLE_RECORDER_MODE
+#define ENABLE_SCALE_METER_MODE
 //#define ENABLE_BALANCED_OSCS_MODE
-constexpr size_t kNumModes = 6 // ...
+#define ENABLE_EXPR_BUTTONS_MODE
+constexpr size_t kNumModes = 2 // calibration and factorytest are always enabled
+#ifdef ENABLE_DIRECT_CONTROL_MODE
+		+ 1
+#endif
+#ifdef ENABLE_RECORDER_MODE
+		+ 1
+#endif
+#ifdef ENABLE_SCALE_METER_MODE
+		+ 1
+#endif
 #ifdef ENABLE_BALANCED_OSCS_MODE
 		+ 1
-#endif // ENABLE_BALANCED_OSCS_MODE
+#endif
+#ifdef ENABLE_EXPR_BUTTONS_MODE
+		+ 1
+#endif
 #ifdef TEST_MODE
 		+ 1
-#endif // TEST_MODE
+#endif
 		; // kNumModes
 
 #include <cmath>
@@ -1069,6 +1085,7 @@ private:
 };
 #endif
 
+#ifdef ENABLE_RECORDER_MODE
 class GestureRecorder
 {
 public:
@@ -1240,6 +1257,7 @@ private:
 	std::array<bool,kNumSplits> hadTouch {};
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
+#endif // ENABLE_RECORDER_MODE
 
 class Parameter {
 public:
@@ -1969,6 +1987,7 @@ public:
 	ParameterEnumT<3> splitMode{this, false};
 };
 
+#ifdef ENABLE_DIRECT_CONTROL_MODE
 class DirectControlMode : public SplitPerformanceMode {
 	enum AutoLatchMode {
 		kAutoLatchOff,
@@ -2131,6 +2150,7 @@ private:
 	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
 	uint32_t lastLatchCount = ButtonView::kPressIdInvalid;
 } gDirectControlMode;
+#endif // ENABLE_DIRECT_CONTROL_MODE
 
 static float linearInterpolation(float frac, float pastValue, float value)
 {
@@ -2202,6 +2222,7 @@ static float interpolatedRead(const T& table, float idx)
 	return interpolatedRead(table.data(), table.size(), idx);
 }
 
+#ifdef ENABLE_RECORDER_MODE
 class RecorderMode : public SplitPerformanceMode {
 	enum {
 		kInputModeTrigger,
@@ -2873,14 +2894,18 @@ private:
 	uint64_t lastAnalogRisingEdgeSamples = 0;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
+#endif // ENABLE_RECORDER_MODE
 
-static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
 static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top);
 static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv);
 static void menu_up();
 
 #define FILL_ARRAY(name, value) [](){decltype(name) a; a.fill(value); return a;}();
 static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx);
+
+#ifdef ENABLE_SCALE_METER_MODE
+#define MENU_ENTER_RANGE_DISPLAY
+static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
 
 class ScaleMeterMode : public PerformanceMode {
 public:
@@ -3150,6 +3175,7 @@ private:
 	size_t rmsIdx = 0;
 	float rmsAcc = 0;
 } gScaleMeterMode;
+#endif // ENABLE_SCALE_METER_MODE
 
 #ifdef ENABLE_BALANCED_OSCS_MODE
 class BalancedOscsMode : public PerformanceMode {
@@ -3287,6 +3313,9 @@ private:
 #endif // ENABLE_BALANCED_OSCS_MODE
 
 #define clickprintf(...) // use to enable debug printing in case of need
+
+#ifdef ENABLE_EXPR_BUTTONS_MODE
+#define MENU_ENTER_SINGLE_SLIDER
 static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter);
 
 class ExprButtonsMode : public PerformanceMode
@@ -4112,7 +4141,7 @@ private:
 	size_t keyBeingAdjusted = kKeyInvalid;
 	uint32_t frameId = -1;
 } gExprButtonsMode;
-
+#endif // ENABLE_EXPR_BUTTONS_MODE
 
 static constexpr float fromCode(uint16_t code)
 {
@@ -4891,13 +4920,21 @@ static std::array<PerformanceMode*,kNumModes> performanceModes = {
 #ifdef TEST_MODE
 	&gTestMode,
 #endif // TEST_MODE
+#ifdef ENABLE_DIRECT_CONTROL_MODE
 	&gDirectControlMode,
+#endif // ENABLE_DIRECT_CONTROL_MODE
+#ifdef ENABLE_RECORDER_MODE
 	&gRecorderMode,
+#endif // RECORDER_MODE
+#ifdef ENABLE_SCALE_METER_MODE
 	&gScaleMeterMode,
+#endif // ENABLE_SCALE_METER_MODE
 #ifdef ENABLE_BALANCED_OSCS_MODE
 	&gBalancedOscsMode,
 #endif // ENABLE_BALANCED_OSCS_MODE
+#ifdef ENABLE_EXPR_BUTTONS_MODE
 	&gExprButtonsMode,
+#endif // ENABLE_EXPR_BUTTONS_MODE
 	&gCalibrationMode,
 	&gFactoryTestMode,
 };
@@ -5624,8 +5661,10 @@ public:
 		for(size_t n = 0; n < endpointsColor.size(); ++n)
 			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n]);
 		slider.directWriteCentroid({ *display, 0.15 }, displayColor);
+#ifdef ENABLE_SCALE_METER_MODE
 		if(display == &gScaleMeterMode.inDisplay)
 			gScaleMeterMode.inDisplayUpdated = 10;
+#endif // ENABLE_SCALE_METER_MODE
 	}
 private:
 	rgb_t displayColor;
@@ -6091,6 +6130,7 @@ static AnimationColors buttonColorsSimilar = {
 };
 
 static ButtonAnimationSplit animationSplit(buttonColors, buttonColorsSimilar);
+#ifdef ENABLE_DIRECT_CONTROL_MODE
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
@@ -6100,7 +6140,9 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
+#endif // ENABLE_DIRECT_CONTROL_MODE
 
+#ifdef ENABLE_RECORDER_MODE
 static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColors};
 static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.splitMode, &animationSplit);
 static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.autoRetrigger, &animationSingleRepeatedPulse);
@@ -6112,7 +6154,9 @@ static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&recorderModeRetrigger,
 		&recorderModeSplit,
 };
+#endif // ENABLE_RECORDER_MODE
 
+#ifdef ENABLE_SCALE_METER_MODE
 static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
 static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, &gScaleMeterMode.outputMode, &animationSolid);
@@ -6124,6 +6168,7 @@ static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCoupling,
 		&scaleMeterModeOutputMode,
 };
+#endif // ENABLE_SCALE_METER_MODE
 
 #ifdef ENABLE_BALANCED_OSCS_MODE
 static ButtonAnimationWaveform animationWaveform{buttonColors};
@@ -6139,11 +6184,13 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 };
 #endif // ENABLE_BALANCED_OSCS_MODE
 
+#ifdef ENABLE_EXPR_BUTTONS_MODE
 static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
+#endif // ENABLE_EXPR_BUTTONS_MODE
 
 #if 0
 static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
@@ -6166,12 +6213,14 @@ static MenuPage exprButtonsModeOffsets {
 static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20, exprButtonsModeOffsets);
 #endif
 
+#ifdef ENABLE_EXPR_BUTTONS_MODE
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&disabled,
 		&disabled,
 		&exprButtonsModeModRange,
 		&exprButtonsModeQuantised,
 };
+#endif // ENABLE_EXPR_BUTTONS_MODE
 
 static std::array<MenuItemType*,kMaxModeParameters> emptyModeMenu = {
 		&disabled,
@@ -6184,13 +6233,21 @@ static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modes
 #ifdef TEST_MODE
 		&emptyModeMenu, // test mode
 #endif // TEST_MODE
+#ifdef ENABLE_DIRECT_CONTROL_MODE
 		&directControlModeMenu,
+#endif // ENABLE_DIRECT_CONTROL_MODE
+#ifdef ENABLE_RECORDER_MODE
 		&recorderModeMenu,
+#endif // ENABLE_RECORDER_MODE
+#ifdef ENABLE_SCALE_METER_MODE
 		&scaleMeterModeMenu,
+#endif // ENABLE_SCALE_METER_MODE
 #ifdef ENABLE_BALANCED_OSCS_MODE
 		&balancedOscsModeMenu,
 #endif // ENABLE_BALANCED_OSCS_MODE
+#ifdef ENABLE_EXPR_BUTTONS_MODE
 		&exprButtonsModeMenu,
+#endif // ENABLE_EXPR_BUTTONS_MODE
 		&emptyModeMenu, // calibration mode
 };
 
@@ -6452,12 +6509,14 @@ static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrigh
 
 static bool menuJustEntered;
 
+#ifdef MENU_ENTER_RANGE_DISPLAY
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
 	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColors, autoExit, &bottom, &top, nullptr, display);
 	menu_in(singleRangeDisplayMenu);
 }
+#endif // MENU_ENTER_RANGE_DISPLAY
 
 static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top)
 {
@@ -6473,12 +6532,14 @@ static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool botto
 	menu_in(displayScaleMeterOutputModeMenu);
 }
 
+#ifdef MENU_ENTER_SINGLE_SLIDER
 static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter)
 {
 	gAlt = 1;
 	singleSliderMenuItem = MenuItemTypeSlider(color, &parameter);
 	menu_in(singleSliderMenu);
 }
+#endif // MENU_ENTER_SINGLE_SLIDER
 
 static std::vector<MenuPage*> menuStack;
 
