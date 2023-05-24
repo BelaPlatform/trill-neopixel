@@ -4175,7 +4175,7 @@ float inGnd = 0.365818;
 float inBottom = 0;
 float inTop = 1;
 static constexpr unsigned kAverageCount = 2000;
-static constexpr unsigned kConnectedStepCount = 20;
+static constexpr unsigned kConnectedStepCount = 60;
 static constexpr unsigned kWaitAfterSetting = 2;
 static constexpr unsigned kDoneCount = 3000;
 static constexpr unsigned kWaitPostThreshold = 100;
@@ -4284,9 +4284,9 @@ void process(BelaContext* context)
 				calibrationState = kConnected;
 				minDiff = 1000000000;
 				minCode = 4096;
-				count = 0;
 				outCode = kRangeStart;
 				connectedState = kFindingDacGnd;
+				startCountBlocks = 0;
 			}
 			break;
 		case kConnected:
@@ -4295,39 +4295,47 @@ void process(BelaContext* context)
 			{
 				case kFindingDacGnd:
 				{
-					if(outCode >= kRangeStop)
+					if(startCountBlocks < kWaitAfterSetting)
 					{
-						printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
-						outGnd = fromCode(minCode);
-						// now that outGnd is set, we can use fromVolt()
-						outTop = fromVolt(kIoTopV);
-						outBottom = fromVolt(kIoBottomV);
-						printf("DAC: %.2fV: %f(%d), %.2fV: %f(%d), %.2fV: %f(%d)\n\r",
-								kIoBottomV, outBottom, toCode(outBottom),
-								kIoGndV, outGnd, toCode(outGnd),
-								kIoTopV, outTop, toCode(outTop));
+						startCountBlocks++;
 						count = 0;
-						connectedState = kFindingAdcVals;
-						findingAdcIdx = 0;
-						break;
-					}
-					if (kConnectedStepCount == count) {
-						float average = adcAccu / (count - kWaitAfterSetting);
-						float diff = average - inGnd;
-						diff = std::abs(diff);
-						if(diff < minDiff)
-						{
-							minDiff = diff;
-							minCode = outCode;
-						}
-						count = 0;
-						outCode += kStep;
-					}
-					if(0 == count)
 						adcAccu = 0;
-					 else if (count >= kWaitAfterSetting)
-						adcAccu += anIn;
-					count++;
+					} else {
+						for(size_t n = 0; n < context->analogFrames; ++n)
+						{
+							adcAccu += analogRead(context, n, 0) * (1.f / float(kConnectedStepCount));
+							count++;
+							if (kConnectedStepCount == count)
+							{
+								float average = adcAccu;
+								float diff = average - inGnd;
+								diff = std::abs(diff);
+								if(diff < minDiff)
+								{
+									minDiff = diff;
+									minCode = outCode;
+								}
+								startCountBlocks = 0;
+								outCode += kStep;
+								if(outCode >= kRangeStop)
+								{
+									printf("Gotten a minimum at code %u (%f), diff: %f)\n\r", minCode, fromCode(minCode), minDiff);
+									outGnd = fromCode(minCode);
+									// now that outGnd is set, we can use fromVolt()
+									outTop = fromVolt(kIoTopV);
+									outBottom = fromVolt(kIoBottomV);
+									printf("DAC: %.2fV: %f(%d), %.2fV: %f(%d), %.2fV: %f(%d)\n\r",
+											kIoBottomV, outBottom, toCode(outBottom),
+											kIoGndV, outGnd, toCode(outGnd),
+											kIoTopV, outTop, toCode(outTop));
+									startCountBlocks = 0;
+									connectedState = kFindingAdcVals;
+									findingAdcIdx = 0;
+								}
+								break;
+							}
+						}
+					}
 				}
 					break;
 				case kFindingAdcVals:
