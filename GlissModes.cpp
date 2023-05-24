@@ -4659,6 +4659,7 @@ public:
 	{
 		gOutMode.fill(kOutModeManualSample);
 		stateSuccess = false;
+		analogFailed = false;
 		state = kNumStates;
 		nextState();
 		return true;
@@ -4669,6 +4670,8 @@ public:
 			np.clear();
 		tri.buttonLedWrite(0, false);
 		tri.buttonLedWrite(1, false);
+		if(analogFailed)
+			tri.buttonLedWrite(1, true);
 		if(stateSuccess)
 		{
 			// display a green LED and wait for button press to start next test
@@ -4770,9 +4773,11 @@ public:
 						&& out[0] > 0 && out[0] < 0.1
 						&& out[2] > 0.9 && out[2] < 4095.f/4096.f
 					)
+					{
 						stateSuccess = true;
-					else
-						;
+						analogFailed = false;
+					} else
+						analogFailed = true;
 				} else // process until calibration is done
 					gCalibrationMode.render(context, frameData);
 				break;
@@ -4865,6 +4870,7 @@ private:
 	std::array<PadState,kNumPads> padStates;
 	std::array<bool,kNumStates> testSuccessful;
 	bool stateSuccess = false;
+	bool analogFailed;
 } gFactoryTestMode;
 
 static std::array<PerformanceMode*,kNumModes> performanceModes = {
