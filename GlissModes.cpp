@@ -4805,7 +4805,14 @@ public:
 			// global settings set and buttons caught by gCalibrationMode
 		} else {
 			if(performanceBtn.offset)
-				nextState();
+			{
+				if(kNumStates == state)
+				{
+					if(++finalButtonCount >= 2)
+						nextState();
+				} else
+					nextState();
+			}
 			gOutMode.fill(kOutModeManualSample);
 			gInUsesCalibration = false;
 			gInUsesRange = false;
@@ -4848,6 +4855,7 @@ private:
 			gCalibrationProcedure.start();
 			break;
 		case kNumStates:
+			finalButtonCount = 0;
 			break;
 		}
 		countMs = 0;
@@ -4869,6 +4877,7 @@ private:
 	};
 	std::array<PadState,kNumPads> padStates;
 	std::array<bool,kNumStates> testSuccessful;
+	size_t finalButtonCount;
 	bool stateSuccess = false;
 	bool analogFailed;
 } gFactoryTestMode;
