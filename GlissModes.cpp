@@ -4176,7 +4176,7 @@ float inBottom = 0;
 float inTop = 1;
 static constexpr unsigned kAverageCount = 2000;
 static constexpr unsigned kConnectedStepCount = 60;
-static constexpr unsigned kWaitAfterSetting = 2;
+static constexpr unsigned kWaitAfterSetting = 3;
 static constexpr unsigned kDoneCount = 3000;
 static constexpr unsigned kWaitPostThreshold = 100;
 static constexpr float kAdcConnectedThreshold = 0.1;
@@ -4348,24 +4348,32 @@ void process(BelaContext* context)
 						connectedState = kFindingDone;
 						break;
 					}
-					if(0 == count)
+					if(startCountBlocks < kWaitAfterSetting)
+					{
+						startCountBlocks++;
 						adcAccu = 0;
-					else if(count >= kWaitAfterSetting)
-						adcAccu += anIn;
-					++count;
-					if(kAverageCount == count) {
-						float value = adcAccu / (count - kWaitAfterSetting);
-						switch(findingAdcIdx)
-						{
-						case 0:
-							inBottom = value;
-							break;
-						case 1:
-							inTop = value;
-							break;
-						}
-						findingAdcIdx++;
 						count = 0;
+					} else {
+						for(size_t n = 0; n < context->analogFrames; ++n)
+						{
+							adcAccu += analogRead(context, n, 0) * 1.f / float(kAverageCount);
+							++count;
+							if(kAverageCount == count) {
+								// store the resulting value
+								float value = adcAccu;
+								switch(findingAdcIdx)
+								{
+								case 0:
+									inBottom = value;
+									break;
+								case 1:
+									inTop = value;
+									break;
+								}
+								findingAdcIdx++;
+								startCountBlocks = 0;
+							}
+						}
 					}
 				}
 					break;
