@@ -2767,7 +2767,7 @@ public:
 				// input is CV
 				gInUsesRange = false; // we need actual voltage here
 				float volts = inToV(analogRead(context, 0, 0));
-				float baseFreq = 50;
+				float baseFreq = 65.40639f; // a C
 				freq = vToFreq(volts, baseFreq);
 			} else {
 				// input is clock
