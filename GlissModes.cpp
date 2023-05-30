@@ -836,24 +836,21 @@ public:
 	}
 	ValidSample record(const sample_t& in)
 	{
-		data[current] = in;
-		sample_t& ret = data[current];
-		increment(current);
-		// if the circular buffer becomes full, make a note of it
-		if(current == start)
-			full = true;
-		end = current;
-		return {ret, true};
+		if(full){
+			return {0, false};
+		} else {
+			data[current] = in;
+			increment(current);
+			// if the circular buffer becomes full, make a note of it
+			if(current == start)
+				full = true;
+			end = current;
+			return {in, true};
+		}
 	}
 	virtual void stopRecording()
 	{
-		if(full)
-		{
-			// if the circular buffer became full, adjust start
-			// so that we use all data in the buffer
-			start = end;
-			increment(start);
-		}
+		// nothing to do here at the moment. Just use start and end as set in record().
 	}
 	void resize(size_t newEnd)
 	{
@@ -885,7 +882,7 @@ public:
 	size_t size()
 	{
 		size_t size = data.size();
-		size_t i = (end - start + size) % size;
+		size_t i = full ? size : (end - start + size) % size;
 		return i;
 	}
 	const std::array<sample_t, kMaxRecordLength>& getData()
@@ -914,6 +911,7 @@ protected:
 	size_t end = 0;
 	size_t current = 0;
 	bool active = false;
+public:
 	bool full = false; // whether during recording the buffer becomes full
 };
 
