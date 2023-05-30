@@ -86,9 +86,11 @@ private:
 	std::array<unsigned int,kMaxTouches> sortedTouchIndices {};
 	std::array<unsigned int,kMaxTouches> sortedTouchIds {};
 	std::array<TouchWithId,kMaxTouches> sortedTouches {};
+public:
 	static constexpr TouchWithId kInvalidTouch = {
 		.id = kIdInvalid,
 	};
+private:
 	size_t getTouchOrderById(const Id id)
 	{
 		for(size_t n = 0; n < sortedTouches.size() && n < numTouches; ++n)
@@ -1858,9 +1860,9 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
+std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
 {
-	std::array<centroid_t,kNumSplits> values;
+	std::array<TouchTracker::TouchWithId,kNumSplits> values;
 	if(shouldProcess)
 		gTouchTracker.process(globalSlider);
 	size_t numTouches = gTouchTracker.getNumTouches();
@@ -1870,17 +1872,15 @@ std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, b
 	const float midMax = 0.55;
 	for(ssize_t s = 0; s < 1 + split; ++s)
 	{
-		bool found = false;
 		const float min = split ? (kNumSplits - 1 - s) * midMax : 0;
 		const float max = split ? min + midMin : 1;
-		TouchTracker::TouchWithId twi;
+		TouchTracker::TouchWithId twi = TouchTracker::kInvalidTouch;
 		for(ssize_t i = numTouches - 1; i >= 0; --i)
 		{
 			// get the most recent touch which started on this split
 			const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
 			if(t.startLocation >= min && t.startLocation <= max)
 			{
-				found = true;
 				twi = t;
 				break;
 			} else if(t.startLocation > midMin && t.startLocation < midMax) {
@@ -1891,22 +1891,15 @@ std::array<centroid_t,kNumSplits> touchTrackerSplit(CentroidDetection& slider, b
 					// we assign it to it for future reference
 					// and immediately start using it
 					gTouchTracker.setStartLocationById(t.id, t.touch.location);
-					found = true;
 					twi = t;
 					break;
 				}
 			}
 		}
-		if(!found)
-			twi.id = TouchTracker::kIdInvalid;
-		if(TouchTracker::kIdInvalid == twi.id)
-		{
-			values[s].location = 0;
-			values[s].size = 0;
-		} else {
+		values[s] = twi;
+		if(TouchTracker::kIdInvalid != twi.id) {
 			// TODO: this used to be compoundTouch)
-			values[s].location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
-			values[s].size = twi.touch.size;
+			values[s].touch.location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
 		}
 	}
 	return values;
@@ -2032,7 +2025,10 @@ public:
 	void render(BelaContext*, FrameData* frameData) override
 	{
 		setOutIsSize();
-		std::array<centroid_t,kNumSplits> values = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		std::array<centroid_t,kNumSplits> values;
+		for(size_t n = 0; n < values.size(); ++n)
+			values[n] = twis[n].touch;
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
@@ -2525,10 +2521,14 @@ public:
 			}
 		}
 
-		std::array<centroid_t,kNumSplits> touches = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		std::array<TouchTracker::TouchWithId,kNumSplits> twis  = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<bool,kNumSplits> hasTouch;
 		for(size_t n = 0; n < currentSplits(); ++n)
-			hasTouch[n] = touches[n].size > 0;
+		{
+			auto id = getId(twis, n);
+			bool touchInvalid = (TouchTracker::kIdInvalid == id);
+			hasTouch[n] = !touchInvalid;
+		}
 
 		// control start/stop recording
 		if(kInputModeClock == inputMode)
@@ -2624,16 +2624,16 @@ public:
 		switch(splitMode)
 		{
 		case kModeNoSplit:
-			recIns[0] = touches[0].location;
-			recIns[1] = touches[0].size;
+			recIns[0] = twis[0].touch.location;
+			recIns[1] = twis[0].touch.size;
 			break;
 		case kModeSplitLocation:
-			recIns[0] = touches[0].location;
-			recIns[1] = touches[1].location;
+			recIns[0] = twis[0].touch.location;
+			recIns[1] = twis[1].touch.location;
 			break;
 		case kModeSplitSize:
-			recIns[0] = touches[0].size;
-			recIns[1] = touches[1].size;
+			recIns[0] = twis[0].touch.size;
+			recIns[1] = twis[1].touch.size;
 			break;
 		}
 		// gesture may be overwritten below before it is visualised
@@ -2670,7 +2670,7 @@ public:
 					{
 						gOutMode[n] = kOutModeManualBlock;
 						gesture[n] = GestureRecorder::HalfGesture_t {
-							.sample = kModeSplitLocation == splitMode ? touches[n].location : touches[n].size,
+							.sample = kModeSplitLocation == splitMode ? twis[n].touch.location : twis[n].touch.size,
 							.valid = true,
 						};
 					} else // otherwise, keep playing back from table
@@ -2681,8 +2681,8 @@ public:
 					if(directControl[n])
 					{
 						gOutMode.fill(kOutModeManualBlock);
-						gesture[0] = { touches[0].location, true };
-						gesture[1] = { touches[0].size, true };
+						gesture[0] = { twis[0].touch.location, true };
+						gesture[1] = { twis[0].touch.size, true };
 					} else
 						gOutMode.fill(kOutModeManualSample);
 				}
@@ -2859,6 +2859,11 @@ private:
 	{
 		gGestureRecorder.empty();
 		periodsInTables.fill(1);
+	}
+	TouchTracker::Id getId(std::array<TouchTracker::TouchWithId,kNumSplits>& twis, size_t c)
+	{
+		assert(c < twis.size());
+		return twis[isSplit() ? c : 0].id;
 	}
 	rgb_t colors[2] = {
 			{128, 128, 0},
