@@ -733,7 +733,7 @@ public:
 		{
 			for(size_t n = 0; n < numValues; ++n)
 			{
-				if(!isLatched[n] && hasTouch[n])
+				if(hasTouch[n])
 					latchStarts[n] = kLatchManual;
 			}
 		} else if (shouldUnlatch) {
@@ -2041,7 +2041,7 @@ public:
 			for(ssize_t n = 0; n < 1 + isSplit(); ++n)
 			{
 				bool hasTouch = values[n].size > 0;
-				shouldLatch |= (!isLatched[n] && hasTouch);
+				shouldLatch |= hasTouch;
 			}
 		}
 		if(performanceBtn.offset)
