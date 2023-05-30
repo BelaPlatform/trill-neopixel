@@ -4997,27 +4997,30 @@ protected:
 
 class ButtonAnimationSplit : public ButtonAnimation {
 public:
-	ButtonAnimationSplit(AnimationColors& color0, AnimationColors& color1) :
-		colors0(color0), colors1(color1) {}
+	ButtonAnimationSplit(AnimationColors& colors) :
+		colors(colors) {}
 	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
-		const rgb_t& color0 = colors0[getIdx(value)];
-		const rgb_t& color1 = colors1[getIdx(value)];
-		rgb_t color;
-		if(SplitPerformanceMode::kModeNoSplit == value)
-			color = color0;
-		else {
-			float coeff0 = simpleTriangle(ms, 1000);
-			float coeff1 = 1.f - coeff0;
-			rgb_t otherColor = (SplitPerformanceMode::kModeSplitLocation == value) ? color1 : rgb_t{0, 0, 0};
-			color.r = coeff0 * color0.r + coeff1 * otherColor.r;
-			color.g = coeff0 * color0.g + coeff1 * otherColor.g;
-			color.b = coeff0 * color0.b + coeff1 * otherColor.b;
+		float tri = simpleTriangle(ms, 1000);
+		float coeff;
+		switch(int(value))
+		{
+		default:
+		case SplitPerformanceMode::kModeNoSplit:
+			coeff = 1.f;
+		break;
+		case SplitPerformanceMode::kModeSplitLocation:
+			coeff = tri > 0.5 ? 1 : 0.2;
+		break;
+		case SplitPerformanceMode::kModeSplitSize:
+			coeff = tri;
+		break;
 		}
+		rgb_t color = colors[getIdx(value)];
+		color.scale(coeff);
 		ledSlider.setColor(color);
 	};
 protected:
-	AnimationColors& colors0;
-	AnimationColors& colors1;
+	AnimationColors& colors;
 };
 
 class ButtonAnimationPulsatingStill : public ButtonAnimation {
@@ -6119,17 +6122,8 @@ static AnimationColors buttonColors = {
 		rgb_t{0, 64, 255},
 		rgb_t{0, 0, 255},
 };
-static AnimationColors buttonColorsSimilar = {
-		// these are mostly unused (and thus untested)
-		rgb_t{0, 0, 0},
-		rgb_t{192, 64, 255},
-		rgb_t{0, 0, 0},
-		rgb_t{0, 0, 0},
-		rgb_t{0, 0, 0},
-		rgb_t{0, 0, 0},
-};
 
-static ButtonAnimationSplit animationSplit(buttonColors, buttonColorsSimilar);
+static ButtonAnimationSplit animationSplit(buttonColors);
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
