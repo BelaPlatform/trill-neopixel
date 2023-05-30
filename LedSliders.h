@@ -35,6 +35,15 @@ typedef struct {
 	size_t size() const {
 		return 3;
 	}
+	void scale(float gain) {
+		for(size_t n = 0; n < size(); ++n)
+		{
+			float val = (*this)[n] * gain;
+			if(val > 255)
+				val = 255;
+			(*this)[n] = val + 0.5f; // round
+		}
+	}
 } rgb_t;
 
 class LedSlider : public CentroidDetectionScaled
