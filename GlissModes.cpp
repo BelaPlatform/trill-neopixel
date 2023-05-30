@@ -2229,6 +2229,8 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode.fill(kOutModeManualBlock);
+		hadTouch.fill(false);
+		ignoredTouch.fill(TouchTracker::kIdInvalid);
 		pastAnalogInHigh = false;
 		if(isSplit())
 		{
@@ -2524,7 +2526,7 @@ public:
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
 			auto id = getId(twis, n);
-			bool touchInvalid = (TouchTracker::kIdInvalid == id);
+			bool touchInvalid = (TouchTracker::kIdInvalid == id) || (id == ignoredTouch[n]);
 			hasTouch[n] = !touchInvalid;
 		}
 
@@ -2534,6 +2536,12 @@ public:
 			// start/stop recording based on qrec and input edges
 			for(size_t n = 0; n < kNumSplits; ++n)
 			{
+				// if still touching after filling the recorder's buffer,
+				// stop recording aligned to past edge.
+				auto id = getId(twis, n);
+				if(id != TouchTracker::kIdInvalid && id == ignoredTouch[n])
+					qrecStopNow[n] = kStopNowLate;
+
 				auto& qrec = qrecs[n];
 				if(qrecStartNow[n])
 				{
@@ -2645,6 +2653,9 @@ public:
 				if(releaseStarts[n])
 					gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, envelopeReleaseStarts[n]);
+				TouchTracker::Id id = getId(twis, n);
+				if(ignoredTouch[n] != id && TouchTracker::kIdInvalid != id && gGestureRecorder.rs[n].r.full)
+					ignoredTouch[n] = id;
 			}
 		}
 
@@ -2891,7 +2902,8 @@ private:
 	static constexpr size_t kNumSplits = ::kNumSplits;
 	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
 	std::array<size_t,kNumSplits> periodsInTables {1, 1};
-	std::array<bool,kNumSplits> hadTouch {};
+	std::array<bool,kNumSplits>  hadTouch;
+	std::array<TouchTracker::Id,kNumSplits> ignoredTouch;
 	std::array<ssize_t,kNumSplits> envelopeReleaseStarts { -1, -1 };
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
 	uint64_t lastAnalogRisingEdgeSamples = 0;
