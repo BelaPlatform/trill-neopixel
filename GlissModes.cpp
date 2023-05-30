@@ -1150,7 +1150,7 @@ public:
 			if(frameId == rs[n].lastFrameId)
 				return rs[n].lastOut;
 			out = { rs[n].r.record(touch).sample, true };
-			rs[n].activity |= touch > 0;
+			rs[n].activity |= touch > 0; // TODO: if a gesture was all at exactly 0 location (unlikely), this would break
 			break;
 		case kPlayJustStarted:
 			if(loop)
