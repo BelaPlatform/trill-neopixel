@@ -4756,6 +4756,7 @@ class FactoryTestMode: public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		ledSlidersSetupOneSlider({0,0,0}, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
 		gOutMode.fill(kOutModeManualSample);
 		stateSuccess = false;
 		analogFailed = false;
