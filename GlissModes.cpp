@@ -2412,12 +2412,13 @@ public:
 				break;
 			} // switch inputMode
 		}
-		tri.buttonLedWrite(1,
-				qrecs[0].armedFor
-				|| kRecActual == qrecs[0].recording
-				|| qrecs[1].armedFor
-				|| kRecActual == qrecs[1].recording
-				);
+		if(kInputModeClock == inputMode)
+			tri.buttonLedWrite(1,
+					qrecs[0].armedFor
+					|| kRecActual == qrecs[0].recording
+					|| qrecs[1].armedFor
+					|| kRecActual == qrecs[1].recording
+					);
 		// detect edges on analog in
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
