@@ -2232,6 +2232,7 @@ public:
 		hadTouch.fill(false);
 		idxFrac = 0;
 		ignoredTouch.fill(TouchTracker::kIdInvalid);
+		buttonBlinksIgnored = 0;
 		pastAnalogInHigh = false;
 		if(isSplit())
 		{
@@ -2263,6 +2264,15 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
+		tri.buttonLedWrite(0, 0);
+		tri.buttonLedWrite(1, 0);
+		if(buttonBlinksIgnored)
+		{
+			tri.buttonLedWrite(0, true);
+			buttonBlinksIgnored--;
+		}
+
+
 		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
@@ -2402,7 +2412,7 @@ public:
 				break;
 			} // switch inputMode
 		}
-		tri.buttonLedWrite(0,
+		tri.buttonLedWrite(1,
 				qrecs[0].armedFor
 				|| kRecActual == qrecs[0].recording
 				|| qrecs[1].armedFor
@@ -2656,7 +2666,10 @@ public:
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, envelopeReleaseStarts[n]);
 				TouchTracker::Id id = getId(twis, n);
 				if(ignoredTouch[n] != id && TouchTracker::kIdInvalid != id && gGestureRecorder.rs[n].r.full)
+				{
 					ignoredTouch[n] = id;
+					buttonBlinksIgnored = 100;
+				}
 			}
 		}
 
@@ -2945,6 +2958,7 @@ private:
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
 	uint64_t lastAnalogRisingEdgeSamples = 0;
 	float idxFrac = 0;
+	size_t buttonBlinksIgnored;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
