@@ -2230,6 +2230,7 @@ public:
 	{
 		gOutMode.fill(kOutModeManualBlock);
 		hadTouch.fill(false);
+		idxFrac = 0;
 		ignoredTouch.fill(TouchTracker::kIdInvalid);
 		pastAnalogInHigh = false;
 		if(isSplit())
@@ -2741,6 +2742,42 @@ public:
 			} else
 				vizValues[0] = kInvalid;
 		}
+		if(kInputModeCv == inputMode)
+		{
+			// in order to visualise something meaningful, we show a fixed-period
+			// visualisation of the content of the table
+			static constexpr float kDisplayPeriod = 2; // seconds
+			for(size_t c = 0; c < currentSplits(); ++c)
+			{
+				if(TouchTracker::kIdInvalid == getId(twis, c))
+				{
+					const float* table = gGestureRecorder.rs[c].r.getData().data();
+					size_t tableSize = gGestureRecorder.rs[c].r.size();
+					vizValues[c] = {};
+					if(tableSize)
+					{
+						// visualise with fix period
+						vizValues[c].location = table[size_t(idxFrac * (tableSize - 1))];
+						if(isSplit())
+						{
+							vizValues[c].size = isSizeOnly ? vizValues[c].location : kFixedCentroidSize;
+						} else {
+							const float* table = gGestureRecorder.rs[c].r.getData().data();
+							size_t tableSize = gGestureRecorder.rs[c].r.size();
+							if(tableSize)
+								vizValues[0].size = table[size_t(idxFrac * (tableSize - 1))];
+						}
+					}
+				} else {
+					// visualise current touch
+					vizValues[c] = twis[c].touch;
+					idxFrac = 0; // prepare phase for next time we get to draw it
+				}
+			}
+			idxFrac += (context->analogFrames) / (context->analogSampleRate) / kDisplayPeriod;
+			while(idxFrac >= 1)
+				idxFrac -= 1;
+		}
 		// this may set gManualAnOut even if they are ignored
 		renderOut(gManualAnOut, vizValues, vizValues);
 	}
@@ -2907,6 +2944,7 @@ private:
 	std::array<ssize_t,kNumSplits> envelopeReleaseStarts { -1, -1 };
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
 	uint64_t lastAnalogRisingEdgeSamples = 0;
+	float idxFrac = 0;
 	bool pastAnalogInHigh = false;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
