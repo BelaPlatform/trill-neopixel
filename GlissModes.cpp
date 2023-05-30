@@ -3078,15 +3078,17 @@ public:
 			float outs[kNumOutChannels] = {0};
 			switch (outputMode)
 			{
-			case kOutputModeNN: // top pass-through, bottom pass-through
-				outs[0] = outs[1] = envIn;
+			case kOutputModeNN: // top pass-through, bottom inverted pass-through
+				outs[0] = envIn;
+				outs[1] = 1.f - envIn;
 				break;
 			case kOutputModeNE: // top pass-through, bottom envelope
 				outs[0] = envIn;
 				outs[1] = env;
 				break;
-			case kOutputModeEE: // top envelope, bottom envelope
-				outs[0] = outs[1] = env;
+			case kOutputModeEE: // top envelope, bottom inverted envelope
+				outs[0] = env;
+				outs[1] = 1.f -env;
 				break;
 			}
 			for(size_t c = 0; c < kNumOutChannels; ++c)
