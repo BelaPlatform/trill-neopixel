@@ -2771,7 +2771,7 @@ public:
 					if(tableSize)
 					{
 						// visualise with fix period
-						vizValues[c].location = table[size_t(idxFrac * (tableSize - 1))];
+						vizValues[c].location = interpolatedRead(table, tableSize, idxFrac);
 						if(isSplit())
 						{
 							vizValues[c].size = isSizeOnly ? vizValues[c].location : kFixedCentroidSize;
@@ -2779,7 +2779,7 @@ public:
 							const float* table = gGestureRecorder.rs[c].r.getData().data();
 							size_t tableSize = gGestureRecorder.rs[c].r.size();
 							if(tableSize)
-								vizValues[0].size = table[size_t(idxFrac * (tableSize - 1))];
+								vizValues[0].size = interpolatedRead(table, tableSize, idxFrac);
 						}
 					}
 				} else {
