@@ -671,40 +671,40 @@ void tr_render(BelaContext* context)
 	static enum {
 		kMenuChangeDisabled = 0,
 		kMenuPre,
-		kMenuLocalSettings,
-		kMenuGlobalSettings0,
-		kMenuGlobalSettings1,
 	} menuState = kMenuChangeDisabled;
 	if(btn.pressed)
 	{
-		const size_t kTouchesForLocalSettings = 2;
-		const size_t kTouchesForGlobalSettings0 = 3;
-		const size_t kTouchesForGlobalSettings1 = 4;
-		const size_t kTouchesForFactoryTest = 5;
-		if(numTouches && !hadTouch) // we start touching
+		static constexpr std::array<size_t, 4> touchesForMenu = {
+			2, // kTouchesForLocalSettings
+			3, // kTouchesForGlobalSettings0
+			4, // kTouchesForGlobalSettings1
+			5, // kTouchesForFactoryTest
+		};
+
+		// keep tracking of max touches to avoid entering the wrong mode when releasing
+		static size_t maxTouchesThisMenuPre = 0;
+		if(numTouches && !hadTouch) {// we start touching
 			menuState = kMenuPre;
+			maxTouchesThisMenuPre = 0;
+		}
 		if(!numTouches) // we no longer touch
 			menuState = kMenuChangeDisabled;
-		if(1 != gAlt && kMenuPre == menuState && kTouchesForLocalSettings == numTouches)
+		if(kMenuPre == menuState)
 		{
-			//button is on + kTouchesForModeMenu touches: enter alt mode
-			gAlt = 1;
-			menu_setup(0);
-			menuState = kMenuLocalSettings;
-		}
-		if(gAlt && kMenuLocalSettings == menuState && kTouchesForGlobalSettings0 == numTouches)
-		{
-			menu_setup(1);
-			menuState = kMenuGlobalSettings0;
-		}
-		if(gAlt && kMenuGlobalSettings0 == menuState && kTouchesForGlobalSettings1 == numTouches)
-		{
-			menu_setup(2);
-			menuState = kMenuGlobalSettings1;
-		}
-		if(gAlt && kTouchesForFactoryTest == numTouches)
-		{
-			menu_setup(3);
+			if(numTouches > maxTouchesThisMenuPre)
+			{
+				// we have a new touch
+				for(ssize_t n = touchesForMenu.size() - 1; n >= 0; --n)
+				{
+					if(touchesForMenu[n] == numTouches)
+					{
+						menu_setup(n);
+						gAlt = 1;
+						break;
+					}
+				}
+			}
+			maxTouchesThisMenuPre = std::max(maxTouchesThisMenuPre, numTouches);
 		}
 	} else
 		menuState = kMenuChangeDisabled; // shouldn't be needed, but, you know ...
