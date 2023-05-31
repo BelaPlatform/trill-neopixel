@@ -3030,8 +3030,8 @@ public:
 		if(inDisplayUpdated)
 		{
 			inDisplayUpdated--;
-			// ugly workaround to turn on the green LED when in the "clipping" page
-			tri.buttonLedWrite(0, 1);
+			// ugly workaround to turn on the red LED when in the "clipping" page
+			tri.buttonLedWrite(1, 1);
 		}
 		float outVizThrough = 0;
 		float outVizEnv = 0;
