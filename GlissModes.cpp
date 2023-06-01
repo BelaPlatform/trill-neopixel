@@ -3404,8 +3404,7 @@ public:
 		{
 			ledSlidersSetupMultiSlider(
 				ledSliders,
-				{
-				},
+				{{0, 0, 0}},
 				LedSlider::MANUAL_CENTROIDS,
 				true,
 				1
