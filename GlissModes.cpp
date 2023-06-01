@@ -3874,16 +3874,16 @@ public:
 				break;
 			}
 			// slider leds
-			np.clear();
+			ledSliders.sliders[0].directBegin();
 			for(size_t n = 0; n < numButtons; ++n)
 			{
 				float coeff = (n == vizKey) ? 1 : 0.1; // may be overridden
-				size_t pixel = size_t(getMidLocationFromKey(n) * kNumLeds + 0.5f);
 				rgb_t color;
 				if(kPageSampling == page)
 				{
 					// same behaviour for seqMode and non-seqMode
-					// always has kmaxNumButtons buttons
+					// though in seqMode it always has kmaxNumButtons buttons,
+					// while in key mode it only has numButtons
 					color = colors[n];
 					if(n == vizKey)
 						coeff = 1;
@@ -3921,8 +3921,9 @@ public:
 					else // shouldn't get here
 						color = {0, 0, 0};
 				}
-				//TODO: have setPixelColor obey "enabled"
-				np.setPixelColor(pixel, color.r * coeff, color.g * coeff, color.b * coeff);
+				ledSliders.sliders[0].directWriteCentroid(centroid_t { getMidLocationFromKey(n), coeff }, color,
+						LedSlider::kDefaultNumWeights - 1 + (kMaxNumButtons - numButtons) / (0.125f * kMaxNumButtons)
+				);
 			}
 		}
 	}
