@@ -610,10 +610,10 @@ void tr_render(BelaContext* context)
 	// of the input range
 	const float kButtonLedThreshold = 0.04;
 	static_assert(inCal.points[1] == CalibrationData::kGnd); // we assume points[1] represents gnd
-	float clippedIn = tri.analogRead() - inCal.values[1]; // positive voltages
-	if(clippedIn < kButtonLedThreshold)
-		clippedIn = 0;
-	tri.buttonLedWrite(1, clippedIn);
+//	float clippedIn = tri.analogRead() - inCal.values[1]; // positive voltages
+//	if(clippedIn < kButtonLedThreshold)
+//		clippedIn = 0;
+//	tri.buttonLedWrite(1, clippedIn);
 #endif // TEST_MODE
 	extern size_t msToNumBlocks(BelaContext* context, float ms);
 	static const uint32_t kDoubleClickTime = msToNumBlocks(context, 300);
@@ -700,6 +700,7 @@ void tr_render(BelaContext* context)
 					{
 						menu_setup(n);
 						gAlt = 1;
+						tri.buttonLedSet(TrillRackInterface::kSolid, TrillRackInterface::kG, 1, 100);
 						break;
 					}
 				}

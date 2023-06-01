@@ -283,7 +283,8 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 #define S(a)
 
 extern int gAlt;
-extern TrillRackInterface tri;
+typedef TrillRackInterface TRI; // shorthand
+extern TRI tri;
 extern const unsigned int kNumLeds;
 extern std::vector<unsigned int> padsToOrderMap;
 extern NeoPixelT<kNumLeds> np;
@@ -1382,8 +1383,7 @@ public:
 		}
 		if(hasTouch)
 		{
-			tri.buttonLedWrite(kGreenBtnIdx, 0);
-			tri.buttonLedWrite(kRedBtnIdx, 0);
+			tri.buttonLedSet(TRI::kOff, TRI::kAll);
 		} else {
 			float gn = 0;
 			float rd = 0;
@@ -1402,8 +1402,8 @@ public:
 				rd = redButton;
 				break;
 			}
-			tri.buttonLedWrite(kGreenBtnIdx, gn);
-			tri.buttonLedWrite(kRedBtnIdx, rd);
+			tri.buttonLedSet(TRI::kSolid, TRI::kG, gn);
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, rd);
 		}
 		hadTouch = hasTouch;
 		centroid_t centroids[2];
@@ -1580,8 +1580,6 @@ private:
 	uint32_t startTime = 0;
 	float greenButton = 0;
 	float redButton = 0;
-	static constexpr size_t kGreenBtnIdx = 1;
-	static constexpr size_t kRedBtnIdx = 0;
 	bool hadTouch = false;
 	bool shouldLeds = true;
 	bool shouldTouch = true;
@@ -2037,6 +2035,8 @@ public:
 				bool hasTouch = values[n].size > 0;
 				shouldLatch |= hasTouch;
 			}
+			if(shouldLatch)
+				tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		}
 		if(performanceBtn.offset)
 		{
@@ -2264,15 +2264,6 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		tri.buttonLedWrite(0, 0);
-		tri.buttonLedWrite(1, 0);
-		if(buttonBlinksIgnored)
-		{
-			tri.buttonLedWrite(0, true);
-			buttonBlinksIgnored--;
-		}
-
-
 		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
@@ -2291,6 +2282,7 @@ public:
 				qrec.recording = kRecNone;
 			}
 			lastIgnoredPressId = performanceBtn.pressId;
+			tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 300);
 		}
 		bool triggerNow = false;
 		if(performanceBtn.doubleClick)
@@ -2329,6 +2321,7 @@ public:
 						// a separator between attack and release when playing back
 						envelopeReleaseStarts[n] = gGestureRecorder.rs[n].r.size();
 						lastIgnoredPressId = performanceBtn.pressId;
+						tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 150);
 					} else {
 						// if not recording, on button press we
 						// start the attack section of the envelope
@@ -2338,11 +2331,20 @@ public:
 						triggerNow = true;
 						// we DO NOT ignore this press as we are interested
 						// in getting its offset, too for triggering the release phase
+
+						// blink button
+						tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 150);
 					}
 				}
 			}
 			break;
 			}
+		}
+		// EG + Gate mode
+		if(0 == autoRetrigger && (envelopeReleaseStarts[0] > 0 || envelopeReleaseStarts[1] > 0) && performanceBtn.pressed)
+		{
+			// hold LED as long as button is down
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		}
 		enum StopMode {
 			kStopNone = 0,
@@ -2359,11 +2361,15 @@ public:
 			case kInputModeTrigger:
 				if(!autoRetrigger)
 				{
+					tri.buttonLedSet(TRI::kOff, TRI::kR);
 					for(size_t n = 0; n < kNumSplits; ++n)
 						if(envelopeReleaseStarts[n] >= 0)
 							releaseStarts[n] = true;
 				} else {
+					// when LFO mode, triggering on button release, so not
+					// to disrupt it when entering menu
 					triggerNow = true;
+					tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 150);
 				}
 				break;
 			case kInputModeClock:
@@ -2413,7 +2419,7 @@ public:
 			} // switch inputMode
 		}
 		if(kInputModeClock == inputMode)
-			tri.buttonLedWrite(1,
+			tri.buttonLedSet(TRI::kSolid, TRI::kR,
 					qrecs[0].armedFor
 					|| kRecActual == qrecs[0].recording
 					|| qrecs[1].armedFor
@@ -2432,6 +2438,7 @@ public:
 			recordOffset += GestureRecorder::kNumRecs / 2;
 		if(analogRisingEdge)
 		{
+			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, 50);
 			lastAnalogRisingEdgeSamples = currentSamples;
 			switch(inputMode.get())
 			{
@@ -2669,7 +2676,7 @@ public:
 				if(ignoredTouch[n] != id && TouchTracker::kIdInvalid != id && gGestureRecorder.rs[n].r.full)
 				{
 					ignoredTouch[n] = id;
-					buttonBlinksIgnored = 100;
+					tri.buttonLedSet(TRI::kBlink, TRI::kG, 1, 15);
 				}
 			}
 		}
@@ -3001,8 +3008,6 @@ public:
 
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		tri.buttonLedWrite(0, 0);
-		tri.buttonLedWrite(1, 0);
 		// we can quickly get into menu mode from here
 		if(!gAlt)
 		{
@@ -3027,11 +3032,11 @@ public:
 				return;
 			}
 		}
+		// ugly workaround to turn on the red LED when in the "clipping" page
 		if(inDisplayUpdated)
 		{
 			inDisplayUpdated--;
-			// ugly workaround to turn on the red LED when in the "clipping" page
-			tri.buttonLedWrite(1, 1);
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		}
 		float outVizThrough = 0;
 		float outVizEnv = 0;
@@ -3852,8 +3857,15 @@ public:
 			// if not seqMode
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 		}
-		// turn on yellow LED if we are performing and bending
-		tri.buttonLedWrite(0, kBending == touch.state && !seqMode && kPagePerf == page);
+		if(!seqMode)
+		{
+			// turn on green LED if we are in a stable position
+			tri.buttonLedSet(TRI::kSolid, TRI::kG,
+					kInitial == touch.state
+					|| kGood == touch.state
+					|| kMoved == touch.state
+			);
+		}
 		// display
 		if(!gAlt)
 		{
@@ -4768,8 +4780,6 @@ public:
 	{
 		if(!gAlt)
 			np.clear();
-		tri.buttonLedWrite(0, false);
-		tri.buttonLedWrite(1, false);
 		if(performanceBtn.offset)
 		{
 			// by checking this early on, we make sure
@@ -4784,11 +4794,11 @@ public:
 				nextState();
 		}
 		if(analogFailed)
-			tri.buttonLedWrite(1, true);
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		if(stateSuccess)
 		{
 			// display a green LED and wait for button press to start next test
-			tri.buttonLedWrite(0, true);
+			tri.buttonLedSet(TRI::kSolid, TRI::kG, 1);
 		} else {
 			switch(state)
 			{
@@ -4797,8 +4807,7 @@ public:
 				bool value = countMs < 300;
 				if(countMs > 600)
 					countMs = 0;
-				tri.buttonLedWrite(1, value);
-				tri.buttonLedWrite(0, !value);
+				tri.buttonLedSet(TRI::kSolid, value ? TRI::kG : TRI::kR);
 				if(!gAlt)
 				{
 					rgb_t color = value ? rgb_t{25, 0, 0} : rgb_t{0, 0, 25};
@@ -5028,6 +5037,7 @@ uint8_t gNewMode = kFactoryTestModeIdx; // if there is a preset to load (i.e.: a
 
 bool performanceMode_setup(double ms)
 {
+	tri.buttonLedSet(TRI::kOff, TRI::kAll); // for good measure. TODO: this assumes the mode's setup() doesn't need the button leds
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 		return performanceModes[gNewMode]->setup(ms);
 	else
@@ -6735,6 +6745,7 @@ void menu_exit()
 	printf("menu_exit\n\r");
 	np.clear();
 	gAlt = 0;
+	tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 100);
 }
 
 static void menu_up()
