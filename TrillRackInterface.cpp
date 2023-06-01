@@ -142,8 +142,16 @@ void TrillRackInterface::process(BelaContext* context)
 	enum { kLedPwmPeriod = 512 };
 	for(size_t n = 0; n < context->digitalFrames; ++n)
 	{
-		for(unsigned int c = 0; c < nDigOut; ++c)
-			::digitalWriteOnce(context, n, diOutCh[c], ledPwmIdx < ledOut[c] * float(kLedPwmPeriod));
+		size_t activeC = ledPwmIdx & 1;
+		for(size_t c = 0; c < nDigOut; ++c)
+		{
+			bool isActive;
+			if(c == activeC)
+				isActive = ledPwmIdx < ledOut[activeC] *  float(kLedPwmPeriod);
+			else
+				isActive = false;
+			::digitalWriteOnce(context, n, diOutCh[c], isActive);
+		}
 		ledPwmIdx++;
 		if(kLedPwmPeriod == ledPwmIdx)
 			ledPwmIdx = 0;
