@@ -3836,6 +3836,7 @@ public:
 				lowestEnabled++;
 			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
 		} else {
+			// if not seqMode
 			if(kPageSetMode == page)
 			{
 				if(newTouch)
@@ -3846,11 +3847,7 @@ public:
 				gManualAnOut[0] = kNoOutput;
 				gManualAnOut[1] = kNoOutput;
 			}
-			// if not seqMode
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
-		}
-		if(!seqMode)
-		{
 			// turn on green LED if we are in a stable position
 			tri.buttonLedSet(TRI::kSolid, TRI::kG,
 					kInitial == touch.state
