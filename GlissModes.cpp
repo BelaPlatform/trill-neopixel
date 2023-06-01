@@ -3776,6 +3776,7 @@ public:
 				}
 				printf("\n\r");
 #endif
+				tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, 100);
 			}
 			if(kDisabled != touch.state)
 			{
