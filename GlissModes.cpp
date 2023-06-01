@@ -2676,7 +2676,7 @@ public:
 				if(ignoredTouch[n] != id && TouchTracker::kIdInvalid != id && gGestureRecorder.rs[n].r.full)
 				{
 					ignoredTouch[n] = id;
-					tri.buttonLedSet(TRI::kBlink, TRI::kG, 1, 15);
+					tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 15);
 				}
 			}
 		}
