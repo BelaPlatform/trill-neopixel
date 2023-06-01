@@ -39,7 +39,7 @@ public:
 	double getTimeMs();
 	enum ButtonLedStyle {
 		kSolid,
-		kBlink,
+		kGlow,
 		kOff,
 	};
 	enum ButtonLedColor {
@@ -60,6 +60,7 @@ private:
 		ButtonLedStyle style;
 		float intensity;
 		float ms;
+		float phase;
 	};
 	std::array<LedColorsTimeout,kNumButtonColors> buttonLedColorTimeouts {};
 	unsigned int ledPwmIdx = 0;

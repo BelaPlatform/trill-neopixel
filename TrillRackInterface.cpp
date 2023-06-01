@@ -1,5 +1,6 @@
 #include "TrillRackInterface.h"
 #include <string.h>
+#include <algorithm>
 #ifdef STM32
 #include <stdint.h>
 extern "C" { int32_t HAL_GetTick(void); };
@@ -58,7 +59,13 @@ void TrillRackInterface::buttonLedSet(ButtonLedStyle style, ButtonLedColor color
 	for(size_t n = 0; n < kNumButtonColors; ++n)
 	{
 		if(int(color) == n || color == kAll)
-			buttonLedColorTimeouts[n] = { style, intensity, durationMs };
+		{
+			auto& lct = buttonLedColorTimeouts[n];
+			float phase = lct.phase;
+			if(style != lct.style || intensity != lct.intensity)
+				phase = 0;
+			lct = { style, intensity, durationMs, phase };
+		}
 	}
 }
 
@@ -155,7 +162,23 @@ void TrillRackInterface::process(BelaContext* context)
 	for(size_t n = 0; n < kNumButtonColors; ++n)
 	{
 		LedColorsTimeout& lct = buttonLedColorTimeouts[n];
-		float intensity = lct.intensity * (lct.ms > 0) * (lct.style != kOff);
+		float coeff = 1;
+		switch(lct.style)
+		{
+		case kOff:
+			coeff = 0;
+			break;
+		case kSolid:
+			coeff = 1;
+			break;
+		case kGlow:
+			coeff = std::abs(lct.phase - 0.5f) * 0.9f + 0.1f;
+			lct.phase += 1.5f * (context->analogFrames / context->analogSampleRate);
+			if(lct.phase > 1)
+				lct.phase -= 1;
+			break;
+		}
+		float intensity = lct.intensity * (lct.ms > 0) * (lct.style != kOff) * coeff;
 		// map colors to out channels with appropriate intensity adjustments
 		// the latter would override the others
 		if(intensity)
@@ -163,14 +186,14 @@ void TrillRackInterface::process(BelaContext* context)
 			switch(n)
 			{
 			case kR:
-				ledOut[1] = lct.intensity;
+				ledOut[1] = intensity;
 				break;
 			case kG:
-				ledOut[0] = lct.intensity;
+				ledOut[0] = intensity;
 				break;
 			case kY:
-				ledOut[0] = lct.intensity * 0.15f;
-				ledOut[1] = lct.intensity;
+				ledOut[0] = intensity * 0.15f;
+				ledOut[1] = intensity;
 			}
 		}
 		if(lct.ms)
