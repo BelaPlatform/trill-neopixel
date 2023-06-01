@@ -3849,11 +3849,7 @@ public:
 			}
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 			// turn on green LED if we are in a stable position
-			tri.buttonLedSet(TRI::kSolid, TRI::kG,
-					kInitial == touch.state
-					|| kGood == touch.state
-					|| kMoved == touch.state
-			);
+			tri.buttonLedSet(TRI::kSolid, TRI::kG, stateIsNormal(touch.state));
 		}
 		// display
 		if(!gAlt)
@@ -3939,6 +3935,14 @@ private:
 		kDisabled,
 		kNumStates,
 	} TouchState;
+	static bool stateIsNormal(TouchState state)
+	{
+		return
+				kInitial == state
+				|| kGood == state
+				|| kMoved == state
+			;
+	}
 	bool stepIsEnabled(size_t n) {
 		if(n >= seqStepsMode.size())
 			return false;
