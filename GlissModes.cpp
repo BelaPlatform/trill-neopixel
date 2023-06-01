@@ -3844,8 +3844,14 @@ public:
 					keysEnabled[touch.key] = !keysEnabled[touch.key];
 					updateNumButtons();
 				}
-				gManualAnOut[0] = kNoOutput;
-				gManualAnOut[1] = kNoOutput;
+				if(touch.key < keysEnabled.size() && keysEnabled[touch.key] && stateIsNormal(touch.state))
+				{
+					gManualAnOut[0] = getOutForKey(touch.key);
+					gManualAnOut[1] = centroid.size;
+				} else {
+					gManualAnOut[0] = kNoOutput;
+					gManualAnOut[1] = kNoOutput;
+				}
 			}
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 			// turn on green LED if we are in a stable position
