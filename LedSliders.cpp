@@ -133,14 +133,14 @@ static uint8_t clipLed(float val)
 	return val + 0.5f;
 }
 
-void LedSlider::directWriteCentroid(const centroid_t& centroid, rgb_t color)
+void LedSlider::directWriteCentroid(const centroid_t& centroid, rgb_t color, size_t numWeights)
 {
 	if(!ledsEnabled)
 		return;
 	size_t numLeds = np->getNumPixels();
 	float leds[numLeds];
 	memset(leds, 0, sizeof(leds[0]) * numLeds);
-	writeCentroidToArray(centroid, leds, numLeds);
+	writeCentroidToArray(centroid, numWeights, leds, numLeds);
 	for(size_t n = 0; n < np->getNumPixels(); ++n)
 	{
 		std::array<float,Stm32NeoPixel::kNumBytesPerPixel> pixel;
@@ -153,7 +153,7 @@ void LedSlider::directWriteCentroid(const centroid_t& centroid, rgb_t color)
 	}
 }
 
-int LedSlider::writeCentroidToArray(const centroid_t& centroid, float* dest, size_t destSize)
+int LedSlider::writeCentroidToArray(const centroid_t& centroid, size_t numWeights, float* dest, size_t destSize)
 {
 	float size = centroid.size;
 	float idx = centroid.location;
@@ -164,7 +164,6 @@ int LedSlider::writeCentroidToArray(const centroid_t& centroid, float* dest, siz
 		size = 1;
 	if(size <= 0)
 		return -1;
-	unsigned int numWeights = 4;
 	float weights[numWeights];
 	int idx0 = int(idx - numWeights / 2) + 1;
 	idxToWeights(idx - idx0, weights, numWeights);
@@ -192,7 +191,7 @@ void LedSlider::updateLeds()
 		memset(ledValues.data(), 0, sizeof(ledValues[0]) * ledValues.size());
 		for(unsigned int n = 0; n < ledCentroids.size(); ++n)
 		{
-			writeCentroidToArray(ledCentroids[n], ledValues.data(), ledValues.size());
+			writeCentroidToArray(ledCentroids[n], kDefaultNumWeights, ledValues.data(), ledValues.size());
 		}
 		//for(unsigned int n = 0; n < ledValues.size(); ++n)
 			//printf("[%d]: %f ", n, ledValues[n]);
