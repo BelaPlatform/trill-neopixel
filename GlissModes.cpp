@@ -6193,14 +6193,13 @@ public:
 
 constexpr size_t kMaxModeParameters = 4;
 static const rgb_t buttonColor {0, 255, 255};
-static const rgb_t buttonColorSimilar {0, 0, 255};
 static MenuItemTypeDisabled disabled;
 static AnimationColors buttonColors = {
 		rgb_t{255, 0, 0},
-		rgb_t{255, 96, 0},
-		rgb_t{192, 192, 0},
-		rgb_t{0, 192, 255},
-		rgb_t{0, 64, 255},
+		rgb_t{255, 128, 0},
+		rgb_t{192, 255, 0},
+		rgb_t{64, 255, 0},
+		rgb_t{0, 128, 255},
 		rgb_t{0, 0, 255},
 };
 
