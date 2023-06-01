@@ -3,6 +3,7 @@
 #ifdef STM32
 #include <stdint.h>
 #include <stddef.h>
+#include <array>
 #else // STM32
 #define USE_SCOPE
 #include <libraries/Scope/Scope.h>
@@ -36,12 +37,31 @@ public:
 	void scopeWrite(float* val);
 	enum {kScopeChannels = 4};
 	double getTimeMs();
+	enum ButtonLedStyle {
+		kSolid,
+		kBlink,
+		kOff,
+	};
+	enum ButtonLedColor {
+		kR,
+		kG,
+		kY,
+		kNumButtonColors,
+		kAll,
+	};
+	void buttonLedSet(ButtonLedStyle style, ButtonLedColor color, float intensity = 1, float durationMs = 10); // 10 allows it to be refreshed  every so often but not forgotten
 private:
 	enum { nAnOut = 2 };
 	enum { nDigOut = 2 };
 	float anIn;
 	float diIn;
 	float ledOut[nDigOut];
+	struct LedColorsTimeout {
+		ButtonLedStyle style;
+		float intensity;
+		float ms;
+	};
+	std::array<LedColorsTimeout,kNumButtonColors> buttonLedColorTimeouts {};
 	unsigned int ledPwmIdx = 0;
 	float anOut[nAnOut];
 	double lastTimeMs;

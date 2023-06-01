@@ -53,6 +53,15 @@ void TrillRackInterface::buttonLedWrite(unsigned int ch, float val)
 		ledOut[ch] = val;
 }
 
+void TrillRackInterface::buttonLedSet(ButtonLedStyle style, ButtonLedColor color, float intensity, float durationMs)
+{
+	for(size_t n = 0; n < kNumButtonColors; ++n)
+	{
+		if(int(color) == n || color == kAll)
+			buttonLedColorTimeouts[n] = { style, intensity, durationMs };
+	}
+}
+
 void TrillRackInterface::analogWrite(unsigned int channel, float val)
 {
 	if(channel < nAnOut)
@@ -139,6 +148,38 @@ void TrillRackInterface::process(BelaContext* context)
 	}
 	anIn = ::analogRead(context, 0, anInCh);
 	tr_render(context);
+	// process color events
+	float blockMs = context->analogFrames / context->analogSampleRate * 1000.f;
+	ledOut[0] = 0;
+	ledOut[1] = 0;
+	for(size_t n = 0; n < kNumButtonColors; ++n)
+	{
+		LedColorsTimeout& lct = buttonLedColorTimeouts[n];
+		float intensity = lct.intensity * (lct.ms > 0) * (lct.style != kOff);
+		// map colors to out channels with appropriate intensity adjustments
+		// the latter would override the others
+		if(intensity)
+		{
+			switch(n)
+			{
+			case kR:
+				ledOut[1] = lct.intensity;
+				break;
+			case kG:
+				ledOut[0] = lct.intensity;
+				break;
+			case kY:
+				ledOut[0] = lct.intensity * 0.15f;
+				ledOut[1] = lct.intensity;
+			}
+		}
+		if(lct.ms)
+		{
+			lct.ms -= blockMs;
+			if(lct.ms < 0)
+				lct.ms = 0;
+		}
+	}
 	enum { kLedPwmPeriod = 512 };
 	for(size_t n = 0; n < context->digitalFrames; ++n)
 	{
