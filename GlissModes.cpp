@@ -3841,7 +3841,14 @@ public:
 			{
 				if(newTouch)
 				{
-					keysEnabled[touch.key] = !keysEnabled[touch.key];
+					// we have to compute the number of enabled keys
+					// because numButtons is always kNumMaxButtons when in kPageSetMode
+					size_t numEnabledKeys = 0;
+					for(auto& k : keysEnabled)
+						numEnabledKeys += k;
+					// only remove a key if you're not left with 0
+					if(numEnabledKeys >= 2 || !keysEnabled[touch.key])
+						keysEnabled[touch.key] = !keysEnabled[touch.key];
 					updateNumButtons();
 				}
 				if(touch.key < keysEnabled.size() && keysEnabled[touch.key] && stateIsNormal(touch.state))
