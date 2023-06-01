@@ -3851,12 +3851,7 @@ public:
 		if(!seqMode)
 		{
 			// turn on green LED if we are in a stable position
-			TRI::ButtonLedColor color = TRI::kG;
-			if(touch.key == 0)
-				color = TRI::kR;
-			else if (touch.key == 1)
-				color = TRI::kY;
-			tri.buttonLedSet(TRI::kSolid, color,
+			tri.buttonLedSet(TRI::kSolid, TRI::kG,
 					kInitial == touch.state
 					|| kGood == touch.state
 					|| kMoved == touch.state
