@@ -3447,17 +3447,19 @@ public:
 		}
 		if(btn.offset)
 		{
+			// single click goes back to kPagePerf
 			clickprintf("o%d%d\n\r", onClickGroupStartWas, page);
 			onClickGroupStartWas = page;
+			changePage(kPagePerf);
 		}
 		// double click enters (or exits) set enable page (both keys an sequencer)
 		if(btn.doubleClickOffset)
 		{
 			clickprintf("d%d%d->", onClickGroupStartWas, page);
-			if(kPageSetEnable == page || kPageSetEnable == onClickGroupStartWas)
+			if(kPageSetMode == page || kPageSetMode == onClickGroupStartWas)
 				changePage(kPagePerf);
 			else
-				changePage(kPageSetEnable);
+				changePage(kPageSetMode);
 			clickprintf("%d\n\r", page);
 		}
 		// triple click enters (or exits) sampling page (both keys an sequencer)
@@ -3744,12 +3746,12 @@ public:
 					seqCurrentStep++;
 					if(seqCurrentStep >= numButtons)
 						seqCurrentStep = 0;
-				} while (!seqStepsEnabled[seqCurrentStep] && attempts < numButtons);
+				} while (!stepIsEnabled(seqCurrentStep) && attempts < numButtons);
 #if 0 // print step state
 				for(size_t n = 0; n < numButtons; ++n)
 				{
-					char sym0 = seqStepsEnabled[n] ? '_' : 'X';
-					if(seqStepsEnabled[n] && seqCurrentStep == n)
+					char sym0 = stepIsEnabled(n) ? '_' : 'X';
+					if(stepIsEnabled(n) && seqCurrentStep == n)
 						sym0 = '*';
 					char sym1 = 'O';
 					switch(seqStepsMode[n])
@@ -3763,6 +3765,9 @@ public:
 					case kStepHold:
 						sym1 = 'H';
 						break;
+					case kStepDisabled:
+						sym1 = 'x';
+						break;
 					case kStepModesNum:
 						sym1 = 'o';
 						break;
@@ -3771,15 +3776,6 @@ public:
 				}
 				printf("\n\r");
 #endif
-			}
-			// single click enters (or exits) set mode page
-			if(btn.offset)
-			{
-				if(kPageSetMode == page)
-					changePage(kPagePerf);
-				else
-					changePage(kPageSetMode);
-				clickprintf("s%d%d\n\r", onClickGroupStartWas, page);
 			}
 			if(kDisabled != touch.state)
 			{
@@ -3798,10 +3794,6 @@ public:
 						if(kStepModesNum == mode)
 							mode = kStepNormal;
 					}
-					break;
-				case kPageSetEnable:
-					if(newTouch)
-						seqStepsEnabled[touch.key] = !seqStepsEnabled[touch.key];
 					break;
 				case kPageSampling:
 					break;
@@ -3839,11 +3831,11 @@ public:
 			}
 			gManualAnOut[0] = getOutForKey(outKey);
 			size_t lowestEnabled = 0;
-			while(lowestEnabled < seqStepsEnabled.size() && !seqStepsEnabled[lowestEnabled])
+			while(lowestEnabled < seqStepsMode.size() && kStepDisabled == seqStepsMode[lowestEnabled])
 				lowestEnabled++;
 			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
 		} else {
-			if(kPageSetEnable == page)
+			if(kPageSetMode == page)
 			{
 				if(newTouch)
 				{
@@ -3896,7 +3888,7 @@ public:
 					}
 				} else if (seqMode)
 				{
-					coeff *= seqStepsEnabled[n];
+					coeff *= stepIsEnabled(n);
 					switch(seqStepsMode[n])
 					{
 					case kStepModesNum:
@@ -3907,7 +3899,10 @@ public:
 						color = {180, 180, 0};
 						break;
 					case kStepMuted:
-						color = {200, 0 , 0};
+						color = {200, 0, 0};
+						break;
+					case kStepDisabled:
+						color = {0, 0, 0};
 						break;
 					}
 					// TODO: animating buttons while they are traversed by the sequencer
@@ -3921,16 +3916,13 @@ public:
 					case kPageSetMode:
 						coeff *=  0.1f + 0.9f * triangle;
 						break;
-					case kPageSetEnable:
-						coeff *=  triangle > 0.7f;
-						break;
 					case kPageSampling: // shouldn't be here anyhow
 						break;
 					}
 				} else {
 					// we are in keys mode
 					size_t idx;
-					if(kPageSetEnable == page)
+					if(kPageSetMode == page)
 					{
 						idx = n;
 						//always has kNumMaxButtons buttons
@@ -3953,7 +3945,6 @@ private:
 	typedef enum {
 		kPagePerf,
 		kPageSetMode,
-		kPageSetEnable,
 		kPageSampling,
 	} Page;
 	typedef enum {
@@ -3965,6 +3956,11 @@ private:
 		kDisabled,
 		kNumStates,
 	} TouchState;
+	bool stepIsEnabled(size_t n) {
+		if(n >= seqStepsMode.size())
+			return false;
+		return (kStepDisabled != seqStepsMode[n]);
+	}
 	const std::array<const char*,kNumStates> touchStateNames {
 			"kInitial",
 			"kGood",
@@ -4093,7 +4089,7 @@ private:
 		printf("<<\n\r");
 #endif
 
-		if(seqMode || kPageSetEnable == page)
+		if(seqMode || kPageSetMode == page)
 			numButtons = kMaxNumButtons;
 		else
 			numButtons = std::min(count, static_cast<size_t>(kMaxNumButtons));
@@ -4136,9 +4132,9 @@ private:
 		kStepNormal,
 		kStepHold,
 		kStepMuted,
+		kStepDisabled,
 		kStepModesNum,
 	};
-	std::array<bool,kMaxNumButtons> seqStepsEnabled = FILL_ARRAY(seqStepsEnabled, true);
 	std::array<StepMode,kMaxNumButtons> seqStepsMode = FILL_ARRAY(seqStepsMode, kStepNormal);
 	std::array<uint8_t,kMaxNumButtons> keysIdx = FILL_ARRAY(keysIdx, kMaxNumButtons);
 	std::array<bool,kMaxNumButtons> keysEnabled = FILL_ARRAY(keysEnabled, true);
