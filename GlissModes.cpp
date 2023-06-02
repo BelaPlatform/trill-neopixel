@@ -3818,10 +3818,12 @@ public:
 			}
 			vizKey = seqCurrentStep;
 			size_t outKey = kKeyInvalid;
+			bool newTriggerableStep = false;
 			switch(seqStepsMode[seqCurrentStep])
 			{
 			case kStepNormal:
 				outKey = seqCurrentStep;
+				newTriggerableStep = true && analogRisingEdge;
 				break;
 			case kStepMuted:
 				outKey = kKeyInvalid;
@@ -3850,7 +3852,15 @@ public:
 			size_t lowestEnabled = 0;
 			while(lowestEnabled < seqStepsMode.size() && kStepDisabled == seqStepsMode[lowestEnabled])
 				lowestEnabled++;
-			gManualAnOut[1] = (seqCurrentStep == lowestEnabled); // send out a reset signal
+			bool triggerOutOnReset = false; // TODO: parametrise
+			if(triggerOutOnReset) {
+				// send out a reset signal
+				gManualAnOut[1] = (seqCurrentStep == lowestEnabled);
+			} else {
+				// send out a trigger on each new step
+				gManualAnOut[1] = newTriggerableStep;
+			}
+			seqPastStep = seqCurrentStep;
 		} else {
 			// if not seqMode
 			if(kPageSetMode == page)
@@ -4165,6 +4175,7 @@ private:
 	// processing a double or triple click, respectively.
 	Page onClickGroupStartWas = kPagePerf;
 	size_t seqCurrentStep = 0;
+	size_t seqPastStep = -1;
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
 	std::array<rgb_t,kMaxNumButtons> colors = {{
