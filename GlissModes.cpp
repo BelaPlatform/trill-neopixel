@@ -3684,6 +3684,7 @@ public:
 			// We leverage the state machine above even if it's
 			// more complicated than / slightly different from
 			// what we need here
+			bool samplingEnabled = !seqMode;
 			switch(touch.state)
 			{
 			case kBending:
@@ -3697,43 +3698,53 @@ public:
 				break;
 			case kDisabled:
 				// TODO: pass-through at audio rate unless key is pressed
-				gManualAnOut[0] = quantise(analogRead(context, 0, 0));
-				gManualAnOut[1] = kDefaultSize;
+				if(samplingEnabled)
+				{
+					gManualAnOut[0] = quantise(analogRead(context, 0, 0));
+					gManualAnOut[1] = kDefaultSize;
+				}
 				break;
 			case kInitial:
-			{
-				if(newTouch)
+				if(samplingEnabled)
 				{
-					// sample
-					float sum = 0;
-					for(size_t n = 0; n < context->analogFrames; ++n)
-						sum += analogRead(context, n, 0);
-					sampled = sum / context->analogFrames;
-					sampledKey = touch.key;
+					if(newTouch)
+					{
+						// sample
+						float sum = 0;
+						for(size_t n = 0; n < context->analogFrames; ++n)
+							sum += analogRead(context, n, 0);
+						sampled = sum / context->analogFrames;
+						sampledKey = touch.key;
+					}
+					// we postpone assigning to offsets so that if we get
+					// into bending to set the voltage via slider, we do not
+					// accidentally assign it the sampled input on press
 				}
-				// we postpone assigning to offsets so that if we get
-				// into bending to set the voltage via slider, we do not
-				// accidentally assign it the sampled input on press
-			}
 				// no break
 			case kMoved:
 			case kGood:
-				// hold
-				gManualAnOut[0] = quantise(sampled);
-				gManualAnOut[1] = centroid.size;
+				if(samplingEnabled)
+				{
+					// hold
+					gManualAnOut[0] = quantise(sampled);
+					gManualAnOut[1] = centroid.size;
+				}
 				break;
 			case kHold:
 				// won't be here
 			case kNumStates:
 				break;
 			}
-			if(kDisabled == touch.state && (kGood == samplingPastTouchState || kInitial == samplingPastTouchState || kMoved == samplingPastTouchState))
+			if(samplingEnabled)
 			{
-				// upon release, we finally assign
-				if(kKeyInvalid !=  sampledKey)
-					offsetParameters[sampledKey].set(sampled);
+				if(kDisabled == touch.state && stateIsNormal(samplingPastTouchState))
+				{
+					// upon release, we finally assign
+					if(kKeyInvalid !=  sampledKey)
+						offsetParameters[sampledKey].set(sampled);
+				}
+				samplingPastTouchState = touch.state;
 			}
-			samplingPastTouchState = touch.state;
 		}
 
 		size_t vizKey;
