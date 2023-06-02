@@ -3755,13 +3755,15 @@ public:
 		{
 			if(analogRisingEdge)
 			{
+				pastAnalogRisingEdgeSamples = context->audioFramesElapsed;
 				size_t attempts = 0;
 				do
 				{
 					attempts++;
-					seqCurrentStep++;
-					if(seqCurrentStep >= numButtons)
-						seqCurrentStep = 0;
+					if(seqNextStep >= numButtons)
+						seqNextStep = 0;
+					seqCurrentStep = seqNextStep;
+					seqNextStep++;
 				} while (!stepIsEnabled(seqCurrentStep) && attempts < numButtons);
 #if 0 // print step state
 				for(size_t n = 0; n < numButtons; ++n)
@@ -3800,7 +3802,23 @@ public:
 				switch(page)
 				{
 				case kPagePerf:
-					seqCurrentStep = touch.key; // reset to key
+				{
+					// reset to a next or just passed edge
+					uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.1f * context->analogSampleRate);
+					if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples)
+					{
+						if(seqCurrentStep != touch.key)
+						{
+							// very close to the edge, reset to pressed key
+							seqCurrentStep = touch.key;
+							seqNextStep = seqCurrentStep + 1;
+						}
+					}
+					else {
+						// late enough, schedule pressed key for next
+						seqNextStep = touch.key;
+					}
+				}
 					break;
 				case kPageSetMode:
 					if(newTouch)
@@ -4176,6 +4194,8 @@ private:
 	Page onClickGroupStartWas = kPagePerf;
 	size_t seqCurrentStep = 0;
 	size_t seqPastStep = -1;
+	size_t seqNextStep = 1;
+	uint64_t pastAnalogRisingEdgeSamples = 0;
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
 	std::array<rgb_t,kMaxNumButtons> colors = {{
