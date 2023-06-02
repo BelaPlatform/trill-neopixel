@@ -3558,10 +3558,15 @@ public:
 					// we are between the initial key and a neighbour's dead spot
 					// nothing to do
 				} else {
-					// we went past the dead zone towards the next key.
-					// Start a new bending towards that.
 					changeState(kInitial, centroid);
-					changeState(kBending, centroid);
+					if(centroid.location <= getMidLocationFromKey(0) || centroid.location >= getMidLocationFromKey(numButtons - 1))
+					{
+						// first or last button: we start a new touch there without bending
+					} else {
+						// we went past the dead zone towards the next key.
+						// Start a new bending towards that.
+						changeState(kBending, centroid);
+					}
 				}
 			} else {
 				// we are in the dead spot of a key
