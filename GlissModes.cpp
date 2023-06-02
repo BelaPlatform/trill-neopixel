@@ -2216,6 +2216,15 @@ static float interpolatedRead(const T& table, float idx)
 	return interpolatedRead(table.data(), table.size(), idx);
 }
 
+static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
+{
+	float ceiling = lessIntrusive ? 10 : 50;
+	float periodMs = gClockPeriod * 1000.f / context->analogSampleRate;
+	float ms = std::min(ceiling, periodMs / 4.f);
+	if(lessIntrusive && periodMs < 75)
+		ms = 0; // suppress when too short/fast
+	return ms;
+}
 #ifdef ENABLE_RECORDER_MODE
 class RecorderMode : public SplitPerformanceMode {
 	enum {
@@ -2418,14 +2427,12 @@ public:
 				break;
 			} // switch inputMode
 		}
+		bool redButtonIsOn = qrecs[0].armedFor
+				|| kRecActual == qrecs[0].recording
+				|| qrecs[1].armedFor
+				|| kRecActual == qrecs[1].recording;
 		if(kInputModeClock == inputMode)
-			tri.buttonLedSet(TRI::kSolid, TRI::kR,
-					qrecs[0].armedFor
-					|| kRecActual == qrecs[0].recording
-					|| qrecs[1].armedFor
-					|| kRecActual == qrecs[1].recording
-					);
-		// detect edges on analog in
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn);
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
@@ -2438,7 +2445,7 @@ public:
 			recordOffset += GestureRecorder::kNumRecs / 2;
 		if(analogRisingEdge)
 		{
-			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, 50);
+			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, getBlinkPeriod(context, redButtonIsOn));
 			lastAnalogRisingEdgeSamples = currentSamples;
 			switch(inputMode.get())
 			{
@@ -3794,7 +3801,7 @@ public:
 				}
 				printf("\n\r");
 #endif
-				tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, 100);
+				tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, getBlinkPeriod(context, kPagePerf != page));
 			}
 			if(kDisabled != touch.state)
 			{
