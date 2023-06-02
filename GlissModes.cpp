@@ -3936,6 +3936,8 @@ public:
 			{
 				float coeff = (n == vizKey) ? 1 : 0.1; // may be overridden
 				rgb_t color;
+				float period = 0.3f * context->analogSampleRate;
+				float triangle = simpleTriangle(context->audioFramesElapsed, period);
 				if(kPageSampling == page)
 				{
 					// same behaviour for seqMode and non-seqMode
@@ -3944,6 +3946,12 @@ public:
 					color = colors[n];
 					if(n == vizKey)
 						coeff = 1;
+					else
+					{
+						// inactive keys while sampling have a triangle pattern
+						float period = 0.5f * context->analogSampleRate;
+						coeff *=  0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed + (n * period / numButtons), period);
+					}
 				} else if (seqMode)
 				{
 					coeff *= stepIsEnabled(n);
@@ -3963,12 +3971,28 @@ public:
 						color = {0, 0, 0};
 						break;
 					}
+					// TODO: animating buttons while they are traversed by the sequencer
+					// gives a messy result. Try syncing it to the clock input, or use a
+					// different display strategy (e.g.: button?)
+					switch(page)
+					{
+					case kPagePerf:
+						coeff *= 1.f;
+						break;
+					case kPageSetMode:
+						coeff *=  0.1f + 0.9f * triangle;
+						break;
+					case kPageSampling: // shouldn't be here anyhow
+						break;
+					}
 				} else {
 					// we are in keys mode
 					size_t idx;
 					if(kPageSetMode == page)
 					{
 						idx = n;
+						//always has kNumMaxButtons buttons
+						coeff *=  (touch.key == idx && touch.state != kDisabled) ? 1 : triangle > 0.7f;
 						coeff *= keysEnabled[idx];
 					} else {
 						idx = keysIdx[n];
