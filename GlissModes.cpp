@@ -2397,6 +2397,21 @@ public:
 			}
 			break;
 			}
+			if(kInputModeClock == inputMode && !clockInIsActive(context))
+			{
+				// if clock in is disabled, button onset triggers immediate start or stop of recording
+				lastIgnoredPressId = performanceBtn.pressId;
+				bool areRecording = false;
+				for(size_t n = 0; n < qrecs.size(); ++n)
+				{
+					if(isRecording(n)) {
+						qrecStopNow[n] = kStopNowOnEdge;
+						areRecording = true;
+					}
+				}
+				if(!areRecording)
+					qrecStartNow.fill(kRecOnButton);
+			}
 		}
 		// EG + Gate mode
 		if(0 == autoRetrigger && (envelopeReleaseStarts[0] > 0 || envelopeReleaseStarts[1] > 0) && performanceBtn.pressed)
@@ -2439,6 +2454,11 @@ public:
 						printf("C %.3fs\n\r", lateSamples / context->analogSampleRate);
 					switch(qrec.recording)
 					{
+					case kRecOnButton:
+						// normally lastIgnoredPressId will make sure we don't get here
+						// however, we may in case the clock started again since the recording started.
+						// In that case, ignore
+						break;
 					case kRecTentative:
 						// a button press came in slightly late, but we let it
 						// pass through as if it had arrived on time,
@@ -2641,7 +2661,13 @@ public:
 					if(valid)
 					{
 						gGestureRecorder.rs.swap(n, n + recordOffset);
-						periodsInTables[n] = qrec.periodsInRecording;
+						if(kRecOnButton == qrec.recordedAs)
+						{
+							// this will also be played back at fixed speed
+							periodsInTables[n] = 1;
+						} else {
+							periodsInTables[n] = qrec.periodsInRecording;
+						}
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
 						printf("%u periods\n\r", periodsInTables[n]);
@@ -2954,14 +2980,29 @@ public:
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
+	bool clockInIsActive(BelaContext* context)
+	{
+		uint64_t now = context->audioFramesElapsed + context->analogFrames - 1; // rounded up to the end of the frame
+		if(now < gClockPeriodLastUpdate)
+			return false;
+		else
+			return now - gClockPeriodLastUpdate < 10.f * context->analogSampleRate;
+	}
 	float getOscillatorFreq(BelaContext* context, size_t c)
 	{
-		return context->analogSampleRate / gClockPeriod / periodsInTables[c];
+		float period;
+		if(kRecOnButton == qrecs[c].recordedAs)
+			period = qrecs[c].framesInRecording;
+		else
+			period = gClockPeriod;
+		if(period < 1)
+			period = 1;
+		return context->analogSampleRate / period / periodsInTables[c];
 	}
 	bool isRecording(size_t c)
 	{
 		RecordingMode r = qrecs[c].recording;
-		return kRecActual == r;
+		return kRecActual == r || kRecOnButton == r;
 	}
 	bool areRecording()
 	{
@@ -3010,6 +3051,7 @@ private:
 		kRecNone = 0,
 		kRecTentative,
 		kRecActual,
+		kRecOnButton,
 	};
 	struct QuantisedRecorder {
 		size_t periodsInRecording;
