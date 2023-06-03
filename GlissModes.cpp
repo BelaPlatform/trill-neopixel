@@ -351,8 +351,10 @@ void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
-uint32_t gClockPeriodUpdateCounter = 0;
-float gClockPeriod = 10000; // arbitrary init to avoid divisions by zero. TODO: instead check before using it
+static uint32_t gClockPeriodUpdateCounter = 0;
+static float gClockPeriod = 10000; // arbitrary init to avoid divisions by zero. TODO: instead check before using it
+static uint64_t gClockPeriodLastUpdate = -1;
+
 void triggerInToClock(BelaContext* context)
 {
 	const float kTriggerInOnThreshold = 0.6;
@@ -390,6 +392,7 @@ void triggerInToClock(BelaContext* context)
 #else // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 				gClockPeriod = newPeriod;
 				gClockPeriodUpdateCounter++;
+				gClockPeriodLastUpdate = context->audioFramesElapsed + n;
 #endif // TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 			}
 			lastTrig = newTrig;
