@@ -3831,10 +3831,11 @@ public:
 					if(newTouch)
 					{
 						// each new key press cycles through step states
-						StepMode& mode = seqStepsMode[touch.key];
+						StepMode mode = keyStepModes[touch.key].s;
 						mode = StepMode(mode + 1);
 						if(kStepModesNum == mode)
 							mode = kStepNormal;
+						keyStepModes[touch.key].s = mode;
 					}
 					break;
 				case kPageSampling:
@@ -3844,7 +3845,7 @@ public:
 			vizKey = seqCurrentStep;
 			size_t outKey = kKeyInvalid;
 			bool newTriggerableStep = false;
-			switch(seqStepsMode[seqCurrentStep])
+			switch(keyStepModes[seqCurrentStep].s)
 			{
 			case kStepNormal:
 				outKey = seqCurrentStep;
@@ -3862,7 +3863,7 @@ public:
 					if(0 == step)
 						step = numButtons;
 					step--;
-					if(kStepNormal == seqStepsMode[step])
+					if(kStepNormal == keyStepModes[step].s)
 						break;
 				} while(step != seqCurrentStep);
 				if(step == seqCurrentStep) // no step to hold
@@ -3875,7 +3876,7 @@ public:
 			}
 			gManualAnOut[0] = getOutForKey(outKey);
 			size_t lowestEnabled = 0;
-			while(lowestEnabled < seqStepsMode.size() && kStepDisabled == seqStepsMode[lowestEnabled])
+			while(lowestEnabled < keyStepModes.size() && !stepIsEnabled(lowestEnabled))
 				lowestEnabled++;
 			bool triggerOutOnReset = false; // TODO: parametrise
 			if(triggerOutOnReset) {
@@ -3895,14 +3896,14 @@ public:
 					// we have to compute the number of enabled keys
 					// because numButtons is always kNumMaxButtons when in kPageSetMode
 					size_t numEnabledKeys = 0;
-					for(auto& k : keysEnabled)
-						numEnabledKeys += k;
+					for(auto& k : keyStepModes)
+						numEnabledKeys += k.k;
 					// only remove a key if you're not left with 0
-					if(numEnabledKeys >= 2 || !keysEnabled[touch.key])
-						keysEnabled[touch.key] = !keysEnabled[touch.key];
+					if(numEnabledKeys >= 2 || !keyIsEnabled(touch.key))
+						keyStepModes[touch.key].k = !keyStepModes[touch.key].k;
 					updateNumButtons();
 				}
-				if(touch.key < keysEnabled.size() && keysEnabled[touch.key] && stateIsNormal(touch.state))
+				if(touch.key < kMaxNumButtons && keyIsEnabled(touch.key) && stateIsNormal(touch.state))
 				{
 					gManualAnOut[0] = getOutForKey(touch.key);
 					gManualAnOut[1] = centroid.size;
@@ -3955,7 +3956,7 @@ public:
 				} else if (seqMode)
 				{
 					coeff *= stepIsEnabled(n);
-					switch(seqStepsMode[n])
+					switch(keyStepModes[n].s)
 					{
 					case kStepModesNum:
 					case kStepNormal:
@@ -3993,7 +3994,7 @@ public:
 						idx = n;
 						//always has kNumMaxButtons buttons
 						coeff *=  (touch.key == idx && touch.state != kDisabled) ? 1 : triangle > 0.7f;
-						coeff *= keysEnabled[idx];
+						coeff *= keyIsEnabled(idx);
 					} else {
 						idx = keysIdx[n];
 					}
@@ -4031,10 +4032,15 @@ private:
 				|| kMoved == state
 			;
 	}
-	bool stepIsEnabled(size_t n) {
-		if(n >= seqStepsMode.size())
+	bool keyIsEnabled(size_t n) {
+		if(n >= keyStepModes.size())
 			return false;
-		return (kStepDisabled != seqStepsMode[n]);
+		return keyStepModes[n].k;
+	}
+	bool stepIsEnabled(size_t n) {
+		if(n >= keyStepModes.size())
+			return false;
+		return (kStepDisabled != keyStepModes[n].s);
 	}
 	const std::array<const char*,kNumStates> touchStateNames {
 			"kInitial",
@@ -4148,9 +4154,9 @@ private:
 	{
 		// update keysIdx
 		size_t count = 0;
-		for(size_t n = 0; n < keysEnabled.size(); ++n)
+		for(size_t n = 0; n < kMaxNumButtons; ++n)
 		{
-			if(keysEnabled[n])
+			if(keyIsEnabled(n))
 			{
 				keysIdx[count] = n;
 				count++;
@@ -4210,9 +4216,13 @@ private:
 		kStepDisabled,
 		kStepModesNum,
 	};
-	std::array<StepMode,kMaxNumButtons> seqStepsMode = FILL_ARRAY(seqStepsMode, kStepNormal);
+	struct KeyStepMode {
+		bool k : 1;
+		StepMode s: 4;
+		KeyStepMode(): k(1), s(kStepNormal) {}
+	};
+	std::array<KeyStepMode,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {});
 	std::array<uint8_t,kMaxNumButtons> keysIdx = FILL_ARRAY(keysIdx, kMaxNumButtons);
-	std::array<bool,kMaxNumButtons> keysEnabled = FILL_ARRAY(keysEnabled, true);
 	std::array<float,kNumOutChannels> pastOuts;
 	TouchTracker::Id pastTouchId;
 	size_t pastNumTouches = 0;
