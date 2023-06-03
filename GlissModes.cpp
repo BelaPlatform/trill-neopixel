@@ -2614,6 +2614,7 @@ public:
 					envelopeReleaseStarts[n] = -1;
 					qrec.recording = qrecStartNow[n];
 					qrec.periodsInRecording = 0;
+					qrec.framesAtStart = context->audioFramesElapsed;
 				}
 				float phaseOffset = 0;
 				if(kStopNowOnEdge == qrecStopNow[n] || kStopNowLate == qrecStopNow[n])
@@ -2633,7 +2634,9 @@ public:
 						if(!gGestureRecorder.rs[n + recordOffset].activity)
 							valid = false;
 					}
+					qrec.recordedAs = qrec.recording;
 					qrec.recording = kRecNone;
+					qrec.framesInRecording = context->audioFramesElapsed - qrec.framesAtStart;
 					gGestureRecorder.stopRecording(n + recordOffset, false);
 					if(valid)
 					{
@@ -3015,6 +3018,9 @@ private:
 		size_t recSizeAtLastEdge;
 		ArmedFor armedFor;
 		RecordingMode recording;
+		RecordingMode recordedAs;
+		uint64_t framesAtStart;
+		uint64_t framesInRecording;
 		bool isSynced;
 	};
 	std::array<QuantisedRecorder,kNumSplits> qrecs {};
