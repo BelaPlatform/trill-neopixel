@@ -3801,6 +3801,9 @@ public:
 			if(analogRisingEdge)
 			{
 				pastAnalogRisingEdgeSamples = context->audioFramesElapsed;
+				// if a finger is down, do not move from that step
+				if(kDisabled != touch.state)
+					seqNextStep = touch.key;
 				size_t attempts = 0;
 				do
 				{
@@ -3848,20 +3851,22 @@ public:
 				{
 				case kPagePerf:
 				{
-					// reset to a next or just passed edge
-					uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.1f * context->analogSampleRate);
-					if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples)
+					// on a new touch
+					if(twi.id != seqPastTouchIdUpdated)
 					{
-						if(seqCurrentStep != touch.key)
+						seqPastTouchIdUpdated = twi.id;
+						// reset to a next or just passed edge
+						uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
+						if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples)
 						{
-							// very close to the edge, reset to pressed key
+							// close enough to edge
 							seqCurrentStep = touch.key;
-							seqNextStep = seqCurrentStep + 1;
+							seqNextStep = (seqCurrentStep + 1) % kMaxNumButtons;
 						}
-					}
-					else {
-						// late enough, schedule pressed key for next
-						seqNextStep = touch.key;
+						else {
+							// late enough, schedule pressed key for next
+							seqNextStep = touch.key;
+						}
 					}
 				}
 					break;
@@ -4287,6 +4292,7 @@ private:
 	size_t seqCurrentStep = 0;
 	size_t seqPastStep = -1;
 	size_t seqNextStep = 1;
+	TouchTracker::Id seqPastTouchIdUpdated = TouchTracker::kIdInvalid;
 	uint64_t pastAnalogRisingEdgeSamples = 0;
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
