@@ -2617,7 +2617,7 @@ public:
 					qrec.framesAtStart = context->audioFramesElapsed;
 				}
 				float phaseOffset = 0;
-				if(kStopNowOnEdge == qrecStopNow[n] || kStopNowLate == qrecStopNow[n])
+				if(kStopNone != qrecStopNow[n])
 				{
 					if(kStopNowLate == qrecStopNow[n])
 					{
