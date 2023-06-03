@@ -4220,7 +4220,7 @@ private:
 		std::fill(keysIdx.begin() + count, keysIdx.end(), kMaxNumButtons);
 #if 0
 		// log the resulting idxs
-		for(size_t n = 0; n < keysEnabled.size(); ++n)
+		for(size_t n = 0; n < keyIsEnabled(n); ++n)
 			printf("%d ", keysIdx[n]);
 		printf("<<\n\r");
 #endif
