@@ -1280,6 +1280,29 @@ public:
 	virtual void render(BelaContext*, FrameData* frameData) = 0;
 };
 
+template <typename T>
+class ParameterGeneric : public Parameter {
+public:
+	ParameterGeneric<T>() {}
+	ParameterGeneric<T>(ParameterUpdateCapable* that, T value):
+		that(that), value(value) {}
+	void set(T value)
+	{
+		this->value = value;
+		if(that)
+			that->updated(*this);
+	}
+	T get() const {
+		return value;
+	}
+	operator const T&() const {
+		return value;
+	}
+private:
+	ParameterUpdateCapable* that = nullptr;
+	T value;
+};
+
 class ParameterEnum : public Parameter {
 public:
 	virtual void set(unsigned int) = 0;
@@ -1621,7 +1644,7 @@ private:
 	DEFAULTER_PROCESS(C); \
 }
 
-#define genericDefaulter2PlusArray(CLASS,A,B,C) \
+#define genericDefaulter2PlusArrays(CLASS,A,B,C,D) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
@@ -1630,6 +1653,8 @@ private:
 	DEFAULTER_PROCESS(B); \
 	for(size_t n = 0; n < that->C.size(); ++n) \
 		UN_T_ASS(pfd->C[n], that->C[n]); \
+	for(size_t n = 0; n < that->D.size(); ++n) \
+		UN_T_ASS(pfd->D[n], that->D[n]); \
 }
 
 #define genericDefaulter7(CLASS,A,B,C,D,E,F,G) \
@@ -1705,15 +1730,16 @@ private:
 	LOADER_PROCESS(C); \
 }
 
-#define genericLoadCallback2PlusArray(CLASS,A,B,C) \
+#define genericLoadCallback2PlusArrays(CLASS,A,B,C,D) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
 	LOADER_PROCESS(A); \
 	LOADER_PROCESS(B); \
-	for(size_t n = 0; n < that->C.size(); ++n) { \
+	for(size_t n = 0; n < that->C.size(); ++n) \
 		LOADER_PROCESS(C[n]); \
-	} \
+	for(size_t n = 0; n < that->D.size(); ++n) \
+		LOADER_PROCESS(D[n]); \
 }
 
 #define genericLoadCallback7(CLASS,A,B,C,D,E,F,G) \
@@ -1787,12 +1813,22 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-#define UPDATE_PRESET_FIELD2PlusArray(A,B,C) \
+#define UPDATE_PRESET_FIELD2PlusArrays(A,B,C,D) \
 { \
 	bool same = true; \
 	for(size_t n = 0; n < C.size(); ++n) \
 	{ \
-		if(C[n] != presetFieldData.C[n]) \
+		auto c = C[n].get(); \
+		if(memcmp(&c, &presetFieldData.C[n], sizeof(c))) \
+		{ \
+			same = false; \
+			break; \
+		} \
+	} \
+	for(size_t n = 0; n < D.size(); ++n) \
+	{ \
+		auto d = D[n].get(); \
+		if(memcmp(&d, &presetFieldData.D[n], sizeof(d))) \
 		{ \
 			same = false; \
 			break; \
@@ -1803,6 +1839,8 @@ static bool areEqual(const T& a, const T& b)
 		presetFieldData.B = B; \
 		for(size_t n = 0; n < C.size(); ++n) \
 			presetFieldData.C[n] = C[n]; \
+		for(size_t n = 0; n < D.size(); ++n) \
+			presetFieldData.D[n] = D[n]; \
 		presetSetField(this, &presetFieldData); \
 	} \
 }
@@ -2982,7 +3020,7 @@ static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColo
 static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv);
 static void menu_up();
 
-#define FILL_ARRAY(name, value) [](){decltype(name) a; a.fill(value); return a;}();
+#define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx);
 
 #ifdef ENABLE_SCALE_METER_MODE
@@ -3831,11 +3869,11 @@ public:
 					if(newTouch)
 					{
 						// each new key press cycles through step states
-						StepMode mode = keyStepModes[touch.key].s;
-						mode = StepMode(mode + 1);
-						if(kStepModesNum == mode)
-							mode = kStepNormal;
-						keyStepModes[touch.key].s = mode;
+						KeyStepMode mode = keyStepModes[touch.key];
+						mode.s = StepMode(mode.s + 1);
+						if(kStepModesNum == mode.s)
+							mode.s = kStepNormal;
+						keyStepModes[touch.key].set(mode);
 					}
 					break;
 				case kPageSampling:
@@ -3845,7 +3883,7 @@ public:
 			vizKey = seqCurrentStep;
 			size_t outKey = kKeyInvalid;
 			bool newTriggerableStep = false;
-			switch(keyStepModes[seqCurrentStep].s)
+			switch(keyStepModes[seqCurrentStep].get().s)
 			{
 			case kStepNormal:
 				outKey = seqCurrentStep;
@@ -3863,7 +3901,7 @@ public:
 					if(0 == step)
 						step = numButtons;
 					step--;
-					if(kStepNormal == keyStepModes[step].s)
+					if(kStepNormal == keyStepModes[step].get().s)
 						break;
 				} while(step != seqCurrentStep);
 				if(step == seqCurrentStep) // no step to hold
@@ -3897,10 +3935,14 @@ public:
 					// because numButtons is always kNumMaxButtons when in kPageSetMode
 					size_t numEnabledKeys = 0;
 					for(auto& k : keyStepModes)
-						numEnabledKeys += k.k;
+						numEnabledKeys += k.get().k;
 					// only remove a key if you're not left with 0
 					if(numEnabledKeys >= 2 || !keyIsEnabled(touch.key))
-						keyStepModes[touch.key].k = !keyStepModes[touch.key].k;
+					{
+						KeyStepMode mode = keyStepModes[touch.key];
+						mode.k = !mode.k;
+						keyStepModes[touch.key].set(mode);
+					}
 					updateNumButtons();
 				}
 				if(touch.key < kMaxNumButtons && keyIsEnabled(touch.key) && stateIsNormal(touch.state))
@@ -3956,7 +3998,7 @@ public:
 				} else if (seqMode)
 				{
 					coeff *= stepIsEnabled(n);
-					switch(keyStepModes[n].s)
+					switch(keyStepModes[n].get().s)
 					{
 					case kStepModesNum:
 					case kStepNormal:
@@ -4035,12 +4077,12 @@ private:
 	bool keyIsEnabled(size_t n) {
 		if(n >= keyStepModes.size())
 			return false;
-		return keyStepModes[n].k;
+		return keyStepModes[n].get().k;
 	}
 	bool stepIsEnabled(size_t n) {
 		if(n >= keyStepModes.size())
 			return false;
-		return (kStepDisabled != keyStepModes[n].s);
+		return (kStepDisabled != keyStepModes[n].get().s);
 	}
 	const std::array<const char*,kNumStates> touchStateNames {
 			"kInitial",
@@ -4068,8 +4110,16 @@ private:
 	}
 	void changePage(Page newPage)
 	{
-		page = newPage;
-		updateNumButtons();
+		if(page != newPage)
+		{
+			page = newPage;
+			updateNumButtons();
+			if(kPagePerf == page)
+			{
+				// we may have updated keyStepModes and/or offsetParameters
+				updatePreset();
+			}
+		}
 	}
 	void changeState(TouchState newState, const centroid_t& centroid)
 	{
@@ -4217,11 +4267,12 @@ private:
 		kStepModesNum,
 	};
 	struct KeyStepMode {
-		bool k : 1;
+		bool k : 4;
 		StepMode s: 4;
-		KeyStepMode(): k(1), s(kStepNormal) {}
+		static KeyStepMode getDefault() {
+			return KeyStepMode{.k = true, .s = kStepNormal};
+		}
 	};
-	std::array<KeyStepMode,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {});
 	std::array<uint8_t,kMaxNumButtons> keysIdx = FILL_ARRAY(keysIdx, kMaxNumButtons);
 	std::array<float,kNumOutChannels> pastOuts;
 	TouchTracker::Id pastTouchId;
@@ -4261,13 +4312,16 @@ public:
 					offsets[n] = offsetParameters[n];
 					keyBeingAdjusted = n; // probably unnecessary
 					break;
+				} else if(p.same(keyStepModes[n]))
+				{
+					updateNumButtons();
 				}
 			}
 		}
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2PlusArray(quantised, modRange, offsetParameters);
+		UPDATE_PRESET_FIELD2PlusArrays(quantised, modRange, offsetParameters, keyStepModes);
 	}
 	ExprButtonsMode():
 		presetFieldData {
@@ -4279,14 +4333,21 @@ public:
 				offsetParameters[3],
 				offsetParameters[4],
 			},
+			.keyStepModes = {
+				keyStepModes[0],
+				keyStepModes[1],
+				keyStepModes[2],
+				keyStepModes[3],
+				keyStepModes[4],
+			},
 			.quantised = quantised,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2PlusArray(ExprButtonsMode, quantised, modRange, offsetParameters),
-			.loadCallback = genericLoadCallback2PlusArray(ExprButtonsMode, quantised, modRange, offsetParameters),
+			.defaulter = genericDefaulter2PlusArrays(ExprButtonsMode, quantised, modRange, offsetParameters, keyStepModes),
+			.loadCallback = genericLoadCallback2PlusArrays(ExprButtonsMode, quantised, modRange, offsetParameters, keyStepModes),
 		};
 		presetDescSet(3, &presetDesc);
 	}
@@ -4299,9 +4360,11 @@ public:
 		ParameterContinuous(this, 0.8),
 		ParameterContinuous(this, 0.9),
 	};
+	std::array<ParameterGeneric<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
 	PACKED_STRUCT(PresetFieldData_t {
 		float modRange;
 		std::array<float,kMaxNumButtons> offsetParameters;
+		std::array<KeyStepMode,kMaxNumButtons> keyStepModes;
 		uint8_t quantised;
 	}) presetFieldData;
 private:
