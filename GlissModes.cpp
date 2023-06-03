@@ -3856,7 +3856,7 @@ public:
 					{
 						seqPastTouchIdUpdated = twi.id;
 						// reset to a next or just passed edge
-						uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
+						uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.1f * context->analogSampleRate);
 						if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples)
 						{
 							// close enough to edge
