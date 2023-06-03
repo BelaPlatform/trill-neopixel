@@ -2319,6 +2319,14 @@ public:
 		gInUsesRange = true; // may be overridden below depending on mode
 		uint64_t currentSamples = context->audioFramesElapsed;
 
+		enum StopMode {
+			kStopNone = 0,
+			kStopNowOnEdge, // stopping now and we are on an edge
+			kStopNowLate, // stopping now and the edge has passed
+		};
+		std::array<StopMode,kNumSplits> qrecStopNow {kStopNone, kStopNone};
+		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
+
 		// handle button
 		if(!(!autoRetrigger && kInputModeTrigger == inputMode) && // when in envelope mode, no reason to erase recordings. We use the button for other stuff here
 				(performanceBtn.pressDuration == msToNumBlocks(context, 3000)
@@ -2396,12 +2404,6 @@ public:
 			// hold LED as long as button is down
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		}
-		enum StopMode {
-			kStopNone = 0,
-			kStopNowOnEdge, // stopping now and we are on an edge
-			kStopNowLate, // stopping now and the edge has passed
-		};
-		std::array<StopMode,kNumSplits> qrecStopNow {kStopNone, kStopNone};
 		std::array<uint32_t,kNumSplits> stopLateSamples {};
 		std::array<bool,kNumSplits> releaseStarts {false, false};
 		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
@@ -2479,7 +2481,6 @@ public:
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		bool analogFallingEdge = (!analogInHigh && pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
-		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		size_t recordOffset = 0;
 		if(kInputModeClock == inputMode)
