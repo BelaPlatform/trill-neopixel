@@ -2470,10 +2470,7 @@ public:
 				break;
 			} // switch inputMode
 		}
-		bool redButtonIsOn = qrecs[0].armedFor
-				|| kRecActual == qrecs[0].recording
-				|| qrecs[1].armedFor
-				|| kRecActual == qrecs[1].recording;
+		bool redButtonIsOn = qrecs[0].armedFor || qrecs[1].armedFor || areRecording();
 		if(kInputModeClock == inputMode)
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn);
 		// TODO: obey trigger level
@@ -2740,7 +2737,7 @@ public:
 			for(size_t n = 0; n < currentSplits(); ++n)
 			{
 				// if actually doing something while recording, pass through current touch
-				if(kRecActual == qrecs[n].recording && gGestureRecorder.rs[n + recordOffset].activity)
+				if(isRecording(n) && gGestureRecorder.rs[n + recordOffset].activity)
 					directControl[n] = true;
 				// if a finger is on the sensor and we are not recording, pass through current touch
 				if(hasTouch[n])
@@ -2957,6 +2954,21 @@ private:
 	float getOscillatorFreq(BelaContext* context, size_t c)
 	{
 		return context->analogSampleRate / gClockPeriod / periodsInTables[c];
+	}
+	bool isRecording(size_t c)
+	{
+		RecordingMode r = qrecs[c].recording;
+		return kRecActual == r;
+	}
+	bool areRecording()
+	{
+		bool areRec = false;
+		for(size_t n = 0; n < qrecs.size(); ++n)
+		{
+			if(isRecording(n))
+				areRec = true;
+		}
+		return areRec;
 	}
 	bool isSize(size_t n)
 	{
