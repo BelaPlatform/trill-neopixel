@@ -2404,16 +2404,15 @@ public:
 			{
 				// if clock in is disabled, button onset triggers immediate start or stop of recording
 				lastIgnoredPressId = performanceBtn.pressId;
-				bool areRecording = false;
-				for(size_t n = 0; n < qrecs.size(); ++n)
-				{
-					if(isRecording(n)) {
-						qrecStopNow[n] = kStopNowOnEdge;
-						areRecording = true;
+				if(areRecording()){
+					for(size_t n = 0; n < qrecs.size(); ++n)
+					{
+						if(isRecording(n))
+							qrecStopNow[n] = kStopNowOnEdge;
 					}
-				}
-				if(!areRecording)
+				} else {
 					qrecStartNow.fill(kRecOnButton);
+				}
 			}
 		}
 		// EG + Gate mode
