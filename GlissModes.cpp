@@ -2279,6 +2279,7 @@ public:
 	bool setup(double ms) override
 	{
 		inputModeClockIsButton = false;
+		reinitInputModeClock();
 		gOutMode.fill(kOutModeManualBlock);
 		hadTouch.fill(false);
 		idxFrac = 0;
@@ -2315,8 +2316,15 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		if(!areRecording())
-			inputModeClockIsButton = !clockInIsActive(context);
+		performanceBtn = ButtonViewSimplify(performanceBtn);
+		if(!areRecording()) {
+			bool newinputModeClockIsButton = !clockInIsActive(context);
+			if(newinputModeClockIsButton != inputModeClockIsButton)
+			{
+				reinitInputModeClock();
+				inputModeClockIsButton = newinputModeClockIsButton;
+			}
+		}
 		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
@@ -2337,11 +2345,7 @@ public:
 		{
 			emptyRecordings();
 			// clear possible side effects of previous press:
-			for(auto& qrec : qrecs)
-			{
-				qrec.armedFor = kArmedForNone;
-				qrec.recording = kRecNone;
-			}
+			reinitInputModeClock();
 			lastIgnoredPressId = performanceBtn.pressId;
 			tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 300);
 		}
@@ -2951,7 +2955,6 @@ public:
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
 			if(kInputModeClock == inputMode)
 			{
-				inputModeClockIsButton = false;
 				for(auto& qrec : qrecs)
 					qrec = QuantisedRecorder();
 			}
@@ -2985,6 +2988,14 @@ public:
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
+	void reinitInputModeClock()
+	{
+		for(auto& qrec : qrecs)
+		{
+			qrec.armedFor = kArmedForNone;
+			qrec.recording = kRecNone;
+		}
+	}
 	bool clockInIsActive(BelaContext* context)
 	{
 		uint64_t now = context->audioFramesElapsed + context->analogFrames - 1; // rounded up to the end of the frame
