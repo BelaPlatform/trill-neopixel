@@ -5317,7 +5317,7 @@ public:
 			coeff = 1.f;
 		break;
 		case SplitPerformanceMode::kModeSplitLocation:
-			coeff = tri > 0.5 ? 1 : 0.2;
+			coeff = tri > 0.5 ? 1 : 0;
 		break;
 		case SplitPerformanceMode::kModeSplitSize:
 			coeff = tri;
