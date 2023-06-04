@@ -2317,8 +2317,9 @@ public:
 	void render(BelaContext* context, FrameData* frameData) override
 	{
 		performanceBtn = ButtonViewSimplify(performanceBtn);
-		if(!areRecording()) {
-			bool newinputModeClockIsButton = !clockInIsActive(context);
+		if(!areRecording())
+		{
+			bool newinputModeClockIsButton = !clockInIsActive(context) && kInputModeClock == inputMode;
 			if(newinputModeClockIsButton != inputModeClockIsButton)
 			{
 				reinitInputModeClock();
@@ -2418,6 +2419,13 @@ public:
 					qrecStartNow.fill(kRecOnButton);
 				}
 			}
+		}
+		if(gAlt && inputModeClockIsButton && areRecording())
+		{
+			// We got into menu while recording.
+			// This means that the keypress that triggered the recording onset has been used to
+			// enter the menu. Clear its side effects
+			reinitInputModeClock();
 		}
 		// EG + Gate mode
 		if(0 == autoRetrigger && (envelopeReleaseStarts[0] > 0 || envelopeReleaseStarts[1] > 0) && performanceBtn.pressed)
