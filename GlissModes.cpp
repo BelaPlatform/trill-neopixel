@@ -2259,7 +2259,7 @@ static float interpolatedRead(const T& table, float idx)
 
 static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
 {
-	float ceiling = lessIntrusive ? 10 : 50;
+	float ceiling = lessIntrusive ? 40 : 50;
 	float periodMs = gClockPeriod * 1000.f / context->analogSampleRate;
 	float ms = std::min(ceiling, periodMs / 4.f);
 	if(lessIntrusive && periodMs < 75)
@@ -2498,7 +2498,7 @@ public:
 		}
 		bool redButtonIsOn = qrecs[0].armedFor || qrecs[1].armedFor || areRecording();
 		if(kInputModeClock == inputMode)
-			tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn);
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.2f);
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
