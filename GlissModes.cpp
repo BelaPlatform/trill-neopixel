@@ -2278,6 +2278,7 @@ class RecorderMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		inputModeClockIsButton = false;
 		gOutMode.fill(kOutModeManualBlock);
 		hadTouch.fill(false);
 		idxFrac = 0;
@@ -2314,6 +2315,8 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
+		if(!areRecording())
+			inputModeClockIsButton = !clockInIsActive(context);
 		// set global states
 		setOutIsSize();
 		gInUsesRange = true; // may be overridden below depending on mode
@@ -2397,7 +2400,7 @@ public:
 			}
 			break;
 			}
-			if(kInputModeClock == inputMode && !clockInIsActive(context))
+			if(kInputModeClock == inputMode && inputModeClockIsButton)
 			{
 				// if clock in is disabled, button onset triggers immediate start or stop of recording
 				lastIgnoredPressId = performanceBtn.pressId;
@@ -2421,7 +2424,7 @@ public:
 		}
 		std::array<uint32_t,kNumSplits> stopLateSamples {};
 		std::array<bool,kNumSplits> releaseStarts {false, false};
-		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
+		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId && !inputModeClockIsButton)
 		{
 			switch(inputMode.get())
 			{
@@ -2948,8 +2951,11 @@ public:
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
 			if(kInputModeClock == inputMode)
+			{
+				inputModeClockIsButton = false;
 				for(auto& qrec : qrecs)
 					qrec = QuantisedRecorder();
+			}
 		}
 	}
 	void updatePreset()
@@ -3077,6 +3083,7 @@ private:
 	float idxFrac = 0;
 	size_t buttonBlinksIgnored;
 	bool pastAnalogInHigh = false;
+	bool inputModeClockIsButton;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
 
