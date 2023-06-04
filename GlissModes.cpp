@@ -2657,12 +2657,11 @@ public:
 						if(!gGestureRecorder.rs[n + recordOffset].activity)
 							valid = false;
 					}
-					qrec.recordedAs = qrec.recording;
-					qrec.recording = kRecNone;
-					qrec.framesInRecording = context->audioFramesElapsed - qrec.framesAtStart;
 					gGestureRecorder.stopRecording(n + recordOffset, false);
 					if(valid)
 					{
+						qrec.recordedAs = qrec.recording;
+						qrec.framesInRecording = context->audioFramesElapsed - qrec.framesAtStart;
 						gGestureRecorder.rs.swap(n, n + recordOffset);
 						if(kRecOnButton == qrec.recordedAs)
 						{
@@ -2681,6 +2680,7 @@ public:
 							phaseOffset = stopLateSamples[n] * normFreq * 2.f * float(M_PI);
 						}
 					}
+					qrec.recording = kRecNone;
 				}
 				// keep oscillators in phase with external clock pulses
 				if(qrecResetPhase[n]) {
