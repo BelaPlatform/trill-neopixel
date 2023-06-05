@@ -3856,14 +3856,14 @@ public:
 			case kInitial:
 				if(samplingEnabled)
 				{
-					if(newTouch)
+					if(newTouch && touch.key < keysIdx.size())
 					{
 						// sample
 						float sum = 0;
 						for(size_t n = 0; n < context->analogFrames; ++n)
 							sum += analogRead(context, n, 0);
 						sampled = sum / context->analogFrames;
-						sampledKey = touch.key;
+						sampledKey = keysIdx[touch.key];
 					}
 					// we postpone assigning to offsets so that if we get
 					// into bending to set the voltage via slider, we do not
