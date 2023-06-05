@@ -1278,12 +1278,6 @@ public:
 	virtual void updatePreset() = 0;
 };
 
-class PerformanceMode : public ParameterUpdateCapable {
-public:
-	virtual bool setup(double ms) = 0;
-	virtual void render(BelaContext*, FrameData* frameData) = 0;
-};
-
 template <typename T>
 class ParameterGeneric : public Parameter {
 public:
@@ -1377,6 +1371,55 @@ static float simpleTriangle(unsigned int phase, unsigned int period)
 		value = (2 * hp - phase) / float(hp);
 	return value;
 }
+
+class IoRangeParameters
+{
+public:
+	ParameterEnumT<kCvRangeNum,CvRange> cvRange;
+	ParameterContinuous min;
+	ParameterContinuous max;
+	operator IoRange() {
+		return IoRange{
+			.range = cvRange,
+			.min = min,
+			.max = max,
+			.enabled = true,
+		};
+	}
+	IoRangeParameters(ParameterUpdateCapable* that) :
+		cvRange({that, kCvRangePositive10}),
+		min(that, 0),
+		max(that, 1)
+	{}
+};
+
+class IoRangesParameters
+{
+public:
+	IoRangeParameters in;
+	IoRangeParameters outTop;
+	IoRangeParameters outBottom;
+	operator IoRanges()
+	{
+		return IoRanges{
+			.in = in,
+			.outTop = outTop,
+			.outBottom = outBottom,
+		};
+	}
+	IoRangesParameters(ParameterUpdateCapable* that) :
+		in(that),
+		outTop(that),
+		outBottom(that)
+	{}
+};
+
+class PerformanceMode : public ParameterUpdateCapable {
+public:
+	virtual bool setup(double ms) = 0;
+	virtual void render(BelaContext*, FrameData* frameData) = 0;
+	IoRangesParameters ioRangesParameters {this};
+};
 
 #ifdef TEST_MODE
 class TestMode: public PerformanceMode {
@@ -5308,9 +5351,16 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gInUsesCalibration = true;
 	gInUsesRange = true;
 	gOutUsesRange = {true, true};
+	IoRanges ioRanges {};
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
+	{
 		performanceModes[gNewMode]->render(context, frameData);
+		ioRanges = performanceModes[gNewMode]->ioRangesParameters;
+		gOutRangeTop = ioRanges.outTop;
+		gOutRangeBottom = ioRanges.outBottom;
+		gInRange = ioRanges.in;
+	}
 	// make the final states visible to the wrapper
 	gOutRangeTop.enabled = gOutUsesRange[0];
 	gOutRangeBottom.enabled = gOutUsesRange[1];
@@ -6347,6 +6397,9 @@ class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
 public:
 	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, MenuItemTypeRange::PreprocessFn preprocess):
 		MenuItemTypeDiscreteRange(name, baseColor, otherColor, valueEn, valueConBottom, valueConTop, preprocess, 2000), otherColor(otherColor) {}
+	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, IoRangeParameters& ioRange, MenuItemTypeRange::PreprocessFn preprocess):
+		MenuItemTypeDiscreteRange(name, baseColor, otherColor, ioRange.cvRange, ioRange.min, ioRange.max, preprocess, 2000), otherColor(otherColor) {}
+
 	void event(Event e) override
 	{
 		MenuItemTypeDiscreteRange::event(e);
@@ -6837,6 +6890,75 @@ static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, gGlobalSettings.brightness);
 
+class PerformanceModeIoRangesMenuPage : public MenuPage {
+public:
+	PerformanceModeIoRangesMenuPage(const char* name, PerformanceMode& perf) :
+		MenuPage(name, {
+				&disabled,
+				&disabled,
+				&outBottom,
+				&outTop,
+				&in,
+		}),
+		in((std::string(name) + " in").c_str(), globalSettingsColor, globalSettingsRangeOtherColor, perf.ioRangesParameters.in, quantiseNormalisedForIntegerVolts),
+		outTop((std::string(name) + " outTop").c_str(), globalSettingsColor, globalSettingsRangeOtherColor, perf.ioRangesParameters.outTop, quantiseNormalisedForIntegerVolts),
+		outBottom((std::string(name) + " outBottom").c_str(), globalSettingsColor, globalSettingsRangeOtherColor, perf.ioRangesParameters.outBottom, quantiseNormalisedForIntegerVolts)
+	{}
+private:
+	MenuItemTypeDiscreteRangeCv in;
+	MenuItemTypeDiscreteRangeCv outTop;
+	MenuItemTypeDiscreteRangeCv outBottom;
+};
+
+// _why_ does it have to be so verbose? For some (good???) reason we deleted the copy constructor of MenuPage,
+// so we cannot put MenuPage objects in an array and we need this hack
+#ifdef ENABLE_DIRECT_CONTROL_MODE
+static PerformanceModeIoRangesMenuPage menuPageDirectControl {"direct control", gDirectControlMode};
+#endif // ENABLE_DIRECT_CONTROL_MODE
+#ifdef ENABLE_RECORDER_MODE
+static PerformanceModeIoRangesMenuPage menuPageRecorder {"recorder", gRecorderMode};
+#endif // ENABLE_RECORDER_MODE
+#ifdef ENABLE_SCALE_METER_MODE
+static PerformanceModeIoRangesMenuPage menuPageScaleMeter {"scale/meter", gScaleMeterMode};
+#endif // ENABLE_SCALE_METER_MODE
+#ifdef ENABLE_BALANCED_OSCS_MODE
+static PerformanceModeIoRangesMenuPage menuPageBalancedOscs {"balanced oscs", gBalancedOscsMode};
+#endif //ENABLE_BALANCED_OSCS_MODE
+#ifdef ENABLE_EXPR_BUTTONS_MODE
+static PerformanceModeIoRangesMenuPage menuPageExprButtons {"expr buttons", gExprButtonsMode};
+#endif // ENABLE_EXPR_BUTTONS_MODE
+
+static MenuPage dummyPage { "dummy", {
+		&disabled,
+		&disabled,
+		&disabled,
+		&disabled,
+		&disabled,
+	}
+};
+
+std::array<MenuPage*,kNumModes> menuPagesIoRanges {{
+#ifdef TEST_MODE
+	&dummyPage,
+#endif // TEST_MODE
+#ifdef ENABLE_DIRECT_CONTROL_MODE
+	&menuPageDirectControl,
+#endif // ENABLE_DIRECT_CONTROL_MODE
+#ifdef ENABLE_RECORDER_MODE
+	&menuPageRecorder,
+#endif // ENABLE_RECORDER_MODE
+#ifdef ENABLE_SCALE_METER_MODE
+	&menuPageScaleMeter,
+#endif // ENABLE_SCALE_METER_MODE
+#ifdef ENABLE_BALANCED_OSCS_MODE
+	&menuPageBalancedOscs,
+#endif // ENABLE_BALANCED_OSCS_MODE
+#ifdef ENABLE_EXPR_BUTTONS_MODE
+	&menuPageExprButtons,
+#endif // ENABLE_EXPR_BUTTONS_MODE
+	&dummyPage, // calibration
+	&dummyPage, // factory test
+}};
 static bool menuJustEntered;
 
 #ifdef MENU_ENTER_RANGE_DISPLAY
@@ -7040,10 +7162,10 @@ int menu_setup(size_t page)
 		menu = &mainMenu;
 		break;
 	case 1:
-		menu = &globalSettingsMenu0;
+		menu = gNewMode < menuPagesIoRanges.size() ? menuPagesIoRanges[gNewMode] : &dummyPage;
 		break;
 	case 2:
-		menu = &globalSettingsMenu1;
+		menu = &globalSettingsMenu0;
 		break;
 	}
 	return menu_dosetup(*menu);

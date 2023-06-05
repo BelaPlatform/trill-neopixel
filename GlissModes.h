@@ -26,6 +26,13 @@ struct IoRange {
 	// this can be changed dynamically by a mode and is not stored
 	bool enabled;
 };
+
+struct IoRanges {
+	IoRange in;
+	IoRange outTop;
+	IoRange outBottom;
+};
+
 extern IoRange gInRange;
 extern IoRange gOutRangeTop;
 extern IoRange gOutRangeBottom;
