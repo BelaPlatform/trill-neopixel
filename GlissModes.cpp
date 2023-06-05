@@ -573,12 +573,6 @@ bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t st
 	return done;
 }
 
-static bool modeChangeBlink(double ms, rgb_t color)
-{
-	rgb_t colors[2] = {color, color};
-	return modeChangeBlinkSplit(ms, colors, kNumLeds, kNumLeds);
-}
-
 // MODE Alt: settings UI
 bool modeAlt_setup()
 {
@@ -2031,21 +2025,8 @@ public:
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
-			if(ms < 0)
-			{
+			if(ms <= 0)
 				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-				return true;
-			}
-			rgb_t monoColors[2] = {
-					colors[0],
-					colors[0],
-			};
-			if(0 == ms)
-				ledSlidersSetupTwoSliders(guardPads, monoColors, LedSlider::MANUAL_CENTROIDS); // monochrome blink
-			bool ret = modeChangeBlinkSplit(ms, monoColors, kNumLeds / 2 - guardPads, kNumLeds / 2);
-			if(ret)
-				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS); // finish off with proper colors
-			return ret;
 		} else {
 			if(ms <= 0)
 			{
@@ -2054,10 +2035,21 @@ public:
 					LedSlider::MANUAL_CENTROIDS
 				);
 			}
-			if(ms < 0)
-				return true;;
-			return modeChangeBlink(ms, colors[0]);
 		}
+		if(ms < 0)
+			return true;
+		// opening animation
+		// single point starts in middle, zips off in two directions to the top and bottom
+		constexpr float kAnimationDuration = 800;
+		float loc = ms / kAnimationDuration + 0.5f;
+		float size = (loc - 0.5f) * kFixedCentroidSize;
+		for(auto l : { &ledSliders, &ledSlidersAlt})
+		{
+			l->sliders[0].directBegin();
+			l->sliders[0].directWriteCentroid({ .location = loc, .size = size }, colors[0]);
+			l->sliders[0].directWriteCentroid({ .location = 1.0f - loc, .size = size }, colors[0]);
+		}
+		return ms > kAnimationDuration;
 	}
 	void render(BelaContext*, FrameData* frameData) override
 	{
@@ -2289,30 +2281,28 @@ public:
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
-			if(ms < 0)
-			{
+			if(ms <= 0)
 				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-				return true;
-			}
-			rgb_t monoColors[2] = {
-					colors[0],
-					colors[0],
-			};
-			if(0 == ms)
-				ledSlidersSetupTwoSliders(guardPads, monoColors, LedSlider::MANUAL_CENTROIDS);
-			bool ret = modeChangeBlinkSplit(ms, monoColors, kNumLeds / 2 - guardPads, kNumLeds / 2);
-			if(ret)
-				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
-			return ret;
 		}
 		else
 		{
 			if(ms <= 0)
 				ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
-			if(ms < 0)
-				return true;
-			return modeChangeBlink(ms, colors[0]);
 		}
+		if(ms < 0)
+			return true;
+		// opening animation
+		// single point whips from the bottom, to the top, and back to the bottom
+		constexpr float kAnimationDuration = 800;
+		float phase = 2.f * ms / kAnimationDuration;
+		float loc = phase < 1 ? phase : 2.f - phase;
+		float size = loc * kFixedCentroidSize;
+		for(auto l : { &ledSliders, &ledSlidersAlt})
+		{
+			l->sliders[0].directBegin();
+			l->sliders[0].directWriteCentroid({ .location = loc, .size = size }, colors[0]);
+		}
+		return ms > kAnimationDuration;
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
@@ -3137,7 +3127,26 @@ public:
 		}
 		if(ms < 0)
 			return true;
-		return modeChangeBlink(ms, signalColor);
+		// animation
+		// VU meter colour appears from bottom to top.
+		// As soon as it is full it starts to disappear from the bottom upwards
+		constexpr rgb_t gn = {0, 255, 0};
+		constexpr rgb_t rd = {255, 0, 0};
+		np.clear();
+		constexpr float kAnimationDuration = 1200;
+		float phase = ms / kAnimationDuration;
+		size_t start = constrain(phase * 2.f - 1.f, 0, 1) * np.getNumPixels();
+		size_t stop = constrain(phase * 2.f, 0, 1) * np.getNumPixels();
+		if(stop < start)
+			std::swap(start, stop);
+		printf("%d %d\n\r", start, stop);
+		for(size_t n = start; n < stop && n < np.getNumPixels(); ++n)
+		{
+			rgb_t color = crossfade(gn, rd, map(n, start, stop, 0, 1));
+			color.scale(0.14); // dim to avoid using too much current
+			np.setPixelColor(n, color.r, color.g, color.b);
+		}
+		return ms >= kAnimationDuration;
 	}
 
 	void render(BelaContext* context, FrameData* frameData) override
@@ -3536,13 +3545,7 @@ public:
 		gOutIsSize = {false, true};
 		if(ms <= 0)
 		{
-			ledSlidersSetupMultiSlider(
-				ledSliders,
-				{{0, 0, 0}},
-				LedSlider::MANUAL_CENTROIDS,
-				true,
-				1
-			);
+			ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
 			gOutMode.fill(kOutModeManualBlock);
 			changeState(kDisabled, {0, 0});
 		}
@@ -3552,7 +3555,21 @@ public:
 			updated(o);
 		if(ms < 0)
 			return true;
-		return modeChangeBlink(ms, {0, 200, 50});
+		// animation
+		// buttons appear and disappear one by one, fading in and out quickly
+		constexpr size_t kAnimationDuration = 1000;
+		constexpr size_t kPerButton = kAnimationDuration / kMaxNumButtons;
+		size_t button = std::min(kMaxNumButtons - 1, size_t(ms) / kPerButton);
+		size_t phase = size_t(ms) % kPerButton;
+		float tri = simpleTriangle(phase, kPerButton);
+		float step = 1.f / kMaxNumButtons;
+		for(auto l : { &ledSliders, &ledSlidersAlt})
+		{
+			l->sliders[0].directBegin();
+			l->sliders[0].directWriteCentroid({ .location = step * 0.5f + step * button, .size = tri * 0.2f}, colors[button]);
+		}
+		return ms >= kAnimationDuration;
+
 	}
 	void render(BelaContext* context, FrameData* frameData)
 	{
