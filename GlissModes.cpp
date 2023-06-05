@@ -3279,12 +3279,10 @@ public:
 				size_t centroidLed =  outVizThrough * kNumLeds;
 				if(stop) // stop one LED before centroidLed, so not to steal its smoothness
 					stop = stop - 1;
-				printf("%d %d %d\n\r", start, stop, int(outVizThrough * kNumLeds));
 				for(size_t n = start; n < stop && n < centroidLed; ++n)
 				{
 					rgb_t color = crossfade(gn, rd, map(n, start, stop, 0, 1));
-					for(size_t c = 0; c < color.size(); ++c)
-						color[c] *= 0.14; // dim to avoid using too much current
+					color.scale(0.14); // dim to avoid using too much current
 					np.setPixelColor(n, color.r, color.g, color.b);
 				}
 			}
