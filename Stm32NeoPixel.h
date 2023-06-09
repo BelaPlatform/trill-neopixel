@@ -178,6 +178,10 @@ public:
 			buffer[kNumBytesPerPixel * n + 2] = b;
 		}
 	}
+	void setPixelColor(size_t n, const rgb_t& rgb)
+	{
+		setPixelColor(n, rgb.r, rgb.g, rgb.b);
+	}
 	void clear() override
 	{
 		memset(buffer.data(), 0, buffer.size() * sizeof(buffer[0]));
