@@ -5,6 +5,7 @@
 #include "main.h"
 #include <string.h> // memset
 #include <algorithm>
+#include "rgb.h"
 
 class Stm32NeoPixel
 {
