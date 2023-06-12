@@ -10,6 +10,13 @@ typedef LedSlider::centroid_t centroid_t;
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 
+static constexpr rgb_t kRgbRed {255, 0, 0};
+static constexpr rgb_t kRgbGreen {0, 255, 0};
+static constexpr rgb_t kRgbOrange {255, 127, 0};
+static constexpr rgb_t kRgbYellow {255, 255, 0};
+static constexpr rgb_t kRgbWhite {0, 50, 255};
+static constexpr rgb_t kRgbBlack {0, 0, 0};
+
 #define ENABLE_DIRECT_CONTROL_MODE
 #define ENABLE_RECORDER_MODE
 #define ENABLE_SCALE_METER_MODE
@@ -292,7 +299,7 @@ extern Trill trill;
 extern std::array<float,kNumOutChannels> gManualAnOut;
 
 std::array<Oscillator, 2> oscillators;
-const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{{0, 0, 255}, {0, 255, 0}}};
+const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{kRgbYellow, kRgbGreen}};
 std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MIDI without changing defaults
 
 std::array<OutMode,kNumOutChannels> gOutMode { kOutModeManualBlock, kOutModeManualBlock };
@@ -543,9 +550,9 @@ static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false, 1);
 }
 
-static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t colors[2], LedSlider::LedMode_t mode)
+static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t color, LedSlider::LedMode_t mode)
 {
-	ledSlidersSetupMultiSlider(ledSliders, {colors[0], colors[1]}, mode, false, 1, kTopBottom);
+	ledSlidersSetupMultiSlider(ledSliders, {color, color}, mode, false, 1, kTopBottom);
 }
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
@@ -579,11 +586,11 @@ bool modeAlt_setup()
 	ledSlidersSetupMultiSlider(
 		ledSlidersAlt,
 		{
-			{0, 0, 255},
-			{0, 0, 255},
-			{0, 0, 255},
-			{0, 0, 255},
-			{0, 255, 0},
+			kRgbRed,
+			kRgbRed,
+			kRgbRed,
+			kRgbRed,
+			kRgbGreen,
 		},
 		LedSlider::MANUAL_CENTROIDS,
 		true,
@@ -1565,11 +1572,11 @@ private:
 			},
 			{
 				{192, 58, 40},
-				{0, 0, 0},
+				kRgbBlack,
 			},
 			{
-				{255, 255, 255},
-				{255, 255, 255},
+				kRgbWhite,
+				kRgbWhite,
 			},
 	};
 	uint32_t count = 0;
@@ -2026,12 +2033,12 @@ public:
 		{
 			unsigned int guardPads = 1;
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupTwoSliders(guardPads, color, LedSlider::MANUAL_CENTROIDS);
 		} else {
 			if(ms <= 0)
 			{
 				ledSlidersSetupOneSlider(
-					colors[0],
+					color,
 					LedSlider::MANUAL_CENTROIDS
 				);
 			}
@@ -2046,8 +2053,8 @@ public:
 		for(auto l : { &ledSliders, &ledSlidersAlt})
 		{
 			l->sliders[0].directBegin();
-			l->sliders[0].directWriteCentroid({ .location = loc, .size = size }, colors[0]);
-			l->sliders[0].directWriteCentroid({ .location = 1.0f - loc, .size = size }, colors[0]);
+			l->sliders[0].directWriteCentroid({ .location = loc, .size = size }, color);
+			l->sliders[0].directWriteCentroid({ .location = 1.0f - loc, .size = size }, color);
 		}
 		return ms > kAnimationDuration;
 	}
@@ -2169,10 +2176,7 @@ private:
 	{
 		return kAutoLatchOff != autoLatch;
 	}
-	rgb_t colors[2] = {
-		{255, 0, 0},
-		{255, 0, 127},
-	};
+	rgb_t color = kRgbRed;
 	LatchProcessor latchProcessor;
 	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
 	uint32_t lastLatchCount = ButtonView::kPressIdInvalid;
@@ -2282,12 +2286,12 @@ public:
 		{
 			unsigned int guardPads = 1;
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(guardPads, colors, LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupTwoSliders(guardPads, color, LedSlider::MANUAL_CENTROIDS);
 		}
 		else
 		{
 			if(ms <= 0)
-				ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
 		}
 		if(ms < 0)
 			return true;
@@ -2300,13 +2304,14 @@ public:
 		for(auto l : { &ledSliders, &ledSlidersAlt})
 		{
 			l->sliders[0].directBegin();
-			l->sliders[0].directWriteCentroid({ .location = loc, .size = size }, colors[0]);
+			l->sliders[0].directWriteCentroid({ .location = loc, .size = size }, color);
 		}
 		return ms > kAnimationDuration;
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		performanceBtn = ButtonViewSimplify(performanceBtn);
+		if(kInputModeTrigger != inputMode) // we need to allow for fast repeated presses when the button triggers
+			performanceBtn = ButtonViewSimplify(performanceBtn);
 		if(!areRecording())
 		{
 			bool newinputModeClockIsButton = !clockInIsActive(context) && kInputModeClock == inputMode;
@@ -3051,10 +3056,7 @@ private:
 		assert(c < twis.size());
 		return twis[isSplit() ? c : 0].id;
 	}
-	rgb_t colors[2] = {
-			{128, 128, 0},
-			{128, 128, 100},
-	};
+	rgb_t color = kRgbYellow.scaledBy(0.5);
 	enum ArmedFor {
 		kArmedForNone,
 		kArmedForStart,
@@ -3130,8 +3132,6 @@ public:
 		// animation
 		// VU meter colour appears from bottom to top.
 		// As soon as it is full it starts to disappear from the bottom upwards
-		constexpr rgb_t gn = {0, 255, 0};
-		constexpr rgb_t rd = {255, 0, 0};
 		np.clear();
 		constexpr float kAnimationDuration = 1200;
 		float phase = ms / kAnimationDuration;
@@ -3139,10 +3139,9 @@ public:
 		size_t stop = constrain(phase * 2.f, 0, 1) * np.getNumPixels();
 		if(stop < start)
 			std::swap(start, stop);
-		printf("%d %d\n\r", start, stop);
 		for(size_t n = start; n < stop && n < np.getNumPixels(); ++n)
 		{
-			rgb_t color = crossfade(gn, rd, map(n, start, stop, 0, 1));
+			rgb_t color = crossfade(kRgbGreen, kRgbRed, map(n, start, stop, 0, 1));
 			color.scale(0.14); // dim to avoid using too much current
 			np.setPixelColor(n, color.r, color.g, color.b);
 		}
@@ -3265,9 +3264,6 @@ public:
 			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMin, outRangeMax);
 			centroids[1].size = kFixedCentroidSize;
 		}
-		constexpr rgb_t gn = {0, 255, 0};
-		constexpr rgb_t rd = {255, 0, 0};
-
 		ledSliders.sliders[0].directBegin(); // clears display
 		if(hasEnvelope && kCouplingAcRms == coupling)
 		{
@@ -3281,7 +3277,7 @@ public:
 					stop = stop - 1;
 				for(size_t n = start; n < stop && n < centroidLed; ++n)
 				{
-					rgb_t color = crossfade(gn, rd, map(n, start, stop, 0, 1));
+					rgb_t color = crossfade(kRgbGreen, kRgbRed, map(n, start, stop, 0, 1));
 					color.scale(0.14); // dim to avoid using too much current
 					np.setPixelColor(n, color.r, color.g, color.b);
 				}
@@ -3293,7 +3289,7 @@ public:
 			if(kCouplingDc == coupling)
 				color = signalColor;
 			else
-				color = crossfade(gn, rd, map(centroids[n].location, outRangeMin, outRangeMax, 0, 1));
+				color = crossfade(kRgbGreen, kRgbRed, map(centroids[n].location, outRangeMin, outRangeMax, 0, 1));
 			ledSliders.sliders[0].directWriteCentroid(centroids[n], color);
 		}
 	}
@@ -3379,9 +3375,9 @@ private:
 		float in = analogRead(context, frame, channel);
 		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
 	}
-	const rgb_t signalColor = {0, 160, 160};
-	const rgb_t endpointsColorIn = {255, 0, 0};
-	const rgb_t endpointsColorOut = {0, 255, 0};
+	const rgb_t signalColor = kRgbGreen;
+	const rgb_t endpointsColorIn = kRgbRed;
+	const rgb_t endpointsColorOut = kRgbYellow;
 	float x1;
 	float y1;
 	float env;
@@ -4111,16 +4107,16 @@ public:
 					{
 					case kStepModesNum:
 					case kStepNormal:
-						color = {0, 0, 255};
+						color = kRgbGreen;
 						break;
 					case kStepHold:
-						color = {180, 180, 0};
+						color = kRgbYellow.scaledBy(0.7);
 						break;
 					case kStepMuted:
-						color = {200, 0, 0};
+						color = kRgbRed.scaledBy(0.7);
 						break;
 					case kStepDisabled:
-						color = {0, 0, 0};
+						color = kRgbBlack;
 						break;
 					}
 					// TODO: animating buttons while they are traversed by the sequencer
@@ -4401,11 +4397,11 @@ private:
 	bool seqMode = false;
 	bool pastAnalogInHigh = false;
 	std::array<rgb_t,kMaxNumButtons> colors = {{
-		{0, 255, 0},
-		{0, 200, 50},
-		{0, 150, 100},
-		{0, 100, 150},
-		{0, 50, 200},
+		crossfade(kRgbGreen, kRgbOrange, 0),
+		crossfade(kRgbGreen, kRgbOrange, 0.25),
+		crossfade(kRgbGreen, kRgbOrange, 0.5),
+		crossfade(kRgbGreen, kRgbOrange, 0.75),
+		crossfade(kRgbGreen, kRgbOrange, 1),
 	}};
 public:
 	void updated(Parameter& p)
@@ -4892,7 +4888,7 @@ static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx)
 	};
 }
 
-static constexpr rgb_t kCalibrationColor = {255, 255, 255};
+static constexpr rgb_t kCalibrationColor = kRgbRed;
 class CalibrationMode : public PerformanceMode {
 	enum Animation {
 		kBlink,
@@ -4995,8 +4991,8 @@ public:
 		}
 		float gain;
 		constexpr size_t kPeriod = 500;
-		rgb_t color = {60, 0, 60};
-		rgb_t otherColor = {0, 0, 0};
+		rgb_t color = kRgbOrange;
+		rgb_t otherColor = kRgbBlack;
 		switch(animation)
 		{
 		default:
@@ -5029,7 +5025,7 @@ class FactoryTestMode: public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		ledSlidersSetupOneSlider({0,0,0}, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
+		ledSlidersSetupOneSlider(kRgbBlack, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
 		gOutMode.fill(kOutModeManualSample);
 		stateSuccess = false;
 		analogFailed = false;
@@ -5071,7 +5067,7 @@ public:
 				tri.buttonLedSet(TRI::kSolid, value ? TRI::kG : TRI::kR);
 				if(!gAlt)
 				{
-					rgb_t color = value ? rgb_t{25, 0, 0} : rgb_t{0, 0, 25};
+					rgb_t color = value ? kRgbRed.scaledBy(0.1) : kRgbOrange.scaledBy(0.1);
 					for(size_t n = 0; n < np.getNumPixels(); ++n)
 						np.setPixelColor(n, color.r, color.g, color.b);
 				}
@@ -5139,7 +5135,7 @@ public:
 				if(!gAlt)
 				{
 					for(size_t n = 0; n < np.getNumPixels(); ++n)
-						np.setPixelColor(n, allGood[n] ? 0 : 127, allGood[n] ? 0 : 127, 0);
+						np.setPixelColor(n, allGood[n] ? kRgbBlack : kRgbYellow);
 				}
 				if(success)
 					stateSuccess = true;
@@ -5175,9 +5171,9 @@ public:
 				{
 					rgb_t color;
 					if(success)
-						color = {0, 127, 0};
+						color = kRgbGreen;
 					else
-						color = {127, 0, 0};
+						color = kRgbRed;
 					for(size_t n = 0; n < np.getNumPixels(); ++n)
 						np.setPixelColor(n, color.r, color.g, color.b);
 				}
@@ -6453,15 +6449,15 @@ public:
 };
 
 constexpr size_t kMaxModeParameters = 4;
-static const rgb_t buttonColor {0, 255, 255};
+static const rgb_t buttonColor = kRgbBlack;
 static MenuItemTypeDisabled disabled;
 static AnimationColors buttonColors = {
-		rgb_t{255, 0, 0},
-		rgb_t{255, 128, 0},
-		rgb_t{192, 255, 0},
-		rgb_t{64, 255, 0},
-		rgb_t{0, 128, 255},
-		rgb_t{0, 0, 255},
+		kRgbRed,
+		kRgbOrange,
+		kRgbYellow,
+		kRgbGreen,
+		kRgbWhite,
+		kRgbBlack,
 };
 
 static ButtonAnimationSplit animationSplit(buttonColors);
@@ -6586,8 +6582,7 @@ static std::array<std::array<MenuItemType*,kMaxModeParameters>*,kNumModes> modes
 		&emptyModeMenu, // calibration mode
 };
 
-MenuItemTypeNextMode nextMode("nextMode", {0, 255, 0});
-MenuItemTypeExitSubmenu exitMe("exit", {127, 255, 0});
+MenuItemTypeNextMode nextMode("nextMode", kRgbGreen);
 
 static void setAllSizeScales(float coeff)
 {
@@ -6804,7 +6799,7 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 // appropriately set the properties of displayScaleMeterOutputMode
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
-static constexpr rgb_t globalSettingsColor = {255, 127, 0};
+static constexpr rgb_t globalSettingsColor = kRgbOrange;
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
 	static constexpr float kVoltsFs = 15;
@@ -6831,13 +6826,13 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 		o /= kVoltsFs;
 	return out;
 }
-static constexpr rgb_t globalSettingsRangeOtherColor = {255, 0, 0};
+static constexpr rgb_t globalSettingsRangeOtherColor = kRgbRed;
 static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseNormalisedForIntegerVolts);
 static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseNormalisedForIntegerVolts);
 static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseNormalisedForIntegerVolts);
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
-static constexpr rgb_t jacksOnTopButtonColor {0, 0, 180};
+static constexpr rgb_t jacksOnTopButtonColor = kRgbYellow;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, gGlobalSettings.brightness);
