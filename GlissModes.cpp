@@ -6213,7 +6213,6 @@ private:
 
 MenuPage mainMenu("main");
 MenuPage globalSettingsMenu0("global settings 0");
-MenuPage globalSettingsMenu1("global settings 1");
 
 static MenuItemTypeSlider singleSliderMenuItem;
 // this is a submenu consisting of a continuous slider(no buttons). Before entering it,
@@ -6881,9 +6880,6 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 	return out;
 }
 static constexpr rgb_t globalSettingsRangeOtherColor = kRgbRed;
-static MenuItemTypeDiscreteRangeCv globalSettingsOutTopRange("globalSettingsOutTopRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeTopEnum, gGlobalSettings.outRangeTopMin, gGlobalSettings.outRangeTopMax, quantiseNormalisedForIntegerVolts);
-static MenuItemTypeDiscreteRangeCv globalSettingsOutBottomRange("globalSettingsOutBottomRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.outRangeBottomEnum, gGlobalSettings.outRangeBottomMin, gGlobalSettings.outRangeBottomMax, quantiseNormalisedForIntegerVolts);
-static MenuItemTypeDiscreteRangeCv globalSettingsInRange("globalSettingsInRange", globalSettingsColor, globalSettingsRangeOtherColor, gGlobalSettings.inRangeEnum, gGlobalSettings.inRangeMin, gGlobalSettings.inRangeMax, quantiseNormalisedForIntegerVolts);
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
 static constexpr rgb_t jacksOnTopButtonColor = kRgbYellow;
@@ -7005,17 +7001,10 @@ static void menu_update()
 		inited = true;
 		globalSettingsMenu0.items = {
 			&globalSettingsJacksOnTop,
-			&globalSettingsSizeScale,
-			&globalSettingsOutBottomRange,
-			&globalSettingsOutTopRange,
-			&globalSettingsInRange,
-		};
-		globalSettingsMenu1.items = {
-			&disabled,
-			&disabled,
-			&disabled,
-			&disabled,
 			&globalSettingsBrightness,
+			&disabled,
+			&disabled,
+			&globalSettingsSizeScale,
 		};
 		singleSliderMenu.items = {
 			&singleSliderMenuItem,
@@ -7198,6 +7187,4 @@ void menu_render(BelaContext*, FrameData* frameData)
 	}
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 		activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
-	if(&globalSettingsMenu1 == activeMenu && 4 == globalSlider.getNumTouches())
-		requestNewMode(kFactoryTestModeIdx);
 }
