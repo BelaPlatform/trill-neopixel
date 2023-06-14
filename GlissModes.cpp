@@ -5352,12 +5352,11 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gInUsesCalibration = true;
 	gInUsesRange = true;
 	gOutUsesRange = {true, true};
-	IoRanges ioRanges {};
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 	{
 		performanceModes[gNewMode]->render(context, frameData);
-		ioRanges = performanceModes[gNewMode]->ioRangesParameters;
+		IoRanges ioRanges = performanceModes[gNewMode]->ioRangesParameters;
 		gOutRangeTop = ioRanges.outTop;
 		gOutRangeBottom = ioRanges.outBottom;
 		gInRange = ioRanges.in;
