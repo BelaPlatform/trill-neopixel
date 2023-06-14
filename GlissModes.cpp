@@ -1414,11 +1414,36 @@ public:
 	{}
 };
 
+static void doOutRangeOverride(size_t c);
 class PerformanceMode : public ParameterUpdateCapable {
 public:
 	virtual bool setup(double ms) = 0;
 	virtual void render(BelaContext*, FrameData* frameData) = 0;
 	IoRangesParameters ioRangesParameters {this};
+	virtual void updated(Parameter& p) override {
+		char const* str = "";
+		if(p.same(ioRangesParameters.outTop.cvRange)) {
+			str = "outTop";
+		}
+		else if(p.same(ioRangesParameters.outTop.min) || p.same(ioRangesParameters.outTop.max)) {
+			str = "outTopMin/Max";
+			doOutRangeOverride(0);
+		}
+		else if(p.same(ioRangesParameters.outBottom.cvRange)) {
+			str = "outBottom";
+		}
+		else if(p.same(ioRangesParameters.outBottom.min) || p.same(ioRangesParameters.outBottom.max)) {
+			str = "outBottomMin/Max";
+			doOutRangeOverride(1);
+		}
+		else if(p.same(ioRangesParameters.in.cvRange)) {
+			str = "in";
+		}
+		else if(p.same(ioRangesParameters.in.min) || p.same(ioRangesParameters.in.max)) {
+			str = "inTop/Bottom";
+		}
+		printf("range: %s\n\r", str);
+	};
 };
 
 #ifdef TEST_MODE
@@ -2174,6 +2199,7 @@ public:
 	}
 	void updated(Parameter& p)
 	{
+		PerformanceMode::updated(p);
 		if(p.same(splitMode)) {
 			printf("DirectControlMode: updated splitMode: %d\n\r", splitMode.get());
 			setup(-1);
@@ -2991,6 +3017,7 @@ public:
 
 	void updated(Parameter& p)
 	{
+		PerformanceMode::updated(p);
 		if(p.same(splitMode)) {
 			printf("RecorderMode: Updated splitMode: %d\n\r", splitMode.get());
 			setup(-1);
@@ -3340,6 +3367,7 @@ public:
 
 	void updated(Parameter& p)
 	{
+		PerformanceMode::updated(p);
 		if(p.same(cutoff))
 		{
 			// wrangling the range to make it somehow useful
@@ -3519,6 +3547,7 @@ public:
 	}
 	void updated(Parameter& p)
 	{
+		PerformanceMode::updated(p);
 		if(p.same(waveform)) {
 			for(auto& o : oscillators)
 				o.setType(Oscillator::Type(waveform.get()));
@@ -4450,6 +4479,7 @@ private:
 public:
 	void updated(Parameter& p)
 	{
+		PerformanceMode::updated(p);
 		if(p.same(modRange)) {
 
 		} else if(p.same(quantised)) {
