@@ -3153,6 +3153,7 @@ static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rg
 
 class ScaleMeterMode : public PerformanceMode {
 public:
+	static constexpr size_t kCentroidSize = 2;
 	bool setup(double ms) override
 	{
 		gOutIsSize = {false, false};
@@ -3333,7 +3334,7 @@ public:
 				color = signalColor;
 			else
 				color = crossfade(kRgbGreen, kRgbRed, map(centroids[n].location, outRangeMin, outRangeMax, 0, 1));
-			ledSliders.sliders[0].directWriteCentroid(centroids[n], color);
+			ledSliders.sliders[0].directWriteCentroid(centroids[n], color, kCentroidSize);
 		}
 	}
 
@@ -6050,8 +6051,8 @@ public:
 		};
 		slider.directBegin();
 		for(size_t n = 0; n < endpointsColor.size(); ++n)
-			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n]);
-		slider.directWriteCentroid({ *display, 0.15 }, displayColor);
+			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n], ScaleMeterMode::kCentroidSize);
+		slider.directWriteCentroid({ *display, 0.15 }, displayColor, ScaleMeterMode::kCentroidSize);
 #ifdef ENABLE_SCALE_METER_MODE
 		if(display == &gScaleMeterMode.inDisplay)
 			gScaleMeterMode.inDisplayUpdated = 10;
