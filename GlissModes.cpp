@@ -6706,41 +6706,7 @@ public:
 	{
 		bool verbose = false;
 		char const* str = "+++";
-		if(p.same(outRangeTopEnum)) {
-			gOutRangeTop.range = CvRange(outRangeTopEnum.get());
-			str = "outRangeTopEnum";
-		}
-		else if(p.same(outRangeTopMin) || p.same(outRangeTopMax)) {
-			outRangeTopEnum.set(kCvRangeCustom);
-			gOutRangeTop.range = CvRange(outRangeTopEnum.get());
-			gOutRangeTop.min = outRangeTopMin;
-			gOutRangeTop.max = outRangeTopMax;
-			str = "outRangeTopMin/Max";
-			doOutRangeOverride(0);
-		}
-		else if(p.same(outRangeBottomEnum)) {
-			gOutRangeBottom.range = CvRange(outRangeBottomEnum.get());
-			str = "outRangeBottomEnum";
-		}
-		else if(p.same(outRangeBottomMin) || p.same(outRangeBottomMax)) {
-			outRangeBottomEnum.set(kCvRangeCustom);
-			gOutRangeBottom.range = CvRange(outRangeBottomEnum.get());
-			gOutRangeBottom.min = outRangeBottomMin;
-			gOutRangeBottom.max = outRangeBottomMax;
-			str = "outRangeBottomMin/Max";
-			doOutRangeOverride(1);
-		}
-		else if(p.same(inRangeEnum)) {
-			str = "inRangeEnum";
-			gInRange.range = inRangeEnum;
-		}
-		else if(p.same(inRangeMax) || p.same(inRangeMin)) {
-			inRangeEnum.set(kCvRangeCustom);
-			gInRange.range = inRangeEnum;
-			gInRange.min = inRangeMin;
-			gInRange.max = inRangeMax;
-			str = "inRangeTop/Bottom";
-		} else if(p.same(jacksOnTop)) {
+		if(p.same(jacksOnTop)) {
 			gJacksOnTop = jacksOnTop;
 			str = "jacksOnTop";
 		}
