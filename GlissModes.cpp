@@ -1734,36 +1734,6 @@ private:
 		UN_T_ASS(pfd->D[n], that->D[n]); \
 }
 
-#define genericDefaulter7(CLASS,A,B,C,D,E,F,G) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
-	DEFAULTER_PROCESS(D); \
-	DEFAULTER_PROCESS(E); \
-	DEFAULTER_PROCESS(F); \
-	DEFAULTER_PROCESS(G); \
-}
-
-#define genericDefaulter9(CLASS,A,B,C,D,E,F,G,H,I) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
-	DEFAULTER_PROCESS(D); \
-	DEFAULTER_PROCESS(E); \
-	DEFAULTER_PROCESS(F); \
-	DEFAULTER_PROCESS(G); \
-	DEFAULTER_PROCESS(H); \
-	DEFAULTER_PROCESS(I); \
-}
-
 #define genericDefaulter12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
@@ -1817,34 +1787,6 @@ private:
 		LOADER_PROCESS(C[n]); \
 	for(size_t n = 0; n < that->D.size(); ++n) \
 		LOADER_PROCESS(D[n]); \
-}
-
-#define genericLoadCallback7(CLASS,A,B,C,D,E,F,G) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-	LOADER_PROCESS(D); \
-	LOADER_PROCESS(E); \
-	LOADER_PROCESS(F); \
-	LOADER_PROCESS(G); \
-}
-
-#define genericLoadCallback9(CLASS,A,B,C,D,E,F,G,H,I) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-	LOADER_PROCESS(D); \
-	LOADER_PROCESS(E); \
-	LOADER_PROCESS(F); \
-	LOADER_PROCESS(G); \
-	LOADER_PROCESS(H); \
-	LOADER_PROCESS(I); \
 }
 
 #define genericLoadCallback12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
@@ -1920,36 +1862,6 @@ static bool areEqual(const T& a, const T& b)
 			presetFieldData.D[n] = D[n]; \
 		presetSetField(this, &presetFieldData); \
 	} \
-}
-
-#define UPDATE_PRESET_FIELD7(A,B,C,D,E,F,G) \
-{ \
-	PresetFieldData_t bak = presetFieldData; \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	presetFieldData.C = C; \
-	presetFieldData.D = D; \
-	presetFieldData.E = E; \
-	presetFieldData.F = F; \
-	presetFieldData.G = G; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
-}
-
-#define UPDATE_PRESET_FIELD9(A,B,C,D,E,F,G,H,I) \
-{ \
-	PresetFieldData_t bak = presetFieldData; \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	presetFieldData.C = C; \
-	presetFieldData.D = D; \
-	presetFieldData.E = E; \
-	presetFieldData.F = F; \
-	presetFieldData.G = G; \
-	presetFieldData.H = H; \
-	presetFieldData.I = I; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
 }
 
 #define UPDATE_PRESET_FIELD12(A,B,C,D,E,F,G,H,I,J,K,L) \
