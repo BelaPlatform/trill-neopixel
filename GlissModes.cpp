@@ -2098,8 +2098,8 @@ public:
 			return true;
 		// opening animation
 		// single point starts in middle, zips off in two directions to the top and bottom
-		constexpr float kAnimationDuration = 800;
-		float loc = ms / kAnimationDuration + 0.5f;
+		constexpr float kAnimationDuration = 1200;
+		float loc = ms / (kAnimationDuration * 2) + 0.5f;
 		float size = (loc - 0.5f) * kFixedCentroidSize;
 		for(auto l : { &ledSliders, &ledSlidersAlt})
 		{
@@ -2351,7 +2351,7 @@ public:
 			return true;
 		// opening animation
 		// single point whips from the bottom, to the top, and back to the bottom
-		constexpr float kAnimationDuration = 800;
+		constexpr float kAnimationDuration = 1600;
 		float phase = 2.f * ms / kAnimationDuration;
 		float loc = phase < 1 ? phase : 2.f - phase;
 		float size = loc * kFixedCentroidSize;
@@ -3615,7 +3615,7 @@ public:
 			return true;
 		// animation
 		// buttons appear and disappear one by one, fading in and out quickly
-		constexpr size_t kAnimationDuration = 1000;
+		constexpr size_t kAnimationDuration = 1400;
 		constexpr size_t kPerButton = kAnimationDuration / kMaxNumButtons;
 		size_t button = std::min(kMaxNumButtons - 1, size_t(ms) / kPerButton);
 		size_t phase = size_t(ms) % kPerButton;
