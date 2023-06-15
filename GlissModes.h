@@ -25,12 +25,41 @@ struct IoRange {
 	float max;
 	// this can be changed dynamically by a mode and is not stored
 	bool enabled;
+	static IoRange init() {
+		return IoRange {
+			.range = kCvRangePositive10,
+			.min = 0,
+			.max = 1,
+			.enabled = true,
+		};
+	}
 };
 
 struct IoRanges {
 	IoRange in;
 	IoRange outTop;
 	IoRange outBottom;
+	static IoRanges init() {
+		return {
+			IoRange::init(),
+			IoRange::init(),
+			IoRange::init(),
+		};
+	}
+	IoRange& operator[] (size_t n){
+		switch(n) {
+		default:
+		case 0:
+			return in;
+		case 1:
+			return outTop;
+		case 2:
+			return outBottom;
+		}
+	};
+	static constexpr size_t size() {
+		return 3;
+	}
 };
 
 extern IoRange gInRange;

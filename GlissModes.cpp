@@ -1412,6 +1412,21 @@ public:
 		outTop(that),
 		outBottom(that)
 	{}
+	IoRangeParameters& operator[] (size_t n) {
+		switch(n)
+		{
+		default:
+		case 0:
+			return in;
+		case 1:
+			return outTop;
+		case 2:
+			return outBottom;
+		}
+	}
+	static constexpr size_t size() {
+		return 3;
+	}
 };
 
 static void doOutRangeOverride(size_t c);
