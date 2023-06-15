@@ -5991,6 +5991,7 @@ public:
 		MenuItemTypeRange(endpointsColor[0], endpointsColor[1], autoExit, paramBottom, paramTop, preprocess), displayColor(displayColor), endpointsColor(endpointsColor), display(&display) {}
 	void updateDisplay(LedSlider& slider) override
 	{
+#ifdef ENABLE_SCALE_METER_MODE
 		std::array<centroid_t,2> endpointsCentroids {
 			centroid_t{ pastFrames[0].location, 0.1 },
 			centroid_t{ pastFrames[1].location, 0.1 },
@@ -5999,7 +6000,6 @@ public:
 		for(size_t n = 0; n < endpointsColor.size(); ++n)
 			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n], ScaleMeterMode::kCentroidSize);
 		slider.directWriteCentroid({ *display, 0.15 }, displayColor, ScaleMeterMode::kCentroidSize);
-#ifdef ENABLE_SCALE_METER_MODE
 		if(display == &gScaleMeterMode.inDisplay)
 			gScaleMeterMode.inDisplayUpdated = 10;
 #endif // ENABLE_SCALE_METER_MODE
