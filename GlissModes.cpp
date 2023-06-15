@@ -6808,7 +6808,7 @@ MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
 // appropriately set the properties of displayScaleMeterOutputMode
 MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
 
-static constexpr rgb_t globalSettingsColor = kRgbOrange;
+static constexpr rgb_t globalSettingsColor = kRgbYellow;
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
 	static constexpr float kVoltsFs = 15;
@@ -6838,7 +6838,7 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 static constexpr rgb_t globalSettingsRangeOtherColor = kRgbRed;
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
-static constexpr rgb_t jacksOnTopButtonColor = kRgbYellow;
+static constexpr rgb_t jacksOnTopButtonColor = kRgbWhite;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, gGlobalSettings.brightness);
