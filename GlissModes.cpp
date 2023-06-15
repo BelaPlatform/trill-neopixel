@@ -6745,7 +6745,7 @@ public:
 		}
 		else if(p.same(brightness)) {
 			str = "brightness";
-			gBrightness = brightness * 5.f;
+			gBrightness = 0.1f + brightness * 5.f;
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";
