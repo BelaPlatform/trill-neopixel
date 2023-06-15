@@ -1436,28 +1436,18 @@ public:
 	virtual void render(BelaContext*, FrameData* frameData) = 0;
 	IoRangesParameters ioRangesParameters {this};
 	virtual void updated(Parameter& p) override {
-		char const* str = "";
-		if(p.same(ioRangesParameters.outTop.cvRange)) {
-			str = "outTop";
+		for(size_t n = 0; n < ioRangesParameters.size(); ++n)
+		{
+			auto& ioRange = ioRangesParameters[n];
+			if(p.same(ioRange.cvRange))
+				break;
+			else if(p.same(ioRange.min) || p.same(ioRange.max)) {
+				ioRange.cvRange.set(kCvRangeCustom);
+				if(n >= 1)
+					doOutRangeOverride(n - 1);
+				break;
+			}
 		}
-		else if(p.same(ioRangesParameters.outTop.min) || p.same(ioRangesParameters.outTop.max)) {
-			str = "outTopMin/Max";
-			doOutRangeOverride(0);
-		}
-		else if(p.same(ioRangesParameters.outBottom.cvRange)) {
-			str = "outBottom";
-		}
-		else if(p.same(ioRangesParameters.outBottom.min) || p.same(ioRangesParameters.outBottom.max)) {
-			str = "outBottomMin/Max";
-			doOutRangeOverride(1);
-		}
-		else if(p.same(ioRangesParameters.in.cvRange)) {
-			str = "in";
-		}
-		else if(p.same(ioRangesParameters.in.min) || p.same(ioRangesParameters.in.max)) {
-			str = "inTop/Bottom";
-		}
-		printf("range: %s\n\r", str);
 	};
 };
 
