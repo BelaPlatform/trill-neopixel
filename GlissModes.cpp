@@ -6527,7 +6527,7 @@ public:
 };
 
 constexpr size_t kMaxModeParameters = 4;
-static const rgb_t buttonColor = kRgbBlack;
+static const rgb_t buttonColor = kRgbRed;
 static MenuItemTypeDisabled disabled;
 static AnimationColors buttonColors = {
 		kRgbRed,
