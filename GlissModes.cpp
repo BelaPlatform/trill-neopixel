@@ -1702,16 +1702,33 @@ private:
 }
 
 #define DEFAULTER_PROCESS(A) UN_T_ASS(pfd->A, that->A)
+#define DEFAULTER_PROCESS_IORANGES() { \
+	IoRanges ioRanges = that->ioRangesParameters; \
+	UN_T_ASS(pfd->ioRanges, ioRanges); \
+}
+
 #define genericDefaulter2(CLASS,A,B) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
+	DEFAULTER_PROCESS_IORANGES(); \
 	DEFAULTER_PROCESS(A); \
 	DEFAULTER_PROCESS(B); \
 }
 
 #define genericDefaulter3(CLASS,A,B,C) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	DEFAULTER_PROCESS_IORANGES(); \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	DEFAULTER_PROCESS(C); \
+}
+
+#define genericDefaulterNoioranges3(CLASS,A,B,C) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
@@ -1726,6 +1743,7 @@ private:
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
+	DEFAULTER_PROCESS_IORANGES(); \
 	DEFAULTER_PROCESS(A); \
 	DEFAULTER_PROCESS(B); \
 	for(size_t n = 0; n < that->C.size(); ++n) \
@@ -1760,15 +1778,38 @@ private:
 		that->presetFieldData.A = a; \
 }
 
+#define LOADER_PROCESS_IORANGES() { \
+	IoRanges a; \
+	UN_S_ASS(a, pfd->ioRanges); \
+	for(size_t n = 0; n < IoRangesParameters::size(); ++n) { \
+		that->ioRangesParameters[n].min.set(a[n].min); \
+		that->ioRangesParameters[n].max.set(a[n].max); \
+		 /* this last, so that setting min/max won't override cvRange with kCvRangeCustom */ \
+		that->ioRangesParameters[n].cvRange.set(a[n].range); \
+	} \
+	that->presetFieldData.ioRanges = a; \
+}
+
 #define genericLoadCallback2(CLASS,A,B) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
+	LOADER_PROCESS_IORANGES(); \
 	LOADER_PROCESS(A); \
 	LOADER_PROCESS(B); \
 }
 
 #define genericLoadCallback3(CLASS,A,B,C) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	LOADER_PROCESS_IORANGES(); \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	LOADER_PROCESS(C); \
+}
+
+#define genericLoadCallbackNoioranges3(CLASS,A,B,C) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
@@ -1781,6 +1822,7 @@ private:
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
+	LOADER_PROCESS_IORANGES(); \
 	LOADER_PROCESS(A); \
 	LOADER_PROCESS(B); \
 	for(size_t n = 0; n < that->C.size(); ++n) \
@@ -1813,9 +1855,21 @@ static bool areEqual(const T& a, const T& b)
 	return !memcmp(&a, &b, sizeof(T));
 }
 
+#define UPDATE_PRESET_IORANGES() { \
+	presetFieldData.ioRanges = ioRangesParameters; \
+}
+
+#define UPDATE_PRESET_IORANGES_WITH_SAME() { \
+	auto ioRanges = presetFieldData.ioRanges; \
+	UPDATE_PRESET_IORANGES(); \
+	if(memcmp(&ioRanges, &presetFieldData.ioRanges, sizeof(ioRanges))) \
+		same = false; \
+}
+
 #define UPDATE_PRESET_FIELD2(A,B) \
 { \
 	PresetFieldData_t bak = presetFieldData; \
+	UPDATE_PRESET_IORANGES(); \
 	presetFieldData.A = A; \
 	presetFieldData.B = B; \
 	if(!areEqual(bak, presetFieldData)) \
@@ -1824,6 +1878,16 @@ static bool areEqual(const T& a, const T& b)
 
 #define UPDATE_PRESET_FIELD3(A,B,C) \
 { \
+	PresetFieldData_t bak = presetFieldData; \
+	UPDATE_PRESET_IORANGES(); \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	presetFieldData.C = C; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
+}
+
+#define UPDATE_PRESET_NOIORANGES_FIELD3(A,B,C) { \
 	PresetFieldData_t bak = presetFieldData; \
 	presetFieldData.A = A; \
 	presetFieldData.B = B; \
@@ -1835,6 +1899,7 @@ static bool areEqual(const T& a, const T& b)
 #define UPDATE_PRESET_FIELD2PlusArrays(A,B,C,D) \
 { \
 	bool same = true; \
+	UPDATE_PRESET_IORANGES_WITH_SAME(); \
 	for(size_t n = 0; n < C.size(); ++n) \
 	{ \
 		auto c = C[n].get(); \
@@ -1867,6 +1932,7 @@ static bool areEqual(const T& a, const T& b)
 #define UPDATE_PRESET_FIELD12(A,B,C,D,E,F,G,H,I,J,K,L) \
 { \
 	PresetFieldData_t bak = presetFieldData; \
+	UPDATE_PRESET_IORANGES(); \
 	presetFieldData.A = A; \
 	presetFieldData.B = B; \
 	presetFieldData.C = C; \
@@ -2131,6 +2197,7 @@ public:
 	}
 	DirectControlMode() :
 		presetFieldData{
+			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
 			.autoLatch = autoLatch,
 		}
@@ -2146,6 +2213,7 @@ public:
 	// splitMode from base class
 	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
 	PACKED_STRUCT(PresetFieldData_t {
+		IoRanges ioRanges;
 		uint8_t splitMode;
 		uint8_t autoLatch;
 	}) presetFieldData;
@@ -2956,6 +3024,7 @@ public:
 	}
 	RecorderMode() :
 		presetFieldData {
+			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
 			.autoRetrigger = autoRetrigger,
 			.inputMode = inputMode,
@@ -2973,6 +3042,7 @@ public:
 	ParameterEnumT<2> autoRetrigger{this, true};
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
 	PACKED_STRUCT(PresetFieldData_t {
+		IoRanges ioRanges;
 		uint8_t splitMode;
 		uint8_t autoRetrigger ;
 		uint8_t inputMode;
@@ -3329,6 +3399,7 @@ public:
 	};
 	ScaleMeterMode() :
 		presetFieldData{
+			.ioRanges = ioRangesParameters,
 			.outputMode = outputMode,
 			.coupling = coupling,
 			.cutoff = cutoff,
@@ -3350,6 +3421,7 @@ public:
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
 	PACKED_STRUCT(PresetFieldData_t {
+		IoRanges ioRanges;
 		int outputMode;
 		int coupling;
 		float cutoff;
@@ -3482,6 +3554,7 @@ public:
 	}
 	BalancedOscsMode() :
 		presetFieldData {
+			.ioRanges = ioRangesParameters,
 			.centreFrequency = centreFrequency,
 			.waveform = waveform,
 			.inputMode = inputMode,
@@ -3504,6 +3577,7 @@ public:
 	ParameterContinuous centreFrequency {this};
 	ParameterEnumT<kNumInputModes> inputMode {this, kInputModeTrig};
 	PACKED_STRUCT(PresetFieldData_t {
+		IoRanges ioRanges;
 		float centreFrequency = centreFrequency;
 		uint8_t waveform = waveform;
 		uint8_t inputMode = inputMode;
@@ -4422,6 +4496,7 @@ public:
 	}
 	ExprButtonsMode():
 		presetFieldData {
+			.ioRanges = ioRangesParameters,
 			.modRange = modRange,
 			.offsetParameters = {
 				offsetParameters[0],
@@ -4459,6 +4534,7 @@ public:
 	};
 	std::array<ParameterGeneric<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
 	PACKED_STRUCT(PresetFieldData_t {
+		IoRanges ioRanges;
 		float modRange;
 		std::array<float,kMaxNumButtons> offsetParameters;
 		std::array<KeyStepMode,kMaxNumButtons> keyStepModes;
@@ -4512,6 +4588,7 @@ private:
 Calibration_t calibrationState;
 CalibrationDataParameter calibrationOut {this};
 CalibrationDataParameter calibrationIn {this};
+ParameterGeneric<uint8_t> dummy {this, 0}; // so that we don't need too many noioranges macros
 
 typedef enum {
 	kFindingDacGnd,
@@ -4556,14 +4633,15 @@ CalibrationProcedure() :
 	presetFieldData({
 		.calibrationOut = calibrationOut,
 		.calibrationIn = calibrationIn,
+		.dummy = dummy,
 	})
 {
 	publishCalibrationData(); // load factory settings
 	PresetDesc_t presetDesc = {
 		.field = this,
 		.size = sizeof(PresetFieldData_t),
-		.defaulter = genericDefaulter2(CalibrationProcedure, calibrationOut, calibrationIn),
-		.loadCallback = genericLoadCallback2(CalibrationProcedure, calibrationOut, calibrationIn),
+		.defaulter = genericDefaulterNoioranges3(CalibrationProcedure, calibrationOut, calibrationIn, dummy),
+		.loadCallback = genericLoadCallbackNoioranges3(CalibrationProcedure, calibrationOut, calibrationIn, dummy),
 	};
 	presetDescSet(4, &presetDesc);
 }
@@ -4578,11 +4656,12 @@ void updated(Parameter& p)
 }
 void updatePreset() override
 {
-	UPDATE_PRESET_FIELD2(calibrationOut, calibrationIn);
+	UPDATE_PRESET_NOIORANGES_FIELD3(calibrationOut, calibrationIn, dummy);
 }
 PACKED_STRUCT(PresetFieldData_t {
 	CalibrationData calibrationOut;
 	CalibrationData calibrationIn;
+	uint8_t dummy;
 }) presetFieldData;
 void setup()
 {
@@ -6677,7 +6756,7 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3(sizeScaleCoeff, jacksOnTop, newMode);
+		UPDATE_PRESET_NOIORANGES_FIELD3(sizeScaleCoeff, jacksOnTop, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
@@ -6689,12 +6768,12 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
+			.defaulter = genericDefaulterNoioranges3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallback3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
+			.loadCallback = genericLoadCallbackNoioranges3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
 		};
 		presetDescSet(5, &presetDesc);
 	}
