@@ -6677,22 +6677,11 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD12(outRangeTopMin, outRangeTopMax, outRangeTopEnum,
-				outRangeBottomMin, outRangeBottomMax, outRangeBottomEnum,
-				inRangeMin, inRangeMax, inRangeEnum,
-					sizeScaleCoeff, jacksOnTop, newMode);
+		UPDATE_PRESET_FIELD3(sizeScaleCoeff, jacksOnTop, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
-			.outRangeTopMin = outRangeTopMin,
-			.outRangeTopMax = outRangeTopMax,
-			.outRangeBottomMin = outRangeBottomMin,
-			.outRangeBottomMax = outRangeBottomMax,
-			.inRangeMin = inRangeMin,
-			.inRangeMax = inRangeMax,
 			.sizeScaleCoeff = sizeScaleCoeff,
-			.outRangeTopEnum = outRangeTopEnum,
-			.inRangeEnum = inRangeEnum,
 			.jacksOnTop = jacksOnTop,
 			.newMode = newMode,
 		}
@@ -6700,45 +6689,21 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter12(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
-					outRangeBottomMin, outRangeBottomMax, outRangeBottomEnum,
-					inRangeMin, inRangeMax, inRangeEnum,
-						sizeScaleCoeff, jacksOnTop, newMode),
+			.defaulter = genericDefaulter3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallback12(GlobalSettings, outRangeTopMin, outRangeTopMax, outRangeTopEnum,
-							outRangeBottomMin, outRangeBottomMax, outRangeBottomEnum,
-							inRangeMin, inRangeMax, inRangeEnum,
-								sizeScaleCoeff, jacksOnTop, newMode),
+			.loadCallback = genericLoadCallback3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
 		};
 		presetDescSet(5, &presetDesc);
 	}
-	ParameterEnumT<kCvRangeNum,CvRange> outRangeTopEnum {this, kCvRangePositive10};
-	ParameterContinuous outRangeTopMin {this, 0.2};
-	ParameterContinuous outRangeTopMax {this, 0.8};
-	ParameterEnumT<kCvRangeNum,CvRange> outRangeBottomEnum {this, kCvRangePositive10};
-	ParameterContinuous outRangeBottomMin {this, 0.2};
-	ParameterContinuous outRangeBottomMax {this, 0.8};
-	ParameterEnumT<kCvRangeNum,CvRange> inRangeEnum {this, kCvRangePositive10};
-	ParameterContinuous inRangeMin {this, 0.2};
-	ParameterContinuous inRangeMax {this, 0.8};
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, true};
 	ParameterContinuous brightness {this, 0.2};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
-		float outRangeTopMin;
-		float outRangeTopMax;
-		float outRangeBottomMin;
-		float outRangeBottomMax;
-		float inRangeMin;
-		float inRangeMax;
 		float sizeScaleCoeff;
-		uint8_t outRangeTopEnum;
-		uint8_t outRangeBottomEnum;
-		uint8_t inRangeEnum;
 		uint8_t jacksOnTop;
 		uint8_t newMode;
 	}) presetFieldData;
