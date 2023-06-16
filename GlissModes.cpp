@@ -2318,14 +2318,15 @@ static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
 }
 #ifdef ENABLE_RECORDER_MODE
 class RecorderMode : public SplitPerformanceMode {
-	enum {
-		kInputModeTrigger,
+public:
+	enum InputMode {
+		kInputModeLfo,
+		kInputModeEnvelope,
 		kInputModeClock,
 		kInputModeCv,
 		kInputModePhasor,
 		kInputModeNum,
 	};
-public:
 	bool setup(double ms) override
 	{
 		inputModeClockIsButton = false;
@@ -2362,9 +2363,12 @@ public:
 		}
 		return ms > kAnimationDuration;
 	}
+	bool buttonTriggers(){
+		return kInputModeLfo == inputMode || kInputModeEnvelope == inputMode;
+	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		if(kInputModeTrigger != inputMode) // we need to allow for fast repeated presses when the button triggers
+		if(!buttonTriggers()) // we need to allow for fast repeated presses when the button triggers
 			performanceBtn = ButtonViewSimplify(performanceBtn);
 		if(!areRecording())
 		{
@@ -2389,9 +2393,9 @@ public:
 		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 
 		// handle button
-		if(!(!autoRetrigger && kInputModeTrigger == inputMode) && // when in envelope mode, no reason to erase recordings. We use the button for other stuff here
+		if(!(kInputModeEnvelope == inputMode) && // when in envelope mode, there is never a good reason to erase recordings
 				(performanceBtn.pressDuration == msToNumBlocks(context, 3000)
-				|| (kInputModeTrigger != inputMode && performanceBtn.tripleClick)))
+				|| (!buttonTriggers() && performanceBtn.tripleClick))) // if button triggers, it may be pressed repeatedly for performance reasons
 		{
 			emptyRecordings();
 			// clear possible side effects of previous press:
@@ -2423,9 +2427,7 @@ public:
 		}
 		if(performanceBtn.onset)
 		{
-			switch(autoRetrigger)
-			{
-			case 0:
+			if(kInputModeEnvelope == inputMode)
 			{
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
@@ -2451,9 +2453,7 @@ public:
 						tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 150);
 					}
 				}
-			}
-			break;
-			}
+			} else
 			if(kInputModeClock == inputMode && inputModeClockIsButton)
 			{
 				// if clock in is disabled, button onset triggers immediate start or stop of recording
@@ -2477,7 +2477,7 @@ public:
 			reinitInputModeClock();
 		}
 		// EG + Gate mode
-		if(0 == autoRetrigger && (envelopeReleaseStarts[0] > 0 || envelopeReleaseStarts[1] > 0) && performanceBtn.pressed)
+		if(kInputModeEnvelope == inputMode && (envelopeReleaseStarts[0] > 0 || envelopeReleaseStarts[1] > 0) && performanceBtn.pressed)
 		{
 			// hold LED as long as button is down
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
@@ -2488,19 +2488,17 @@ public:
 		{
 			switch(inputMode.get())
 			{
-			case kInputModeTrigger:
-				if(!autoRetrigger)
-				{
+			case kInputModeEnvelope:
 					tri.buttonLedSet(TRI::kOff, TRI::kR);
 					for(size_t n = 0; n < kNumSplits; ++n)
 						if(envelopeReleaseStarts[n] >= 0)
 							releaseStarts[n] = true;
-				} else {
+				break;
+			case kInputModeLfo:
 					// when LFO mode, triggering on button release, so not
 					// to disrupt it when entering menu
 					triggerNow = true;
 					tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 150);
-				}
 				break;
 			case kInputModeClock:
 			{
@@ -2571,7 +2569,8 @@ public:
 			lastAnalogRisingEdgeSamples = currentSamples;
 			switch(inputMode.get())
 			{
-				case kInputModeTrigger:
+				case kInputModeLfo:
+				case kInputModeEnvelope:
 					triggerNow = true;
 					break;
 				case kInputModeClock:
@@ -2660,7 +2659,7 @@ public:
 		}
 		if(analogFallingEdge)
 		{
-			if(0 == autoRetrigger) {
+			if(kInputModeEnvelope == inputMode) {
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
 					if(envelopeReleaseStarts[n] >= 0)
@@ -2773,7 +2772,7 @@ public:
 						// if this is size and we are looping:
 						// overwrite last few values in buffer to avoid
 						// discontinuity on release
-						bool optimizeForLoop = isSize(n) && autoRetrigger;
+						bool optimizeForLoop = isSize(n) && (kInputModeLfo == inputMode);
 						gGestureRecorder.stopRecording(n, optimizeForLoop);
 						periodsInTables[n] = 1;
 					}
@@ -2805,8 +2804,9 @@ public:
 			size_t idx = n;
 			if(gGestureRecorder.isRecording(n + recordOffset))
 				idx += recordOffset;
-			if(inputMode == kInputModeTrigger || gGestureRecorder.isRecording(idx))
+			if(inputMode == kInputModeLfo || inputMode == kInputModeEnvelope || gGestureRecorder.isRecording(idx))
 			{
+				bool autoRetrigger = (kInputModeLfo == inputMode);
 				if(releaseStarts[n])
 					gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, envelopeReleaseStarts[n]);
@@ -2822,7 +2822,8 @@ public:
 		std::array<bool,kNumSplits> directControl = { false, false };
 		switch(inputMode)
 		{
-		case kInputModeTrigger:
+		case kInputModeLfo:
+		case kInputModeEnvelope:
 			gOutMode.fill(kOutModeManualBlock);
 			break;
 		case kInputModeClock:
@@ -3006,9 +3007,6 @@ public:
 		if(p.same(splitMode)) {
 			printf("RecorderMode: Updated splitMode: %d\n\r", splitMode.get());
 			setup(-1);
-		}
-		else if (p.same(autoRetrigger)) {
-			printf("RecorderMode: Updated retrigger %d\n\r", autoRetrigger.get());
 		} else if (p.same(inputMode)) {
 			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
 			if(kInputModeClock == inputMode)
@@ -3020,31 +3018,28 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3(splitMode, autoRetrigger, inputMode);
+		UPDATE_PRESET_FIELD2(splitMode, inputMode);
 	}
 	RecorderMode() :
 		presetFieldData {
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
-			.autoRetrigger = autoRetrigger,
 			.inputMode = inputMode,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3(RecorderMode, splitMode, autoRetrigger, inputMode),
-			.loadCallback = genericLoadCallback3(RecorderMode, splitMode, autoRetrigger, inputMode),
+			.defaulter = genericDefaulter2(RecorderMode, splitMode,  inputMode),
+			.loadCallback = genericLoadCallback2(RecorderMode, splitMode, inputMode),
 		};
 		presetDescSet(1, &presetDesc);
 	}
 	//splitMode from the base class
-	ParameterEnumT<2> autoRetrigger{this, true};
-	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeTrigger};
+	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeLfo};
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t splitMode;
-		uint8_t autoRetrigger ;
 		uint8_t inputMode;
 	}) presetFieldData;
 private:
@@ -5609,15 +5604,32 @@ public:
 	ButtonAnimationRecorderInputMode(AnimationColors& colors) :
 		colors(colors) {}
 	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
-		const rgb_t& color = colors[getIdx(value)];
-		float coeff;
-		if(0 == value)
+		rgb_t color = colors[getIdx(value)];
+		float coeff = 0;
+		switch(RecorderMode::InputMode(value)) {
+		case RecorderMode::kInputModeNum: // default
+		case RecorderMode::kInputModeLfo:
+		case RecorderMode::kInputModeEnvelope:
 		{
-			const unsigned int periodicDuration = 800;
-			// input mode: trigger. Show evenly spaced brief pulses
-			ms %= periodicDuration;
-			coeff = (ms / float(periodicDuration)) < 0.1;
-		} else if (1 == value){
+			const unsigned int duration = 600;
+			unsigned int period;
+			if(RecorderMode::kInputModeLfo ==  value)
+			{
+				// largely spaced animation
+				period = duration * 2.5;
+			} else {
+				// tightly looped animations
+				period = duration;
+			}
+			ms %= period;
+			if(ms <= duration)
+				coeff = mapAndConstrain((duration - ms) / float(duration), 0, 1, 0.3, 1);
+			else
+				coeff = 0;
+		}
+		break;
+		case RecorderMode::kInputModeClock:
+		{
 			// in case we haven't been here in a while, we fix it quickly
 			// TODO: a proper setup() call to set lastMs
 			if(phase > finalPeriod * 2)
@@ -5634,7 +5646,10 @@ public:
 			while(phase > period) // wrap around
 				phase -= period;
 			coeff = (phase < onTime);
-		} else if (2 == value){
+		}
+		break;
+		case RecorderMode::kInputModeCv:
+		{
 			// input mode: CV in
 			// show a few smooth transitions
 			const unsigned int duration = 3000;
@@ -5643,12 +5658,22 @@ public:
 					0.1, 0.3, 0.5, 0.3, 0.4, 0.7, 1.0, 0.8, 0.6, 0.3, 0.3, 0.3
 			};
 			coeff = interpolatedRead(data, ms / float(duration));
-		} else {
+		}
+		break;
+		case RecorderMode::kInputModePhasor:
+		{
 			// input mode: phasor
 			// show a phasor
 			const unsigned int duration = 1000;
 			ms %= duration;
 			coeff = ms / float(duration);
+			// have to workaround lack of colors by using two colors: the prev one and the first ones
+			if(ms < duration / 2)
+				color = colors[getIdx(value - 1)];
+			else
+				color = colors[getIdx(0)];
+		}
+		break;
 		}
 		rgb_t c;
 		c.r = color.r * coeff;
@@ -6534,8 +6559,8 @@ static AnimationColors buttonColors = {
 		kRgbOrange,
 		kRgbYellow,
 		kRgbGreen,
-		kRgbWhite,
-		kRgbBlack,
+		kRgbBlack, // dummy
+		kRgbBlack, // dummy
 };
 
 static ButtonAnimationSplit animationSplit(buttonColors);
@@ -6552,15 +6577,15 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 #endif // ENABLE_DIRECT_CONTROL_MODE
 
 #ifdef ENABLE_RECORDER_MODE
-static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColors};
+//static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColors};
 static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.splitMode, &animationSplit);
-static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.autoRetrigger, &animationSingleRepeatedPulse);
+//static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.autoRetrigger, &animationSingleRepeatedPulse);
 static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColors};
 static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&disabled,
+		&disabled,
 		&recorderModeInputMode,
-		&recorderModeRetrigger,
 		&recorderModeSplit,
 };
 #endif // ENABLE_RECORDER_MODE
