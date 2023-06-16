@@ -2817,7 +2817,7 @@ public:
 			size_t idx = n;
 			if(gGestureRecorder.isRecording(n + recordOffset))
 				idx += recordOffset;
-			if(inputMode == kInputModeLfo || inputMode == kInputModeEnvelope || gGestureRecorder.isRecording(idx))
+			if(kInputModeLfo == inputMode || kInputModeEnvelope == inputMode || gGestureRecorder.isRecording(idx))
 			{
 				bool autoRetrigger = (kInputModeLfo == inputMode);
 				if(releaseStarts[n])
