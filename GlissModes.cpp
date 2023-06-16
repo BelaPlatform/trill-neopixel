@@ -4016,9 +4016,10 @@ public:
 					if(twi.id != seqPastTouchIdUpdated)
 					{
 						seqPastTouchIdUpdated = twi.id;
-						// reset to a next or just passed edge
+						// reset to a next or just passed edge (reset immediately if clock is absent)
 						uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.1f * context->analogSampleRate);
-						if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples)
+						if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples
+								|| !clockInIsActive(context))
 						{
 							// close enough to edge
 							seqCurrentStep = touch.key;
