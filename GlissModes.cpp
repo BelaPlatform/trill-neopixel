@@ -410,6 +410,15 @@ void triggerInToClock(BelaContext* context)
 	}
 }
 
+static bool clockInIsActive(BelaContext* context)
+{
+	uint64_t now = context->audioFramesElapsed + context->analogFrames - 1; // rounded up to the end of the frame
+	if(now < gClockPeriodLastUpdate)
+		return false;
+	else
+		return now - gClockPeriodLastUpdate < 10.f * context->analogSampleRate;
+}
+
 typedef enum {
 	kBottomUp,
 	kTopBottom,
@@ -2316,6 +2325,7 @@ static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
 		ms = 0; // suppress when too short/fast
 	return ms;
 }
+
 #ifdef ENABLE_RECORDER_MODE
 class RecorderMode : public SplitPerformanceMode {
 public:
@@ -3050,14 +3060,6 @@ private:
 			qrec.armedFor = kArmedForNone;
 			qrec.recording = kRecNone;
 		}
-	}
-	bool clockInIsActive(BelaContext* context)
-	{
-		uint64_t now = context->audioFramesElapsed + context->analogFrames - 1; // rounded up to the end of the frame
-		if(now < gClockPeriodLastUpdate)
-			return false;
-		else
-			return now - gClockPeriodLastUpdate < 10.f * context->analogSampleRate;
 	}
 	float getOscillatorFreq(BelaContext* context, size_t c)
 	{
