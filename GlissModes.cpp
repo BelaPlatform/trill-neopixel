@@ -4080,14 +4080,20 @@ public:
 			size_t lowestEnabled = 0;
 			while(lowestEnabled < keyStepModes.size() && !stepIsEnabled(lowestEnabled))
 				lowestEnabled++;
-			bool triggerOutOnReset = false; // TODO: parametrise
-			if(triggerOutOnReset) {
-				// send out a reset signal
-				gManualAnOut[1] = (seqCurrentStep == lowestEnabled);
-			} else {
-				// send out a trigger on each new step
-				gManualAnOut[1] = newTriggerableStep;
+			// send out a +5V trigger on each new step
+			// and send out a +10V reset signal when on the first step (if it is triggerable, anyhow)
+			if(newTriggerableStep)
+			{
+				triggerOut = 0.33 + newTriggerableStep * 0.33 + newTriggerableStep * 0.33 * (seqCurrentStep == lowestEnabled);
+				lastTriggerOutSet = context->audioFramesElapsed;
 			}
+			float ms = (context->audioFramesElapsed - lastTriggerOutSet) / context->analogSampleRate * 1000;
+			if(ms > getBlinkPeriod(context, false))
+			{
+				triggerOut = 0;
+			}
+
+			gManualAnOut[1] = triggerOut;
 			seqPastStep = seqCurrentStep;
 		} else {
 			// if not seqMode
@@ -4401,6 +4407,8 @@ private:
 	float kMoveThreshold;
 	float kBendStartThreshold;
 	float kBendDeadSpot;
+	uint64_t lastTriggerOutSet = 0;
+	float triggerOut = 0;
 	static constexpr size_t kBendDeadSpotMaxCount = 40;
 	static constexpr float b0 = float(0.9922070637080485);
 	static constexpr float b1 = float(-0.9922070637080485);
