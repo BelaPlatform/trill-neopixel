@@ -1747,7 +1747,7 @@ private:
 	DEFAULTER_PROCESS(C); \
 }
 
-#define genericDefaulter2PlusArrays(CLASS,A,B,C,D) \
+#define genericDefaulter3PlusArrays(CLASS,A,B,C,A0,A1) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
@@ -1755,10 +1755,11 @@ private:
 	DEFAULTER_PROCESS_IORANGES(); \
 	DEFAULTER_PROCESS(A); \
 	DEFAULTER_PROCESS(B); \
-	for(size_t n = 0; n < that->C.size(); ++n) \
-		UN_T_ASS(pfd->C[n], that->C[n]); \
-	for(size_t n = 0; n < that->D.size(); ++n) \
-		UN_T_ASS(pfd->D[n], that->D[n]); \
+	DEFAULTER_PROCESS(C); \
+	for(size_t n = 0; n < that->A0.size(); ++n) \
+		UN_T_ASS(pfd->A0[n], that->A0[n]); \
+	for(size_t n = 0; n < that->A1.size(); ++n) \
+		UN_T_ASS(pfd->A1[n], that->A1[n]); \
 }
 
 #define genericDefaulter12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
@@ -1827,17 +1828,18 @@ private:
 	LOADER_PROCESS(C); \
 }
 
-#define genericLoadCallback2PlusArrays(CLASS,A,B,C,D) \
+#define genericLoadCallback3PlusArrays(CLASS,A,B,C,A0,A1) \
 [](PresetField_t field, PresetFieldSize_t size, const void* data) { \
 	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
 	CLASS* that = (CLASS*)field; \
 	LOADER_PROCESS_IORANGES(); \
 	LOADER_PROCESS(A); \
 	LOADER_PROCESS(B); \
-	for(size_t n = 0; n < that->C.size(); ++n) \
-		LOADER_PROCESS(C[n]); \
-	for(size_t n = 0; n < that->D.size(); ++n) \
-		LOADER_PROCESS(D[n]); \
+	LOADER_PROCESS(C); \
+	for(size_t n = 0; n < that->A0.size(); ++n) \
+		LOADER_PROCESS(A0[n]); \
+	for(size_t n = 0; n < that->A1.size(); ++n) \
+		LOADER_PROCESS(A1[n]); \
 }
 
 #define genericLoadCallback12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
@@ -1905,35 +1907,36 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-#define UPDATE_PRESET_FIELD2PlusArrays(A,B,C,D) \
+#define UPDATE_PRESET_FIELD3PlusArrays(A,B,C,A0,A1) \
 { \
 	bool same = true; \
 	UPDATE_PRESET_IORANGES_WITH_SAME(); \
-	for(size_t n = 0; n < C.size(); ++n) \
+	for(size_t n = 0; n < A0.size(); ++n) \
 	{ \
-		auto c = C[n].get(); \
-		if(memcmp(&c, &presetFieldData.C[n], sizeof(c))) \
+		auto a0 = A0[n].get(); \
+		if(memcmp(&a0, &presetFieldData.A0[n], sizeof(a0))) \
 		{ \
 			same = false; \
 			break; \
 		} \
 	} \
-	for(size_t n = 0; n < D.size(); ++n) \
+	for(size_t n = 0; n < A1.size(); ++n) \
 	{ \
-		auto d = D[n].get(); \
-		if(memcmp(&d, &presetFieldData.D[n], sizeof(d))) \
+		auto a1 = A1[n].get(); \
+		if(memcmp(&a1, &presetFieldData.A1[n], sizeof(a1))) \
 		{ \
 			same = false; \
 			break; \
 		} \
 	} \
-	if(presetFieldData.A != A || presetFieldData.B != B || !same) { \
+	if(presetFieldData.A != A || presetFieldData.B != B || presetFieldData.C != C || !same) { \
 		presetFieldData.A = A; \
 		presetFieldData.B = B; \
-		for(size_t n = 0; n < C.size(); ++n) \
-			presetFieldData.C[n] = C[n]; \
-		for(size_t n = 0; n < D.size(); ++n) \
-			presetFieldData.D[n] = D[n]; \
+		presetFieldData.C = C; \
+		for(size_t n = 0; n < A0.size(); ++n) \
+			presetFieldData.A0[n] = A0[n]; \
+		for(size_t n = 0; n < A1.size(); ++n) \
+			presetFieldData.A1[n] = A1[n]; \
 		presetSetField(this, &presetFieldData); \
 	} \
 }
@@ -3678,11 +3681,6 @@ public:
 				changePage(kPageSampling);
 			clickprintf("%d\n\r", page);
 		}
-		if(!gAlt && globalSlider.getNumTouches() >= 4 && pastNumTouches < 4)
-		{
-			seqMode = !seqMode;
-			updateNumButtons();
-		}
 		pastNumTouches = globalSlider.getNumTouches();
 
 		centroid_t& centroid = twi.touch;
@@ -4464,7 +4462,6 @@ private:
 	size_t seqNextStep = 1;
 	TouchTracker::Id seqPastTouchIdUpdated = TouchTracker::kIdInvalid;
 	uint64_t pastAnalogRisingEdgeSamples = 0;
-	bool seqMode = false;
 	bool pastAnalogInHigh = false;
 	std::array<rgb_t,kMaxNumButtons> colors = {{
 		crossfade(kRgbGreen, kRgbOrange, 0),
@@ -4479,6 +4476,8 @@ public:
 		PerformanceMode::updated(p);
 		if(p.same(modRange)) {
 
+		} else if(p.same(seqMode)) {
+			updateNumButtons();
 		} else if(p.same(quantised)) {
 
 		} else {
@@ -4498,11 +4497,13 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2PlusArrays(quantised, modRange, offsetParameters, keyStepModes);
+		UPDATE_PRESET_FIELD3PlusArrays(quantised, seqMode, modRange, offsetParameters, keyStepModes);
 	}
 	ExprButtonsMode():
 		presetFieldData {
 			.ioRanges = ioRangesParameters,
+			.quantised = quantised,
+			.seqMode = seqMode,
 			.modRange = modRange,
 			.offsetParameters = {
 				offsetParameters[0],
@@ -4518,18 +4519,18 @@ public:
 				keyStepModes[3],
 				keyStepModes[4],
 			},
-			.quantised = quantised,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2PlusArrays(ExprButtonsMode, quantised, modRange, offsetParameters, keyStepModes),
-			.loadCallback = genericLoadCallback2PlusArrays(ExprButtonsMode, quantised, modRange, offsetParameters, keyStepModes),
+			.defaulter = genericDefaulter3PlusArrays(ExprButtonsMode, quantised, seqMode, modRange, offsetParameters, keyStepModes),
+			.loadCallback = genericLoadCallback3PlusArrays(ExprButtonsMode, quantised, seqMode, modRange, offsetParameters, keyStepModes),
 		};
 		presetDescSet(3, &presetDesc);
 	}
-	ParameterEnumT<2> quantised {this, true};
+	ParameterEnumT<2,bool> quantised {this, true};
+	ParameterEnumT<2,bool> seqMode{this, false};
 	ParameterContinuous modRange {this, 0.5};
 	std::array<ParameterContinuous,kMaxNumButtons> offsetParameters {
 		ParameterContinuous(this, 0.5),
@@ -4541,10 +4542,11 @@ public:
 	std::array<ParameterGeneric<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
+		uint8_t quantised;
+		uint8_t seqMode;
 		float modRange;
 		std::array<float,kMaxNumButtons> offsetParameters;
 		std::array<KeyStepMode,kMaxNumButtons> keyStepModes;
-		uint8_t quantised;
 	}) presetFieldData;
 private:
 	float out = 0;
@@ -5788,6 +5790,34 @@ protected:
 	AnimationColors& colors;
 };
 
+class ButtonAnimationKeysSeq : public ButtonAnimation {
+public:
+	ButtonAnimationKeysSeq(AnimationColors& colors) :
+		colors(colors) {}
+	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+		const rgb_t& color = colors[getIdx(value)];
+		const unsigned int period = 1500;
+		ms %= period / 2;
+		float saw = simpleTriangle(ms + period / 2, period);
+		float coeff;
+		if(0 == value) // keys
+		{
+			// blink at irregular intervals
+			coeff = saw > 0.9 || (saw < 0.8 && saw > 0.7) || (saw < 0.6 && saw > 0.5);
+		} else { // seq
+			// blink at constant intervals (like a sequencer would)
+			coeff = saw > 0.6;
+		}
+		rgb_t c;
+		c.r = color.r * coeff;
+		c.g = color.g * coeff;
+		c.b = color.b * coeff;
+		ledSlider.setColor(c);
+	};
+protected:
+	AnimationColors& colors;
+};
+
 class MenuItemType
 {
 public:
@@ -6631,17 +6661,19 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
+static ButtonAnimationKeysSeq animationKeysSeq {buttonColors};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
-static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
+static MenuItemTypeDiscrete exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColor, &gExprButtonsMode.seqMode, &animationKeysSeq);
+static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&disabled,
-		&disabled,
 		&exprButtonsModeModRange,
+		&exprButtonsModeSeqMode,
 		&exprButtonsModeQuantised,
 };
 #endif // ENABLE_EXPR_BUTTONS_MODE
