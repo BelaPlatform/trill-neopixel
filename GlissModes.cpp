@@ -1188,8 +1188,13 @@ public:
 					if(rs[n].playHead >= rs[n].r.size() && loop)
 						rs[n].playHead -= rs[n].r.size(); // loop back keeping phase offset
 				}
-				else
+				else {
+					if(loop) {
+						// stopped but (due to a menu change) we are in looping mode now, so restart
+						rs[n].playHead = 0;
+					}
 					out = {0, false};
+				}
 			} else
 				out = {0, false};
 			break;
