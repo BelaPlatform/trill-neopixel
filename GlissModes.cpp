@@ -4272,7 +4272,7 @@ private:
 	{
 		if(key >= numButtons)
 			return 0;
-		size_t actualKey = keysIdx[key];
+		size_t actualKey = seqMode ? key : keysIdx[key];
 		if(actualKey >= offsets.size())
 			return 0;
 		return quantise(offsets[actualKey]);
