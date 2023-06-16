@@ -6637,27 +6637,6 @@ static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised"
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeQuantisedModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
-#if 0
-static MenuItemTypeEnterContinuous exprButtonsModeOffset0("gExprButtonsModeOffset0", buttonColor, gExprButtonsMode.offsetParameters[0]);
-static MenuItemTypeEnterContinuous exprButtonsModeOffset1("gExprButtonsModeOffset1", buttonColor, gExprButtonsMode.offsetParameters[1]);
-static MenuItemTypeEnterContinuous exprButtonsModeOffset2("gExprButtonsModeOffset2", buttonColor, gExprButtonsMode.offsetParameters[2]);
-static MenuItemTypeEnterContinuous exprButtonsModeOffset3("gExprButtonsModeOffset3", buttonColor, gExprButtonsMode.offsetParameters[3]);
-static MenuItemTypeEnterContinuous exprButtonsModeOffset4("gExprButtonsModeOffset4", buttonColor, gExprButtonsMode.offsetParameters[4]);
-
-static MenuPage exprButtonsModeOffsets {
-	"exprButtonsModeOffsets",
-	{
-		&exprButtonsModeOffset0,
-		&exprButtonsModeOffset1,
-		&exprButtonsModeOffset2,
-		&exprButtonsModeOffset3,
-		&exprButtonsModeOffset4,
-	}
-};
-
-static MenuItemTypeEnterSubmenu exprButtonsModeEnterOffsets("", buttonColor, 20, exprButtonsModeOffsets);
-#endif
-
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&disabled,
