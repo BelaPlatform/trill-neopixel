@@ -4077,7 +4077,7 @@ public:
 			default:
 				break;
 			}
-			gManualAnOut[0] = getOutForKey(outKey);
+			gManualAnOut[0] = seqSmooth(getOutForKey(outKey));
 			size_t lowestEnabled = 0;
 			while(lowestEnabled < keyStepModes.size() && !stepIsEnabled(lowestEnabled))
 				lowestEnabled++;
@@ -4245,6 +4245,11 @@ private:
 				|| kMoved == state
 			;
 	}
+	float seqSmooth(float value)
+	{
+		seqOut = seqOut * seqAlpha + value * (1.f - seqAlpha);
+		return seqOut;
+	}
 	bool keyIsEnabled(size_t n) {
 		if(n >= keyStepModes.size())
 			return false;
@@ -4410,6 +4415,8 @@ private:
 	float kBendDeadSpot;
 	uint64_t lastTriggerOutSet = 0;
 	float triggerOut = 0;
+	float seqOut = 0;
+	float seqAlpha = 0;
 	static constexpr size_t kBendDeadSpotMaxCount = 40;
 	static constexpr float b0 = float(0.9922070637080485);
 	static constexpr float b1 = float(-0.9922070637080485);
@@ -4475,7 +4482,7 @@ public:
 	{
 		PerformanceMode::updated(p);
 		if(p.same(modRange)) {
-
+			seqAlpha = modRange < 0.05 ? 0 : 0.9 + modRange * 0.09996; // stay clear of 1.0. TODO: more usable mapping
 		} else if(p.same(seqMode)) {
 			updateNumButtons();
 		} else if(p.same(quantised)) {
