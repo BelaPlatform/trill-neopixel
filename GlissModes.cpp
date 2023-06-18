@@ -2089,7 +2089,13 @@ public:
 		kModeSplitLocation,
 		kModeSplitSize,
 	};
-	ParameterEnumT<3> splitMode{this, false};
+	ParameterEnumT<3> splitMode{this, kModeNoSplit};
+	enum ThroughMode {
+		kThroughNone,
+		kThroughAdd,
+		kThroughAddRelative,
+	};
+	ParameterEnumT<3> throughMode{this, kThroughNone};
 };
 
 #ifdef ENABLE_DIRECT_CONTROL_MODE
@@ -2134,11 +2140,37 @@ public:
 	}
 	void render(BelaContext*, FrameData* frameData) override
 	{
+		gInUsesRange = false; // always use full range in case we add
 		setOutIsSize();
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<centroid_t,kNumSplits> values;
+		gOutAddsIn = (kThroughNone == throughMode) ? false : true;
 		for(size_t n = 0; n < values.size(); ++n)
-			values[n] = twis[n].touch;
+		{
+			if(kThroughAddRelative == throughMode)
+			{
+				float loc = twis[n].touch.location;
+				float start = twis[n].startLocation;
+				float relative;
+				// piece-wise function
+				// It gives 0.5 when at or near the starting point.
+				constexpr float kDeadSpot = 0.05;
+				float upperStart = std::min(1.f, start + kDeadSpot);
+				float lowerStart = std::max(0.f, start - kDeadSpot);
+				if(loc > upperStart)
+					relative = map(loc, upperStart, 1, 0.5, 1);
+				else if (loc < lowerStart)
+					relative = map(loc, 0, lowerStart, 0, 0.5);
+				else
+					relative = 0.5;
+				values[n] = centroid_t {
+						.location = relative,
+						.size = twis[n].touch.size,
+				};
+			}
+			else
+				values[n] = twis[n].touch;
+		}
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
@@ -2178,7 +2210,7 @@ public:
 			{
 				if(LatchProcessor::kLatchAuto == isLatched[n])
 				{
-					// if we were autolatched, we ned to ignore size
+					// if we were autolatched, we need to ignore size
 					// CV outs:
 					// set size to 0 for output
 					values[n].size = 0;
@@ -2196,6 +2228,11 @@ public:
 				}
 			}
 		}
+//		if(kThroughAddRelative == throughMode)
+//		{
+//			for(ssize_t n = 0; n < isSplit() + 1; ++n) // ensure viz follows touch.
+//				displayValues[n].location = twis[n].touch.location;
+//		}
 		renderOut(gManualAnOut, values, displayValues);
 		if(shouldOverrideOut0) {
 			// fixup: yet another hack to get something displayed, kNoOutput size output,
@@ -2216,20 +2253,21 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2(splitMode, autoLatch);
+		UPDATE_PRESET_FIELD3(splitMode, autoLatch, throughMode);
 	}
 	DirectControlMode() :
 		presetFieldData{
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
 			.autoLatch = autoLatch,
+			.throughMode = throughMode,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2(DirectControlMode, splitMode, autoLatch),
-			.loadCallback = genericLoadCallback2(DirectControlMode, splitMode, autoLatch),
+			.defaulter = genericDefaulter3(DirectControlMode, splitMode, autoLatch, throughMode),
+			.loadCallback = genericLoadCallback3(DirectControlMode, splitMode, autoLatch, throughMode),
 		};
 		presetDescSet(0, &presetDesc);
 	}
@@ -2239,6 +2277,7 @@ public:
 		IoRanges ioRanges;
 		uint8_t splitMode;
 		uint8_t autoLatch;
+		uint8_t throughMode;
 	}) presetFieldData;
 private:
 	bool hasSizeOutput()
@@ -6628,9 +6667,10 @@ static ButtonAnimationSplit animationSplit(buttonColors);
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
+static MenuItemTypeDiscrete directControlModeThrough("directControlModeThrough", buttonColor, &gDirectControlMode.throughMode, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
-		&disabled,
+		&directControlModeThrough,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
