@@ -2007,6 +2007,11 @@ std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetec
 			// TODO: this used to be compoundTouch)
 			values[s].touch.location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
 		}
+		if(split)
+		{
+			// start location relative to split, like location
+			values[s].startLocation = mapAndConstrain(values[s].startLocation, min, max, 0, 1);
+		}
 	}
 	return values;
 }
