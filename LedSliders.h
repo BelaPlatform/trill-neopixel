@@ -7,7 +7,7 @@
 class LedSlider : public CentroidDetectionScaled
 {
 public:
-	static constexpr size_t kDefaultNumWeights = 4;
+	static constexpr size_t kDefaultNumWeights = 3;
 	struct centroid_t {
 		float location;
 		float size;
