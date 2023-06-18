@@ -493,7 +493,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 {
 	float gnd = cal.values[1];
 	if(kNoOutput == value)
-		return finalise(gnd);
+		return gnd;
 	float min = 0;
 	float top = 1;
 	if(!ignoreRange)
@@ -503,7 +503,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 
 	value = mapAndConstrain(value, 0, 1, min, top);
 	value = processRawThroughCalibration(cal, false, value);
-	return finalise(value);
+	return value;
 }
 
 static float touchOrNot(float val, bool hasTouch)
@@ -847,6 +847,8 @@ void tr_render(BelaContext* context)
 		// (((uint32_t*)(&floatValue))[0] == 0x7fc00000) // is nan
 		}
 	}
+	for(size_t n = 0; n < context->analogFrames * context->analogOutChannels; ++n)
+		context->analogOut[n] = finalise(context->analogOut[n]);
 	bool overrideOutput = tick - gOverride.started < 10;
 	if(overrideOutput)
 	{
