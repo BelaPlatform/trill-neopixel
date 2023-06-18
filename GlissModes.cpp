@@ -312,6 +312,7 @@ static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
 static bool gInUsesRange;
 static std::array<bool,kNumOutChannels> gOutUsesRange;
+bool gOutAddsIn;
 
 // Recording the gesture
 enum { kMaxRecordLength = 5000 };
@@ -5403,6 +5404,7 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gInUsesCalibration = true;
 	gInUsesRange = true;
 	gOutUsesRange = {true, true};
+	gOutAddsIn = false;
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 	{

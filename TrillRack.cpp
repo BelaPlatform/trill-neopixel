@@ -847,8 +847,20 @@ void tr_render(BelaContext* context)
 		// (((uint32_t*)(&floatValue))[0] == 0x7fc00000) // is nan
 		}
 	}
-	for(size_t n = 0; n < context->analogFrames * context->analogOutChannels; ++n)
-		context->analogOut[n] = finalise(context->analogOut[n]);
+	for(size_t n = 0; n < context->analogFrames; ++n)
+	{
+		float add;
+		if(gOutAddsIn) // TODO: ensure analog in is full scale
+			add = analogRead(context, n, 0) - inCal.kGnd;
+		else
+			add = 0;
+		for(size_t c = 0; c < context->analogOutChannels; ++c)
+		{
+			size_t idx = n * context->analogOutChannels + c;
+			context->analogOut[idx] = finalise(context->analogOut[idx] + add);
+		}
+	}
+
 	bool overrideOutput = tick - gOverride.started < 10;
 	if(overrideOutput)
 	{
