@@ -6421,15 +6421,16 @@ class MenuItemTypeEnterSubmenu : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime, MenuPage& submenu) :
-		MenuItemTypeEvent(name, baseColor, holdTime), submenu(submenu) {}
+		MenuItemTypeEvent(name, baseColor, holdTime), submenu(&submenu) {}
 private:
 	void event(Event e)
 	{
-		if(kHoldHigh == e) {
-			menu_in(submenu);
+		if(kHoldHigh == e && submenu) {
+			menu_in(*submenu);
 		}
 	}
-	MenuPage& submenu;
+public:
+	MenuPage* submenu;
 };
 
 MenuPage mainMenu("main");
@@ -6722,17 +6723,17 @@ public:
 	void process(LedSlider& slider) override {}
 };
 
-constexpr size_t kMaxModeParameters = 4;
+constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor = kRgbRed;
 static MenuItemTypeDisabled disabled;
 
 static ButtonAnimationSplit animationSplit(buttonColors);
+static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
-		&disabled,
 		&disabled,
 		&directControlModeLatch,
 		&directControlModeSplit,
@@ -6747,7 +6748,6 @@ static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColors}
 static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&disabled,
-		&disabled,
 		&recorderModeInputMode,
 		&recorderModeSplit,
 };
@@ -6760,7 +6760,6 @@ static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleM
 static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling, &animationSingleStillTriangle);
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColor, gScaleMeterMode.cutoff);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
-		&disabled,
 		&scaleMeterModeCutoff,
 		&scaleMeterModeCoupling,
 		&scaleMeterModeOutputMode,
@@ -6774,7 +6773,6 @@ static ButtonAnimationRecorderInputMode animationBalancedOscsInputMode{buttonCol
 static MenuItemTypeDiscreteContinuous balancedOscModeInputModeAndFrequency("balancedOscModeInputModeAndFrequency", buttonColor,
 		gBalancedOscsMode.inputMode, gBalancedOscsMode.centreFrequency, &animationBalancedOscsInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
-		&disabled,
 		&disabled,
 		&balancedOscModeInputModeAndFrequency,
 		&balancedOscModeWaveform,
@@ -6793,7 +6791,6 @@ static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModR
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
-		&disabled,
 		&exprButtonsModeModRange,
 		&exprButtonsModeSeqMode,
 		&exprButtonsModeQuantised,
@@ -6801,7 +6798,6 @@ static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
 static std::array<MenuItemType*,kMaxModeParameters> emptyModeMenu = {
-		&disabled,
 		&disabled,
 		&disabled,
 		&disabled,
@@ -6962,6 +6958,7 @@ public:
 	}) presetFieldData;
 } gGlobalSettings;
 
+static void menu_updateSubmenu();
 static void requestNewMode(int mode)
 {
 	bool different = (gNewMode != mode);
@@ -6970,6 +6967,7 @@ static void requestNewMode(int mode)
 	// but avoid the set() to trigger a circular call to requestNewMode()
 	if(different && mode != kCalibrationModeIdx)
 		gGlobalSettings.newMode.set(mode);
+	menu_updateSubmenu();
 }
 
 static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
@@ -7087,6 +7085,12 @@ std::array<MenuPage*,kNumModes> menuPagesIoRanges {{
 	&dummyPage, // calibration
 	&dummyPage, // factory test
 }};
+static MenuItemTypeEnterSubmenu enterModeSettingsPage1("ModeSettingsPage1", kSettingsSubmenuButtonColor, 20, globalSettingsMenu0); // dummy menu, replaced before use
+static void menu_updateSubmenu()
+{
+	enterModeSettingsPage1.submenu = menuPagesIoRanges[gNewMode];
+}
+
 static bool menuJustEntered;
 
 #ifdef MENU_ENTER_RANGE_DISPLAY
@@ -7141,7 +7145,7 @@ static void menu_update()
 			&singleSliderMenuItem,
 		};
 		mainMenu.items = {
-			&disabled, // mode-dependent
+			&enterModeSettingsPage1,
 			&disabled, // mode-dependent
 			&disabled, // mode-dependent
 			&disabled, // mode-dependent
@@ -7154,6 +7158,7 @@ static void menu_update()
 		menuItems = modesMenuItems[gNewMode];
 	else
 		menuItems = &emptyModeMenu;
+	constexpr size_t kFirstModeSettingIdx = 1; // the bottom is to enter submenu
 	for(size_t n = 0; n < kMaxModeParameters; ++n)
 	{
 		// make sure we are displaying the buttons for the current mode
@@ -7161,13 +7166,13 @@ static void menu_update()
 		// TODO: when refactoring mode switching, maybe ensure the menu's content and visualisation
 		// gets updated directly when updating mode
 
-		if(mainMenu.items[n] != (*menuItems)[n])
+		if(mainMenu.items[n + kFirstModeSettingIdx] != (*menuItems)[n])
 		{
 			MenuItemType* newItem = (*menuItems)[n];
 			// validate all items before adding them
 			if(!newItem)
 				newItem = &disabled;
-			mainMenu.items[n] = newItem;
+			mainMenu.items[n + kFirstModeSettingIdx] = newItem;
 			hasChanged = true;
 		}
 	}
