@@ -5474,9 +5474,17 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 
 constexpr size_t kMaxBtnStates = 6;
 typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
+unsigned int gAnimationMode = 1;
 class ButtonAnimation {
 public:
-	virtual void process(uint32_t ms, LedSlider& ledSlider, float value) = 0;
+	void process(uint32_t ms, LedSlider& ledSlider, float value)
+	{
+		if(0 == gAnimationMode)
+		{
+		} else
+			processCustom(ms, ledSlider, value);
+	};
+	virtual void processCustom(uint32_t ms, LedSlider& ledSlider, float value) {};
 protected:
 	size_t getIdx(size_t value)
 	{
@@ -5488,7 +5496,7 @@ class ButtonAnimationSplit : public ButtonAnimation {
 public:
 	ButtonAnimationSplit(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		float tri = simpleTriangle(ms, 1000);
 		float coeff;
 		switch(int(value))
@@ -5516,7 +5524,7 @@ class ButtonAnimationPulsatingStill : public ButtonAnimation {
 public:
 	ButtonAnimationPulsatingStill(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		rgb_t otherColor;
 		if(0 == value) // kAutoLatchOff,
@@ -5550,7 +5558,7 @@ class ButtonAnimationStillTriangle : public ButtonAnimation {
 public:
 	ButtonAnimationStillTriangle(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		rgb_t c;
 		if(0 == value)
@@ -5573,7 +5581,7 @@ class ButtonAnimationTriangle : public ButtonAnimation {
 public:
 	ButtonAnimationTriangle(rgb_t color, uint32_t period) :
 		color(color), period(period) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float) override {
 		rgb_t c;
 		float coeff = simpleTriangle(ms, period);
 		c.r = color.r * coeff;
@@ -5590,7 +5598,7 @@ class ButtonAnimationCounter : public ButtonAnimation {
 public:
 	ButtonAnimationCounter(AnimationColors& colors, uint32_t sshort, uint32_t llong) :
 		colors(colors), sshort(sshort), llong(llong), counter(0), lastTime(0) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		rgb_t color = colors[getIdx(value)];
 		size_t blinks = 5 - value;
 		uint32_t time = HAL_GetTick();
@@ -5628,7 +5636,7 @@ class ButtonAnimationSolid: public ButtonAnimation {
 public:
 	ButtonAnimationSolid(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		ledSlider.setColor(color);
 	};
@@ -5640,7 +5648,7 @@ class ButtonAnimationBrightDimmed: public ButtonAnimation {
 public:
 	ButtonAnimationBrightDimmed(rgb_t color) :
 		color(color) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float) override {
 		ledSlider.setColor(color);
 	};
 protected:
@@ -5651,7 +5659,7 @@ class ButtonAnimationSingleRepeatedEnv: public ButtonAnimation {
 public:
 	ButtonAnimationSingleRepeatedEnv(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		rgb_t c;
 		const unsigned int duration = 600;
@@ -5683,7 +5691,7 @@ class ButtonAnimationRecorderInputMode: public ButtonAnimation {
 public:
 	ButtonAnimationRecorderInputMode(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		rgb_t color = colors[getIdx(value)];
 		float coeff = 0;
 		switch(RecorderMode::InputMode(value)) {
@@ -5775,7 +5783,7 @@ class ButtonAnimationWaveform: public ButtonAnimation {
 public:
 	ButtonAnimationWaveform(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		rgb_t c;
 		const unsigned int period = 1200;
@@ -5804,7 +5812,7 @@ class ButtonAnimationSpeedUpDown: public ButtonAnimation {
 public:
 	ButtonAnimationSpeedUpDown(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		rgb_t c;
 		// over duration, show pulses with ramp up-ramp down period(constant width),
@@ -5836,7 +5844,7 @@ class ButtonAnimationSmoothQuantised : public ButtonAnimation {
 public:
 	ButtonAnimationSmoothQuantised(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		const unsigned int period = 1500;
 		float coeff = simpleTriangle(ms, period);
@@ -5861,7 +5869,7 @@ class ButtonAnimationKeysSeq : public ButtonAnimation {
 public:
 	ButtonAnimationKeysSeq(AnimationColors& colors) :
 		colors(colors) {}
-	void process(uint32_t ms, LedSlider& ledSlider, float value) override {
+	void processCustom(uint32_t ms, LedSlider& ledSlider, float value) override {
 		const rgb_t& color = colors[getIdx(value)];
 		const unsigned int period = 1500;
 		ms %= period / 2;
