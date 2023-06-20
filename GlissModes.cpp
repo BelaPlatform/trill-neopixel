@@ -5755,11 +5755,6 @@ public:
 			const unsigned int duration = 1000;
 			ms %= duration;
 			coeff = ms / float(duration);
-			// have to workaround lack of colors by using two colors: the prev one and the first ones
-			if(ms < duration / 2)
-				color = colors[getIdx(value - 1)];
-			else
-				color = colors[getIdx(0)];
 		}
 		break;
 		}
@@ -6675,7 +6670,7 @@ static AnimationColors buttonColors = {
 		kRgbOrange,
 		kRgbYellow,
 		kRgbGreen,
-		kRgbBlack, // dummy
+		kRgbWhite,
 		kRgbBlack, // dummy
 };
 
