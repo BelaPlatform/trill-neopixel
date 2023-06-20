@@ -674,10 +674,9 @@ void tr_render(BelaContext* context)
 	} menuState = kMenuChangeDisabled;
 	if(btn.pressed)
 	{
-		static constexpr std::array<size_t, 4> touchesForMenu = {
+		static constexpr std::array<size_t, 3> touchesForMenu = {
 			2, // kTouchesForLocalSettings
-			3, // kTouchesForGlobalSettings0
-			4, // kTouchesForGlobalSettings1
+			3, // kTouchesForGlobalSettings
 			5, // kTouchesForFactoryTest
 		};
 

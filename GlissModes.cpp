@@ -7276,7 +7276,7 @@ int menu_dosetup(MenuPage& menu)
 
 int menu_setup(size_t page)
 {
-	if(3 == page)
+	if(2 == page)
 	{
 		requestNewMode(kFactoryTestModeIdx);
 		return true;
@@ -7288,9 +7288,6 @@ int menu_setup(size_t page)
 		menu = &mainMenu;
 		break;
 	case 1:
-		menu = gNewMode < menuPagesIoRanges.size() ? menuPagesIoRanges[gNewMode] : &dummyPage;
-		break;
-	case 2:
 		menu = &globalSettingsMenu0;
 		break;
 	}
