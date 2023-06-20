@@ -3343,7 +3343,7 @@ public:
 				break;
 			case kOutputModeEE: // top envelope, bottom inverted envelope
 				outs[0] = env;
-				outs[1] = 1.f -env;
+				outs[1] = 1.f - env;
 				break;
 			}
 			for(size_t c = 0; c < kNumOutChannels; ++c)
@@ -4507,7 +4507,7 @@ private:
 	};
 	struct KeyStepMode {
 		bool k : 4;
-		StepMode s: 4;
+		StepMode s : 4;
 		static KeyStepMode getDefault() {
 			return KeyStepMode{.k = true, .s = kStepNormal};
 		}
