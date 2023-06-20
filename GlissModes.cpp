@@ -307,6 +307,16 @@ int gCounter = 0;
 int gSubMode = 0;
 std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = true;
+enum AnimationMode
+{
+	kAnimationModeConsistent,
+	kAnimationModePulses,
+	kAnimationModeSolid,
+	kAnimationModeCustom,
+	kNumAnimationMode,
+};
+static AnimationMode gAnimationMode = kAnimationModeConsistent;
+
 Override gOverride;
 static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
@@ -1374,6 +1384,13 @@ private:
 	ParameterUpdateCapable* that;
 	float value;
 };
+
+static float simpleRamp(unsigned int phase, unsigned int period)
+{
+	if(!period)
+		return 0;
+	return float(phase % period) / period;
+}
 
 static float simpleTriangle(unsigned int phase, unsigned int period)
 {
@@ -5474,15 +5491,81 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 
 constexpr size_t kMaxBtnStates = 6;
 typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
-unsigned int gAnimationMode = 1;
+static AnimationColors buttonColors = {
+		kRgbRed,
+		kRgbOrange,
+		kRgbYellow,
+		kRgbGreen,
+		kRgbWhite,
+		kRgbBlack, // dummy
+};
+
+static bool pulses(uint32_t ms, uint32_t period, size_t numPulses)
+{
+	size_t blankPeriods = 2;
+	size_t periods = blankPeriods + numPulses;
+	size_t totalMs = periods * period;
+	float ramp = simpleRamp(ms, totalMs);
+	float step = 1.f / periods;
+	float on = 0.5f * step;
+	for(size_t n = 0; n < numPulses; ++n)
+	{
+		float start = n * step;
+		float stop = start + on;
+		if(ramp >= start && ramp < stop)
+			return true;
+	}
+	return false;
+}
+
 class ButtonAnimation {
 public:
 	void process(uint32_t ms, LedSlider& ledSlider, float value)
 	{
-		if(0 == gAnimationMode)
+		constexpr unsigned int kPeriod = 1000;
+		constexpr unsigned int kPulsesPeriod = 400;
+		rgb_t color = buttonColors[getIdx(value)];
+		switch(gAnimationMode)
 		{
-		} else
+		case kNumAnimationMode:
+		case kAnimationModeConsistent:
+		{
+			float coeff;
+			float tri = simpleTriangle(ms, kPeriod);
+			switch(int(value))
+			{
+			default:
+			case 0: // solid
+				coeff = 1;
+				break;
+			case 1: // "sine"
+				coeff = tri;
+				break;
+			case 2: // on/off blink
+				coeff = tri < 0.5;
+				break;
+			case 3: // three pulses
+				coeff = pulses(ms, kPulsesPeriod, 3);
+				break;
+			case 4: // ramp
+				coeff = simpleRamp(ms, kPeriod);
+				break;
+			}
+			color.scale(coeff);
+			ledSlider.setColor(color);
+		}
+			break;
+		case kAnimationModeSolid:
+			ledSlider.setColor(color);
+			break;
+		case kAnimationModePulses:
+			color.scale(pulses(ms, kPulsesPeriod, value + 1));
+			ledSlider.setColor(color);
+			break;
+		case kAnimationModeCustom:
 			processCustom(ms, ledSlider, value);
+			break;
+		}
 	};
 	virtual void processCustom(uint32_t ms, LedSlider& ledSlider, float value) {};
 protected:
@@ -6665,14 +6748,6 @@ public:
 constexpr size_t kMaxModeParameters = 4;
 static const rgb_t buttonColor = kRgbRed;
 static MenuItemTypeDisabled disabled;
-static AnimationColors buttonColors = {
-		kRgbRed,
-		kRgbOrange,
-		kRgbYellow,
-		kRgbGreen,
-		kRgbWhite,
-		kRgbBlack, // dummy
-};
 
 static ButtonAnimationSplit animationSplit(buttonColors);
 #ifdef ENABLE_DIRECT_CONTROL_MODE
@@ -6854,6 +6929,10 @@ public:
 			gJacksOnTop = jacksOnTop;
 			str = "jacksOnTop";
 		}
+		else if(p.same(animationMode)) {
+			str = "animationMode";
+			gAnimationMode = AnimationMode(animationMode.get());
+		}
 		else if(p.same(sizeScaleCoeff)) {
 			str = "sizeScaleCoeff";
 			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
@@ -6897,6 +6976,7 @@ public:
 	}
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, true};
+	ParameterEnumT<kNumAnimationMode> animationMode {this, kAnimationModeConsistent};
 	ParameterContinuous brightness {this, 0.2};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
@@ -6959,6 +7039,7 @@ static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeSc
 static constexpr rgb_t jacksOnTopButtonColor = kRgbWhite;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
+static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, gGlobalSettings.animationMode);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, gGlobalSettings.brightness);
 
 class PerformanceModeIoRangesMenuPage : public MenuPage {
@@ -7076,7 +7157,7 @@ static void menu_update()
 		globalSettingsMenu0.items = {
 			&globalSettingsJacksOnTop,
 			&globalSettingsBrightness,
-			&disabled,
+			&globalSettingsAnimationMode,
 			&disabled,
 			&globalSettingsSizeScale,
 		};
