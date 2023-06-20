@@ -4152,11 +4152,7 @@ public:
 			{
 				if(newTouch)
 				{
-					// we have to compute the number of enabled keys
-					// because numButtons is always kNumMaxButtons when in kPageSetMode
-					size_t numEnabledKeys = 0;
-					for(auto& k : keyStepModes)
-						numEnabledKeys += k.get().k;
+					size_t numEnabledKeys = countEnabledKeys();
 					// only remove a key if you're not left with 0
 					if(numEnabledKeys >= 2 || !keyIsEnabled(touch.key))
 					{
@@ -4294,6 +4290,15 @@ private:
 				|| kGood == state
 				|| kMoved == state
 			;
+	}
+	size_t countEnabledKeys()
+	{
+		// we compute the number of enabled keys from scratch
+		// because numButtons is always kNumMaxButtons when in kPageSetMode
+		size_t numEnabledKeys = 0;
+		for(auto& k : keyStepModes)
+			numEnabledKeys += seqMode ? (k.get().s != kStepDisabled) :  k.get().k;
+		return numEnabledKeys;
 	}
 	float seqSmooth(float value)
 	{
