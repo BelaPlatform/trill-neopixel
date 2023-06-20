@@ -4253,7 +4253,7 @@ public:
 						color = {0, 0, 0};
 				}
 				ledSliders.sliders[0].directWriteCentroid(centroid_t { getMidLocationFromKey(n), coeff }, color,
-						LedSlider::kDefaultNumWeights - 1 + (kMaxNumButtons - numButtons) / (0.125f * kMaxNumButtons)
+						LedSlider::kDefaultNumWeights + (kMaxNumButtons - numButtons) / (0.125f * kMaxNumButtons)
 				);
 			}
 		}
