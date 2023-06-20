@@ -4088,6 +4088,10 @@ public:
 						mode.s = StepMode(mode.s + 1);
 						if(kStepModesNum == mode.s)
 							mode.s = kStepNormal;
+						// do not allow to remove all keys
+						size_t numEnabledKeys = countEnabledKeys();
+						if(numEnabledKeys < 2 && kStepDisabled == mode.s)
+							mode.s = kStepNormal;
 						keyStepModes[touch.key].set(mode);
 					}
 					break;
