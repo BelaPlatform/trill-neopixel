@@ -5971,7 +5971,7 @@ public:
 			centroid.location = 0.5;
 			// dimmed for "inactive"
 			// full brightness for "active"
-			centroid.size = state ? 0.5 : 0.1;
+			centroid.size = state ? 0.8 : 0.3;
 			slider.setLedsCentroids(&centroid, 1);
 		}
 		pastState = state;
@@ -7318,6 +7318,8 @@ void menu_render(BelaContext*, FrameData* frameData)
 			return;
 		menuJustEntered = false;
 	}
+	// set the color (i.e.: animation for the _next_ iteration
+	// (it has already been rendered to np from the ledSliders.process() call above)
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 		activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
 }
