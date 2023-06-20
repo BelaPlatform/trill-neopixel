@@ -1481,6 +1481,9 @@ public:
 			}
 		}
 	};
+	PerformanceMode() : buttonColor(kRgbGreen) {}
+	PerformanceMode(rgb_t color) : buttonColor(color) {}
+	rgb_t buttonColor {kRgbGreen};
 };
 
 #ifdef TEST_MODE
@@ -2112,6 +2115,8 @@ public:
 		kThroughAdd,
 		kThroughAddRelative,
 	};
+	SplitPerformanceMode(rgb_t color) : PerformanceMode(color) {}
+	SplitPerformanceMode() {}
 	ParameterEnumT<3> throughMode{this, kThroughNone};
 };
 
@@ -2273,6 +2278,7 @@ public:
 		UPDATE_PRESET_FIELD3(splitMode, autoLatch, throughMode);
 	}
 	DirectControlMode() :
+		SplitPerformanceMode(kRgbRed),
 		presetFieldData{
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
@@ -3101,6 +3107,7 @@ public:
 		UPDATE_PRESET_FIELD2(splitMode, inputMode);
 	}
 	RecorderMode() :
+		SplitPerformanceMode(kRgbYellow),
 		presetFieldData {
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
@@ -3465,6 +3472,7 @@ public:
 		kOutputModeNum
 	};
 	ScaleMeterMode() :
+		PerformanceMode(kRgbGreen),
 		presetFieldData{
 			.ioRanges = ioRangesParameters,
 			.outputMode = outputMode,
@@ -4582,7 +4590,8 @@ public:
 	{
 		UPDATE_PRESET_FIELD3PlusArrays(quantised, seqMode, modRange, offsetParameters, keyStepModes);
 	}
-	ExprButtonsMode():
+	ExprButtonsMode() :
+		PerformanceMode(kRgbOrange),
 		presetFieldData {
 			.ioRanges = ioRangesParameters,
 			.quantised = quantised,
@@ -5984,7 +5993,7 @@ class MenuItemTypeEvent : public MenuItemType
 public:
 	MenuItemTypeEvent(const char* name, rgb_t baseColor, uint32_t holdTime = 0) :
 		MenuItemType(baseColor), name(name), holdTime(holdTime) {}
-	void process(LedSlider& slider) override
+	virtual void process(LedSlider& slider) override
 	{
 		bool state = slider.getNumTouches();
 		if(state != pastState)
@@ -6403,6 +6412,13 @@ public:
 	MenuItemTypeNextMode(const char* name, rgb_t baseColor) :
 		MenuItemTypeEvent(name, baseColor, 3000) {}
 private:
+	void process(LedSlider& ledSlider) override
+	{
+		MenuItemTypeEvent::process(ledSlider);
+		PerformanceMode* mode = nullptr;
+		if(gNewMode < performanceModes.size() && (mode = performanceModes[gNewMode]))
+			ledSlider.setColor(mode->buttonColor);
+	}
 	void event(Event e) override
 	{
 		if(kTransitionFalling == e)
