@@ -6296,7 +6296,7 @@ public:
 				rel = 0.5; // ensure some mixing happens
 			for(size_t c = 0; c < pixel.size(); ++c)
 				pixel[c] = baseColor[c] * rel + otherColor[c] * (1.f - rel);
-			np.setPixelColor(n, pixel.r, pixel.g, pixel.b);
+			np.setPixelColor(n, pixel.scaledBy(0.2));
 		}
 		if(HAL_GetTick() - startMs >= kMaxMs)
 			menu_up();
