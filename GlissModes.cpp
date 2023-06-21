@@ -5145,7 +5145,7 @@ public:
 		{
 			np.clear();
 			for(size_t n = begin; n < np.getNumPixels() && n < end; ++n)
-				np.setPixelColor(n, color.r, color.g, color.b);
+				np.setPixelColor(n, color.scaledBy(0.2));
 		}
 	}
 	void updatePreset() override
@@ -5268,7 +5268,7 @@ public:
 				if(!gAlt)
 				{
 					for(size_t n = 0; n < np.getNumPixels(); ++n)
-						np.setPixelColor(n, allGood[n] ? kRgbBlack : kRgbYellow);
+						np.setPixelColor(n, (allGood[n] ? kRgbBlack : kRgbYellow).scaledBy(0.2));
 				}
 				if(success)
 					stateSuccess = true;
