@@ -16,6 +16,8 @@ static constexpr rgb_t kRgbOrange {255, 127, 0};
 static constexpr rgb_t kRgbYellow {255, 255, 0};
 static constexpr rgb_t kRgbWhite {0, 50, 255};
 static constexpr rgb_t kRgbBlack {0, 0, 0};
+static constexpr float kMenuButtonDefaultBrightness = 0.2;
+static constexpr float kMenuButtonActiveBrightness = 0.7;
 
 #define ENABLE_DIRECT_CONTROL_MODE
 #define ENABLE_RECORDER_MODE
@@ -494,7 +496,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		{
 			centroid_t centroid;
 			centroid.location = 0.5;
-			centroid.size = 0.1;
+			centroid.size = kMenuButtonDefaultBrightness;
 			ls.sliders[n].setLedsCentroids(&centroid, 1);
 		}
 	}
@@ -5973,7 +5975,7 @@ public:
 			centroid.location = 0.5;
 			// dimmed for "inactive"
 			// full brightness for "active"
-			centroid.size = state ? 0.8 : 0.3;
+			centroid.size = state ? kMenuButtonActiveBrightness : kMenuButtonDefaultBrightness;
 			slider.setLedsCentroids(&centroid, 1);
 		}
 		pastState = state;
