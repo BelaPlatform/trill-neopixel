@@ -1482,7 +1482,9 @@ public:
 		}
 	};
 	PerformanceMode() : buttonColor(kRgbGreen) {}
-	PerformanceMode(rgb_t color) : buttonColor(color) {}
+	PerformanceMode(rgb_t color)
+	: buttonColor(kRgbGreen) // TODO: change kRgbGreen to color if you want to obey the color
+	{}
 	rgb_t buttonColor {kRgbGreen};
 };
 
