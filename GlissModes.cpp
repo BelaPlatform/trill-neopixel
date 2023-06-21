@@ -5264,7 +5264,7 @@ public:
 						allGood[led] = false;
 					}
 				}
-				// after we set all allGood, we  write them to the leds
+				// after we set all allGood, we write them to the leds
 				if(!gAlt)
 				{
 					for(size_t n = 0; n < np.getNumPixels(); ++n)
