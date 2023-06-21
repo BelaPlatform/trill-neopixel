@@ -868,7 +868,7 @@ void tr_render(BelaContext* context)
 		unsigned int c = gOverride.ch;
 		float value = rescaleOutput(gOverride.bypassOutRange, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
-			analogWriteJacks(context, n, c, value);
+			analogWriteJacks(context, n, c, finalise(value));
 		gOutIsSize = outIsSizeStash;
 	}
 #if 0 // send out a quiet tone on one channel and loop back the input on the other
