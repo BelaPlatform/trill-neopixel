@@ -6944,7 +6944,8 @@ public:
 		}
 		else if(p.same(brightness)) {
 			str = "brightness";
-			gBrightness = 0.1f + brightness * 5.f;
+			assert(brightness.getDefault());
+			gBrightness = 0.15f + (brightness * 0.85f / brightness.getDefault());
 		}
 		else if(p.same(newMode)) {
 			str = "newMode";
