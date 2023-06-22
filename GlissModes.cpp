@@ -3979,7 +3979,8 @@ public:
 				if(!gAlt)
 				{
 					keyBeingAdjusted = touch.key;
-					menu_enterSingleSlider(colors[touch.key], colors[touch.key], offsetParameters[touch.key]);
+					size_t actualKey = keysIdx[touch.key];
+					menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameters[actualKey]);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
 				}
 				break;
@@ -4240,7 +4241,7 @@ public:
 					// same behaviour for seqMode and non-seqMode
 					// though in seqMode it always has kmaxNumButtons buttons,
 					// while in key mode it only has numButtons
-					color = colors[n];
+					color = colors[keysIdx[n]];
 					if(n == vizKey)
 						coeff = 1;
 					else
