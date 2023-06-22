@@ -790,7 +790,19 @@ void tr_render(BelaContext* context)
 	// TODO: clear separation of concerns: at any time make it clear who can write to each pixel.
 	if(tr_ledsUpdateRequested())
 	{
-		np.scaleBy(gBrightness);
+		static float brightness = 0.2f;
+		static bool justStarted = true;
+		if(justStarted)
+		{
+			// at startup, fade in brightness if it is not the default
+			float alpha = 0.0005;
+			brightness = brightness * (1.f - alpha) + gBrightness * alpha;
+			if(std::abs(brightness - gBrightness) < 0.01) // close enough, stop smoothing
+				justStarted = false;
+		} else {
+			brightness = gBrightness;
+		}
+		np.scaleBy(brightness);
 		np.show();
 	}
 //	tri.buttonLedWrite(gMtrClkTriggerLED);
