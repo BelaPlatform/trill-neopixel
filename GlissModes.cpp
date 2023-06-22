@@ -2158,7 +2158,7 @@ public:
 		// single point starts in middle, zips off in two directions to the top and bottom
 		constexpr float kAnimationDuration = 1200;
 		float loc = ms / (kAnimationDuration * 2) + 0.5f;
-		float size = (loc - 0.5f) * kFixedCentroidSize;
+		float size = kFixedCentroidSize;
 		for(auto l : { &ledSliders, &ledSlidersAlt})
 		{
 			l->sliders[0].directBegin();
@@ -2415,7 +2415,7 @@ public:
 		constexpr float kAnimationDuration = 1600;
 		float phase = 2.f * ms / kAnimationDuration;
 		float loc = phase < 1 ? phase : 2.f - phase;
-		float size = loc * kFixedCentroidSize;
+		float size = kFixedCentroidSize;
 		for(auto l : { &ledSliders, &ledSlidersAlt})
 		{
 			l->sliders[0].directBegin();
