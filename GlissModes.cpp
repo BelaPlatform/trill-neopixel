@@ -7377,6 +7377,16 @@ void menu_render(BelaContext*, FrameData* frameData)
 	if (menuBtn.onset){
 		// button onset
 		printf("button when stack is %d\n\r", menuStack.size());
+		// if one of the ioranges pages, exit
+		for(auto& p : menuPagesIoRanges)
+		{
+			if(p == activeMenu)
+			{
+				menu_exit();
+				return;
+			}
+		}
+		// otherwise just go up by one
 		menu_up();
 	}
 
