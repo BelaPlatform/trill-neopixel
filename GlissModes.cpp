@@ -6777,13 +6777,13 @@ private:
 class MenuItemTypeDisabled : public MenuItemType
 {
 public:
-	MenuItemTypeDisabled() : MenuItemType({0, 0, 0}) {}
+	MenuItemTypeDisabled(const rgb_t& color) : MenuItemType(color) {}
 	void process(LedSlider& slider) override {}
 };
 
 constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor = kRgbRed;
-static MenuItemTypeDisabled disabled;
+static MenuItemTypeDisabled disabled(kRgbBlack);
 static ButtonAnimation defaultAnimation;
 
 static ButtonAnimationSplit animationSplit(buttonColors);
