@@ -1390,6 +1390,9 @@ public:
 	{
 		set(defaultValue);
 	}
+	float getDefault() const {
+		return defaultValue;
+	}
 private:
 	ParameterUpdateCapable* that;
 	float value;
