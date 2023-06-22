@@ -1371,7 +1371,7 @@ private:
 
 class ParameterContinuous : public Parameter {
 public:
-	ParameterContinuous(ParameterUpdateCapable* that, float value = 0) : that(that), value(value) {}
+	ParameterContinuous(ParameterUpdateCapable* that, float value = 0) : that(that), value(value), defaultValue(value) {}
 	void set(float newValue)
 	{
 		value = newValue;
@@ -1382,9 +1382,18 @@ public:
 		return value;
 	}
 	operator float() { return get(); }
+	bool isDefault() const
+	{
+		return (value == defaultValue);
+	}
+	void resetToDefault()
+	{
+		set(defaultValue);
+	}
 private:
 	ParameterUpdateCapable* that;
 	float value;
+	const float defaultValue;
 };
 
 static float simpleRamp(unsigned int phase, unsigned int period)
