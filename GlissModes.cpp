@@ -6514,8 +6514,8 @@ public:
 	void process(LedSlider& slider)
 	{
 		MenuItemTypeEvent::process(slider);
-		ButtonAnimation* an = animation ? animation : &defaultAnimation;
-		an->process(HAL_GetTick(), slider, value.isDefault() ? 0 : 1);
+		if(animation)
+			animation->process(HAL_GetTick(), slider, value.isDefault() ? 0 : 1);
 	}
 	void event(Event e)
 	{
@@ -6536,10 +6536,7 @@ public:
 	ParameterContinuous& value;
 	ButtonAnimation* animation;
 	bool ignoreNextFalling;
-private:
-static ButtonAnimation defaultAnimation;
 };
-ButtonAnimation MenuItemTypeEnterContinuous::defaultAnimation;
 
 // If held-press, get into singleQuantisedMenu to set value as if it was a big toggle
 class MenuItemTypeEnterQuantised : public MenuItemTypeEnterSubmenu
@@ -6787,6 +6784,7 @@ public:
 constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor = kRgbRed;
 static MenuItemTypeDisabled disabled;
+static ButtonAnimation defaultAnimation;
 
 static ButtonAnimationSplit animationSplit(buttonColors);
 static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
@@ -6819,7 +6817,7 @@ static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
 static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, &gScaleMeterMode.outputMode, &animationSolid);
 static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling, &animationSingleStillTriangle);
-static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff);
+static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff, &defaultAnimation);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
 		&scaleMeterModeCoupling,
@@ -6847,7 +6845,7 @@ static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor,
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
 static MenuItemTypeDiscrete exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColor, &gExprButtonsMode.seqMode, &animationKeysSeq);
-static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[1], gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
+static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[1], gExprButtonsMode.modRange, &defaultAnimation);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
@@ -7073,11 +7071,11 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 }
 static constexpr rgb_t globalSettingsRangeOtherColor = kRgbRed;
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
-static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
-static constexpr rgb_t jacksOnTopButtonColor = kRgbWhite;
+static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsColor, gGlobalSettings.sizeScaleCoeff);
+static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
-static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
-static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, gGlobalSettings.animationMode);
+static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop);
+static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", kRgbWhite, gGlobalSettings.animationMode);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsColor, gGlobalSettings.brightness);
 
 class PerformanceModeIoRangesMenuPage : public MenuPage {
@@ -7200,9 +7198,9 @@ static void menu_update()
 		inited = true;
 		globalSettingsMenu0.items = {
 			&globalSettingsJacksOnTop,
+			&disabled,
 			&globalSettingsBrightness,
 			&globalSettingsAnimationMode,
-			&disabled,
 			&globalSettingsSizeScale,
 		};
 		singleSliderMenu.items = {
