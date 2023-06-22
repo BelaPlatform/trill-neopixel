@@ -10,6 +10,15 @@ typedef enum {
 constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
 extern std::array<OutMode,kNumOutChannels> gOutMode;
 
+struct CalibrationData {
+	static constexpr float kGnd = 0.3333333333f;
+	static constexpr size_t kNumPoints = 3;
+	static constexpr std::array<float,kNumPoints> points = {{0, kGnd, 1}};
+	std::array<float,kNumPoints> values;
+};
+CalibrationData const& getCalibrationInput();
+CalibrationData const& getCalibrationOutput();
+
 typedef enum {
 	kCvRangePositive10,
 	kCvRangeBipolar,
@@ -32,6 +41,34 @@ struct IoRange {
 			.max = 1,
 			.enabled = true,
 		};
+	}
+	void getMinMax(float& min, float& max) const {
+		constexpr float gnd = CalibrationData::kGnd;
+		CvRange range = enabled ? this->range : kCvRangeFull;
+		switch (range)
+		{
+			case kCvRangeFull:
+				min = 0;
+				max = 1;
+				break;
+			case kCvRangeBipolar:
+				min = 0;
+				max = gnd * 2.f;
+				break;
+			case kCvRangePositive5:
+				min = gnd;
+				max = gnd * 2.f;
+				break;
+			case kCvRangePositive10:
+				min = gnd;
+				max = gnd * 3.f;
+				break;
+			default:
+			case kCvRangeCustom:
+				min = this->min;
+				max = this->max;
+				break;
+		}
 	}
 };
 
@@ -81,15 +118,6 @@ struct ButtonView {
 	uint32_t pressDuration;
 	static constexpr uint32_t kPressIdInvalid = -1;
 };
-
-struct CalibrationData {
-	static constexpr float kGnd = 0.3333333333f;
-	static constexpr size_t kNumPoints = 3;
-	static constexpr std::array<float,kNumPoints> points = {{0, kGnd, 1}};
-	std::array<float,kNumPoints> values;
-};
-CalibrationData const& getCalibrationInput();
-CalibrationData const& getCalibrationOutput();
 
 struct FrameData {
 	uint32_t id;

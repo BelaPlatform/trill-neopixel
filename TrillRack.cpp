@@ -423,33 +423,8 @@ IoRange gOutRangeBottom = {
 
 static inline void getRangeMinMax(bool input, size_t channel, float& min, float& max)
 {
-	float gnd = CalibrationData::kGnd;
 	const IoRange& ioRange = input ? gInRange : (0 == channel) ? gOutRangeTop : gOutRangeBottom;
-	CvRange range = ioRange.enabled ? ioRange.range : kCvRangeFull;
-	switch (range)
-	{
-		case kCvRangeFull:
-			min = 0;
-			max = 1;
-			break;
-		case kCvRangeBipolar:
-			min = 0;
-			max = gnd * 2.f;
-			break;
-		case kCvRangePositive5:
-			min = gnd;
-			max = gnd * 2.f;
-			break;
-		case kCvRangePositive10:
-			min = gnd;
-			max = gnd * 3.f;
-			break;
-		default:
-		case kCvRangeCustom:
-			min = ioRange.min;
-			max = ioRange.max;
-			break;
-	}
+	ioRange.getMinMax(min, max);
 }
 
 static float processRawThroughCalibration(const CalibrationData& cal, bool input, float raw)
