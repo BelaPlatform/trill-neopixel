@@ -1804,6 +1804,17 @@ private:
 		UN_T_ASS(pfd->A1[n], that->A1[n]); \
 }
 
+#define genericDefaulterNoioranges4(CLASS,A,B,C,D) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	DEFAULTER_PROCESS(C); \
+	DEFAULTER_PROCESS(D); \
+}
+
 #define genericDefaulter12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
@@ -1882,6 +1893,16 @@ private:
 		LOADER_PROCESS(A0[n]); \
 	for(size_t n = 0; n < that->A1.size(); ++n) \
 		LOADER_PROCESS(A1[n]); \
+}
+
+#define genericLoadCallbackNoioranges4(CLASS,A,B,C,D) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	LOADER_PROCESS(C); \
+	LOADER_PROCESS(D); \
 }
 
 #define genericLoadCallback12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
@@ -1981,6 +2002,16 @@ static bool areEqual(const T& a, const T& b)
 			presetFieldData.A1[n] = A1[n]; \
 		presetSetField(this, &presetFieldData); \
 	} \
+}
+
+#define UPDATE_PRESET_NOIORANGES_FIELD4(A,B,C,D) { \
+	PresetFieldData_t bak = presetFieldData; \
+	presetFieldData.A = A; \
+	presetFieldData.B = B; \
+	presetFieldData.C = C; \
+	presetFieldData.D = D; \
+	if(!areEqual(bak, presetFieldData)) \
+		presetSetField(this, &presetFieldData); \
 }
 
 #define UPDATE_PRESET_FIELD12(A,B,C,D,E,F,G,H,I,J,K,L) \
@@ -6956,11 +6987,12 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_NOIORANGES_FIELD3(sizeScaleCoeff, jacksOnTop, newMode);
+		UPDATE_PRESET_NOIORANGES_FIELD4(sizeScaleCoeff, brightness, jacksOnTop, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
 			.sizeScaleCoeff = sizeScaleCoeff,
+			.brightness = brightness,
 			.jacksOnTop = jacksOnTop,
 			.newMode = newMode,
 		}
@@ -6968,12 +7000,12 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulterNoioranges3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
+			.defaulter = genericDefaulterNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, jacksOnTop, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallbackNoioranges3(GlobalSettings, sizeScaleCoeff, jacksOnTop, newMode),
+			.loadCallback = genericLoadCallbackNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, jacksOnTop, newMode),
 		};
 		presetDescSet(5, &presetDesc);
 	}
@@ -6984,6 +7016,7 @@ public:
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
 		float sizeScaleCoeff;
+		float brightness;
 		uint8_t jacksOnTop;
 		uint8_t newMode;
 	}) presetFieldData;
