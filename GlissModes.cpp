@@ -7069,7 +7069,6 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 		o /= kVoltsFs;
 	return out;
 }
-static constexpr rgb_t globalSettingsRangeOtherColor = kRgbRed;
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsColor, gGlobalSettings.sizeScaleCoeff);
 static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
@@ -7078,19 +7077,22 @@ static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksO
 static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", kRgbWhite, gGlobalSettings.animationMode);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsColor, gGlobalSettings.brightness);
 
+static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
+static constexpr rgb_t kIoRangeOtherColor = kRgbRed;
+static MenuItemTypeDisabled disabledIoRange(kIoRangeButtonColor.scaledBy(0.2));
 class PerformanceModeIoRangesMenuPage : public MenuPage {
 public:
-	PerformanceModeIoRangesMenuPage(const char* name, PerformanceMode& perf) :
+	PerformanceModeIoRangesMenuPage(const char* name, PerformanceMode& perf, bool inputEnabled) :
 		MenuPage(name, {
 				&disabled,
 				&disabled,
 				&outBottom,
 				&outTop,
-				&in,
+				inputEnabled ? (MenuItemType*)&in : &disabledIoRange,
 		}),
-		in((std::string(name) + " in").c_str(), globalSettingsColor, globalSettingsRangeOtherColor, perf.ioRangesParameters.in, quantiseNormalisedForIntegerVolts),
-		outTop((std::string(name) + " outTop").c_str(), globalSettingsColor, globalSettingsRangeOtherColor, perf.ioRangesParameters.outTop, quantiseNormalisedForIntegerVolts),
-		outBottom((std::string(name) + " outBottom").c_str(), globalSettingsColor, globalSettingsRangeOtherColor, perf.ioRangesParameters.outBottom, quantiseNormalisedForIntegerVolts)
+		in((std::string(name) + " in").c_str(), kIoRangeButtonColor, kIoRangeOtherColor, perf.ioRangesParameters.in, quantiseNormalisedForIntegerVolts),
+		outTop((std::string(name) + " outTop").c_str(), kIoRangeButtonColor, kIoRangeOtherColor, perf.ioRangesParameters.outTop, quantiseNormalisedForIntegerVolts),
+		outBottom((std::string(name) + " outBottom").c_str(), kIoRangeButtonColor, kIoRangeOtherColor, perf.ioRangesParameters.outBottom, quantiseNormalisedForIntegerVolts)
 	{}
 private:
 	MenuItemTypeDiscreteRangeCv in;
@@ -7101,19 +7103,19 @@ private:
 // _why_ does it have to be so verbose? For some (good???) reason we deleted the copy constructor of MenuPage,
 // so we cannot put MenuPage objects in an array and we need this hack
 #ifdef ENABLE_DIRECT_CONTROL_MODE
-static PerformanceModeIoRangesMenuPage menuPageDirectControl {"direct control", gDirectControlMode};
+static PerformanceModeIoRangesMenuPage menuPageDirectControl {"direct control", gDirectControlMode, false};
 #endif // ENABLE_DIRECT_CONTROL_MODE
 #ifdef ENABLE_RECORDER_MODE
-static PerformanceModeIoRangesMenuPage menuPageRecorder {"recorder", gRecorderMode};
+static PerformanceModeIoRangesMenuPage menuPageRecorder {"recorder", gRecorderMode, true};
 #endif // ENABLE_RECORDER_MODE
 #ifdef ENABLE_SCALE_METER_MODE
-static PerformanceModeIoRangesMenuPage menuPageScaleMeter {"scale/meter", gScaleMeterMode};
+static PerformanceModeIoRangesMenuPage menuPageScaleMeter {"scale/meter", gScaleMeterMode, true};
 #endif // ENABLE_SCALE_METER_MODE
 #ifdef ENABLE_BALANCED_OSCS_MODE
-static PerformanceModeIoRangesMenuPage menuPageBalancedOscs {"balanced oscs", gBalancedOscsMode};
+static PerformanceModeIoRangesMenuPage menuPageBalancedOscs {"balanced oscs", gBalancedOscsMode, false};
 #endif //ENABLE_BALANCED_OSCS_MODE
 #ifdef ENABLE_EXPR_BUTTONS_MODE
-static PerformanceModeIoRangesMenuPage menuPageExprButtons {"expr buttons", gExprButtonsMode};
+static PerformanceModeIoRangesMenuPage menuPageExprButtons {"expr buttons", gExprButtonsMode, false};
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
 static MenuPage dummyPage { "dummy", {
