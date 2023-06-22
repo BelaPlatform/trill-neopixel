@@ -3979,8 +3979,17 @@ public:
 				if(!gAlt)
 				{
 					keyBeingAdjusted = touch.key;
+					// TODO: clear up this mess of actualKey vs touch.key.
 					size_t actualKey = keysIdx[touch.key];
-					menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameters[actualKey]);
+					const IoRange& outTop = ioRangesParameters.outTop;
+					float min;
+					float max;
+					outTop.getMinMax(min, max);
+					// reverse map the range so that we start with an initial centroid that represents
+					// the current voltage
+					float initialValue = mapAndConstrain(offsetParameters[actualKey], min, max, 0, 1);
+					offsetParameterRaw.set(initialValue);
+					menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameterRaw);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
 				}
 				break;
@@ -4579,17 +4588,21 @@ public:
 		} else if(p.same(seqMode)) {
 			updateNumButtons();
 		} else if(p.same(quantised)) {
-
+		} else if(p.same(offsetParameterRaw))
+		{
+			IoRange outRange = ioRangesParameters.outTop;
+			float min;
+			float max;
+			outRange.getMinMax(min, max);
+			float value = map(offsetParameterRaw, 0, 1, min, max);
+			offsetParameters[keysIdx[keyBeingAdjusted]].set(value);
 		} else {
 			for(size_t n = 0; n < kMaxNumButtons; ++n)
 			{
-				if(p.same(offsetParameters[n]))
-				{
-					keyBeingAdjusted = n; // probably unnecessary
-					break;
-				} else if(p.same(keyStepModes[n]))
+				if(p.same(keyStepModes[n]))
 				{
 					updateNumButtons();
+					break;
 				}
 			}
 		}
@@ -4632,6 +4645,8 @@ public:
 	ParameterEnumT<2,bool> quantised {this, true};
 	ParameterEnumT<2,bool> seqMode{this, false};
 	ParameterContinuous modRange {this, 0.5};
+	ParameterContinuous offsetParameterRaw {this, 0};
+	// do not retrieve offsetParameters directly, use getOutForKey() instead
 	std::array<ParameterContinuous,kMaxNumButtons> offsetParameters {
 		ParameterContinuous(this, 0.5),
 		ParameterContinuous(this, 0.6),
