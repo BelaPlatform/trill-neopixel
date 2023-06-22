@@ -6062,7 +6062,7 @@ public:
 				hasDoneSetup = true;
 				initialTime = HAL_GetTick();
 			}
-			if(!tracking)
+			if(!tracking && frame.size)
 			{
 				// check if we crossed the initial point
 				float refPos = parameter->get();
@@ -6469,30 +6469,40 @@ static MenuItemTypeQuantised singleQuantisedMenuItem;
 // appropriately set the properties of singleQuantisedMenuItem
 MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, MenuPage::kMenuTypeQuantised);
 
-// If held-press, get into singleSliderMenu to set value
-class MenuItemTypeEnterContinuous : public MenuItemTypeEnterSubmenu
+// On tap, get into singleSliderMenu to set value; on hold-press reset to default value
+class MenuItemTypeEnterContinuous : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, ParameterContinuous& value, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), value(value), animation(animation) {}
+		MenuItemTypeEvent(name, baseColor, 2000), value(value), animation(animation), ignoreNextFalling(false) {}
 	void process(LedSlider& slider)
 	{
-		MenuItemTypeEnterSubmenu::process(slider);
-		if(animation)
-		{
-			animation->process(HAL_GetTick(), slider, value);
-		}
+		MenuItemTypeEvent::process(slider);
+		ButtonAnimation* an = animation ? animation : &defaultAnimation;
+		an->process(HAL_GetTick(), slider, value.isDefault() ? 0 : 1);
 	}
 	void event(Event e)
 	{
 		if(kHoldHigh == e) {
-			singleSliderMenuItem = MenuItemTypeSlider(baseColor, &value);
-			menu_in(singleSliderMenu);
+			value.resetToDefault();
+			ignoreNextFalling = true;
+		}
+		if(kTransitionFalling == e) {
+			if(ignoreNextFalling)
+				ignoreNextFalling = false;
+			else {
+				singleSliderMenuItem = MenuItemTypeSlider(baseColor, &value);
+				menu_in(singleSliderMenu);
+			}
 		}
 	}
 	ParameterContinuous& value;
 	ButtonAnimation* animation;
+	bool ignoreNextFalling;
+private:
+static ButtonAnimation defaultAnimation;
 };
+ButtonAnimation MenuItemTypeEnterContinuous::defaultAnimation;
 
 // If held-press, get into singleQuantisedMenu to set value as if it was a big toggle
 class MenuItemTypeEnterQuantised : public MenuItemTypeEnterSubmenu
