@@ -3641,7 +3641,7 @@ private:
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 #define MENU_ENTER_SINGLE_SLIDER
-static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter);
+static void menu_enterSingleSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuous& parameter);
 
 class ExprButtonsMode : public PerformanceMode
 {
@@ -3945,7 +3945,7 @@ public:
 				if(!gAlt)
 				{
 					keyBeingAdjusted = touch.key;
-					menu_enterSingleSlider(colors[touch.key], offsetParameters[touch.key]);
+					menu_enterSingleSlider(colors[touch.key], colors[touch.key], offsetParameters[touch.key]);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
 				}
 				break;
@@ -6037,8 +6037,8 @@ AutoLatcher gMenuAutoLatcher;
 class MenuItemTypeSlider : public MenuItemType {
 public:
 	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeSlider(const rgb_t& color, ParameterContinuous* parameter) :
-		MenuItemType(color), parameter(parameter) {
+	MenuItemTypeSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuous* parameter) :
+		MenuItemType(color), otherColor(otherColor), parameter(parameter) {
 		gMenuAutoLatcher.reset();
 	}
 	void process(LedSlider& slider) override
@@ -6087,12 +6087,14 @@ public:
 				// or show a pulsating centroid
 				centroid.size *= simpleTriangle(HAL_GetTick() - initialTime, 130);
 			}
+			ledSlidersAlt.sliders[0].setColor(parameter->isDefault() ? baseColor : otherColor);
 			ledSlidersAlt.sliders[0].setLedsCentroids(&centroid, 1);
 
 			if(latched)
 				menu_up();
 		}
 	}
+	rgb_t otherColor;
 	ParameterContinuous* parameter;
 	//below are init'd to avoid warning
 	float initialPos = 0;
@@ -6473,8 +6475,8 @@ MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, Men
 class MenuItemTypeEnterContinuous : public MenuItemTypeEvent
 {
 public:
-	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, ParameterContinuous& value, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeEvent(name, baseColor, 2000), value(value), animation(animation), ignoreNextFalling(false) {}
+	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterContinuous& value, ButtonAnimation* animation = nullptr) :
+		MenuItemTypeEvent(name, baseColor, 2000), otherColor(otherColor), value(value), animation(animation), ignoreNextFalling(false) {}
 	void process(LedSlider& slider)
 	{
 		MenuItemTypeEvent::process(slider);
@@ -6491,11 +6493,12 @@ public:
 			if(ignoreNextFalling)
 				ignoreNextFalling = false;
 			else {
-				singleSliderMenuItem = MenuItemTypeSlider(baseColor, &value);
+				singleSliderMenuItem = MenuItemTypeSlider(baseColor, otherColor, &value);
 				menu_in(singleSliderMenu);
 			}
 		}
 	}
+	rgb_t otherColor;
 	ParameterContinuous& value;
 	ButtonAnimation* animation;
 	bool ignoreNextFalling;
@@ -6613,7 +6616,8 @@ public:
 	void enterPlus() override
 	{
 		printf("DiscreteContinuous: going to slider\n\r");
-		singleSliderMenuItem = MenuItemTypeSlider(baseColor, &valueCon);
+		// TODO: if using this again, pass a different color as otherColor
+		singleSliderMenuItem = MenuItemTypeSlider(baseColor, baseColor, &valueCon);
 		menu_in(singleSliderMenu);
 	}
 	ParameterContinuous& valueCon;
@@ -6781,7 +6785,7 @@ static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
 static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, &gScaleMeterMode.outputMode, &animationSolid);
 static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling, &animationSingleStillTriangle);
-static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColor, gScaleMeterMode.cutoff);
+static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
 		&scaleMeterModeCoupling,
@@ -6809,7 +6813,7 @@ static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor,
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
 static MenuItemTypeDiscrete exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColor, &gExprButtonsMode.seqMode, &animationKeysSeq);
-static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColor, gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
+static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[1], gExprButtonsMode.modRange, &animationTriangleExprButtonsModRange);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
@@ -7032,12 +7036,12 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 }
 static constexpr rgb_t globalSettingsRangeOtherColor = kRgbRed;
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
-static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
+static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsColor, gGlobalSettings.sizeScaleCoeff, &animationTriangleGlobal);
 static constexpr rgb_t jacksOnTopButtonColor = kRgbWhite;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop, &animationBrightDimmed);
 static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, gGlobalSettings.animationMode);
-static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, gGlobalSettings.brightness);
+static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsColor, gGlobalSettings.brightness);
 
 class PerformanceModeIoRangesMenuPage : public MenuPage {
 public:
@@ -7140,10 +7144,10 @@ static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool botto
 }
 
 #ifdef MENU_ENTER_SINGLE_SLIDER
-static void menu_enterSingleSlider(const rgb_t& color, ParameterContinuous& parameter)
+static void menu_enterSingleSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuous& parameter)
 {
 	gAlt = 1;
-	singleSliderMenuItem = MenuItemTypeSlider(color, &parameter);
+	singleSliderMenuItem = MenuItemTypeSlider(color, otherColor, &parameter);
 	menu_in(singleSliderMenu);
 }
 #endif // MENU_ENTER_SINGLE_SLIDER
