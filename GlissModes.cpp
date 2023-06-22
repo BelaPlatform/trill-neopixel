@@ -4365,9 +4365,9 @@ private:
 		if(key >= numButtons)
 			return 0;
 		size_t actualKey = seqMode ? key : keysIdx[key];
-		if(actualKey >= offsets.size())
+		if(actualKey >= offsetParameters.size())
 			return 0;
-		return quantise(offsets[actualKey]);
+		return quantise(offsetParameters[actualKey]);
 	}
 	float quantise(float in, bool force = false)
 	{
@@ -4584,7 +4584,6 @@ public:
 			{
 				if(p.same(offsetParameters[n]))
 				{
-					offsets[n] = offsetParameters[n];
 					keyBeingAdjusted = n; // probably unnecessary
 					break;
 				} else if(p.same(keyStepModes[n]))
@@ -4650,8 +4649,6 @@ public:
 	}) presetFieldData;
 private:
 	float out = 0;
-	// do not retrieve offsets directly, use getOutForKey() instead
-	std::array<float,kMaxNumButtons> offsets;
 	size_t keyBeingAdjusted = kKeyInvalid;
 	uint32_t frameId = -1;
 } gExprButtonsMode;
