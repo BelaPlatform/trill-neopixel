@@ -2052,7 +2052,7 @@ static void animateFsInit(LedSlider& l)
 }
 static void animateDirectWriteCentroid(LedSlider& l, centroid_t centroid, rgb_t color, size_t numWeights = LedSlider::kDefaultNumWeights)
 {
-	centroid.location = map(centroid.location, 0, 1, 0.25, 0.75);
+	centroid.location = mapAndConstrain(centroid.location, 0, 1, 0.25, 0.75);
 	l.directWriteCentroid(centroid, color, numWeights);
 }
 
@@ -2325,11 +2325,15 @@ public:
 		SplitPerformanceMode::animate(p, l, color, ms);
 		if(p.same(autoLatch))
 		{
-			constexpr uint32_t kInitialDuration = 500;
+			constexpr uint32_t kInitialDuration = 300;
 			constexpr uint32_t kHoldDuration = 600;
-			if(ms < kInitialDuration + kHoldDuration)
+			constexpr uint32_t kCombinedDuration = kInitialDuration + kHoldDuration;
+			if(ms < 3 * kCombinedDuration)
 			{
-				float loc = 0.2f + 0.8f * simpleTriangle(constrain(ms, 0, kInitialDuration), kInitialDuration);
+				size_t n = ms / kCombinedDuration;
+				ms %= kCombinedDuration;
+				float offset = 0.4f * n;
+				float loc = offset + 0.2f * simpleRamp(constrain(ms, 0, kInitialDuration - 1), kInitialDuration);
 				float size = kFixedCentroidSize;
 				// all viz start with one centroid moving from mid-bottom to mid-top.
 				// what follows during "Hold" is the differentiator:
