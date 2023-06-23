@@ -2043,6 +2043,19 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
+static constexpr size_t kAnimateFsLedStart = 4;
+static constexpr size_t kAnimateFsLedStop = kNumLeds - 5;
+static void animateFsInit(LedSlider& l)
+{
+	for(size_t n = kAnimateFsLedStart; n < kAnimateFsLedStop; ++n)
+		np.setPixelColor(n, kRgbBlack);
+}
+static void animateDirectWriteCentroid(LedSlider& l, centroid_t centroid, rgb_t color, size_t numWeights = LedSlider::kDefaultNumWeights)
+{
+	centroid.location = map(centroid.location, 0, 1, 0.25, 0.75);
+	l.directWriteCentroid(centroid, color, numWeights);
+}
+
 std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
 {
 	std::array<TouchTracker::TouchWithId,kNumSplits> values;
@@ -2166,20 +2179,20 @@ protected:
 			constexpr uint32_t kDuration = 1200;
 			if(ms < kDuration)
 			{
-				float loc = simpleTriangle(ms, kDuration) * 0.5f + 0.25f;
-				l.directBegin();
+				float loc = simpleTriangle(ms, kDuration);
+				animateFsInit(l);
 				switch(splitMode.get())
 				{
 				case kModeNoSplit:
-					l.directWriteCentroid({ .location = loc, .size = loc }, color);
+					animateDirectWriteCentroid(l, { .location = loc, .size = loc }, color);
 					break;
 				case kModeSplitLocation:
-					l.directWriteCentroid({ .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
-					l.directWriteCentroid({ .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
+					animateDirectWriteCentroid(l, { .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
+					animateDirectWriteCentroid(l, { .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
 					break;
 				case kModeSplitSize:
-					l.directWriteCentroid({ .location = 0.25, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
-					l.directWriteCentroid({ .location = 0.75, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					animateDirectWriteCentroid(l, { .location = 0.1, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					animateDirectWriteCentroid(l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
 				}
 			}
@@ -2336,8 +2349,8 @@ public:
 					if(ms >= kInitialDuration)
 						size *= 1.f - (ms - kInitialDuration) / float(kHoldDuration);
 				}
-				l.directBegin();
-				l.directWriteCentroid({ .location = loc, .size = size }, color);
+				animateFsInit(l);
+				animateDirectWriteCentroid(l, { .location = loc, .size = size }, color);
 			}
 		}
 	}
@@ -3185,7 +3198,7 @@ public:
 		if(p.same(inputMode))
 		{
 			static constexpr std::array<float,7> gesture = {
-				0.1, 0.4, 0.1, 0.3, 0.5, 0.7, 0.9,
+				0.0, 0.3, 0.0, 0.2, 0.5, 0.8, 0.99,
 			};
 			constexpr uint32_t kSingleGestDuration = 800;
 			float size = kFixedCentroidSize;
@@ -3252,8 +3265,8 @@ public:
 					else
 						loc = interpolatedRead(gesture, gestIdx);
 				}
-				l.directBegin();
-				l.directWriteCentroid({ .location = loc, .size = size }, color);
+				animateFsInit(l);
+				animateDirectWriteCentroid(l, { .location = loc, .size = size }, color);
 			}
 		}
 	}
