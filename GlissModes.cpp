@@ -5800,6 +5800,7 @@ protected:
 	AnimationColors& colors;
 };
 
+#ifdef ENABLE_RECORDER_MODE
 class ButtonAnimationRecorderInputMode: public ButtonAnimation {
 public:
 	ButtonAnimationRecorderInputMode(AnimationColors& colors) :
@@ -5886,6 +5887,7 @@ protected:
 	float phase = 0;
 	uint32_t lastMs = 0;
 };
+#endif // ENABLE_RECORDER_MODE
 
 class ButtonAnimationWaveform: public ButtonAnimation {
 public:
