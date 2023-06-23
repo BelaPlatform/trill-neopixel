@@ -3396,7 +3396,6 @@ private:
 #endif // ENABLE_RECORDER_MODE
 
 static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top);
-static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv);
 static void menu_up();
 
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
@@ -6599,52 +6598,6 @@ private:
 	uint32_t startMs = HAL_GetTick();
 };
 
-class MenuItemTypeDisplayScaleMeterOutputMode : public MenuItemType {
-public:
-	MenuItemTypeDisplayScaleMeterOutputMode(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv) :
-		MenuItemType(color), isEnv({bottomEnv, topEnv}) {}
-	void process(LedSlider& slider) override
-	{
-		std::array<centroid_t,kNumSplits> centroids;
-		uint32_t ms = HAL_GetTick() - startMs;
-		for(size_t n = 0; n < isEnv.size(); ++n)
-		{
-			float loc;
-			if(isEnv[n])
-			{
-				loc = simpleTriangle(ms, kMaxMs);
-			} else {
-				// slightly smoothed pulse:
-				const uint32_t first = 150;
-				const uint32_t second = 400;
-				const uint32_t third = 600;
-				if(ms < first)
-					loc = 0;
-				else if (ms < second)
-					loc = 1; // high
-				else if (ms < third)
-				{
-					// ramp down
-					loc = 1 - (ms - second) / float(third - second);
-				} else // low
-					loc = 0;
-			}
-			centroids[n].location = map(loc, 0, 1, n * 0.5, n * 0.5 + 0.4);
-			centroids[n].size = kFixedCentroidSize;
-		}
-		slider.setLedsCentroids(centroids.data(), centroids.size());
-
-		if(HAL_GetTick() - startMs >= kMaxMs)
-			menu_up();
-	}
-private:
-	static constexpr uint32_t kMaxMs = 1000;
-	uint32_t startMs = HAL_GetTick();
-	static constexpr size_t kNumSplits = 2;
-	std::array<bool,kNumSplits> isEnv;
-};
-
 static void requestNewMode(int mode);
 
 static void requestIncMode()
@@ -7023,42 +6976,6 @@ private:
 	rgb_t otherColor;
 };
 
-class MenuItemTypeDiscreteScaleMeterOutputMode : public MenuItemTypeDiscrete
-{
-public:
-	MenuItemTypeDiscreteScaleMeterOutputMode(const char* name, AnimationColors& colors, ParameterEnum* parameter, ButtonAnimation* animation) :
-		MenuItemTypeDiscrete(name, colors[0], parameter, animation), colors(colors) {}
-	void event(Event e) override
-	{
-		MenuItemTypeDiscrete::event(e);
-		if(Event::kTransitionFalling == e)
-		{
-			const rgb_t& color = colors[std::min(size_t(parameter->get()), colors.size() - 1)];
-			bool bottomEnv;
-			bool topEnv;
-			switch(parameter->get())
-			{
-			default:
-			case 0:
-				bottomEnv = 0;
-				topEnv = 0;
-				break;
-			case 1:
-				bottomEnv = 1;
-				topEnv = 0;
-				break;
-			case 2:
-				bottomEnv = 1;
-				topEnv = 1;
-				break;
-			}
-			menu_enterDisplayScaleMeterOutputMode(color, bottomEnv, topEnv);
-		}
-	}
-private:
-	AnimationColors& colors;
-};
-
 class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
 {
 public:
@@ -7114,7 +7031,7 @@ static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 #ifdef ENABLE_SCALE_METER_MODE
 static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
-static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, &gScaleMeterMode.outputMode, &animationSolid);
+static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, gScaleMeterMode.outputMode, &animationSolid);
 static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColors, gScaleMeterMode.coupling, &animationSingleStillTriangle);
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff, &defaultAnimation);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
@@ -7336,11 +7253,6 @@ static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
 // appropriately set the properties of displayIoRangeMenuItem
 MenuPage displayRangeRawMenu("display io range", {&displayRangeRawMenuItem}, MenuPage::kMenuTypeRaw);
 
-MenuItemTypeDisplayScaleMeterOutputMode displayScaleMeterOutputModeMenuItem;
-// this is a submenu consisting of a full-screen display of I/O range enum. Before entering it,
-// appropriately set the properties of displayScaleMeterOutputMode
-MenuPage displayScaleMeterOutputModeMenu("display scalemeter output mode", {&displayScaleMeterOutputModeMenuItem}, MenuPage::kMenuTypeRange);
-
 static constexpr rgb_t globalSettingsColor = kRgbYellow;
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
@@ -7470,13 +7382,6 @@ static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColo
 	gAlt = 1;
 	displayRangeRawMenuItem = MenuItemTypeDisplayRangeRaw(color, otherColor, bottom, top);
 	menu_in(displayRangeRawMenu);
-}
-
-static void menu_enterDisplayScaleMeterOutputMode(const rgb_t& color, bool bottomEnv, bool topEnv)
-{
-	gAlt = 1;
-	displayScaleMeterOutputModeMenuItem = MenuItemTypeDisplayScaleMeterOutputMode(color, bottomEnv, topEnv);
-	menu_in(displayScaleMeterOutputModeMenu);
 }
 
 #ifdef MENU_ENTER_SINGLE_SLIDER
