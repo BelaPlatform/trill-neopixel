@@ -2325,12 +2325,11 @@ public:
 		SplitPerformanceMode::animate(p, l, color, ms);
 		if(p.same(autoLatch))
 		{
-			constexpr uint32_t kInitialDuration = 200;
-			constexpr uint32_t kHoldDuration = 800;
+			constexpr uint32_t kInitialDuration = 500;
+			constexpr uint32_t kHoldDuration = 600;
 			if(ms < kInitialDuration + kHoldDuration)
 			{
-
-				float loc = mapAndConstrain(float(ms) / kInitialDuration, 0, 1, 0.3, 0.7);
+				float loc = 0.2f + 0.8f * simpleTriangle(constrain(ms, 0, kInitialDuration), kInitialDuration);
 				float size = kFixedCentroidSize;
 				// all viz start with one centroid moving from mid-bottom to mid-top.
 				// what follows during "Hold" is the differentiator:
