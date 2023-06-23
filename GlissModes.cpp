@@ -1303,6 +1303,7 @@ class ParameterUpdateCapable {
 public:
 	virtual void updated(Parameter&) {};
 	virtual void updatePreset() = 0;
+	virtual void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) {};
 };
 
 template <typename T>
@@ -1334,6 +1335,7 @@ public:
 	virtual void next() = 0;
 	virtual uint8_t get() const = 0;
 	virtual uint8_t getMax() const = 0;
+	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) {};
 };
 
 template <uint8_t N, typename type = uint8_t>
@@ -1362,6 +1364,10 @@ public:
 	uint8_t getMax() const override
 	{
 		return N;
+	}
+	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) override
+	{
+		that->animate(*this, l, color, ms);
 	}
 	operator type() { return type(value); }
 private:
@@ -6639,11 +6645,69 @@ public:
 			break;
 		}
 	}
-	virtual void enterPlus() = 0;
+	virtual void enterPlus() {};
 	ParameterEnum& valueEn;
 	uint32_t lastTick = 0;
 	uint32_t displayOldValueTimeout;
 	bool ignoreNextTransition = false;
+};
+
+// displays an animation every kTransitionFalling event. It leverages
+// the fact that MenuItemTypeDiscretePlus displays current value upon first tap.
+class MenuItemTypeDiscreteFullScreenAnimation : public MenuItemTypeDiscretePlus
+{
+public:
+	MenuItemTypeDiscreteFullScreenAnimation(const char* name, const AnimationColors& colors, ParameterEnum& valueEn, ButtonAnimation* animation = nullptr) :
+		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, 2000),
+		colors(colors), lastTap(0), animation(animation)
+	{}
+	virtual void process(LedSlider& ledSlider) override
+	{
+		MenuItemTypeDiscretePlus::process(ledSlider);
+		uint32_t currentMs = HAL_GetTick();
+		if(animation)
+			animation->process(currentMs, ledSlider, valueEn.get());
+		uint32_t ms = currentMs - lastTap;
+		rgb_t color = colors[getIdx(valueEn.get())];
+		for(auto ledSliders : { &ledSliders, &ledSlidersAlt})
+		{
+			LedSlider& l = ledSliders->sliders[0];
+			// TODO: it's a bit awkward to be calling animate() unconditionally,
+			// assuming ms will be enough to tell them whether to draw something or not
+			// and that a menu-wide reset will reset ms ...
+			valueEn.animate(l, color, ms);
+			/*
+			constexpr float duration = 1200;
+			// demo with two centroids zipping away from the centre
+			if(ms < duration)
+			{
+				float loc = float(ms) / (duration * 2) + 0.5f;
+				float size = kFixedCentroidSize;
+				l.directBegin();
+				l.directWriteCentroid({ .location = loc, .size = size }, color);
+				l.directWriteCentroid({ .location = 1.0f - loc, .size = size }, color);
+			}
+			*/
+		}
+	}
+	void event(Event e) override
+	{
+		MenuItemTypeDiscretePlus::event(e);
+		if(kTransitionFalling == e)
+		{
+			// just tapped, make a note
+			lastTap = HAL_GetTick();
+			// TODO: stop all other animations and reset all other timeouts
+		}
+	}
+protected:
+	static size_t getIdx(size_t value)
+	{
+		return std::min(value, std::tuple_size<AnimationColors>::value - 1);
+	}
+	const AnimationColors& colors;
+	uint32_t lastTap;
+	ButtonAnimation* animation;
 };
 
 class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
@@ -6806,7 +6870,7 @@ static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
-static MenuItemTypeDiscrete directControlModeLatch("directControlModeAutoLatch", buttonColor, &gDirectControlMode.autoLatch, &animationPulsatingStill);
+static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
 		&directControlModeLatch,
