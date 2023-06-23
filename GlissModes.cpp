@@ -312,10 +312,12 @@ bool gJacksOnTop = true;
 enum AnimationMode
 {
 	kAnimationModeConsistent,
-	kAnimationModePulses,
-	kAnimationModeSolid,
+	kAnimationModeConsistentWithFs,
+	kAnimationModeConsistentWithFsNoShow,
 	kAnimationModeCustom,
 	kNumAnimationMode,
+	kAnimationModeSolid,
+	kAnimationModePulses,
 };
 static AnimationMode gAnimationMode = kAnimationModeConsistent;
 
@@ -1367,7 +1369,8 @@ public:
 	}
 	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) override
 	{
-		that->animate(*this, l, color, ms);
+		if(kAnimationModeConsistentWithFs == gAnimationMode || kAnimationModeConsistentWithFsNoShow == gAnimationMode)
+			that->animate(*this, l, color, ms);
 	}
 	operator type() { return type(value); }
 private:
@@ -5703,6 +5706,8 @@ public:
 		{
 		case kNumAnimationMode:
 		case kAnimationModeConsistent:
+		case kAnimationModeConsistentWithFs:
+		case kAnimationModeConsistentWithFsNoShow:
 		{
 			float coeff;
 			float tri = simpleTriangle(ms, kPeriod);
@@ -6755,7 +6760,7 @@ public:
 			{
 				// this one is on release so we avoid a spurious trigger when holding
 				bool shouldUpdate = true;
-				if(displayOldValueTimeout)
+				if(displayOldValueTimeout && kAnimationModeConsistentWithFs == gAnimationMode) // TODO: quick workaround to disable displaying current state when fs animations are disabled (breaks ioranges among among others)
 				{
 					// if we haven't been tapped in a while, do nothing.
 					// An inheriting class can leverage this to display
