@@ -3618,6 +3618,29 @@ public:
 		else if(p.same(inRangeBottom) || p.same(inRangeTop)) {
 		}
 	}
+	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
+	{
+		if(p.same(coupling))
+		{
+			// DC: show a single centroid move with a certain pattern
+			// AC: show a colorBar doing the same
+			static constexpr std::array<float,10> gesture = {
+				0.3, 0.1, 0.1, 0.4, 0.1, 0.1, 0.8, 0.99, 0.8, 0.1,
+			};
+			constexpr uint32_t kDuration = 1200;
+			if(ms < kDuration)
+			{
+				float idx = ms / float(kDuration);
+				float loc = interpolatedRead(gesture, idx);
+				animateFsInit(l);
+				if(kCouplingDc == coupling)
+					animateDirectWriteCentroid(l, { .location = loc, .size = kFixedCentroidSize }, color);
+				else {
+					colorBar(kAnimateFsLedStart, kAnimateFsLedStart + map(loc, 0, 1, 0, kAnimateFsLedStop - kAnimateFsLedStart), color, color);
+				}
+			}
+		}
+	}
 	void updatePreset()
 	{
 		UPDATE_PRESET_FIELD3(outputMode, coupling, cutoff);
@@ -4765,6 +4788,45 @@ public:
 				{
 					updateNumButtons();
 					break;
+				}
+			}
+		}
+	}
+	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
+	{
+		constexpr uint32_t kDuration = 1000;
+		if(p.same(quantised))
+		{
+			// continuous: show a centroid move smoothly from bottom to top
+			// quantised: same as above but with visible steps
+			if(ms < kDuration)
+			{
+				animateFsInit(l);
+				float loc = simpleRamp(ms, kDuration);
+				if(quantised)
+					loc = std::floor(loc * 5) / 5.f + 0.1f;
+				animateDirectWriteCentroid(l, { .location = loc, .size = kFixedCentroidSize}, color);
+			}
+		} else if(p.same(seqMode)) {
+			if(ms < kDuration)
+			{
+				// keys: display three keys, static
+				// sequencer: display three keys with each setting highlighted in turn (as if it was going through the sequencer)
+				animateFsInit(l);
+				constexpr size_t kNumAnimationKeys = 2;
+				std::array<float,kNumAnimationKeys> locs = {0.2, 0.7};
+				size_t h = size_t(std::floor(ms / float(kDuration) * kNumAnimationKeys * 2)) % locs.size(); // highlighted key
+				for(size_t n = 0; n < locs.size(); ++n)
+				{
+					float size = kFixedCentroidSize;
+					if(seqMode)
+					{
+						if(h == n)
+							size *= 2;
+						else
+							size *= 0.5f;
+					}
+					animateDirectWriteCentroid(l, { .location = locs[n], .size = size }, color, 2);
 				}
 			}
 		}
@@ -7053,7 +7115,7 @@ static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
 static MenuItemTypeDiscreteScaleMeterOutputMode scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, &gScaleMeterMode.outputMode, &animationSolid);
-static MenuItemTypeDiscrete scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColor, &gScaleMeterMode.coupling, &animationSingleStillTriangle);
+static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColors, gScaleMeterMode.coupling, &animationSingleStillTriangle);
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff, &defaultAnimation);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
@@ -7080,8 +7142,8 @@ static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
 static ButtonAnimationKeysSeq animationKeysSeq {buttonColors};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
-static MenuItemTypeDiscrete exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColor, &gExprButtonsMode.quantised, &animationSmoothQuantised);
-static MenuItemTypeDiscrete exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColor, &gExprButtonsMode.seqMode, &animationKeysSeq);
+static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColors, gExprButtonsMode.quantised, &animationSmoothQuantised);
+static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColors, gExprButtonsMode.seqMode, &animationKeysSeq);
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[1], gExprButtonsMode.modRange, &defaultAnimation);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
