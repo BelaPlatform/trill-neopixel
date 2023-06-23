@@ -2156,6 +2156,32 @@ protected:
 			break;
 		}
 	}
+	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
+	{
+		if(p.same(splitMode))
+		{
+			constexpr uint32_t kDuration = 1200;
+			if(ms < kDuration)
+			{
+				float loc = simpleTriangle(ms, kDuration) * 0.5f + 0.25f;
+				l.directBegin();
+				switch(splitMode.get())
+				{
+				case kModeNoSplit:
+					l.directWriteCentroid({ .location = loc, .size = loc }, color);
+					break;
+				case kModeSplitLocation:
+					l.directWriteCentroid({ .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
+					l.directWriteCentroid({ .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
+					break;
+				case kModeSplitSize:
+					l.directWriteCentroid({ .location = 0.25, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					l.directWriteCentroid({ .location = 0.75, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					break;
+				}
+			}
+		}
+	}
 public:
 	enum SplitMode {
 		kModeNoSplit,
@@ -2276,6 +2302,40 @@ public:
 			// fixup: yet another hack to get something displayed, kNoOutput size output,
 			// but valid location output. See TODO above
 			gManualAnOut[0] = values[0].location;
+		}
+	}
+	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
+	{
+		SplitPerformanceMode::animate(p, l, color, ms);
+		if(p.same(autoLatch))
+		{
+			constexpr uint32_t kInitialDuration = 200;
+			constexpr uint32_t kHoldDuration = 800;
+			if(ms < kInitialDuration + kHoldDuration)
+			{
+
+				float loc = mapAndConstrain(float(ms) / kInitialDuration, 0, 1, 0.3, 0.7);
+				float size = kFixedCentroidSize;
+				// all viz start with one centroid moving from mid-bottom to mid-top.
+				// what follows during "Hold" is the differentiator:
+				switch(autoLatch.get())
+				{
+				case kAutoLatchOff:
+					// ... followed by a blank screen
+					size *= ms < kInitialDuration;
+					break;
+				case kAutoLatchBoth:
+					// ... followed by a hold
+					size *= 1;
+					break;
+				case kAutoLatchLocationOnly:
+					// ... followed by a hold that progressively fades out
+					if(ms >= kInitialDuration)
+						size *= 1.f - (ms - kInitialDuration) / float(kHoldDuration);
+				}
+				l.directBegin();
+				l.directWriteCentroid({ .location = loc, .size = size }, color);
+			}
 		}
 	}
 	void updated(Parameter& p)
@@ -3113,6 +3173,84 @@ public:
 			{
 				for(auto& qrec : qrecs)
 					qrec = QuantisedRecorder();
+			}
+		}
+	}
+	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
+	{
+		SplitPerformanceMode::animate(p, l, color, ms);
+		if(p.same(inputMode))
+		{
+			static constexpr std::array<float,7> gesture = {
+				0.1, 0.4, 0.1, 0.3, 0.5, 0.7, 0.9,
+			};
+			constexpr uint32_t kSingleGestDuration = 800;
+			float size = kFixedCentroidSize;
+
+			float gestIdx = 0;
+			bool useGest = false;
+			uint32_t duration = 0;
+			float loc = 0;
+			switch(inputMode.get())
+			{
+			// each should either set {loc and/or size} OR {gestIdx and useGest}
+			case kInputModeLfo:
+			{
+				// show a gesture, repeated three times
+				duration = kSingleGestDuration * 3;
+				gestIdx = (ms % kSingleGestDuration) / float(kSingleGestDuration);
+				useGest = true;
+				break;
+			}
+			case kInputModeEnvelope:
+			{
+				// show the same gesture as above only once, followed by a blank screen
+				duration = kSingleGestDuration * 2;
+				gestIdx = std::min(ms / float(kSingleGestDuration), 1.f);
+				useGest = true;
+				break;
+			}
+			case kInputModeClock:
+			{
+				// 4 repetitions of a "clock"
+				constexpr uint32_t kClockPulseDuration = kSingleGestDuration * 0.75f;
+				duration = kClockPulseDuration * 4;
+				float idx = (ms % kClockPulseDuration ) / float(kClockPulseDuration);
+				if(idx < 0.2)
+					loc = idx * 5;
+				else
+					loc = 0;
+				break;
+			}
+			case kInputModeCv:
+			{
+				 // a centroid moves in the pattern of a sine
+				duration = kSingleGestDuration * 4;
+				uint32_t period = duration / 2;
+				loc = map(sinf(2 * M_PI * (ms % period) / float(period)), -1, 1, 0, 1);
+				break;
+			}
+			case kInputModePhasor:
+			{
+				//  a centroid moves from bottom to top
+				duration = kSingleGestDuration * 2;
+				uint32_t period = duration / 2;
+				loc = simpleRamp(ms, period);
+				break;
+			}
+			} // switch
+			if(ms < duration)
+			{
+				// actually do animation
+				if(useGest)
+				{
+					if(gestIdx >= 1)
+						size = 0;
+					else
+						loc = interpolatedRead(gesture, gestIdx);
+				}
+				l.directBegin();
+				l.directWriteCentroid({ .location = loc, .size = size }, color);
 			}
 		}
 	}
@@ -6869,7 +7007,7 @@ static ButtonAnimationSplit animationSplit(buttonColors);
 static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
-static MenuItemTypeDiscrete directControlModeSplit("directControlModeSplit", buttonColor, &gDirectControlMode.splitMode, &animationSplit);
+static MenuItemTypeDiscreteFullScreenAnimation directControlModeSplit("directControlModeSplit", buttonColors, gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
@@ -6880,10 +7018,10 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 
 #ifdef ENABLE_RECORDER_MODE
 //static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColors};
-static MenuItemTypeDiscrete recorderModeSplit("recorderModeSplit", buttonColor, &gRecorderMode.splitMode, &animationSplit);
+static MenuItemTypeDiscreteFullScreenAnimation recorderModeSplit("recorderModeSplit", buttonColors, gRecorderMode.splitMode, &animationSplit);
 //static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.autoRetrigger, &animationSingleRepeatedPulse);
 static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColors};
-static MenuItemTypeDiscrete recorderModeInputMode("recorderModeInputMode", buttonColor, &gRecorderMode.inputMode, &animationRecorderInputMode);
+static MenuItemTypeDiscreteFullScreenAnimation recorderModeInputMode("recorderModeInputMode", buttonColors, gRecorderMode.inputMode, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&disabled,
 		&recorderModeInputMode,
