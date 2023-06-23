@@ -3619,7 +3619,70 @@ public:
 	}
 	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
 	{
-		if(p.same(coupling))
+		if(p.same(outputMode))
+		{
+			constexpr size_t kDuration = 1500;
+			if(ms < kDuration)
+			{
+				animateFsInit(l);
+				bool bottomEnv;
+				bool topEnv;
+				switch(outputMode.get())
+				{
+				default:
+				case kOutputModeNN:
+					bottomEnv = 0;
+					topEnv = 0;
+					break;
+				case kOutputModeNE:
+					bottomEnv = 1;
+					topEnv = 0;
+					break;
+				case kOutputModeEE:
+					bottomEnv = 1;
+					topEnv = 1;
+					break;
+				}
+				std::array<bool,2> isEnv {bottomEnv, topEnv};
+				float in;
+				// slightly smoothed pulse:
+				const uint32_t first = 300;
+				const uint32_t second = 970;
+				const uint32_t third = 1000;
+				if(ms < first)
+				{
+					// start low
+					in = 0;
+				} else if (ms < second)
+				{
+					// high
+					in = 1;
+				} else if (ms < third)
+				{
+					// ramp down
+					in = 1 - (ms - second) / float(third - second);
+				} else {
+					// low
+					in = 0;
+				}
+				float alpha = 0.998;
+				static float pastEnv = 0;
+				if(0 == ms)
+					pastEnv = 0;
+				env = in * (1.f - alpha) + pastEnv * alpha;
+				pastEnv = env;
+				for(size_t n = 0; n < isEnv.size(); ++n)
+				{
+					float start = 0.05 + n * 0.5;
+					centroid_t centroid {
+						.location = map(isEnv[n] ? env : in, 0, 1, start, start + 0.45),
+						.size = kFixedCentroidSize,
+					};
+					animateDirectWriteCentroid(l, centroid, color);
+				}
+			}
+		}
+		else if(p.same(coupling))
 		{
 			// DC: show a single centroid move with a certain pattern
 			// AC: show a colorBar doing the same
