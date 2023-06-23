@@ -3562,12 +3562,7 @@ public:
 				size_t centroidLed =  outVizThrough * kNumLeds;
 				if(stop) // stop one LED before centroidLed, so not to steal its smoothness
 					stop = stop - 1;
-				for(size_t n = start; n < stop && n < centroidLed; ++n)
-				{
-					rgb_t color = crossfade(kRgbGreen, kRgbRed, map(n, start, stop, 0, 1));
-					color.scale(0.14); // dim to avoid using too much current
-					np.setPixelColor(n, color.r, color.g, color.b);
-				}
+				colorBar(start, std::min(stop, centroidLed), kRgbGreen, kRgbRed);
 			}
 		}
 		for(size_t n = 0; n < centroids.size(); ++n)
@@ -3665,6 +3660,14 @@ private:
 	{
 		float in = analogRead(context, frame, channel);
 		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
+	}
+	void colorBar(size_t start, size_t stop, rgb_t colorStart, rgb_t colorStop)
+	{
+		for(size_t n = start; n < stop; ++n)
+		{
+			const rgb_t color = crossfade(colorStart, colorStop, map(n, start, stop, 0, 1));
+			np.setPixelColor(n, color.scaledBy(0.15)); // dimmed to avoid using too much current
+		}
 	}
 	const rgb_t signalColor = kRgbGreen;
 	const rgb_t endpointsColorIn = kRgbRed;
