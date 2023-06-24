@@ -2485,8 +2485,12 @@ static inline float quantiseToSemitones(float norm)
 {
 	return semiToNorm(int(normToSemi(norm) + 0.5f));
 }
-
-static float interpolatedRead(const float* table, size_t size, float idx)
+enum TreatNoOutput {
+	kTreatAssumeNot,
+	kTreatPassThrough,
+	kTreatAsZero,
+};
+static float interpolatedRead(const float* table, size_t size, float idx, TreatNoOutput treat = kTreatAssumeNot)
 {
 	float n = size * idx;
 	size_t prev = size_t(n);
@@ -2496,7 +2500,27 @@ static float interpolatedRead(const float* table, size_t size, float idx)
 	if(next >= size)
 		next = 0; // could be we are at the end of table
 	float frac = n - prev;
-	float value = linearInterpolation(frac, table[prev], table[next]);
+	float pr = table[prev];
+	float ne = table[next];
+	if(kNoOutput == pr || kNoOutput == ne)
+	{
+		switch(treat)
+		{
+		case kTreatAssumeNot:
+			// nothing to do
+			break;
+		case kTreatPassThrough:
+			return frac < 0.5 ? pr : ne;
+			break;
+		case kTreatAsZero:
+			if(kNoOutput == pr)
+				pr = 0;
+			else if(kNoOutput == ne)
+				ne = 0;
+			break;
+		}
+	}
+	float value = linearInterpolation(frac, pr, ne);
 	return value;
 }
 
