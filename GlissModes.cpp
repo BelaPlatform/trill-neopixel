@@ -6328,6 +6328,7 @@ class MenuItemType
 public:
 	MenuItemType(rgb_t baseColor) : baseColor(baseColor) {}
 	virtual void process(LedSlider& slider) = 0;
+	virtual void resetState() {};
 	rgb_t baseColor;
 };
 
@@ -6913,12 +6914,18 @@ public:
 			break;
 		}
 	}
+	virtual void resetState() override
+	{
+		lastTick = 0;
+	}
 	virtual void enterPlus() {};
 	ParameterEnum& valueEn;
 	uint32_t lastTick = 0;
 	uint32_t displayOldValueTimeout;
 	bool ignoreNextTransition = false;
 };
+
+static void menu_resetStates(const MenuItemType* src);
 
 // displays an animation every kTransitionFalling event. It leverages
 // the fact that MenuItemTypeDiscretePlus displays current value upon first tap.
@@ -6951,6 +6958,8 @@ public:
 			lastTap = HAL_GetTick();
 			// exclusively enable this animation
 			gAnimateFs.setActive(valueEn);
+			// reset all other timeouts
+			menu_resetStates(this);
 		}
 	}
 protected:
@@ -7480,6 +7489,17 @@ static MenuPage* menu_getCurrent()
 	return menuStack.size() ? menuStack.back() : nullptr;
 }
 
+static void menu_resetStates(const MenuItemType* src)
+{
+	MenuPage* page = menu_getCurrent();
+	if(!page)
+		return;
+	for(auto& item : page->items)
+	{
+		if(item != src)
+			item->resetState();
+	}
+}
 static void menu_update()
 {
 	// these vectors should really be initialised at startup but they have circular dependencies
