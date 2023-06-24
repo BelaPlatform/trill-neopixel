@@ -6835,6 +6835,7 @@ public:
 		if(kHoldHigh == e) {
 			value.resetToDefault();
 			ignoreNextFalling = true;
+			tri.buttonLedSet(TRI::kSolid, TRI::kG, 300);
 		}
 		if(kTransitionFalling == e) {
 			if(ignoreNextFalling)
