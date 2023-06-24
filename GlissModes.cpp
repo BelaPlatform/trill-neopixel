@@ -6913,26 +6913,10 @@ public:
 			animation->process(currentMs, ledSlider, valueEn.get());
 		uint32_t ms = currentMs - lastTap;
 		rgb_t color = colors[getIdx(valueEn.get())];
-		for(auto ledSliders : { &ledSliders, &ledSlidersAlt})
-		{
-			LedSlider& l = ledSliders->sliders[0];
-			// TODO: it's a bit awkward to be calling animate() unconditionally,
-			// assuming ms will be enough to tell them whether to draw something or not
-			// and that a menu-wide reset will reset ms ...
-			valueEn.animate(l, color, ms);
-			/*
-			constexpr float duration = 1200;
-			// demo with two centroids zipping away from the centre
-			if(ms < duration)
-			{
-				float loc = float(ms) / (duration * 2) + 0.5f;
-				float size = kFixedCentroidSize;
-				l.directBegin();
-				l.directWriteCentroid({ .location = loc, .size = size }, color);
-				l.directWriteCentroid({ .location = 1.0f - loc, .size = size }, color);
-			}
-			*/
-		}
+		// TODO: it's a bit awkward to be calling animate() unconditionally,
+		// assuming ms will be enough to tell them whether to draw something or not
+		// and that a menu-wide reset will reset ms ...
+		valueEn.animate(ledSlidersAlt.sliders[0], color, ms);
 	}
 	void event(Event e) override
 	{
