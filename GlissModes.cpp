@@ -6814,6 +6814,19 @@ class MenuItemTypeEnterSubmenu : public MenuItemTypeEvent
 public:
 	MenuItemTypeEnterSubmenu(const char* name, rgb_t baseColor, uint32_t holdTime, MenuPage& submenu) :
 		MenuItemTypeEvent(name, baseColor, holdTime), submenu(&submenu) {}
+	void process(LedSlider& slider) override
+	{
+		MenuItemTypeEvent::process(slider);
+		if(!submenu) {
+			// dim inactive button, counteracting what may
+			// have occurred in MenuItemTypeEvent::process() above
+			centroid_t centroid = {
+					.location = 0.5,
+					.size = kMenuButtonDefaultBrightness * 0.3,
+			};
+			slider.setLedsCentroids(&centroid, 1);
+		}
+	}
 private:
 	void event(Event e)
 	{
@@ -7472,18 +7485,9 @@ static PerformanceModeIoRangesMenuPage menuPageBalancedOscs {"balanced oscs", gB
 static PerformanceModeIoRangesMenuPage menuPageExprButtons {"expr buttons", gExprButtonsMode, false};
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
-static MenuPage dummyPage { "dummy", {
-		&disabled,
-		&disabled,
-		&disabled,
-		&disabled,
-		&disabled,
-	}
-};
-
 std::array<MenuPage*,kNumModes> menuPagesIoRanges {{
 #ifdef TEST_MODE
-	&dummyPage,
+	nullptr,
 #endif // TEST_MODE
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 	&menuPageDirectControl,
@@ -7500,8 +7504,8 @@ std::array<MenuPage*,kNumModes> menuPagesIoRanges {{
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 	&menuPageExprButtons,
 #endif // ENABLE_EXPR_BUTTONS_MODE
-	&dummyPage, // calibration
-	&dummyPage, // factory test
+	nullptr, // calibration
+	nullptr, // factory test
 }};
 static MenuItemTypeEnterSubmenu enterModeSettingsPage1("ModeSettingsPage1", kSettingsSubmenuButtonColor, 20, globalSettingsMenu0); // dummy menu, replaced before use
 static void menu_updateSubmenu()
