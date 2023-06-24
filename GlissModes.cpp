@@ -3600,12 +3600,7 @@ public:
 			//display color bar
 			if(ledSliders.areLedsEnabled())
 			{
-				size_t start = outRangeMin * kNumLeds;
-				size_t stop = outRangeMax * kNumLeds;
-				size_t centroidLed =  outVizThrough * kNumLeds;
-				if(stop) // stop one LED before centroidLed, so not to steal its smoothness
-					stop = stop - 1;
-				colorBar(start, std::min(stop, centroidLed), kRgbGreen, kRgbRed);
+				colorBar(outVizThrough, outRangeMin * kNumLeds, outRangeMax * kNumLeds, kRgbGreen, kRgbRed);
 			}
 		}
 		for(size_t n = 0; n < centroids.size(); ++n)
@@ -3730,7 +3725,7 @@ public:
 				if(kCouplingDc == coupling)
 					gAnimateFs.directWriteCentroid(p, l, { .location = loc, .size = kFixedCentroidSize }, color);
 				else {
-					colorBar(AnimateFs::kLedStart, AnimateFs::kLedStart + map(loc, 0, 1, 0, AnimateFs::kLedStop - AnimateFs::kLedStart), color, color);
+					colorBar(loc, AnimateFs::kLedStart, AnimateFs::kLedStop, color, color);
 				}
 			}
 		}
@@ -3790,12 +3785,18 @@ private:
 		float in = analogRead(context, frame, channel);
 		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
 	}
-	void colorBar(size_t start, size_t stop, rgb_t colorStart, rgb_t colorStop)
+	void colorBar(float value, size_t startLed, size_t stopLed, rgb_t colorStart, rgb_t colorStop)
 	{
-		for(size_t n = start; n < stop; ++n)
+		float top = map(value, 0, 1, startLed, stopLed);
+		for(size_t n = startLed; n < stopLed && n < kNumLeds; ++n)
 		{
-			const rgb_t color = crossfade(colorStart, colorStop, map(n, start, stop, 0, 1));
-			np.setPixelColor(n, color.scaledBy(0.15)); // dimmed to avoid using too much current
+			const rgb_t color = crossfade(colorStart, colorStop, map(n, startLed, stopLed, 0, 1));
+			float scale = 0.15; // dimmed to avoid using too much current
+			if(n > top)
+				scale = 0;
+			else if(top == n)
+				scale *= top - int(top); // smooth the top LED
+			np.setPixelColor(n, color.scaledBy(scale));
 		}
 	}
 	const rgb_t signalColor = kRgbGreen;
