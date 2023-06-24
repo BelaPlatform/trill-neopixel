@@ -481,11 +481,6 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	return value;
 }
 
-static float touchOrNot(float val, bool hasTouch)
-{
-	return hasTouch ? val : kNoOutput;
-}
-
 static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned int channel, float value)
 {
 	// swap out channels if gJacksOnTop

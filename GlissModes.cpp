@@ -3008,8 +3008,8 @@ public:
 		GestureRecorder::Gesture_t gesture; // used for visualization
 		std::array<float,kNumSplits> recIns;
 
-		const auto& t0 = twis[0].touch;
-		const auto& t1 = twis[1].touch;
+		centroid_t t0 = touchOrNot(twis[0].touch);
+		centroid_t t1 = touchOrNot(twis[1].touch);
 		switch(splitMode)
 		{
 		case kModeNoSplit:
@@ -3062,12 +3062,13 @@ public:
 				// if a finger is on the sensor and we are not recording, pass through current touch
 				if(hasTouch[n])
 					directControl[n] = true;
+				centroid_t touch = touchOrNot(twis[n].touch);
 				if(isSplit()) {
 					if(directControl[n])
 					{
 						gOutMode[n] = kOutModeManualBlock;
 						gesture[n] = GestureRecorder::HalfGesture_t {
-							.sample = kModeSplitLocation == splitMode ? twis[n].touch.location : twis[n].touch.size,
+							.sample = kModeSplitLocation == splitMode ? touch.location : touch.size,
 							.valid = true,
 						};
 					} else // otherwise, keep playing back from table
@@ -3078,8 +3079,8 @@ public:
 					if(directControl[n])
 					{
 						gOutMode.fill(kOutModeManualBlock);
-						gesture[0] = { twis[0].touch.location, true };
-						gesture[1] = { twis[0].touch.size, true };
+						gesture[0] = { touch.location, true };
+						gesture[1] = { touch.size, true };
 					} else
 						gOutMode.fill(kOutModeManualSample);
 				}
@@ -3146,7 +3147,7 @@ public:
 					if(tableSize)
 					{
 						// visualise with fix period
-						vizValues[c].location = interpolatedRead(table, tableSize, idxFrac);
+						vizValues[c].location = interpolatedRead(table, tableSize, idxFrac, kTreatPassThrough);
 						if(isSplit())
 						{
 							vizValues[c].size = isSizeOnly ? vizValues[c].location : kFixedCentroidSize;
@@ -3154,7 +3155,7 @@ public:
 							const float* table = gGestureRecorder.rs[c].r.getData().data();
 							size_t tableSize = gGestureRecorder.rs[c].r.size();
 							if(tableSize)
-								vizValues[0].size = interpolatedRead(table, tableSize, idxFrac);
+								vizValues[0].size = interpolatedRead(table, tableSize, idxFrac, kTreatPassThrough);
 						}
 						// animate the centroid so you can tell it's not "real" but fixed period
 						vizValues[c].size *= 0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed, unsigned(context->analogSampleRate * 0.1f));
@@ -3208,7 +3209,7 @@ public:
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 					float idx = map(oscs[c].process(normFreq), -1, 1, 0, 1);
-					float value = interpolatedRead(table, tableSize, idx);
+					float value = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
 					{
@@ -3222,7 +3223,7 @@ public:
 			{
 				float idx = analogRead(context, n, 0);
 				{
-					float out = interpolatedRead(table, tableSize, idx);
+					float out = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, out);
 					if(0 == n)
 						vizOut = out;
