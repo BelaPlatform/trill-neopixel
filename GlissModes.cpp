@@ -4254,7 +4254,6 @@ public:
 			// We leverage the state machine above even if it's
 			// more complicated than / slightly different from
 			// what we need here
-			bool samplingEnabled = !seqMode;
 			switch(touch.state)
 			{
 			case kBending:
@@ -4274,6 +4273,9 @@ public:
 					offsetParameterRaw.set(initialValue);
 					menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameterRaw);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
+					// once we bend once, don't allow sampling
+					// till the next time we enter the page
+					samplingEnabled = false;
 				}
 				break;
 			case kDisabled:
@@ -4680,6 +4682,11 @@ private:
 				// we may have updated keyStepModes and/or offsetParameters
 				updatePreset();
 			}
+			if(kPageTuning == page)
+			{
+				// if in keys mode start by allowing sampling (may be later disabled)
+				samplingEnabled = seqMode ? false : true;
+			}
 		}
 	}
 	void changeState(TouchState newState, const centroid_t& centroid)
@@ -4855,6 +4862,7 @@ private:
 	TouchTracker::Id seqPastTouchIdUpdated = TouchTracker::kIdInvalid;
 	uint64_t pastAnalogRisingEdgeSamples = 0;
 	bool pastAnalogInHigh = false;
+	bool samplingEnabled;
 	std::array<rgb_t,kMaxNumButtons> colors = {{
 		crossfade(kRgbGreen, kRgbOrange, 0),
 		crossfade(kRgbGreen, kRgbOrange, 0.25),
