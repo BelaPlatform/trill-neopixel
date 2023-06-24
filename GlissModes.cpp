@@ -6907,14 +6907,14 @@ class MenuItemTypeDiscreteFullScreenAnimation : public MenuItemTypeDiscretePlus
 public:
 	MenuItemTypeDiscreteFullScreenAnimation(const char* name, const AnimationColors& colors, ParameterEnum& valueEn, ButtonAnimation* animation = nullptr) :
 		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, 3000),
-		colors(colors), lastTap(0), animation(animation)
+		colors(colors), lastTap(0), buttonAnimation(animation)
 	{}
 	virtual void process(LedSlider& ledSlider) override
 	{
 		MenuItemTypeDiscretePlus::process(ledSlider);
 		uint32_t currentMs = HAL_GetTick();
-		if(animation)
-			animation->process(currentMs, ledSlider, valueEn.get());
+		if(buttonAnimation)
+			buttonAnimation->process(currentMs, ledSlider, valueEn.get());
 		uint32_t ms = currentMs - lastTap;
 		rgb_t color = colors[getIdx(valueEn.get())];
 		// TODO: it's a bit awkward to be calling animate() unconditionally,
@@ -6939,7 +6939,7 @@ protected:
 	}
 	const AnimationColors& colors;
 	uint32_t lastTap;
-	ButtonAnimation* animation;
+	ButtonAnimation* buttonAnimation;
 };
 
 class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
