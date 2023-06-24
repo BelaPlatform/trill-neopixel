@@ -4041,10 +4041,10 @@ public:
 		if(btn.tripleClickOffset)
 		{
 			clickprintf("t%d%d->", onClickGroupStartWas, page);
-			if(kPageSampling == page || kPageSampling == onClickGroupStartWas)
+			if(kPageTuning == page || kPageTuning == onClickGroupStartWas)
 				changePage(kPagePerf);
 			else
-				changePage(kPageSampling);
+				changePage(kPageTuning);
 			clickprintf("%d\n\r", page);
 		}
 		pastNumTouches = globalSlider.getNumTouches();
@@ -4248,7 +4248,7 @@ public:
 		gManualAnOut[0] = out;
 		gManualAnOut[1] = centroid.size;
 		pastOuts = gManualAnOut;
-		if(kPageSampling == page)
+		if(kPageTuning == page)
 		{
 			// override any output that may have happened so far.
 			// We leverage the state machine above even if it's
@@ -4421,7 +4421,7 @@ public:
 						keyStepModes[touch.key].set(mode);
 					}
 					break;
-				case kPageSampling:
+				case kPageTuning:
 					break;
 				}
 			}
@@ -4511,7 +4511,7 @@ public:
 			// button
 			switch(page)
 			{
-			case kPageSampling:
+			case kPageTuning:
 				tri.buttonLedSet(TRI::kSolid, TRI::kR);
 				break;
 			case kPageSetMode:
@@ -4528,7 +4528,7 @@ public:
 				rgb_t color;
 				float period = 0.3f * context->analogSampleRate;
 				float triangle = simpleTriangle(context->audioFramesElapsed, period);
-				if(kPageSampling == page)
+				if(kPageTuning == page)
 				{
 					// same behaviour for seqMode and non-seqMode
 					// though in seqMode it always has kmaxNumButtons buttons,
@@ -4572,7 +4572,7 @@ public:
 					case kPageSetMode:
 						coeff *=  0.1f + 0.9f * triangle;
 						break;
-					case kPageSampling: // shouldn't be here anyhow
+					case kPageTuning: // shouldn't be here anyhow
 						break;
 					}
 				} else {
@@ -4602,7 +4602,7 @@ private:
 	typedef enum {
 		kPagePerf,
 		kPageSetMode,
-		kPageSampling,
+		kPageTuning,
 	} Page;
 	typedef enum {
 		kInitial,
