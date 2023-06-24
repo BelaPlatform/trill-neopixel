@@ -3591,16 +3591,19 @@ public:
 		}
 		if(hasEnvelope)
 		{
+			if(kCouplingAcRms == coupling)
+				outVizEnv = log10f(1.f + outVizEnv * 9.f);
 			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMin, outRangeMax);
 			centroids[1].size = kFixedCentroidSize;
 		}
 		ledSliders.sliders[0].directBegin(); // clears display
-		if(hasEnvelope && kCouplingAcRms == coupling)
+		if(kCouplingAcRms == coupling)
 		{
 			//display color bar
 			if(ledSliders.areLedsEnabled())
 			{
-				colorBar(outVizThrough, outRangeMin * kNumLeds, outRangeMax * kNumLeds, kRgbGreen, kRgbRed);
+				float throughLog = log10f(1.f + outVizThrough * 9.f);
+				colorBar(throughLog, outRangeMin * kNumLeds, outRangeMax * kNumLeds, kRgbGreen, kRgbRed);
 			}
 		}
 		for(size_t n = 0; n < centroids.size(); ++n)
