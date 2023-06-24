@@ -4398,12 +4398,11 @@ public:
 								|| !clockInIsActive(context))
 						{
 							// close enough to edge
-							seqCurrentStep = touch.key;
-							seqNextStep = (seqCurrentStep + 1) % kMaxNumButtons;
+							setStepNow(touch.key);
 						}
 						else {
 							// late enough, schedule pressed key for next
-							seqNextStep = touch.key;
+							setNextStep(touch.key);
 						}
 					}
 				}
@@ -4798,6 +4797,15 @@ private:
 		kMoveThreshold = step * 0.1f;
 		kBendStartThreshold = step * 0.4f; // could be same as kMaxDistanceFromCenter?
 		kBendDeadSpot = step * 0.2f;
+	}
+	void setStepNow(size_t key)
+	{
+		seqCurrentStep = key;
+		setNextStep((seqCurrentStep + 1) % kMaxNumButtons);
+	}
+	void setNextStep(size_t key)
+	{
+		seqNextStep = key;
 	}
 	size_t numButtons;
 	float step;
