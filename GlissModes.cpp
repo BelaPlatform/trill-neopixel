@@ -3159,7 +3159,11 @@ public:
 					float value = interpolatedRead(table, tableSize, idx);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
-						vizOut = value;
+					{
+						// for visualisation purposes, avoid
+						// interpolation when reading the table
+						vizOut = table[size_t(idx * tableSize)];
+					}
 			}
 		} else if (kInputModePhasor == inputMode) {
 			for(size_t n = 0; n < context->analogFrames; ++n)
