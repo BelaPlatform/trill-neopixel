@@ -2043,18 +2043,38 @@ static bool areEqual(const T& a, const T& b)
 		presetSetField(this, &presetFieldData); \
 }
 
-static constexpr size_t kAnimateFsLedStart = 4;
-static constexpr size_t kAnimateFsLedStop = kNumLeds - 5;
-static void animateFsInit(LedSlider& l)
+class AnimateFs
 {
-	for(size_t n = kAnimateFsLedStart; n < kAnimateFsLedStop; ++n)
-		np.setPixelColor(n, kRgbBlack);
+public:
+static constexpr size_t kLedStart = 4;
+static constexpr size_t kLedStop = kNumLeds - 5;
+bool writeInit(Parameter& p, LedSlider& l)
+{
+	if(isEnabled(p))
+	{
+		for(size_t n = kLedStart; n < kLedStop; ++n)
+			np.setPixelColor(n, kRgbBlack);
+	}
+	return isEnabled(p);
 }
-static void animateDirectWriteCentroid(LedSlider& l, centroid_t centroid, rgb_t color, size_t numWeights = LedSlider::kDefaultNumWeights)
+void directWriteCentroid(Parameter& p, LedSlider& l, centroid_t centroid, rgb_t color, size_t numWeights = LedSlider::kDefaultNumWeights)
 {
+	if(!isEnabled(p))
+		return;
 	centroid.location = mapAndConstrain(centroid.location, 0, 1, 0.25, 0.75);
 	l.directWriteCentroid(centroid, color, numWeights);
 }
+void setActive(Parameter& p)
+{
+	enabledP = &p;
+}
+private:
+bool isEnabled(Parameter& p) const
+{
+	return &p == enabledP;
+}
+Parameter* enabledP = nullptr;
+} gAnimateFs;
 
 std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
 {
@@ -2180,19 +2200,19 @@ protected:
 			if(ms < kDuration)
 			{
 				float loc = simpleTriangle(ms, kDuration);
-				animateFsInit(l);
+				gAnimateFs.writeInit(p, l);
 				switch(splitMode.get())
 				{
 				case kModeNoSplit:
-					animateDirectWriteCentroid(l, { .location = loc, .size = loc }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = loc, .size = loc }, color);
 					break;
 				case kModeSplitLocation:
-					animateDirectWriteCentroid(l, { .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
-					animateDirectWriteCentroid(l, { .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
 					break;
 				case kModeSplitSize:
-					animateDirectWriteCentroid(l, { .location = 0.1, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
-					animateDirectWriteCentroid(l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					gAnimateFs.directWriteCentroid(p, l, { .location = 0.1, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					gAnimateFs.directWriteCentroid(p, l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
 				}
 			}
@@ -2352,8 +2372,8 @@ public:
 					if(ms >= kInitialDuration)
 						size *= 1.f - (ms - kInitialDuration) / float(kHoldDuration);
 				}
-				animateFsInit(l);
-				animateDirectWriteCentroid(l, { .location = loc, .size = size }, color);
+				gAnimateFs.writeInit(p, l);
+				gAnimateFs.directWriteCentroid(p, l, { .location = loc, .size = size }, color);
 			}
 		}
 	}
@@ -3276,8 +3296,8 @@ public:
 					else
 						loc = interpolatedRead(gesture, gestIdx);
 				}
-				animateFsInit(l);
-				animateDirectWriteCentroid(l, { .location = loc, .size = size }, color);
+				gAnimateFs.writeInit(p, l);
+				gAnimateFs.directWriteCentroid(p, l, { .location = loc, .size = size }, color);
 			}
 		}
 	}
@@ -3636,7 +3656,7 @@ public:
 			constexpr size_t kDuration = 1500;
 			if(ms < kDuration)
 			{
-				animateFsInit(l);
+				gAnimateFs.writeInit(p, l);
 				bool bottomEnv;
 				bool topEnv;
 				switch(outputMode.get())
@@ -3690,7 +3710,7 @@ public:
 						.location = map(isEnv[n] ? env : in, 0, 1, start, start + 0.45),
 						.size = kFixedCentroidSize,
 					};
-					animateDirectWriteCentroid(l, centroid, color);
+					gAnimateFs.directWriteCentroid(p, l, centroid, color);
 				}
 			}
 		}
@@ -3706,11 +3726,11 @@ public:
 			{
 				float idx = ms / float(kDuration);
 				float loc = interpolatedRead(gesture, idx);
-				animateFsInit(l);
+				gAnimateFs.writeInit(p, l);
 				if(kCouplingDc == coupling)
-					animateDirectWriteCentroid(l, { .location = loc, .size = kFixedCentroidSize }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = loc, .size = kFixedCentroidSize }, color);
 				else {
-					colorBar(kAnimateFsLedStart, kAnimateFsLedStart + map(loc, 0, 1, 0, kAnimateFsLedStop - kAnimateFsLedStart), color, color);
+					colorBar(AnimateFs::kLedStart, AnimateFs::kLedStart + map(loc, 0, 1, 0, AnimateFs::kLedStop - AnimateFs::kLedStart), color, color);
 				}
 			}
 		}
@@ -4875,18 +4895,18 @@ public:
 			// quantised: same as above but with visible steps
 			if(ms < kDuration)
 			{
-				animateFsInit(l);
+				gAnimateFs.writeInit(p, l);
 				float loc = simpleRamp(ms, kDuration);
 				if(quantised)
 					loc = std::floor(loc * 5) / 5.f + 0.1f;
-				animateDirectWriteCentroid(l, { .location = loc, .size = kFixedCentroidSize}, color);
+				gAnimateFs.directWriteCentroid(p, l, { .location = loc, .size = kFixedCentroidSize}, color);
 			}
 		} else if(p.same(seqMode)) {
 			if(ms < kDuration)
 			{
 				// keys: display three keys, static
 				// sequencer: display three keys with each setting highlighted in turn (as if it was going through the sequencer)
-				animateFsInit(l);
+				gAnimateFs.writeInit(p, l);
 				constexpr size_t kNumAnimationKeys = 2;
 				std::array<float,kNumAnimationKeys> locs = {0.2, 0.7};
 				size_t h = size_t(std::floor(ms / float(kDuration) * kNumAnimationKeys * 2)) % locs.size(); // highlighted key
@@ -4900,7 +4920,7 @@ public:
 						else
 							size *= 0.5f;
 					}
-					animateDirectWriteCentroid(l, { .location = locs[n], .size = size }, color, 2);
+					gAnimateFs.directWriteCentroid(p, l, { .location = locs[n], .size = size }, color, 2);
 				}
 			}
 		}
@@ -6929,7 +6949,8 @@ public:
 		{
 			// just tapped, make a note
 			lastTap = HAL_GetTick();
-			// TODO: stop all other animations and reset all other timeouts
+			// exclusively enable this animation
+			gAnimateFs.setActive(valueEn);
 		}
 	}
 protected:
