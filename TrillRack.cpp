@@ -473,8 +473,8 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float top = 1;
 	if(!ignoreRange)
 		getRangeMinMax(false, channel, min, top);
-	if(gOutIsSize[channel]) // if this is a size
-		min = gnd; // make it always positive
+//	if(gOutIsSize[channel]) // if this is a size
+//		min = gnd; // make it always positive
 
 	value = mapAndConstrain(value, 0, 1, min, top);
 	value = processRawThroughCalibration(cal, false, value);
