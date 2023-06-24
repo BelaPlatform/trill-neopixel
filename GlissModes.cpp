@@ -7475,6 +7475,11 @@ static void menu_enterSingleSlider(const rgb_t& color, const rgb_t& otherColor, 
 
 static std::vector<MenuPage*> menuStack;
 
+static MenuPage* menu_getCurrent()
+{
+	return menuStack.size() ? menuStack.back() : nullptr;
+}
+
 static void menu_update()
 {
 	// these vectors should really be initialised at startup but they have circular dependencies
@@ -7524,7 +7529,7 @@ static void menu_update()
 			hasChanged = true;
 		}
 	}
-	MenuPage* newMenu = menuStack.size() ? menuStack.back() : nullptr;
+	MenuPage* newMenu = menu_getCurrent();
 	if(newMenu && (activeMenu != newMenu || hasChanged))
 	{
 		activeMenu = newMenu;
