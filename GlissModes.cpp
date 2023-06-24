@@ -3272,7 +3272,7 @@ public:
 			case kInputModeCv:
 			{
 				 // a centroid moves in the pattern of a sine
-				duration = kSingleGestDuration * 4;
+				duration = kSingleGestDuration * 3.f;
 				uint32_t period = duration / 2;
 				loc = map(sinf(2 * M_PI * (ms % period) / float(period)), -1, 1, 0, 1);
 				break;
@@ -3280,7 +3280,7 @@ public:
 			case kInputModePhasor:
 			{
 				//  a centroid moves from bottom to top
-				duration = kSingleGestDuration * 2;
+				duration = kSingleGestDuration * 1.5f;
 				uint32_t period = duration / 2;
 				loc = simpleRamp(ms, period);
 				break;
