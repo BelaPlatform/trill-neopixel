@@ -4423,6 +4423,9 @@ public:
 					}
 					break;
 				case kPageTuning:
+					// if no clock, jump to current key so it can be previewed while tuning
+					if(!clockInIsActive(context))
+						setStepNow(touch.key);
 					break;
 				}
 			}
