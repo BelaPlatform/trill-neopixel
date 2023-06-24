@@ -711,8 +711,8 @@ private:
 		if(!validFrames)
 			return -1;
 		size_t lastGood;
-		if(back > validFrames)
-			back = validFrames;
+		if(back >= validFrames)
+			back = validFrames - 1;
 		// all values in the circular buffer are valid. Get the oldest
 		if(back >= kHistoryLength)
 			back = kHistoryLength - 1;
