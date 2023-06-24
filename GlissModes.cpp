@@ -2984,19 +2984,22 @@ public:
 
 		GestureRecorder::Gesture_t gesture; // used for visualization
 		std::array<float,kNumSplits> recIns;
+
+		const auto& t0 = twis[0].touch;
+		const auto& t1 = twis[1].touch;
 		switch(splitMode)
 		{
 		case kModeNoSplit:
-			recIns[0] = twis[0].touch.location;
-			recIns[1] = twis[0].touch.size;
+			recIns[0] = t0.location;
+			recIns[1] = t0.size;
 			break;
 		case kModeSplitLocation:
-			recIns[0] = twis[0].touch.location;
-			recIns[1] = twis[1].touch.location;
+			recIns[0] = t0.location;
+			recIns[1] = t1.location;
 			break;
 		case kModeSplitSize:
-			recIns[0] = twis[0].touch.size;
-			recIns[1] = twis[1].touch.size;
+			recIns[0] = t0.size;
+			recIns[1] = t1.size;
 			break;
 		}
 		// gesture may be overwritten below before it is visualised
