@@ -2117,7 +2117,7 @@ protected:
 	{
 		return splitMode != kModeNoSplit;
 	}
-	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues)
+	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues, std::array<bool,kNumSplits> preserveSplitLocationSize = {})
 	{
 		for(ssize_t n = 0; n < isSplit() + 1; ++n)
 		{
@@ -2133,7 +2133,7 @@ protected:
 			{
 				centroid_t centroid;
 				centroid.location = displayValues[n].location;
-				centroid.size = hasTouch * kFixedCentroidSize;
+				centroid.size = preserveSplitLocationSize[n] ? values[n].size : hasTouch * kFixedCentroidSize;
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 				out[n] = hasTouch ? values[n].location : kNoOutput;
 			}
@@ -3081,6 +3081,7 @@ public:
 			} else
 				vizValues[0] = kInvalid;
 		}
+		std::array<bool,kNumSplits> preserveSplitLocationSize {};
 		if(kInputModeCv == inputMode)
 		{
 			// in order to visualise something meaningful, we show a fixed-period
@@ -3090,6 +3091,7 @@ public:
 			{
 				if(TouchTracker::kIdInvalid == getId(twis, c))
 				{
+					preserveSplitLocationSize[c] = true;
 					const float* table = gGestureRecorder.rs[c].r.getData().data();
 					size_t tableSize = gGestureRecorder.rs[c].r.size();
 					vizValues[c] = {};
@@ -3106,6 +3108,8 @@ public:
 							if(tableSize)
 								vizValues[0].size = interpolatedRead(table, tableSize, idxFrac);
 						}
+						// animate the centroid so you can tell it's not "real" but fixed period
+						vizValues[c].size *= 0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed, unsigned(context->analogSampleRate * 0.1f));
 					}
 				} else {
 					// visualise current touch
@@ -3118,7 +3122,7 @@ public:
 				idxFrac -= 1;
 		}
 		// this may set gManualAnOut even if they are ignored
-		renderOut(gManualAnOut, vizValues, vizValues);
+		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize);
 	}
 
 	float processTable(BelaContext* context, unsigned int c)
