@@ -312,11 +312,10 @@ enum AnimationMode
 {
 	kAnimationModeConsistent,
 	kAnimationModeConsistentWithFs,
-	kAnimationModeConsistentWithFsNoShow,
-	kAnimationModeCustom,
+	kAnimationModeSolidWithFs,
 	kNumAnimationMode,
+	kAnimationModeCustom,
 	kAnimationModeSolid,
-	kAnimationModePulses,
 };
 static AnimationMode gAnimationMode = kAnimationModeConsistentWithFs;
 
@@ -1370,7 +1369,7 @@ public:
 	}
 	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) override
 	{
-		if(kAnimationModeConsistentWithFs == gAnimationMode || kAnimationModeConsistentWithFsNoShow == gAnimationMode)
+		if(kAnimationModeConsistentWithFs == gAnimationMode || kAnimationModeSolidWithFs == gAnimationMode)
 			that->animate(*this, l, color, ms);
 	}
 	operator type() { return type(value); }
@@ -5930,7 +5929,6 @@ public:
 		case kNumAnimationMode:
 		case kAnimationModeConsistent:
 		case kAnimationModeConsistentWithFs:
-		case kAnimationModeConsistentWithFsNoShow:
 		{
 			float coeff;
 			float tri = simpleTriangle(ms, kPeriod);
@@ -5958,10 +5956,7 @@ public:
 		}
 			break;
 		case kAnimationModeSolid:
-			ledSlider.setColor(color);
-			break;
-		case kAnimationModePulses:
-			color.scale(pulses(ms, kPulsesPeriod, value + 1));
+		case kAnimationModeSolidWithFs:
 			ledSlider.setColor(color);
 			break;
 		case kAnimationModeCustom:
@@ -6953,7 +6948,7 @@ public:
 			{
 				// this one is on release so we avoid a spurious trigger when holding
 				bool shouldUpdate = true;
-				if(displayOldValueTimeout && kAnimationModeConsistentWithFs == gAnimationMode) // TODO: quick workaround to disable displaying current state when fs animations are disabled (breaks ioranges among among others)
+				if(displayOldValueTimeout)
 				{
 					// if we haven't been tapped in a while, do nothing.
 					// An inheriting class can leverage this to display
