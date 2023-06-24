@@ -6,7 +6,6 @@
 #include "LedSliders.h"
 #include "preset.h"
 #include "packed.h"
-typedef LedSlider::centroid_t centroid_t;
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 

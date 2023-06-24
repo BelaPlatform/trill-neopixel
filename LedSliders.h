@@ -3,16 +3,12 @@
 #include <libraries/Trill/CentroidDetection.h>
 #include "Stm32NeoPixel.h"
 #include "rgb.h"
+#include "centroid.h"
 
 class LedSlider : public CentroidDetectionScaled
 {
 public:
 	static constexpr size_t kDefaultNumWeights = 2;
-	struct centroid_t {
-		float location;
-		float size;
-		bool operator== (const centroid_t& other) { return !memcmp(this, &other, sizeof(other)); }
-	};
 	typedef enum {
 		AUTO_CENTROIDS,
 		AUTO_RAW,
