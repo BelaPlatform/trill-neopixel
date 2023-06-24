@@ -3556,11 +3556,11 @@ public:
 			switch (outputMode)
 			{
 			case kOutputModeNN: // top pass-through, bottom inverted pass-through
-				outs[0] = envIn;
-				outs[1] = 1.f - envIn;
+				outs[0] = input;
+				outs[1] = 1.f - input;
 				break;
 			case kOutputModeNE: // top pass-through, bottom envelope
-				outs[0] = envIn;
+				outs[0] = input;
 				outs[1] = env;
 				break;
 			case kOutputModeEE: // top envelope, bottom inverted envelope
