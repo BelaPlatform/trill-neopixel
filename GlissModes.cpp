@@ -637,6 +637,8 @@ public:
 		validFrames = 0;
 		pastInputFrame = {0, 0};
 		lastOutSize = 0;
+		pastFrames.fill({0, 0});
+		delay = 0;
 	}
 	// return: may modify frame and latchStarts
 	void process(centroid_t& frame, bool& latchStarts)
@@ -6560,6 +6562,7 @@ public:
 			pastFrames[n].size = 1;
 		}
 		std::array<LatchProcessor::Reason,2> isLatched;
+		latchProcessor.reset();
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
 		latchProcessor.process(true, pastFrames.size(), pastFrames, isLatched);
 		hasHadTouch = false;
