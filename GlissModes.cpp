@@ -2229,6 +2229,32 @@ public:
 	SplitPerformanceMode() {}
 };
 
+centroid_t processSize(centroid_t c, size_t split, float decay)
+{
+	static std::array<float,2> pastSizes {};
+	float envIn = c.size;
+	// special peak envelope detector
+	// whereas if the input is zero, we just accept it
+	// this way we have fast attacks and fast releases
+	// and what's in between is smoothed
+	float& env = pastSizes[split];
+	if(envIn > env)
+	{
+		env = envIn;
+	}
+	else if(0 == envIn){
+		env = 0;
+	} else {
+		env = envIn * (1.f - decay) + env * decay;
+	}
+	if(((uint32_t*)(&env))[0] == 0x7fc00000 || ((uint32_t*)(&env))[0] == 0x7fffff || ((uint32_t*)(&env))[0] == 0xffffffff)
+		printf("nan\n\r");
+	return centroid_t{
+		.location = c.location,
+		.size = env,
+	};
+}
+
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 class DirectControlMode : public SplitPerformanceMode {
 	enum AutoLatchMode {
@@ -2275,7 +2301,7 @@ public:
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
-			values[n] = twis[n].touch;
+			values[n] = processSize(twis[n].touch, n, sizeDecay);
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
@@ -2387,6 +2413,11 @@ public:
 		else if (p.same(autoLatch)) {
 			printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get());
 		}
+		else if (p.same(sizeDecayParameter)) {
+			float var = 0.001 + sizeDecayParameter * 0.999;
+			var = 1.f / var * 0.001;
+			sizeDecay = 1.f - var;
+		}
 	}
 	void updatePreset()
 	{
@@ -2410,6 +2441,8 @@ public:
 	}
 	// splitMode from base class
 	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
+	ParameterContinuous sizeDecayParameter{this, 0.5};
+	float sizeDecay;
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t splitMode;
@@ -7159,8 +7192,9 @@ static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeSplit("directControlModeSplit", buttonColors, gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, &animationPulsatingStill);
+static MenuItemTypeEnterContinuous directControlModeSizeDecay("directControlModeSizeDecay", buttonColors[0], buttonColors[1], gDirectControlMode.sizeDecayParameter, &defaultAnimation);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
-		&disabled,
+		&directControlModeSizeDecay,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
