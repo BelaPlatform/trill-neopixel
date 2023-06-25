@@ -2935,6 +2935,8 @@ public:
 		}
 
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		for(size_t n = 0; n < currentSplits(); ++n)
+			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
@@ -4120,7 +4122,7 @@ public:
 		}
 		pastNumTouches = globalSlider.getNumTouches();
 
-		centroid_t& centroid = twi.touch;
+		centroid_t centroid = processSize(twi.touch, 0);
 		// NOTE: newTouch is true only on the _first_ kInitial frame (i.e.: new twi.id)
 		bool newTouch = false;
 		if(TouchTracker::kIdInvalid == twi.id)
