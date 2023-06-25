@@ -313,14 +313,15 @@ std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = true;
 enum AnimationMode
 {
-	kAnimationModeConsistent,
 	kAnimationModeConsistentWithFs,
 	kAnimationModeSolidWithFs,
+	kAnimationModeSolidDefaultWithFs,
+	kAnimationModeConsistent,
 	kNumAnimationMode,
 	kAnimationModeCustom,
 	kAnimationModeSolid,
 };
-static AnimationMode gAnimationMode = kAnimationModeConsistentWithFs;
+static AnimationMode gAnimationMode = kAnimationModeSolidDefaultWithFs;
 
 Override gOverride;
 static bool gInUsesCalibration;
@@ -1372,7 +1373,7 @@ public:
 	}
 	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) override
 	{
-		if(kAnimationModeConsistentWithFs == gAnimationMode || kAnimationModeSolidWithFs == gAnimationMode)
+		if(kAnimationModeConsistentWithFs == gAnimationMode || kAnimationModeSolidWithFs == gAnimationMode || kAnimationModeSolidDefaultWithFs == gAnimationMode)
 			that->animate(*this, l, color, ms);
 	}
 	operator type() { return type(value); }
@@ -6008,6 +6009,11 @@ public:
 			break;
 		case kAnimationModeSolid:
 		case kAnimationModeSolidWithFs:
+			ledSlider.setColor(color);
+			break;
+		case kAnimationModeSolidDefaultWithFs:
+			if(0 != value)
+				color.scale(0.1f + 0.9f * simpleTriangle(ms, 700));
 			ledSlider.setColor(color);
 			break;
 		case kAnimationModeCustom:
