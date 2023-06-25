@@ -4548,7 +4548,7 @@ public:
 					break;
 				}
 			}
-			gManualAnOut[0] = seqSmooth(getOutForKey(outKey));
+			gManualAnOut[0] = kKeyInvalid == outKey ? kNoOutput : seqSmooth(getOutForKey(outKey));
 			size_t lowestEnabled = 0;
 			while(lowestEnabled < keyStepModes.size() && !stepIsEnabled(lowestEnabled))
 				lowestEnabled++;
