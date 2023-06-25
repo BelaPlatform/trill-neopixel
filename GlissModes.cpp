@@ -7028,7 +7028,7 @@ class MenuItemTypeDiscreteFullScreenAnimation : public MenuItemTypeDiscretePlus
 {
 public:
 	MenuItemTypeDiscreteFullScreenAnimation(const char* name, const AnimationColors& colors, ParameterEnum& valueEn, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, 3000),
+		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, 4000),
 		colors(colors), lastTap(0), buttonAnimation(animation)
 	{}
 	virtual void process(LedSlider& ledSlider) override
