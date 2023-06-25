@@ -4977,7 +4977,7 @@ public:
 			float max;
 			outRange.getMinMax(min, max);
 			float value = map(offsetParameterRaw, 0, 1, min, max);
-			offsetParameters[keysIdx[keyBeingAdjusted]].set(value);
+			offsetParameters[seqMode ? keyBeingAdjusted : keysIdx[keyBeingAdjusted]].set(value);
 		} else {
 			for(size_t n = 0; n < kMaxNumButtons; ++n)
 			{
