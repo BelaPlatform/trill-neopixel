@@ -2273,8 +2273,8 @@ public:
 	{
 		setOutIsSize();
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
-		std::array<centroid_t,kNumSplits> values;
-		for(size_t n = 0; n < values.size(); ++n)
+		std::array<centroid_t,kNumSplits> values {};
+		for(size_t n = 0; n < currentSplits(); ++n)
 			values[n] = twis[n].touch;
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
