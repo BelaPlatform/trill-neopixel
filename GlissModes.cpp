@@ -4518,35 +4518,35 @@ public:
 				// ignore the step's settings
 				outKey = seqCurrentStep;
 			} else {
-			switch(keyStepModes[seqCurrentStep].get().s)
-			{
-			case kStepNormal:
-				outKey = seqCurrentStep;
-				newTriggerableStep |= analogRisingEdge;
-				break;
-			case kStepMuted:
-				outKey = kKeyInvalid;
-				break;
-			case kStepHold:
-			{
-				size_t step = seqCurrentStep;
-				// go back looking for the step to hold
-				do
+				switch(keyStepModes[seqCurrentStep].get().s)
 				{
-					if(0 == step)
-						step = numButtons;
-					step--;
-					if(kStepNormal == keyStepModes[step].get().s)
-						break;
-				} while(step != seqCurrentStep);
-				if(step == seqCurrentStep) // no step to hold
+				case kStepNormal:
+					outKey = seqCurrentStep;
+					newTriggerableStep |= analogRisingEdge;
+					break;
+				case kStepMuted:
 					outKey = kKeyInvalid;
-				else
-					outKey = step;
-			}
-			default:
-				break;
-			}
+					break;
+				case kStepHold:
+				{
+					size_t step = seqCurrentStep;
+					// go back looking for the step to hold
+					do
+					{
+						if(0 == step)
+							step = numButtons;
+						step--;
+						if(kStepNormal == keyStepModes[step].get().s)
+							break;
+					} while(step != seqCurrentStep);
+					if(step == seqCurrentStep) // no step to hold
+						outKey = kKeyInvalid;
+					else
+						outKey = step;
+				}
+				default:
+					break;
+				}
 			}
 			gManualAnOut[0] = seqSmooth(getOutForKey(outKey));
 			size_t lowestEnabled = 0;
