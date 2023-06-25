@@ -2934,7 +2934,7 @@ public:
 			}
 		}
 
-		std::array<TouchTracker::TouchWithId,kNumSplits> twis  = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<bool,kNumSplits> hasTouch;
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
