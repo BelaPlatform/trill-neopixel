@@ -289,8 +289,8 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 // pick one of the two for more or less debugging printf and memory usage
 //#define S(...) __VA_ARGS__
 #define S(a)
-#define M(...) __VA_ARGS__
-//#define M(a)
+//#define M(...) __VA_ARGS__
+#define M(a)
 //#define printf(...) // disable printf altogether
 
 extern int gAlt;
