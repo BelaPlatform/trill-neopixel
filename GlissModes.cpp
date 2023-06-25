@@ -2414,9 +2414,8 @@ public:
 			printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get());
 		}
 		else if (p.same(sizeDecayParameter)) {
-			float max = 0.99;
-			float var = 1.f - max + sizeDecayParameter * max;
-			var = 1.f / var * (1.f - max);
+			float var = 0.001 + sizeDecayParameter * 0.999;
+			var = 1.f / var * 0.001;
 			sizeDecay = 1.f - var;
 		}
 	}
