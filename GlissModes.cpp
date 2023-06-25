@@ -4337,7 +4337,7 @@ public:
 				{
 					keyBeingAdjusted = touch.key;
 					// TODO: clear up this mess of actualKey vs touch.key.
-					size_t actualKey = keysIdx[touch.key];
+					size_t actualKey = seqMode ? touch.key : keysIdx[touch.key];
 					const IoRange& outTop = ioRangesParameters.outTop;
 					float min;
 					float max;
@@ -4616,7 +4616,7 @@ public:
 					// same behaviour for seqMode and non-seqMode
 					// though in seqMode it always has kmaxNumButtons buttons,
 					// while in key mode it only has numButtons
-					color = colors[keysIdx[n]];
+					color = colors[seqMode ? n : keysIdx[n]];
 					if(n == vizKey)
 						coeff = 1;
 					else
