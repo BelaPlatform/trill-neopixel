@@ -2082,7 +2082,7 @@ Parameter* enabledP = nullptr;
 
 std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
 {
-	std::array<TouchTracker::TouchWithId,kNumSplits> values;
+	std::array<TouchTracker::TouchWithId,kNumSplits> values {};
 	if(shouldProcess)
 		gTouchTracker.process(globalSlider);
 	size_t numTouches = gTouchTracker.getNumTouches();
