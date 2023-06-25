@@ -4456,6 +4456,7 @@ public:
 #endif
 				tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, getBlinkPeriod(context, kPagePerf != page));
 			}
+			bool newTriggerableStep = false;
 			if(kDisabled != touch.state)
 			{
 				// if we have a touch
@@ -4469,8 +4470,7 @@ public:
 						seqPastTouchIdUpdated = twi.id;
 						// reset to a next or just passed edge (reset immediately if clock is absent)
 						uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.1f * context->analogSampleRate);
-						if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples
-								|| !clockInIsActive(context))
+						if(context->audioFramesElapsed - pastAnalogRisingEdgeSamples < maxDelaySamples)
 						{
 							// close enough to edge
 							setStepNow(touch.key);
@@ -4478,6 +4478,11 @@ public:
 						else {
 							// late enough, schedule pressed key for next
 							setNextStep(touch.key);
+						}
+						if(!clockInIsActive(context))
+						{
+							newTriggerableStep = true;
+							setStepNow(touch.key);
 						}
 					}
 				}
@@ -4506,12 +4511,11 @@ public:
 			}
 			vizKey = seqCurrentStep;
 			size_t outKey = kKeyInvalid;
-			bool newTriggerableStep = false;
 			switch(keyStepModes[seqCurrentStep].get().s)
 			{
 			case kStepNormal:
 				outKey = seqCurrentStep;
-				newTriggerableStep = true && analogRisingEdge;
+				newTriggerableStep |= analogRisingEdge;
 				break;
 			case kStepMuted:
 				outKey = kKeyInvalid;
