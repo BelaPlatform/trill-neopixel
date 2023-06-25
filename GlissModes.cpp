@@ -2141,21 +2141,21 @@ protected:
 	{
 		for(ssize_t n = 0; n < isSplit() + 1; ++n)
 		{
-			bool hasTouch = (values[n].size > 0);
 			switch(splitMode)
 			{
 			case kModeNoSplit:
 				ledSliders.sliders[n].setLedsCentroids(displayValues.data(), 1);
-				out[0] = hasTouch ? values[0].location : kNoOutput;
-				out[1] = hasTouch ? values[0].size : kNoOutput;
+				out[0] = touchOrNot(values[0]).location;
+				out[1] = touchOrNot(values[0]).size;
 				break;
 			case kModeSplitLocation:
 			{
+				bool hasTouch = (values[n].size > 0);
 				centroid_t centroid;
 				centroid.location = displayValues[n].location;
 				centroid.size = preserveSplitLocationSize[n] ? values[n].size : hasTouch * kFixedCentroidSize;
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
-				out[n] = hasTouch ? values[n].location : kNoOutput;
+				out[n] = touchOrNot(values[n]).location;
 			}
 				break;
 			case kModeSplitSize:
