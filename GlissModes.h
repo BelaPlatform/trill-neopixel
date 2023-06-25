@@ -27,18 +27,26 @@ typedef enum {
 	kCvRangeCustom,
 	kCvRangeNum,
 } CvRange;
+
 struct IoRange {
 	// these are changed explicitly via global settings and are stored as preset
-	CvRange range;
 	float min;
 	float max;
+	CvRange range;
 	// this can be changed dynamically by a mode and is not stored
-	bool enabled;
+	uint8_t enabled;
+	// this struct is saved to storage and we want all
+	// of its bytes to be initialised to a known value
+	// We do not want to use PACKED_STRUCT() because it may mess with the alignment
+	// of the floats. Instead, we add initialised padding bytes.
+	// static_assert below should remind us about this if we change the elements of this struct
+	uint16_t padding {0};
+public:
 	static IoRange init() {
 		return IoRange {
-			.range = kCvRangePositive10,
 			.min = 0,
 			.max = 1,
+			.range = kCvRangePositive10,
 			.enabled = true,
 		};
 	}
@@ -98,6 +106,11 @@ struct IoRanges {
 		return 3;
 	}
 };
+// as mentioned above, we want these structs's bytes to be fully initialised
+// so that they can be binary-compared reliably.
+// so here we check for no unexpected padding
+static_assert(sizeof(IoRange) == 12);
+static_assert(sizeof(IoRanges) == 3 * sizeof(IoRange));
 
 extern IoRange gInRange;
 extern IoRange gOutRangeTop;

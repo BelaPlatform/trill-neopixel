@@ -1435,9 +1435,9 @@ public:
 	ParameterContinuous max;
 	operator IoRange() {
 		return IoRange{
-			.range = cvRange,
 			.min = min,
 			.max = max,
+			.range = cvRange,
 			.enabled = true,
 		};
 	}

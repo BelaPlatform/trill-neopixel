@@ -403,21 +403,21 @@ void tr_process(BelaContext* ptr)
 }
 
 IoRange gInRange = {
-	.range = kCvRangePositive10,
 	.min = 0,
 	.max = 1,
+	.range = kCvRangePositive10,
 	.enabled = true,
 };
 IoRange gOutRangeTop = {
-	.range = kCvRangePositive10,
 	.min = 0,
 	.max = 1,
+	.range = kCvRangePositive10,
 	.enabled = true,
 };
 IoRange gOutRangeBottom = {
-	.range = kCvRangePositive10,
 	.min = 0,
 	.max = 1,
+	.range = kCvRangePositive10,
 	.enabled = true,
 };
 
