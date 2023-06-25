@@ -287,8 +287,11 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
 
 // pick one of the two for more or less debugging printf and memory usage
-//#define S(a) a
+//#define S(...) __VA_ARGS__
 #define S(a)
+#define M(...) __VA_ARGS__
+//#define M(a)
+//#define printf(...) // disable printf altogether
 
 extern int gAlt;
 typedef TrillRackInterface TRI; // shorthand
@@ -6475,7 +6478,7 @@ protected:
 			if(parameter)
 			{
 				parameter->next();
-				printf("%s: set to %d\n\r", name, parameter->get());
+				M(printf("%s: set to %d\n\r", name, parameter->get()));
 			}
 		}
 	}
@@ -6994,7 +6997,7 @@ public:
 				if(shouldUpdate)
 				{
 					valueEn.next();
-					printf("DiscretePlus: next to %d\n\r", valueEn.get());
+					M(printf("DiscretePlus: next to %d\n\r", valueEn.get()));
 				}
 			}
 			ignoreNextTransition = false;
@@ -7082,7 +7085,7 @@ public:
 	}
 	void enterPlus() override
 	{
-		printf("DiscreteContinuous: going to slider\n\r");
+		M(printf("DiscreteContinuous: going to slider\n\r"));
 		// TODO: if using this again, pass a different color as otherColor
 		singleSliderMenuItem = MenuItemTypeSlider(baseColor, baseColor, &valueCon);
 		menu_in(singleSliderMenu);
@@ -7098,7 +7101,7 @@ public:
 		MenuItemTypeDiscretePlus(name, baseColor, valueEn, doNotUpdateTimeout), valueConBottom(valueConBottom), valueConTop(valueConTop), preprocess(preprocess), otherColor(otherColor) {}
 	void enterPlus() override
 	{
-		printf("DiscreteRange: going to range\n\r");
+		M(printf("DiscreteRange: going to range\n\r"));
 		singleRangeMenuItem = MenuItemTypeRange(baseColor, otherColor, true, &valueConBottom, &valueConTop, preprocess);
 		menu_in(singleRangeMenu);
 	}
@@ -7355,34 +7358,36 @@ class GlobalSettings : public ParameterUpdateCapable {
 public:
 	void updated(Parameter& p)
 	{
-		bool verbose = false;
-		char const* str = "+++";
+		S(bool verbose = false);
+		S(char const* str = "+++");
 		if(p.same(jacksOnTop)) {
 			gJacksOnTop = jacksOnTop;
-			str = "jacksOnTop";
+			S(str = "jacksOnTop");
 		}
 		else if(p.same(animationMode)) {
-			str = "animationMode";
+			S(str = "animationMode");
 			gAnimationMode = AnimationMode(animationMode.get());
 		}
 		else if(p.same(sizeScaleCoeff)) {
-			str = "sizeScaleCoeff";
+			S(str = "sizeScaleCoeff");
 			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
 			float coeff = kSizeScale / (tmp * tmp * tmp);
 			setAllSizeScales(coeff);
 			doOverride(1, globalSlider.compoundTouchSize(), false, true);
 		}
 		else if(p.same(brightness)) {
-			str = "brightness";
+			S(str = "brightness");
 			assert(brightness.getDefault());
 			gBrightness = 0.15f + (brightness * 0.85f / brightness.getDefault());
 		}
 		else if(p.same(newMode)) {
-			str = "newMode";
+			S(str = "newMode");
 			requestNewMode(newMode);
 		}
-		if(verbose)
-			printf("%s\n\r", str);
+		S(
+			if(verbose)
+				printf("%s\n\r", str);
+		);
 	}
 	void updatePreset()
 	{
@@ -7640,7 +7645,7 @@ static void menu_update()
 	if(newMenu && (activeMenu != newMenu || hasChanged))
 	{
 		activeMenu = newMenu;
-		printf("menu_update: %s\n\r", newMenu ? newMenu->name : "___");
+		M(printf("menu_update: %s\n\r", newMenu ? newMenu->name : "___"));
 		// clear display
 		np.clear();
 		// TODO: the below is not particularly elegant: add a parameter to MenuPage
@@ -7705,7 +7710,7 @@ void menu_exit()
 
 	menuStack.resize(0);
 	activeMenu = nullptr;
-	printf("menu_exit\n\r");
+	M(printf("menu_exit\n\r"));
 	np.clear();
 	gAlt = 0;
 	tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 100);
@@ -7713,7 +7718,7 @@ void menu_exit()
 
 static void menu_up()
 {
-	printf("menu_up from %d %s\n\r", menuStack.size(), menuStack.back()->name);
+	M(printf("menu_up from %d %s\n\r", menuStack.size(), menuStack.back()->name));
 	if(menuStack.size())
 		menuStack.pop_back();
 	if(!menuStack.size())
@@ -7722,7 +7727,7 @@ static void menu_up()
 
 static void menu_in(MenuPage& menu)
 {
-	printf("menu_in from %s to %s\n\r", menuStack.size() ? menuStack.back()->name : "___", menu.name);
+	M(printf("menu_in from %s to %s\n\r", menuStack.size() ? menuStack.back()->name : "___", menu.name));
 	menuStack.emplace_back(&menu);
 }
 
@@ -7759,7 +7764,7 @@ void menu_render(BelaContext*, FrameData* frameData)
 	// if button pressed, go back up
 	if (menuBtn.onset){
 		// button onset
-		printf("button when stack is %d\n\r", menuStack.size());
+		M(printf("button when stack is %d\n\r", menuStack.size()));
 		// if one of the ioranges pages, exit
 		for(auto& p : menuPagesIoRanges)
 		{
