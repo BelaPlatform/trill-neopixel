@@ -4306,8 +4306,8 @@ public:
 		case kNumStates:
 			break;
 		}
-		gManualAnOut[0] = out;
-		gManualAnOut[1] = centroid.size;
+		gManualAnOut[0] = out; // we always hold pitch here
+		gManualAnOut[1] = touchOrNot(centroid).size;
 		pastOuts = gManualAnOut;
 		if(kPageTuning == page)
 		{
