@@ -2236,18 +2236,22 @@ public:
 static centroid_t processSize(centroid_t c, size_t split)
 {
 	static std::array<float,2> pastSizes {};
+	static std::array<float,2> pastPastSizes {};
 	float decay = 0.998;
 	float envIn = c.size;
 	// special peak envelope detector
 	// whereas if the input is zero, we just accept it
 	// this way we have fast attacks and fast releases
 	// and what's in between is smoothed
-	float& env = pastSizes[split];
-	if(0 == envIn){
-		env = 0;
+	float env = pastSizes[split];
+	if(0 == envIn || 0 == pastSizes[split] || 0 == pastPastSizes[split])
+	{
+		// during, or immediately after a zero (i.e.: end or beginning of touch)
+		// pass through current value. This gives immediate attacks and releases.
+		env = envIn;
 	} else if(envIn > env)
 	{
-		// TODO: smooth this slightly, too
+		// minimal smoothing
 		env = env * 0.9 + envIn * 0.1;
 	} else {
 		if(decay > 0.5)
@@ -2263,6 +2267,8 @@ static centroid_t processSize(centroid_t c, size_t split)
 		}
 		env = envIn * (1.f - decay) + env * decay;
 	}
+	pastPastSizes[split] = pastSizes[split];
+	pastSizes[split] = env;
 	return centroid_t{
 		.location = c.location,
 		.size = env,
