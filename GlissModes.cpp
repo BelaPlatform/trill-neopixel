@@ -2171,7 +2171,7 @@ protected:
 					centroids[c].size = value;
 				}
 				ledSliders.sliders[n].setLedsCentroids(centroids.data(), centroids.size());
-				out[n] = values[n].size;
+				out[n] = touchOrNot(values[n]).size;
 			}
 				break;
 			}
