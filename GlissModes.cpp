@@ -2233,9 +2233,10 @@ public:
 	SplitPerformanceMode() {}
 };
 
-centroid_t processSize(centroid_t c, size_t split, float decay)
+static centroid_t processSize(centroid_t c, size_t split)
 {
 	static std::array<float,2> pastSizes {};
+	float decay = 0.998;
 	float envIn = c.size;
 	// special peak envelope detector
 	// whereas if the input is zero, we just accept it
@@ -2262,8 +2263,6 @@ centroid_t processSize(centroid_t c, size_t split, float decay)
 		}
 		env = envIn * (1.f - decay) + env * decay;
 	}
-	if(((uint32_t*)(&env))[0] == 0x7fc00000 || ((uint32_t*)(&env))[0] == 0x7fffff || ((uint32_t*)(&env))[0] == 0xffffffff)
-		printf("nan\n\r");
 	return centroid_t{
 		.location = c.location,
 		.size = env,
@@ -2316,7 +2315,7 @@ public:
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
-			values[n] = processSize(twis[n].touch, n, sizeDecay);
+			values[n] = processSize(twis[n].touch, n);
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 		if(performanceBtn.onset)
