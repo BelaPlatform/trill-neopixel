@@ -4414,9 +4414,12 @@ public:
 			if(analogRisingEdge)
 			{
 				pastAnalogRisingEdgeSamples = context->audioFramesElapsed;
-				// if a finger is down, do not move from that step
-				if(kDisabled != touch.state)
-					seqNextStep = touch.key;
+				if(kPagePerf == page)
+				{
+					// if a finger is down, do not move from that step
+					if(kDisabled != touch.state)
+						seqNextStep = touch.key;
+				}
 				size_t attempts = 0;
 				do
 				{
