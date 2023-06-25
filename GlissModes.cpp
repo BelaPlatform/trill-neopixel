@@ -2428,11 +2428,6 @@ public:
 		else if (p.same(autoLatch)) {
 			printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get());
 		}
-		else if (p.same(sizeDecayParameter)) {
-			float var = 0.001 + sizeDecayParameter * 0.999;
-			var = 1.f / var * 0.001;
-			sizeDecay = 1.f - var;
-		}
 	}
 	void updatePreset()
 	{
@@ -2456,8 +2451,6 @@ public:
 	}
 	// splitMode from base class
 	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
-	ParameterContinuous sizeDecayParameter{this, 0.5};
-	float sizeDecay;
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t splitMode;
@@ -7226,9 +7219,8 @@ static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeSplit("directControlModeSplit", buttonColors, gDirectControlMode.splitMode, &animationSplit);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, &animationPulsatingStill);
-static MenuItemTypeEnterContinuous directControlModeSizeDecay("directControlModeSizeDecay", buttonColors[0], buttonColors[1], gDirectControlMode.sizeDecayParameter, &defaultAnimation);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
-		&directControlModeSizeDecay,
+		&disabled,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
