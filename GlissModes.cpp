@@ -2241,13 +2241,24 @@ centroid_t processSize(centroid_t c, size_t split, float decay)
 	// this way we have fast attacks and fast releases
 	// and what's in between is smoothed
 	float& env = pastSizes[split];
-	if(envIn > env)
-	{
-		env = envIn;
-	}
-	else if(0 == envIn){
+	if(0 == envIn){
 		env = 0;
+	} else if(envIn > env)
+	{
+		// TODO: smooth this slightly, too
+		env = env * 0.9 + envIn * 0.1;
 	} else {
+		if(decay > 0.5)
+		{
+			float diff = constrain(env - envIn, 0, 1);
+			if(diff < 0.1) {
+				// use decay as is
+			} else {
+				// reduce decay for faster transition
+				decay = map(diff - 0.1, 0, 0.9, decay, 0.5);
+				decay = constrain(decay, 0, 0.999); // in case we get anything wrong ..
+			}
+		}
 		env = envIn * (1.f - decay) + env * decay;
 	}
 	if(((uint32_t*)(&env))[0] == 0x7fc00000 || ((uint32_t*)(&env))[0] == 0x7fffff || ((uint32_t*)(&env))[0] == 0xffffffff)
