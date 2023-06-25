@@ -2254,16 +2254,13 @@ static centroid_t processSize(centroid_t c, size_t split)
 		// minimal smoothing
 		env = env * 0.9 + envIn * 0.1;
 	} else {
-		if(decay > 0.5)
-		{
-			float diff = constrain(env - envIn, 0, 1);
-			if(diff < 0.1) {
-				// use decay as is
-			} else {
-				// reduce decay for faster transition
-				decay = map(diff - 0.1, 0, 0.9, decay, 0.5);
-				decay = constrain(decay, 0, 0.999); // in case we get anything wrong ..
-			}
+		float diff = constrain(env - envIn, 0, 1);
+		if(diff < 0.1) {
+			// use decay as is
+		} else {
+			// reduce decay for faster transition
+			decay = map(diff - 0.1, 0, 0.9, decay, 0.5);
+			decay = constrain(decay, 0, 0.999); // in case we get anything wrong ..
 		}
 		env = envIn * (1.f - decay) + env * decay;
 	}
