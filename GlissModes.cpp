@@ -4512,6 +4512,12 @@ public:
 			}
 			vizKey = seqCurrentStep;
 			size_t outKey = kKeyInvalid;
+			if(kPageTuning == page && !clockInIsActive(context))
+			{
+				// no clock and we are tuning a step: we want to hear it right now
+				// ignore the step's settings
+				outKey = seqCurrentStep;
+			} else {
 			switch(keyStepModes[seqCurrentStep].get().s)
 			{
 			case kStepNormal:
@@ -4540,6 +4546,7 @@ public:
 			}
 			default:
 				break;
+			}
 			}
 			gManualAnOut[0] = seqSmooth(getOutForKey(outKey));
 			size_t lowestEnabled = 0;
