@@ -4568,24 +4568,24 @@ public:
 					triggerOut = vToOut(5);
 			} else
 			{
-			// send out a +5V trigger on each new step
-			// and send out a +10V reset signal when on the first step (if it is triggerable, anyhow)
-			if(newTriggerableStep)
-			{
-				float outV = newTriggerableStep * 5;
-				if(outV)
+				// send out a +5V trigger on each new step
+				// and send out a +10V reset signal when on the first step (if it is triggerable, anyhow)
+				if(newTriggerableStep)
 				{
-					if(seqCurrentStep == lowestEnabled)
-						outV = 10;
+					float outV = newTriggerableStep * 5;
+					if(outV)
+					{
+						if(seqCurrentStep == lowestEnabled)
+							outV = 10;
+					}
+					triggerOut = vToOut(outV);
+					lastTriggerOutSet = context->audioFramesElapsed;
 				}
-				triggerOut = vToOut(outV);
-				lastTriggerOutSet = context->audioFramesElapsed;
-			}
-			float ms = (context->audioFramesElapsed - lastTriggerOutSet) / context->analogSampleRate * 1000;
-			if(ms > getBlinkPeriod(context, false))
-			{
-				triggerOut = vToOut(0);
-			}
+				float ms = (context->audioFramesElapsed - lastTriggerOutSet) / context->analogSampleRate * 1000;
+				if(ms > getBlinkPeriod(context, false))
+				{
+					triggerOut = vToOut(0);
+				}
 			}
 			gManualAnOut[1] = triggerOut;
 			seqPastStep = seqCurrentStep;
