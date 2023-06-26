@@ -4621,7 +4621,8 @@ public:
 			}
 			vizKey = kDisabled == touch.state ? kKeyInvalid : touch.key;
 			// turn on green LED if we are in a stable position
-			tri.buttonLedSet(TRI::kSolid, TRI::kG, stateIsNormal(touch.state));
+			if(stateIsNormal(touch.state))
+				tri.buttonLedSet(TRI::kSolid, TRI::kG, 0.1);
 		}
 		// display
 		if(!gAlt)
