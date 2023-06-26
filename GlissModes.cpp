@@ -2315,12 +2315,17 @@ public:
 	void render(BelaContext*, FrameData* frameData) override
 	{
 		setOutIsSize();
+		bool analogInHigh = tri.analogRead() > 0.5;
+		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
+		pastAnalogInHigh = analogInHigh;
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
 			values[n] = processSize(twis[n].touch, n);
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
+
+		shouldLatch |= analogRisingEdge;
 		if(performanceBtn.onset)
 		{
 			// at least one VALID and non-latched
@@ -2472,6 +2477,7 @@ private:
 		return kAutoLatchOff != autoLatch;
 	}
 	rgb_t color = kRgbRed;
+	bool pastAnalogInHigh = false;
 	LatchProcessor latchProcessor;
 	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
 	uint32_t lastLatchCount = ButtonView::kPressIdInvalid;
