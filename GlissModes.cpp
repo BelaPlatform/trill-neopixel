@@ -2325,15 +2325,14 @@ public:
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 
+		bool hasTouch = false;
+		for(size_t n = 0; n < currentSplits(); ++n)
+			hasTouch |= values[n].size > 0;
 		shouldLatch |= analogRisingEdge;
 		if(performanceBtn.onset)
 		{
-			// at least one VALID and non-latched
-			for(ssize_t n = 0; n < 1 + isSplit(); ++n)
-			{
-				bool hasTouch = values[n].size > 0;
-				shouldLatch |= hasTouch;
-			}
+			// if you have at least one touch, we latch
+			shouldLatch |= hasTouch;
 			if(shouldLatch)
 				tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		}
