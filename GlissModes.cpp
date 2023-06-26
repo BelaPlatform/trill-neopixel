@@ -4558,17 +4558,24 @@ public:
 			size_t lowestEnabled = 0;
 			while(lowestEnabled < keyStepModes.size() && !stepIsEnabled(lowestEnabled))
 				lowestEnabled++;
+			gOutUsesRange[1] = false; // we output fix voltagese
 			// send out a +5V trigger on each new step
 			// and send out a +10V reset signal when on the first step (if it is triggerable, anyhow)
 			if(newTriggerableStep)
 			{
-				triggerOut = 0.33 + newTriggerableStep * 0.33 + newTriggerableStep * 0.33 * (seqCurrentStep == lowestEnabled);
+				float outV = newTriggerableStep * 5;
+				if(outV)
+				{
+					if(seqCurrentStep == lowestEnabled)
+						outV = 10;
+				}
+				triggerOut = vToOut(outV);
 				lastTriggerOutSet = context->audioFramesElapsed;
 			}
 			float ms = (context->audioFramesElapsed - lastTriggerOutSet) / context->analogSampleRate * 1000;
 			if(ms > getBlinkPeriod(context, false))
 			{
-				triggerOut = 0;
+				triggerOut = vToOut(0);
 			}
 
 			gManualAnOut[1] = triggerOut;
