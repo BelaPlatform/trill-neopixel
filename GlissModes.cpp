@@ -7840,19 +7840,29 @@ void menu_render(BelaContext*, FrameData* frameData)
 	menu_update();
 	if(!activeMenu)
 		return;
-	// process these regardless to ensure the display is updated
-	// (i.e.: if menuJustEntered, this will make sure the buttons are shown)
-	ledSlidersAlt.process(trill.rawData.data()); // TODO: calling this only on frameData.isNew causes troubles when gJacksOnTop. Investigate why
 	// update touches
 	if(menuJustEntered)
 	{
 		// if we just entered the menu, ensure we have removed
 		// all fingers once before enabling interaction
-		if(globalSlider.getNumTouches())
-			return;
-		menuJustEntered = false;
+		if(!globalSlider.getNumTouches())
+			menuJustEntered = false;
 	}
-	// set the color (i.e.: animation for the _next_ iteration
+	if(menuJustEntered) {
+		// provide empty blank data so that process doesn't know about any touches
+		// that may still be present after entering menu. The reason we cannot simply use
+		// ledSlidersAlt.enableTouch(false) is because also tr_render() sets/unsets
+		// that and we may end up in an inconsistent state if we are not careful.
+		// conversely, tr_render() doesn't know if we have to ignore touches again at some point
+		// e.g.: because we entered a submenu from here.
+		// TODO: simplify
+		constexpr size_t kNumChannelsMax = 30; // from trill.cpp
+		static std::array<float,kNumChannelsMax> dummyData {};
+		ledSlidersAlt.process(dummyData.data());
+	} else
+		ledSlidersAlt.process(trill.rawData.data()); // TODO: calling this only on frameData.isNew causes troubles when gJacksOnTop. Investigate why
+
+	// set the color (i.e.: animation for the _next_ iteration)
 	// (it has already been rendered to np from the ledSliders.process() call above)
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 		activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
