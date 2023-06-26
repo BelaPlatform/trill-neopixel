@@ -7470,7 +7470,7 @@ public:
 	}
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, true};
-	ParameterContinuous brightness {this, 0.2};
+	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
 		float sizeScaleCoeff;
