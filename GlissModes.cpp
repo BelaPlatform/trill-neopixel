@@ -4559,6 +4559,15 @@ public:
 			while(lowestEnabled < keyStepModes.size() && !stepIsEnabled(lowestEnabled))
 				lowestEnabled++;
 			gOutUsesRange[1] = false; // we output fix voltagese
+			if(kPageTuning == page && !clockInIsActive(context))
+			{
+				// if pressing a key in tuning page, or tuning it, send out a 5V gate
+				if(kDisabled == touch.state && kKeyInvalid == keyBeingAdjusted)
+					triggerOut = vToOut(0);
+				else
+					triggerOut = vToOut(5);
+			} else
+			{
 			// send out a +5V trigger on each new step
 			// and send out a +10V reset signal when on the first step (if it is triggerable, anyhow)
 			if(newTriggerableStep)
@@ -4577,7 +4586,7 @@ public:
 			{
 				triggerOut = vToOut(0);
 			}
-
+			}
 			gManualAnOut[1] = triggerOut;
 			seqPastStep = seqCurrentStep;
 		} else {
