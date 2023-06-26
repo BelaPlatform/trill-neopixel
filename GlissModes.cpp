@@ -7403,7 +7403,12 @@ public:
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			S(str = "sizeScaleCoeff");
-			float tmp = (powf(2, 0.5 + sizeScaleCoeff) - 1);
+			float tmp = 0.3f + 1.5f * (powf(2, 0.5 + sizeScaleCoeff) - 1);
+			if(sizeScaleCoeff > 0.98) {
+				// make it very big at the top, so it works like a gate,
+				// no matter how small the touch
+				tmp = 10;
+			}
 			float coeff = kSizeScale / (tmp * tmp * tmp);
 			setAllSizeScales(coeff);
 			doOverride(1, globalSlider.compoundTouchSize(), false, true);
