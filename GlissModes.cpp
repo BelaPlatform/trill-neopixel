@@ -2328,7 +2328,7 @@ public:
 		bool hasTouch = false;
 		for(size_t n = 0; n < currentSplits(); ++n)
 			hasTouch |= values[n].size > 0;
-		shouldLatch |= analogRisingEdge;
+
 		if(performanceBtn.onset)
 		{
 			// if you have at least one touch, we latch
@@ -2344,6 +2344,12 @@ public:
 				shouldUnlatch = true;
 				lastLatchCount = ButtonView::kPressIdInvalid;
 			}
+		}
+		if(analogRisingEdge && !performanceBtn.pressed)
+		{
+			// on analog edge, if there is a touch, latch. Otherwise, unlatch.
+			shouldLatch |= hasTouch;
+			shouldUnlatch = !shouldLatch;
 		}
 		// sets values and isLatched
 		latchProcessor.process(shouldAutoLatch(), 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
