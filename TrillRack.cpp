@@ -786,20 +786,28 @@ void tr_render(BelaContext* context)
 			else // analogOut has already been written. Rescale in-place
 				start = context->analogOut[n * kNumOutChannels + channel];
 			static auto pastSmoothed = smoothed;
+			static std::array<bool,kNumOutChannels> pastStartWasNoOutput{true, true};
 			static std::array<float,kNumOutChannels> pastOut {};
 			if(smoothed[channel] && !pastSmoothed[channel])
 			{
 				// if we haven't processed the channel for some time, reset the filter
 				pastOut[channel] = rescaleOutput(false, channel, outCal, start);
+				pastStartWasNoOutput[channel] = true;
 			}
 			pastSmoothed[channel] = smoothed[channel];
 			float rescaled = rescaleOutput(false, channel, outCal, start);
 			float tmp = pastOut[channel];
 			float alpha;
 			if(smoothed[channel])
-				alpha = 0.993;
-			else
+			{
+				// TODO: this should actually be "if gOutIsLocation" but we don't have that atm
+				if(pastStartWasNoOutput[channel] && !gOutIsSize[channel])
+					alpha = 0;
+				else
+					alpha = 0.993;
+			} else
 				alpha = 0;
+			pastStartWasNoOutput[channel] = (start == kNoOutput);
 			float out = tmp * alpha + rescaled * (1.f - alpha);
 			analogWriteOnce(context, n, channel, out);
 			pastOut[channel] = out;
