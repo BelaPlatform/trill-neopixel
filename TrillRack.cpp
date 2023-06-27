@@ -10,6 +10,7 @@
 #include "usbd_midi_if.h"
 #include <atomic>
 
+char stringId[128] __attribute__((section(".stringIdSec"), used)) = "Gliss";
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
 extern std::array<rgb_t, 2> gBalancedLfoColors;
@@ -243,6 +244,7 @@ void tr_snpDone()
 
 int tr_setup()
 {
+	printf("stringId: %s\n\r", stringId);
 #ifdef TRILL_BAR
 	padsToOrderMap.resize(kNumPads);
 	for(size_t n = 0; n < padsToOrderMap.size(); ++n)
