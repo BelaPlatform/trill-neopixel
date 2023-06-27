@@ -3671,10 +3671,11 @@ public:
 			centroids[0].location = outDisplay;
 			centroids[0].size = kFixedCentroidSize;
 		}
+		const float kMagicLogCorrection = 2.f;
 		if(hasEnvelope)
 		{
 			if(kCouplingAcRms == coupling)
-				outVizEnv = log10f(1.f + outVizEnv * 9.f);
+				outVizEnv = log10f(1.f + kMagicLogCorrection * outVizEnv * 9.f);
 			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMin, outRangeMax);
 			centroids[1].size = kFixedCentroidSize;
 		}
@@ -3684,7 +3685,7 @@ public:
 			//display color bar
 			if(ledSliders.areLedsEnabled())
 			{
-				float throughLog = log10f(1.f + outVizThrough * 9.f);
+				float throughLog = log10f(1.f + kMagicLogCorrection * outVizThrough * 9.f);
 				colorBar(throughLog, outRangeMin * kNumLeds, outRangeMax * kNumLeds, kRgbGreen, kRgbRed);
 			}
 		}
