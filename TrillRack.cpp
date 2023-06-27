@@ -798,16 +798,16 @@ void tr_render(BelaContext* context)
 			float rescaled = rescaleOutput(false, channel, outCal, start);
 			float tmp = pastOut[channel];
 			float alpha;
+			bool startIsNoOutput = (start == kNoOutput);
 			if(smoothed[channel])
 			{
-				// TODO: this should actually be "if gOutIsLocation" but we don't have that atm
-				if(pastStartWasNoOutput[channel] && !gOutIsSize[channel])
+				if(startIsNoOutput || pastStartWasNoOutput[channel])
 					alpha = 0;
 				else
 					alpha = 0.993;
 			} else
 				alpha = 0;
-			pastStartWasNoOutput[channel] = (start == kNoOutput);
+			pastStartWasNoOutput[channel] = startIsNoOutput;
 			float out = tmp * alpha + rescaled * (1.f - alpha);
 			analogWriteOnce(context, n, channel, out);
 			pastOut[channel] = out;
