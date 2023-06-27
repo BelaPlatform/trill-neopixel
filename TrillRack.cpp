@@ -795,14 +795,21 @@ void tr_render(BelaContext* context)
 		}
 	}
 	std::array<float, gManualAnOut.size()> anOutBuffer;
+	static auto pastOutMode = gOutMode;
 	for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
 	{
+		static float pastOut[anOutBuffer.size()];
+		if(pastOutMode[channel] != gOutMode[channel])
+		{
+			// if we haven't processed the channel for some time, reset the filter
+			pastOut[channel] = rescaleOutput(false, channel, outCal, gManualAnOut[channel]);
+		}
+		pastOutMode[channel] = gOutMode[channel];
 		if(kOutModeManualBlock == gOutMode[channel])
 		{
 			anOutBuffer[channel] = rescaleOutput(false, channel, outCal, gManualAnOut[channel]);
 			for(unsigned int n = 0; n < context->analogFrames; ++n)
 			{
-				static float pastOut[anOutBuffer.size()];
 				float tmp = pastOut[channel];
 				float alpha = 0.993;
 				float out = tmp * alpha + anOutBuffer[channel] * (1.f - alpha);
