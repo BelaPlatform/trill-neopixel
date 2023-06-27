@@ -5098,15 +5098,15 @@ public:
 	}
 	ParameterEnumT<2,bool> quantised {this, true};
 	ParameterEnumT<2,bool> seqMode{this, false};
-	ParameterContinuous modRange {this, 0.5};
+	ParameterContinuous modRange {this, 0.1};
 	ParameterContinuous offsetParameterRaw {this, 0};
 	// do not retrieve offsetParameters directly, use getOutForKey() instead
 	std::array<ParameterContinuous,kMaxNumButtons> offsetParameters {
-		ParameterContinuous(this, 0.5),
-		ParameterContinuous(this, 0.6),
-		ParameterContinuous(this, 0.7),
-		ParameterContinuous(this, 0.8),
-		ParameterContinuous(this, 0.9),
+		ParameterContinuous(this, semiToNorm(66)), // F#
+		ParameterContinuous(this, semiToNorm(67)), // G
+		ParameterContinuous(this, semiToNorm(69)), // A
+		ParameterContinuous(this, semiToNorm(71)), // B
+		ParameterContinuous(this, semiToNorm(74)), // D
 	};
 	std::array<ParameterGeneric<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
 	PACKED_STRUCT(PresetFieldData_t {
