@@ -3576,7 +3576,6 @@ public:
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
 				ledSliders.sliders[0].process(data.data());
-				return;
 			}
 			if(performanceBtn.offset)
 			{
@@ -3585,7 +3584,6 @@ public:
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
 				ledSliders.sliders[0].process(data.data());
-				return;
 			}
 		}
 		// ugly workaround to turn on the red LED when in the "clipping" page
