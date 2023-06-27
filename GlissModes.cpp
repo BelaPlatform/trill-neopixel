@@ -3127,7 +3127,7 @@ public:
 							.valid = true,
 						};
 					} else // otherwise, keep playing back from table
-						gOutMode[n] = kOutModeManualSample;
+						gOutMode[n] = kOutModeManualSampleSmoothed;
 				} else {
 					// non split
 					directControl[1] = directControl[n];
@@ -3137,7 +3137,7 @@ public:
 						gesture[0] = { touch.location, true };
 						gesture[1] = { touch.size, true };
 					} else
-						gOutMode.fill(kOutModeManualSample);
+						gOutMode.fill(kOutModeManualSampleSmoothed);
 				}
 			}
 			break;
@@ -3146,7 +3146,7 @@ public:
 		}
 		for(unsigned int n = 0; n < kNumSplits; ++n)
 		{
-			if(kOutModeManualSample == gOutMode[n])
+			if(kOutModeManualBlock != gOutMode[n])
 			{
 				float value = processTable(context, n);
 				gesture[n] = GestureRecorder::HalfGesture_t {.sample = value, .valid = true};
