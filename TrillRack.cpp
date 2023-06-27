@@ -774,16 +774,33 @@ void tr_render(BelaContext* context)
 		smoothed[c] = (gOutMode[c] == kOutModeManualBlock);
 		block[c] = (gOutMode[c] == kOutModeManualBlock);
 	}
-	// analogOut has already been written. Rescale in-place
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
 		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
 		{
-			if(!block[channel])
+			float start;
+			if(block[channel])
+				start = gManualAnOut[channel];
+			else // analogOut has already been written. Rescale in-place
+				start = context->analogOut[n * kNumOutChannels + channel];
+			static auto pastSmoothed = smoothed;
+			static std::array<float,kNumOutChannels> pastOut {};
+			if(smoothed[channel] && !pastSmoothed[channel])
 			{
-				size_t idx = n * kNumOutChannels + channel;
-				context->analogOut[idx] = rescaleOutput(false, channel, outCal, context->analogOut[idx]);
+				// if we haven't processed the channel for some time, reset the filter
+				pastOut[channel] = rescaleOutput(false, channel, outCal, start);
 			}
+			pastSmoothed[channel] = smoothed[channel];
+			float rescaled = rescaleOutput(false, channel, outCal, start);
+			float tmp = pastOut[channel];
+			float alpha;
+			if(smoothed[channel])
+				alpha = 0.993;
+			else
+				alpha = 0;
+			float out = tmp * alpha + rescaled * (1.f - alpha);
+			analogWriteOnce(context, n, channel, out);
+			pastOut[channel] = out;
 		}
 	}
 	// we do the loop again to swap channels if needed
@@ -793,44 +810,16 @@ void tr_render(BelaContext* context)
 	// that will be overwritten below
 	// TODO: consolidate these three loops. Try to incorporate this above, or just use it on
 	// all channels after the next loop.
-	if(gJacksOnTop && (!block[0] || !block[1]))
-	{
-		for(unsigned int n = 0; n < context->analogFrames; ++n)
+		if(gJacksOnTop)
 		{
-			size_t idx0 = n * kNumOutChannels;
-			std::swap(context->analogOut[idx0], context->analogOut[idx0 + 1]);
-		}
-	}
-	std::array<float, gManualAnOut.size()> anOutBuffer;
-	for(unsigned int channel = 0; channel < anOutBuffer.size(); ++channel)
-	{
-		static auto pastSmoothed = smoothed;
-		static float pastOut[anOutBuffer.size()];
-		if(pastSmoothed[channel] != smoothed[channel])
-		{
-			// if we haven't processed the channel for some time, reset the filter
-			pastOut[channel] = rescaleOutput(false, channel, outCal, gManualAnOut[channel]);
-		}
-		pastSmoothed[channel] = smoothed[channel];
-		if(block[channel])
-		{
-			anOutBuffer[channel] = rescaleOutput(false, channel, outCal, gManualAnOut[channel]);
 			for(unsigned int n = 0; n < context->analogFrames; ++n)
 			{
-				float tmp = pastOut[channel];
-				float alpha;
-				if(smoothed[channel])
-					alpha = 0.993;
-				else
-					alpha = 0;
-				float out = tmp * alpha + anOutBuffer[channel] * (1.f - alpha);
-				analogWriteJacks(context, n, channel, out);
-				pastOut[channel] = out;
+				size_t idx0 = n * kNumOutChannels;
+				std::swap(context->analogOut[idx0], context->analogOut[idx0 + 1]);
 			}
-		// TODO: could check for nan and clean filter in that case
-		// (((uint32_t*)(&floatValue))[0] == 0x7fc00000) // is nan
 		}
-	}
+
+	// finalise and possibly add analogIn pass through
 	for(size_t n = 0; n < context->analogFrames; ++n)
 	{
 		float add;
