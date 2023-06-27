@@ -6,6 +6,7 @@ constexpr float kSliderTopMargin = 0.05;
 typedef enum {
 	kOutModeManualBlock,
 	kOutModeManualSample,
+	kOutModeManualSampleSmoothed,
 } OutMode;
 constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
 extern std::array<OutMode,kNumOutChannels> gOutMode;

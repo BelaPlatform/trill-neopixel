@@ -773,7 +773,7 @@ void tr_render(BelaContext* context)
 	std::array<bool,kNumOutChannels> block {};
 	for(size_t c = 0; c < kNumOutChannels; ++c)
 	{
-		smoothed[c] = (gOutMode[c] == kOutModeManualBlock);
+		smoothed[c] = (gOutMode[c] == kOutModeManualBlock) || (gOutMode[c] == kOutModeManualSampleSmoothed);
 		block[c] = (gOutMode[c] == kOutModeManualBlock);
 	}
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
