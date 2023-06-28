@@ -7,10 +7,9 @@
 #include "LedSliders.h"
 #include <cmath>
 #include <assert.h>
-#include "usbd_midi_if.h"
 #include <atomic>
+#include "../../bootloader_stuff/stringId.h"
 
-char stringId[128] __attribute__((section(".stringIdSec"), used)) = "Gliss-CS";
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
 extern std::array<rgb_t, 2> gBalancedLfoColors;
@@ -134,38 +133,14 @@ std::vector<unsigned int> padsToOrderMap = {
 CentroidDetectionScaled globalSlider;
 int gAlt = 0;
 
-#include "bootloader.h"
-
-static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
-{
-	for(unsigned int n = 0; n < length; ++n)
-		printf("%02x ", msg[n]);
-	if(length)
-		printf("\n\r");
-	// loopback the input to the output
-	sendMidiMessage(msg, length);
-	// program change channel 1, program 2, (i.e.: 0x0 and 0x1 respectively)
-	if(0x0c == msg[0] && 0xc0 == msg[1] && 0x01 == msg[2])
-	{
-		np.clear();
-		np.setPixelColor(kNumLeds - 1, 0, 255, 0);
-		// show() may fail if another buffer is being sent right now.
-		// TODO: wait for it but ensure the timer thread has a higher preemption priority than this one
-		np.show();
-		printf("Jumping to bootloader\n\r");
-		bootloaderResetTo(kBootloaderMagicSystemBootloader);
-	}
-	return 0;
-}
-
-static uint8_t midiInToPixel(uint8_t value)
+#if 0
+uint8_t midiInToPixel(uint8_t value)
 {
 	value = value * 2;
 	if(254 == value)
 		value = 255;
 	return value;
 }
-
 #include "LedSliders.h" // rgb_t
 static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 	bool shouldOverrideDisplay = false;
@@ -226,7 +201,7 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 	if(shouldOverrideDisplay)
 		gAlt = 2;
 }
-
+#endif
 #ifdef STM32_NEOPIXEL
 static Stm32NeoPixelT<uint32_t, kNumLeds> snp(&neoPixelHtim, neoPixelHtim_TIM_CHANNEL_x, 0.66 * neoPixelHtim_COUNTER_PERIOD, 0.33 * neoPixelHtim_COUNTER_PERIOD);
 #endif // STM32_NEOPIXEL
@@ -322,8 +297,6 @@ int tr_setup()
 	if(trill.readStatusByte() < 0) // ensure that future reads via DMA have the correct offset
 		return false;
 	modeAlt_setup();
-	setHdlCtlChange(midiCtlCallback);
-	setHdlAll(midiInputCallback);
 	PresetInitOptions_t presetType;
 #ifdef TEST_MODE
 	presetType = kPresetInit_LoadDefault;
@@ -335,6 +308,7 @@ int tr_setup()
 	return foundAddress;
 }
 
+extern "C" void processMidiMessage(void);
 void tr_mainLoop()
 {
 #ifndef TEST_MODE
@@ -344,6 +318,7 @@ void tr_mainLoop()
 		if(ret >= 0)
 			printf("presetCheckSave: %d\n\r", ret);
 	}
+	processMidiMessage();
 #endif // TEST_MODE
 }
 
@@ -555,7 +530,6 @@ void tr_render(BelaContext* context)
 	}
 #endif // STM32
 	np.clear(); // clear display before we start writing to it
-	processMidiMessage();
 	triggerInToClock(context);
 
 	float min = kSliderBottomMargin;
