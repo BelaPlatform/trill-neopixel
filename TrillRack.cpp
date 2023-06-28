@@ -10,7 +10,7 @@
 #include "usbd_midi_if.h"
 #include <atomic>
 
-char stringId[128] __attribute__((section(".stringIdSec"), used)) = "Gliss";
+char stringId[128] __attribute__((section(".stringIdSec"), used)) = "Gliss-CS";
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
 extern std::array<rgb_t, 2> gBalancedLfoColors;

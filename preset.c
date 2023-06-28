@@ -17,7 +17,7 @@ static const uint32_t kPresetSectorStops = getSectorFromSlot(kStorageNumSlots);
 // this gets shifted left by however many places needed to fit the actual
 // preset length into a uint32_t. If you want to force a change and invalidate
 // all currently stored presets, edit the rightmost part of it.
-static const uint32_t kPresetHeader = 0x23456B;
+static const uint32_t kPresetHeader = 0x23456C;
 static uint32_t gPresetSignature; // computed at runtime based on kPresetHeader and actual size
 
 static struct {
