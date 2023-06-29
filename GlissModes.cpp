@@ -321,7 +321,7 @@ enum AnimationMode
 	kAnimationModeCustom,
 	kAnimationModeSolid,
 };
-static AnimationMode gAnimationMode = kAnimationModeSolidDefaultWithFs;
+static AnimationMode gAnimationMode = kAnimationModeConsistentWithFs;
 
 Override gOverride;
 static bool gInUsesCalibration;
