@@ -2333,8 +2333,6 @@ public:
 		{
 			// if you have at least one touch, we latch
 			shouldLatch |= hasTouch;
-			if(shouldLatch)
-				tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		}
 		if(performanceBtn.offset)
 		{
@@ -2351,6 +2349,8 @@ public:
 			shouldLatch |= hasTouch;
 			shouldUnlatch = !shouldLatch;
 		}
+		if(shouldLatch)
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		// sets values and isLatched
 		latchProcessor.process(shouldAutoLatch(), 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
