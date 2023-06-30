@@ -3569,7 +3569,6 @@ private:
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
 
-static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top);
 static void menu_up();
 
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
@@ -6860,37 +6859,6 @@ private:
 	const float* display;
 };
 
-class MenuItemTypeDisplayRangeRaw : public MenuItemType {
-public:
-	MenuItemTypeDisplayRangeRaw(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top) :
-		MenuItemType(color), bottom(bottom), top(top), otherColor(otherColor) {}
-	void process(LedSlider& slider) override
-	{
-		np.clear();
-		size_t start = std::round((kNumLeds - 1) * bottom);
-		size_t stop = std::round((kNumLeds - 1) * top);
-		for(size_t n = start; n <= stop; ++n)
-		{
-			rgb_t pixel;
-			float rel = (n - start) / float(stop - start);
-			if(stop == start)
-				rel = 0.5; // ensure some mixing happens
-			for(size_t c = 0; c < pixel.size(); ++c)
-				pixel[c] = baseColor[c] * rel + otherColor[c] * (1.f - rel);
-			np.setPixelColor(n, pixel.scaledBy(0.2));
-		}
-		if(HAL_GetTick() - startMs >= kMaxMs)
-			menu_up();
-	}
-private:
-	float bottom;
-	float top;
-	rgb_t otherColor;
-	static constexpr uint32_t kMaxMs = 800;
-	uint32_t startMs = HAL_GetTick();
-};
-
 static void requestNewMode(int mode);
 
 static void requestIncMode()
@@ -7520,11 +7488,6 @@ static void requestNewMode(int mode)
 	menu_updateSubmenu();
 }
 
-static MenuItemTypeDisplayRangeRaw displayRangeRawMenuItem;
-// this is a submenu consisting of a full-screen display of a range. Before entering it,
-// appropriately set the properties of displayIoRangeMenuItem
-MenuPage displayRangeRawMenu("display io range", {&displayRangeRawMenuItem}, MenuPage::kMenuTypeRaw);
-
 static constexpr rgb_t globalSettingsColor = kRgbYellow;
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
@@ -7652,13 +7615,6 @@ static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rg
 	menu_in(singleRangeDisplayMenu);
 }
 #endif // MENU_ENTER_RANGE_DISPLAY
-
-static void menu_enterDisplayRangeRaw(const rgb_t& color, const rgb_t& otherColor, float bottom, float top)
-{
-	gAlt = 1;
-	displayRangeRawMenuItem = MenuItemTypeDisplayRangeRaw(color, otherColor, bottom, top);
-	menu_in(displayRangeRawMenu);
-}
 
 #ifdef MENU_ENTER_SINGLE_SLIDER
 static void menu_enterSingleSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuous& parameter)
