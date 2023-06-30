@@ -5821,7 +5821,7 @@ public:
 					else
 						color = kRgbRed;
 					for(size_t n = 0; n < np.getNumPixels(); ++n)
-						np.setPixelColor(n, color.r, color.g, color.b);
+						np.setPixelColor(n, color.scaledBy(0.2));
 				}
 			}
 		}
