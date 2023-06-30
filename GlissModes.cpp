@@ -1464,10 +1464,10 @@ static float simpleTriangle(unsigned int phase, unsigned int period)
 	return value;
 }
 
-class IoRangeParameters
+class IoRangeParameters : public ParameterEnumT<kCvRangeNum,CvRange>
 {
 public:
-	ParameterEnumT<kCvRangeNum,CvRange> cvRange;
+	ParameterEnumT<kCvRangeNum,CvRange>& cvRange = *this; // for backwards compatibility
 	ParameterContinuous min;
 	ParameterContinuous max;
 	operator IoRange() {
@@ -1479,10 +1479,69 @@ public:
 		};
 	}
 	IoRangeParameters(ParameterUpdateCapable* that) :
-		cvRange({that, kCvRangePositive10}),
+		ParameterEnumT<kCvRangeNum,CvRange>({that, kCvRangePositive10}),
 		min(that, 0),
 		max(that, 1)
 	{}
+	virtual void animate(LedSlider& l, rgb_t baseColor, uint32_t ms) override
+	{
+		if(ms < 800)
+		{
+			if(!gAnimateFs.writeInit(*this, l))
+				return;
+			const rgb_t otherColor = kRgbRed;
+			float bottom = 0;
+			float top = 0;
+			const float kMinus5 = 0;
+			const float kGnd = 0.33;
+			const float kPlus5 = 0.66;
+			const float kPlus10 = 1;
+			rgb_t secondaryColor = baseColor;
+
+			switch(get())
+			{
+			case kCvRangeBipolar:
+				bottom = kMinus5;
+				top = kPlus5;
+				break;
+			case kCvRangeCustom:
+				bottom = min;
+				top = max;
+				secondaryColor = otherColor;
+				break;
+			case kCvRangeFull:
+				bottom = kMinus5;
+				top = kPlus10;
+				break;
+			case kCvRangePositive5:
+				bottom = kGnd;
+				top = kPlus5;
+				break;
+			case kCvRangePositive10:
+				bottom = kGnd;
+				top = kPlus10;
+				break;
+			}
+			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
+
+			if(bottom != 0)
+				bottom += kMargin;
+			if(top != 1)
+				top -= kMargin;
+			size_t start = std::round((kNumLeds - 1) * bottom);
+			size_t stop = std::round((kNumLeds - 1) * top);
+			for(size_t n = start; n <= stop; ++n)
+			{
+				rgb_t pixel;
+				float rel = (n - start) / float(stop - start);
+				if(stop == start)
+					rel = 0.5; // ensure some mixing happens
+				for(size_t c = 0; c < pixel.size(); ++c)
+					pixel[c] = baseColor[c] * rel + secondaryColor[c] * (1.f - rel);
+				np.setPixelColor(n, pixel.scaledBy(0.2));
+			}
+		}
+	}
 };
 
 class IoRangesParameters
@@ -7165,56 +7224,21 @@ public:
 	rgb_t otherColor;
 };
 
-class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteRange
+static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in);
+class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteFullScreenAnimation
 {
 public:
-	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterEnum& valueEn, ParameterContinuous& valueConBottom, ParameterContinuous& valueConTop, MenuItemTypeRange::PreprocessFn preprocess):
-		MenuItemTypeDiscreteRange(name, baseColor, otherColor, valueEn, valueConBottom, valueConTop, preprocess, 2000), otherColor(otherColor) {}
-	MenuItemTypeDiscreteRangeCv(const char* name, rgb_t baseColor, rgb_t otherColor, IoRangeParameters& ioRange, MenuItemTypeRange::PreprocessFn preprocess):
-		MenuItemTypeDiscreteRange(name, baseColor, otherColor, ioRange.cvRange, ioRange.min, ioRange.max, preprocess, 2000), otherColor(otherColor) {}
-
-	void event(Event e) override
+	MenuItemTypeDiscreteRangeCv(const char* name, const AnimationColors& colors, IoRangeParameters& valueEn):
+		MenuItemTypeDiscreteFullScreenAnimation(name, colors, valueEn), ioRangeParameters(valueEn) {}
+	void enterPlus() override
 	{
-		MenuItemTypeDiscreteRange::event(e);
-		if(Event::kTransitionFalling == e)
-		{
-			float bottom = 0;
-			float top = 0;
-			const float kMinus5 = 0;
-			const float kGnd = 0.33;
-			const float kPlus5 = 0.66;
-			const float kPlus10 = 1;
-			rgb_t secondaryColor = baseColor;
-			switch(valueEn.get())
-			{
-			case kCvRangeBipolar:
-				bottom = kMinus5;
-				top = kPlus5;
-				break;
-			case kCvRangeCustom:
-				bottom = valueConBottom;
-				top = valueConTop;
-				secondaryColor = otherColor;
-				break;
-			case kCvRangeFull:
-				bottom = kMinus5;
-				top = kPlus10;
-				break;
-			case kCvRangePositive5:
-				bottom = kGnd;
-				top = kPlus5;
-				break;
-			case kCvRangePositive10:
-				bottom = kGnd;
-				top = kPlus10;
-				break;
-			}
-			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
-			menu_enterDisplayRangeRaw(baseColor, secondaryColor, bottom + kMargin, top - kMargin);
-		}
+		M(printf("RangeCv: going to range\n\r"));
+		singleRangeMenuItem = MenuItemTypeRange(colors[getIdx(valueEn.get())], colors.back(), true, &ioRangeParameters.min, &ioRangeParameters.max, quantiseNormalisedForIntegerVolts);
+		menu_in(singleRangeMenu);
 	}
+
 private:
-	rgb_t otherColor;
+	IoRangeParameters& ioRangeParameters;
 };
 
 class MenuItemTypeExitSubmenu : public MenuItemTypeEvent
@@ -7539,6 +7563,9 @@ static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrigh
 static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
 static constexpr rgb_t kIoRangeOtherColor = kRgbRed;
 static MenuItemTypeDisabled disabledIoRange(kIoRangeButtonColor.scaledBy(0.2));
+static constexpr AnimationColors ioRangeColors {
+	kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeOtherColor
+};
 class PerformanceModeIoRangesMenuPage : public MenuPage {
 public:
 	PerformanceModeIoRangesMenuPage(const char* name, PerformanceMode& perf, bool inputEnabled) :
@@ -7549,9 +7576,19 @@ public:
 				&outTop,
 				inputEnabled ? (MenuItemType*)&in : &disabledIoRange,
 		}),
-		in((std::string(name) + " in").c_str(), kIoRangeButtonColor, kIoRangeOtherColor, perf.ioRangesParameters.in, quantiseNormalisedForIntegerVolts),
-		outTop((std::string(name) + " outTop").c_str(), kIoRangeButtonColor, kIoRangeOtherColor, perf.ioRangesParameters.outTop, quantiseNormalisedForIntegerVolts),
-		outBottom((std::string(name) + " outBottom").c_str(), kIoRangeButtonColor, kIoRangeOtherColor, perf.ioRangesParameters.outBottom, quantiseNormalisedForIntegerVolts)
+		in(
+				(std::string(name) + " in").c_str(),
+				ioRangeColors,
+				perf.ioRangesParameters.in),
+		outTop(
+				(std::string(name) + " outTop").c_str(),
+				ioRangeColors,
+				perf.ioRangesParameters.outTop),
+		outBottom(
+				(std::string(name) + " outBottom").c_str(),
+				ioRangeColors,
+				perf.ioRangesParameters.outBottom)
+
 	{}
 private:
 	MenuItemTypeDiscreteRangeCv in;
