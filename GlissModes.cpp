@@ -7418,6 +7418,10 @@ public:
 			gJacksOnTop = jacksOnTop;
 			S(str = "jacksOnTop");
 		}
+		else if(p.same(animationMode)) {
+			S(str = "animationMode");
+			gAnimationMode = AnimationMode(animationMode.get());
+		}
 		else if(p.same(sizeScaleCoeff)) {
 			S(str = "sizeScaleCoeff");
 			float tmp = 0.1f + 1.5f * (powf(2, 0.5 + sizeScaleCoeff) - 1);
@@ -7470,6 +7474,7 @@ public:
 	}
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, true};
+	ParameterEnumT<kNumAnimationMode> animationMode {this, gAnimationMode};
 	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	PACKED_STRUCT(PresetFieldData_t {
@@ -7529,6 +7534,7 @@ static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeSc
 static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop);
+static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", kRgbWhite, gGlobalSettings.animationMode);
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsColor, gGlobalSettings.brightness);
 
 static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
@@ -7655,7 +7661,7 @@ static void menu_update()
 		globalSettingsMenu0.items = {
 			&globalSettingsJacksOnTop,
 			&disabled,
-			&disabled,
+			&globalSettingsAnimationMode,
 			&globalSettingsBrightness,
 			&globalSettingsSizeScale,
 		};
