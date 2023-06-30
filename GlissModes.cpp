@@ -1412,6 +1412,39 @@ private:
 	const float defaultValue;
 };
 
+class AnimateFs
+{
+public:
+static constexpr size_t kLedStart = 4;
+static constexpr size_t kLedStop = kNumLeds - 5;
+bool writeInit(Parameter& p, LedSlider& l)
+{
+	if(isEnabled(p))
+	{
+		for(size_t n = kLedStart; n < kLedStop; ++n)
+			np.setPixelColor(n, kRgbBlack);
+	}
+	return isEnabled(p);
+}
+void directWriteCentroid(Parameter& p, LedSlider& l, centroid_t centroid, rgb_t color, size_t numWeights = LedSlider::kDefaultNumWeights)
+{
+	if(!isEnabled(p))
+		return;
+	centroid.location = mapAndConstrain(centroid.location, 0, 1, 0.25, 0.75);
+	l.directWriteCentroid(centroid, color, numWeights);
+}
+void setActive(Parameter& p)
+{
+	enabledP = &p;
+}
+private:
+bool isEnabled(Parameter& p) const
+{
+	return &p == enabledP;
+}
+Parameter* enabledP = nullptr;
+} gAnimateFs;
+
 static float simpleRamp(unsigned int phase, unsigned int period)
 {
 	if(!period)
@@ -2046,40 +2079,6 @@ static bool areEqual(const T& a, const T& b)
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
-
-class AnimateFs
-{
-public:
-static constexpr size_t kLedStart = 4;
-static constexpr size_t kLedStop = kNumLeds - 5;
-bool writeInit(Parameter& p, LedSlider& l)
-{
-	if(isEnabled(p))
-	{
-		for(size_t n = kLedStart; n < kLedStop; ++n)
-			np.setPixelColor(n, kRgbBlack);
-	}
-	return isEnabled(p);
-}
-void directWriteCentroid(Parameter& p, LedSlider& l, centroid_t centroid, rgb_t color, size_t numWeights = LedSlider::kDefaultNumWeights)
-{
-	if(!isEnabled(p))
-		return;
-	centroid.location = mapAndConstrain(centroid.location, 0, 1, 0.25, 0.75);
-	l.directWriteCentroid(centroid, color, numWeights);
-}
-void setActive(Parameter& p)
-{
-	enabledP = &p;
-}
-private:
-bool isEnabled(Parameter& p) const
-{
-	return &p == enabledP;
-}
-Parameter* enabledP = nullptr;
-} gAnimateFs;
-
 std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
 {
 	std::array<TouchTracker::TouchWithId,kNumSplits> values {};
