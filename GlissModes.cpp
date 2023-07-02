@@ -7784,6 +7784,7 @@ static void menu_update()
 			);
 			menuJustEntered = false; // this is immediately interactive
 		}
+		menu_resetStates(nullptr);
 	}
 }
 
