@@ -1433,6 +1433,7 @@ bool writeInit(Parameter& p, LedSlider& l)
 {
 	if(isEnabled(p))
 	{
+		hasWrittenInit++;
 		size_t start = all ? 0 : kLedStart;
 		size_t stop = all ? kNumLeds : kLedStop;
 		for(size_t n = start; n < stop; ++n)
@@ -1452,12 +1453,18 @@ void setActive(Parameter& p, bool all)
 	this->all = all;
 	enabledP = &p;
 }
+uint32_t hasWrittenCount()
+{
+	return hasWrittenInit;
+}
+
 private:
 bool isEnabled(Parameter& p) const
 {
 	return &p == enabledP;
 }
 Parameter* enabledP = nullptr;
+uint32_t hasWrittenInit = 0;
 bool all = false;
 } gAnimateFs;
 
