@@ -18,6 +18,18 @@ static constexpr rgb_t kRgbBlack {0, 0, 0};
 static constexpr float kMenuButtonDefaultBrightness = 0.2;
 static constexpr float kMenuButtonActiveBrightness = 0.7;
 
+// When a WithFs kAnimationMode is enabled, there is a kPostAnimationTimeoutMs during
+// which if you tap the selector, it is going to advance to the next value.
+// If in kAnimationModeSolidGlowingWithFs, during this period (or actually slightly less than that),
+// the button  will glow to indicate it is "active". The "slightly less" is a perhaps unnecessary
+// subtlety so that the glowing is slightly shorter than the actual active time of the selector,
+// so if you see it glowing, by the time you tap it it's probably still active.
+static constexpr uint32_t kPostAnimationGlowingPeriod = 700;
+// ensure full period so that the transition is smooth
+static constexpr uint32_t kPostAnimationGlowingMs = kPostAnimationGlowingPeriod * 5;
+// + 300 is the "slightly less"
+static constexpr uint32_t kPostAnimationTimeoutMs = kPostAnimationGlowingMs + 300;
+
 #define ENABLE_DIRECT_CONTROL_MODE
 #define ENABLE_RECORDER_MODE
 #define ENABLE_SCALE_METER_MODE
@@ -313,15 +325,16 @@ std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = true;
 enum AnimationMode
 {
-	kAnimationModeSolidWithFs,
 	kAnimationModeSolid,
+	kAnimationModeSolidGlowingWithFs,
+	kAnimationModeSolidWithFs,
 	kNumAnimationMode,
 	kAnimationModeConsistent,
 	kAnimationModeConsistentWithFs,
 	kAnimationModeSolidDefaultWithFs,
 	kAnimationModeCustom,
 };
-static AnimationMode gAnimationMode = kAnimationModeSolidWithFs;
+static AnimationMode gAnimationMode = kAnimationModeSolid;
 static bool hasFsAnimation()
 {
 	switch(gAnimationMode)
@@ -329,6 +342,7 @@ static bool hasFsAnimation()
 		case kAnimationModeConsistentWithFs:
 		case kAnimationModeSolidWithFs:
 		case kAnimationModeSolidDefaultWithFs:
+		case kAnimationModeSolidGlowingWithFs:
 			return true;
 		default:
 			return false;
@@ -6133,6 +6147,10 @@ public:
 		case kAnimationModeCustom:
 			processCustom(ms, ledSlider, value);
 			break;
+		case kAnimationModeSolidGlowingWithFs:
+			if(ms < kPostAnimationGlowingMs)
+				color.scale(0.1f + 0.9f * simpleTriangle(ms + kPostAnimationGlowingPeriod / 2, kPostAnimationGlowingPeriod));
+			ledSlider.setColor(color);
 		}
 	};
 	virtual void processCustom(uint32_t ms, LedSlider& ledSlider, float value) {};
@@ -7137,7 +7155,7 @@ class MenuItemTypeDiscreteFullScreenAnimation : public MenuItemTypeDiscretePlus
 {
 public:
 	MenuItemTypeDiscreteFullScreenAnimation(const char* name, const AnimationColors& colors, ParameterEnum& valueEn, bool alwaysDisplayOnFirstTap, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, alwaysDisplayOnFirstTap, 4000),
+		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, alwaysDisplayOnFirstTap, kPostAnimationTimeoutMs),
 		colors(colors), lastTap(0), buttonAnimation(animation)
 	{}
 	virtual void process(LedSlider& ledSlider) override
