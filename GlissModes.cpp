@@ -321,7 +321,19 @@ enum AnimationMode
 	kAnimationModeCustom,
 	kAnimationModeSolid,
 };
-static AnimationMode gAnimationMode = kAnimationModeConsistentWithFs;
+static AnimationMode gAnimationMode = kAnimationModeSolidWithFs;
+static bool hasFsAnimation()
+{
+	switch(gAnimationMode)
+	{
+		case kAnimationModeConsistentWithFs:
+		case kAnimationModeSolidWithFs:
+		case kAnimationModeSolidDefaultWithFs:
+			return true;
+		default:
+			return false;
+	}
+}
 
 Override gOverride;
 static bool gInUsesCalibration;
@@ -1373,7 +1385,7 @@ public:
 	}
 	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) override
 	{
-		if(kAnimationModeConsistentWithFs == gAnimationMode || kAnimationModeSolidWithFs == gAnimationMode || kAnimationModeSolidDefaultWithFs == gAnimationMode)
+		if(hasFsAnimation())
 			that->animate(*this, l, color, ms);
 	}
 	operator type() { return type(value); }
@@ -7058,8 +7070,8 @@ public:
 class MenuItemTypeDiscretePlus : public MenuItemTypeEvent
 {
 public:
-	MenuItemTypeDiscretePlus(const char* name, rgb_t baseColor, ParameterEnum& valueEn, uint32_t displayOldValueTimeout = 0):
-		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn), displayOldValueTimeout(displayOldValueTimeout) {}
+	MenuItemTypeDiscretePlus(const char* name, rgb_t baseColor, ParameterEnum& valueEn, bool alwaysDisplayOnFirstTap, uint32_t displayOldValueTimeout = 0):
+		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn), displayOldValueTimeout(displayOldValueTimeout), alwaysDisplayOnFirstTap(alwaysDisplayOnFirstTap) {}
 	void event(Event e) override
 	{
 		switch (e)
@@ -7069,7 +7081,7 @@ public:
 			{
 				// this one is on release so we avoid a spurious trigger when holding
 				bool shouldUpdate = true;
-				if(displayOldValueTimeout)
+				if(displayOldValueTimeout && (alwaysDisplayOnFirstTap || hasFsAnimation()))
 				{
 					// if we haven't been tapped in a while, do nothing.
 					// An inheriting class can leverage this to display
@@ -7106,6 +7118,7 @@ public:
 	uint32_t lastTick = 0;
 	uint32_t displayOldValueTimeout;
 	bool ignoreNextTransition = false;
+	bool alwaysDisplayOnFirstTap;
 };
 
 static void menu_resetStates(const MenuItemType* src);
@@ -7115,8 +7128,8 @@ static void menu_resetStates(const MenuItemType* src);
 class MenuItemTypeDiscreteFullScreenAnimation : public MenuItemTypeDiscretePlus
 {
 public:
-	MenuItemTypeDiscreteFullScreenAnimation(const char* name, const AnimationColors& colors, ParameterEnum& valueEn, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, 4000),
+	MenuItemTypeDiscreteFullScreenAnimation(const char* name, const AnimationColors& colors, ParameterEnum& valueEn, bool alwaysDisplayOnFirstTap, ButtonAnimation* animation = nullptr) :
+		MenuItemTypeDiscretePlus(name, colors[getIdx(valueEn.get())], valueEn, alwaysDisplayOnFirstTap, 4000),
 		colors(colors), lastTap(0), buttonAnimation(animation)
 	{}
 	virtual void process(LedSlider& ledSlider) override
@@ -7160,7 +7173,7 @@ class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
 {
 public:
 	MenuItemTypeDiscreteContinuous(const char* name, rgb_t baseColor, ParameterEnum& valueEn, ParameterContinuous& valueCon, ButtonAnimation* animation = nullptr):
-		MenuItemTypeDiscretePlus(name, baseColor, valueEn), valueCon(valueCon), animation(animation) {}
+		MenuItemTypeDiscretePlus(name, baseColor, valueEn, true), valueCon(valueCon), animation(animation) {}
 	void process(LedSlider& slider) override
 	{
 		MenuItemTypeDiscretePlus::process(slider);
@@ -7202,7 +7215,10 @@ class MenuItemTypeDiscreteRangeCv : public MenuItemTypeDiscreteFullScreenAnimati
 {
 public:
 	MenuItemTypeDiscreteRangeCv(const char* name, const AnimationColors& colors, IoRangeParameters& valueEn):
-		MenuItemTypeDiscreteFullScreenAnimation(name, colors, valueEn), ioRangeParameters(valueEn) {}
+		MenuItemTypeDiscreteFullScreenAnimation(name, colors, valueEn, true), ioRangeParameters(valueEn)
+	{
+		animateFsAllLeds = true;
+	}
 	void enterPlus() override
 	{
 		M(printf("RangeCv: going to range\n\r"));
@@ -7244,8 +7260,8 @@ static ButtonAnimationSplit animationSplit(buttonColors);
 static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
-static MenuItemTypeDiscreteFullScreenAnimation directControlModeSplit("directControlModeSplit", buttonColors, gDirectControlMode.splitMode, &animationSplit);
-static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, &animationPulsatingStill);
+static MenuItemTypeDiscreteFullScreenAnimation directControlModeSplit("directControlModeSplit", buttonColors, gDirectControlMode.splitMode, false, &animationSplit);
+static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, false, &animationPulsatingStill);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 		&disabled,
 		&directControlModeLatch,
@@ -7255,10 +7271,10 @@ static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
 
 #ifdef ENABLE_RECORDER_MODE
 //static ButtonAnimationSingleRepeatedEnv animationSingleRepeatedPulse{buttonColors};
-static MenuItemTypeDiscreteFullScreenAnimation recorderModeSplit("recorderModeSplit", buttonColors, gRecorderMode.splitMode, &animationSplit);
+static MenuItemTypeDiscreteFullScreenAnimation recorderModeSplit("recorderModeSplit", buttonColors, gRecorderMode.splitMode, false, &animationSplit);
 //static MenuItemTypeDiscrete recorderModeRetrigger("recorderModeRetrigger", buttonColor, &gRecorderMode.autoRetrigger, &animationSingleRepeatedPulse);
 static ButtonAnimationRecorderInputMode animationRecorderInputMode{buttonColors};
-static MenuItemTypeDiscreteFullScreenAnimation recorderModeInputMode("recorderModeInputMode", buttonColors, gRecorderMode.inputMode, &animationRecorderInputMode);
+static MenuItemTypeDiscreteFullScreenAnimation recorderModeInputMode("recorderModeInputMode", buttonColors, gRecorderMode.inputMode, false, &animationRecorderInputMode);
 static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 		&disabled,
 		&recorderModeInputMode,
@@ -7269,8 +7285,8 @@ static std::array<MenuItemType*,kMaxModeParameters> recorderModeMenu = {
 #ifdef ENABLE_SCALE_METER_MODE
 static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
-static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, gScaleMeterMode.outputMode, &animationSolid);
-static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColors, gScaleMeterMode.coupling, &animationSingleStillTriangle);
+static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, gScaleMeterMode.outputMode, false, &animationSolid);
+static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColors, gScaleMeterMode.coupling, false, &animationSingleStillTriangle);
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff, &defaultAnimation);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
@@ -7297,8 +7313,8 @@ static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
 static ButtonAnimationKeysSeq animationKeysSeq {buttonColors};
 static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
-static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColors, gExprButtonsMode.quantised, &animationSmoothQuantised);
-static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColors, gExprButtonsMode.seqMode, &animationKeysSeq);
+static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColors, gExprButtonsMode.quantised, false, &animationSmoothQuantised);
+static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColors, gExprButtonsMode.seqMode, false, &animationKeysSeq);
 static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[1], gExprButtonsMode.modRange, &defaultAnimation);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
