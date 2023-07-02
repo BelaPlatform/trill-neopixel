@@ -3362,7 +3362,7 @@ public:
 			float normFreq = freq / context->analogSampleRate;
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
-					float idx = map(oscs[c].process(normFreq), -1, 1, 0, 1);
+					float idx = mapAndConstrain(oscs[c].process(normFreq), -1, 1, 0, 1);
 					float value = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
