@@ -1416,12 +1416,14 @@ class AnimateFs
 {
 public:
 static constexpr size_t kLedStart = 4;
-static constexpr size_t kLedStop = kNumLeds - 5;
+static constexpr size_t kLedStop = kNumLeds - kLedStart - 1;
 bool writeInit(Parameter& p, LedSlider& l)
 {
 	if(isEnabled(p))
 	{
-		for(size_t n = kLedStart; n < kLedStop; ++n)
+		size_t start = all ? 0 : kLedStart;
+		size_t stop = all ? kNumLeds : kLedStop;
+		for(size_t n = start; n < stop; ++n)
 			np.setPixelColor(n, kRgbBlack);
 	}
 	return isEnabled(p);
@@ -1433,8 +1435,9 @@ void directWriteCentroid(Parameter& p, LedSlider& l, centroid_t centroid, rgb_t 
 	centroid.location = mapAndConstrain(centroid.location, 0, 1, 0.25, 0.75);
 	l.directWriteCentroid(centroid, color, numWeights);
 }
-void setActive(Parameter& p)
+void setActive(Parameter& p, bool all)
 {
+	this->all = all;
 	enabledP = &p;
 }
 private:
@@ -1443,6 +1446,7 @@ bool isEnabled(Parameter& p) const
 	return &p == enabledP;
 }
 Parameter* enabledP = nullptr;
+bool all = false;
 } gAnimateFs;
 
 static float simpleRamp(unsigned int phase, unsigned int period)
@@ -7136,7 +7140,7 @@ public:
 			// just tapped, make a note
 			lastTap = HAL_GetTick();
 			// exclusively enable this animation
-			gAnimateFs.setActive(valueEn);
+			gAnimateFs.setActive(valueEn, animateFsAllLeds);
 			// reset all other timeouts
 			menu_resetStates(this);
 		}
@@ -7149,6 +7153,7 @@ protected:
 	const AnimationColors& colors;
 	uint32_t lastTap;
 	ButtonAnimation* buttonAnimation;
+	bool animateFsAllLeds = false;
 };
 
 class MenuItemTypeDiscreteContinuous : public MenuItemTypeDiscretePlus
