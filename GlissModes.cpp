@@ -2713,7 +2713,6 @@ public:
 		idxFrac = 0;
 		ignoredTouch.fill(TouchTracker::kIdInvalid);
 		buttonBlinksIgnored = 0;
-		pastAnalogInHigh = false;
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
