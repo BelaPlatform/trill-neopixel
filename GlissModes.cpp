@@ -7121,6 +7121,7 @@ public:
 		lastTick = 0;
 	}
 	virtual void enterPlus() {};
+protected:
 	ParameterEnum& valueEn;
 	uint32_t lastTick = 0;
 	uint32_t displayOldValueTimeout;
@@ -7150,7 +7151,15 @@ public:
 		// TODO: it's a bit awkward to be calling animate() unconditionally,
 		// assuming ms will be enough to tell them whether to draw something or not
 		// and that a menu-wide reset will reset ms ...
+		uint32_t lastCount = gAnimateFs.hasWrittenCount();
 		valueEn.animate(ledSlidersAlt.sliders[0], color, ms);
+		bool hasAnimated = (gAnimateFs.hasWrittenCount() != lastCount);
+		if(hasAnimated)
+		{
+			// displayOldValueTimeout  starts counting
+			// from the end of the animation
+			lastTick = currentMs;
+		}
 	}
 	void event(Event e) override
 	{
