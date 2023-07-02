@@ -313,13 +313,13 @@ std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = true;
 enum AnimationMode
 {
-	kAnimationModeConsistentWithFs,
 	kAnimationModeSolidWithFs,
-	kAnimationModeSolidDefaultWithFs,
-	kAnimationModeConsistent,
-	kNumAnimationMode,
-	kAnimationModeCustom,
 	kAnimationModeSolid,
+	kNumAnimationMode,
+	kAnimationModeConsistent,
+	kAnimationModeConsistentWithFs,
+	kAnimationModeSolidDefaultWithFs,
+	kAnimationModeCustom,
 };
 static AnimationMode gAnimationMode = kAnimationModeSolidWithFs;
 static bool hasFsAnimation()
