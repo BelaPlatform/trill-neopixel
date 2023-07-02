@@ -1448,8 +1448,13 @@ bool writeInit(Parameter& p, LedSlider& l)
 	if(isEnabled(p))
 	{
 		hasWrittenInit++;
-		size_t start = all ? 0 : kLedStart;
-		size_t stop = all ? kNumLeds : kLedStop;
+		// absolutely avoid animation from overlapping the fixed centroids at top and bottom
+		// as that may unexpectedly trigger the compressor.
+		// TODO: better design so we don't need this. It's probably about
+		// the numWeights of directWriteCentroi.
+		constexpr size_t kGuardLed = 1;
+		size_t start = all ? 0 : kLedStart - kGuardLed;
+		size_t stop = all ? kNumLeds : kLedStop + kGuardLed;
 		for(size_t n = start; n < stop; ++n)
 			np.setPixelColor(n, kRgbBlack);
 	}
