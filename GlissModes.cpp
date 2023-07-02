@@ -7145,7 +7145,7 @@ public:
 		MenuItemTypeDiscretePlus::process(ledSlider);
 		uint32_t currentMs = HAL_GetTick();
 		if(buttonAnimation)
-			buttonAnimation->process(currentMs, ledSlider, valueEn.get());
+			buttonAnimation->process(currentMs - lastTick, ledSlider, valueEn.get());
 		uint32_t ms = currentMs - lastTap;
 		rgb_t color = colors[getIdx(valueEn.get())];
 		// TODO: it's a bit awkward to be calling animate() unconditionally,
@@ -7173,6 +7173,11 @@ public:
 			// reset all other timeouts
 			menu_resetStates(this);
 		}
+	}
+	void resetState() override
+	{
+		MenuItemTypeDiscretePlus::resetState();
+		lastTap = 0;
 	}
 protected:
 	static size_t getIdx(size_t value)
