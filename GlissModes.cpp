@@ -327,9 +327,9 @@ bool gJacksOnTop = true;
 enum AnimationMode
 {
 	kAnimationModeSolid,
-	kAnimationModeSolidGlowingWithFs,
 	kAnimationModeSolidWithFs,
 	kNumAnimationMode,
+	kAnimationModeSolidGlowingWithFs,
 	kAnimationModeConsistent,
 	kAnimationModeConsistentWithFs,
 	kAnimationModeSolidDefaultWithFs,
@@ -6728,6 +6728,31 @@ protected:
 	bool holdNotified = true; // avoid notifying on startup
 };
 
+class MenuItemTypeDiscreteHold : public MenuItemTypeEvent
+{
+public:
+	MenuItemTypeDiscreteHold(const char* name, rgb_t baseColor, uint32_t holdTime, ParameterEnum& valueEn) :
+		MenuItemTypeEvent(name, baseColor, holdTime), valueEn(valueEn)
+	{}
+	void process(LedSlider& slider) override
+	{
+		MenuItemTypeEvent::process(slider);
+		rgb_t color = baseColor;
+		// if not 0, glow
+		if(valueEn.get())
+			color.scale(simpleTriangle(HAL_GetTick(), 1000) * 0.9f + 0.1f);
+		slider.setColor(color);
+	}
+	void event(Event e) override
+	{
+		if(kHoldHigh == e)
+		{
+			valueEn.next();
+		}
+	}
+	ParameterEnum& valueEn;
+};
+
 class MenuItemTypeDiscrete : public MenuItemTypeEvent
 {
 public:
@@ -7697,7 +7722,8 @@ static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeSc
 static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop);
-static MenuItemTypeEnterQuantised globalSettingsAnimationMode("globalSettingsAnimationMode", kRgbWhite, gGlobalSettings.animationMode);
+static MenuItemTypeDiscreteHold globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, 3000, gGlobalSettings.animationMode);
+
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsColor, gGlobalSettings.brightness);
 
 static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
