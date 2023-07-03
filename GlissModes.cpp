@@ -7164,12 +7164,18 @@ static MenuItemTypeQuantised singleQuantisedMenuItem;
 // appropriately set the properties of singleQuantisedMenuItem
 MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, MenuPage::kMenuTypeQuantised);
 
+static void buttonBlinkResetToDefault()
+{
+	tri.buttonLedSet(TRI::kSolid, TRI::kG, 300);
+}
+
+static constexpr size_t kHoldResetToDefault = 2000;
 // On tap, get into singleSliderMenu to set value; on hold-press reset to default value
 class MenuItemTypeEnterContinuous : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeEnterContinuous(const char* name, rgb_t baseColor, rgb_t otherColor, ParameterContinuous& value, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeEvent(name, baseColor, 2000), otherColor(otherColor), value(value), animation(animation), ignoreNextFalling(false) {}
+		MenuItemTypeEvent(name, baseColor, kHoldResetToDefault), otherColor(otherColor), value(value), animation(animation), ignoreNextFalling(false) {}
 	void process(LedSlider& slider)
 	{
 		MenuItemTypeEvent::process(slider);
@@ -7181,7 +7187,7 @@ public:
 		if(kHoldHigh == e) {
 			value.resetToDefault();
 			ignoreNextFalling = true;
-			tri.buttonLedSet(TRI::kSolid, TRI::kG, 300);
+			buttonBlinkResetToDefault();
 		}
 		if(kTransitionFalling == e) {
 			if(ignoreNextFalling)
