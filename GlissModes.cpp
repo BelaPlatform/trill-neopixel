@@ -7690,7 +7690,7 @@ static void requestNewMode(int mode)
 	menu_updateSubmenu();
 }
 
-static constexpr rgb_t globalSettingsColor = kRgbYellow;
+static constexpr rgb_t globalSettingsColor = kRgbOrange;
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
 	static constexpr float kVoltsFs = 15;
