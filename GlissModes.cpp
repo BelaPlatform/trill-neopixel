@@ -6828,6 +6828,14 @@ public:
 					.location = parameter->get(),
 					.size = kFixedCentroidSize / 2,
 			};
+			rgb_t color;
+			if(parameter->isDefault(kDefaultThreshold)) {
+				color = baseColor;
+				if(tracking) // make the centroid bigger as we approach the default
+					centroid.size = map(std::abs(parameter->getDefault() - parameter->get()), kDefaultThreshold, 0, centroid.size, 0.9);
+			} else {
+				color = otherColor;
+			}
 			if(tracking) {
 				// only track the slider if we have at some point crossed the initial point
 				parameter->set(frame.location);
@@ -6835,7 +6843,7 @@ public:
 				// or show a pulsating centroid
 				centroid.size *= simpleTriangle(HAL_GetTick() - initialTime, 130);
 			}
-			ledSlidersAlt.sliders[0].setColor(parameter->isDefault(kDefaultThreshold) ? baseColor : otherColor);
+			ledSlidersAlt.sliders[0].setColor(color);
 			ledSlidersAlt.sliders[0].setLedsCentroids(&centroid, 1);
 
 			if(latched)
