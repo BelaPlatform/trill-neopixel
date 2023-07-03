@@ -8015,6 +8015,11 @@ int menu_dosetup(MenuPage& menu)
 
 int menu_setup(size_t page)
 {
+	if(3 == page)
+	{
+		printf("TODO: factory reset \n\r");
+		page -= 1; // get into factory test mode
+	}
 	if(2 == page)
 	{
 		requestNewMode(kFactoryTestModeIdx);

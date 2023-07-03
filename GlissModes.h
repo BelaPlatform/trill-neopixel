@@ -164,6 +164,7 @@ extern std::array<bool,2> gOutIsSize;
 extern CentroidDetectionScaled globalSlider;
 
 extern int menu_setup(size_t page);
+extern void menu_exit();
 
 #include "centroid.h"
 static inline centroid_t touchOrNot(const centroid_t& touch)

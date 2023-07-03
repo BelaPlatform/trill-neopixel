@@ -631,10 +631,11 @@ void tr_render(BelaContext* context)
 	} menuState = kMenuChangeDisabled;
 	if(btn.pressed)
 	{
+		static constexpr size_t kTouchesForFactoryTest = 5;
 		static constexpr std::array<size_t, 3> touchesForMenu = {
 			2, // kTouchesForLocalSettings
 			3, // kTouchesForGlobalSettings
-			5, // kTouchesForFactoryTest
+			kTouchesForFactoryTest,
 		};
 
 		// keep tracking of max touches to avoid entering the wrong mode when releasing
@@ -661,6 +662,24 @@ void tr_render(BelaContext* context)
 					}
 				}
 			}
+			static size_t pastTouches = 0;
+			static uint64_t touchesLastChanged = 0;
+			if(numTouches != pastTouches)
+			{
+				touchesLastChanged = context->audioFramesElapsed;
+			}
+			pastTouches = numTouches;
+			if(kTouchesForFactoryTest == numTouches)
+			{
+				if(context->audioFramesElapsed > touchesLastChanged + 10 * context->analogSampleRate)
+				{
+					menu_setup(touchesForMenu.size());
+					menuState = kMenuChangeDisabled;
+					gAlt = 0;
+					menu_exit();
+				}
+			}
+
 			maxTouchesThisMenuPre = std::max(maxTouchesThisMenuPre, numTouches);
 		}
 	} else
@@ -718,7 +737,7 @@ void tr_render(BelaContext* context)
 	static int lastMode = -1;
 	if(lastMode != gNewMode) {
 		setupMs = tri.getTimeMs();
-		printf("new mode: %d\n\r", lastMode);
+		printf("new mode: %d to %d\n\r", lastMode, gNewMode);
 		lastMode = gNewMode;
 		setupDone = false;
 	}
