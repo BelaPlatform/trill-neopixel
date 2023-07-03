@@ -3062,13 +3062,18 @@ public:
 			// start/stop recording based on qrec and input edges
 			for(size_t n = 0; n < kNumSplits; ++n)
 			{
-				// if still touching after filling the recorder's buffer,
-				// stop recording aligned to past edge.
-				auto id = getId(twis, n);
-				if(id != TouchTracker::kIdInvalid && id == ignoredTouch[n])
-					qrecStopNow[n] = kStopNowLate;
-
 				auto& qrec = qrecs[n];
+				if(kRecNone != qrec.recording && gGestureRecorder.rs[n + recordOffset].r.full)
+				{
+					// if the recorder's buffer is full,
+					// stop recording aligned to past edge if appropriate, or right now
+					if(kRecOnButton == qrec.recording)
+						qrecStopNow[n] = kStopNowOnEdge;
+					else {
+						qrecStopNow[n] = qrec.periodsInRecording ? kStopNowLate : kStopNowOnEdge;
+					}
+				}
+
 				if(qrecStartNow[n])
 				{
 					gGestureRecorder.startRecording(n + recordOffset);
@@ -3106,7 +3111,7 @@ public:
 							// this will also be played back at fixed speed
 							periodsInTables[n] = 1;
 						} else {
-							periodsInTables[n] = qrec.periodsInRecording;
+							periodsInTables[n] = std::max(1u, qrec.periodsInRecording);
 						}
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
@@ -3193,10 +3198,13 @@ public:
 					gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, envelopeReleaseStarts[n]);
 				TouchTracker::Id id = getId(twis, n);
-				if(ignoredTouch[n] != id && TouchTracker::kIdInvalid != id && gGestureRecorder.rs[n].r.full)
+				if(gGestureRecorder.isRecording(idx) && gGestureRecorder.rs[idx].r.full)
 				{
-					ignoredTouch[n] = id;
-					tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 15);
+					if((isRecording(n) && kInputModeClock == inputMode) || (ignoredTouch[n] != id && TouchTracker::kIdInvalid != id))
+					{
+						ignoredTouch[n] = id;
+						tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 15);
+					}
 				}
 			}
 		}
