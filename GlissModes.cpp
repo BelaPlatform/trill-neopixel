@@ -17,6 +17,7 @@ static constexpr rgb_t kRgbWhite {0, 50, 255};
 static constexpr rgb_t kRgbBlack {0, 0, 0};
 static constexpr float kMenuButtonDefaultBrightness = 0.2;
 static constexpr float kMenuButtonActiveBrightness = 0.7;
+static constexpr float kDefaultThreshold = 0.03;
 
 // When a WithFs kAnimationMode is enabled, there is a kPostAnimationTimeoutMs during
 // which if you tap the selector, it is going to advance to the next value.
@@ -1421,9 +1422,9 @@ public:
 		return value;
 	}
 	operator float() { return get(); }
-	bool isDefault() const
+	bool isDefault(float threshold) const
 	{
-		return (value == defaultValue);
+		return std::abs(value - defaultValue) < threshold;
 	}
 	void resetToDefault()
 	{
@@ -6697,7 +6698,7 @@ public:
 				// or show a pulsating centroid
 				centroid.size *= simpleTriangle(HAL_GetTick() - initialTime, 130);
 			}
-			ledSlidersAlt.sliders[0].setColor(parameter->isDefault() ? baseColor : otherColor);
+			ledSlidersAlt.sliders[0].setColor(parameter->isDefault(kDefaultThreshold) ? baseColor : otherColor);
 			ledSlidersAlt.sliders[0].setLedsCentroids(&centroid, 1);
 
 			if(latched)
@@ -7028,7 +7029,7 @@ public:
 	{
 		MenuItemTypeEvent::process(slider);
 		if(animation)
-			animation->process(HAL_GetTick(), slider, value.isDefault() ? 0 : 1);
+			animation->process(HAL_GetTick(), slider, value.isDefault(kDefaultThreshold) ? 0 : 1);
 	}
 	void event(Event e)
 	{
