@@ -2686,7 +2686,7 @@ static float interpolatedRead(const T& table, float idx)
 
 static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
 {
-	float ceiling = lessIntrusive ? 40 : 50;
+	float ceiling = lessIntrusive ? 60 : 80;
 	float periodMs = gClockPeriod * 1000.f / context->analogSampleRate;
 	float ms = std::min(ceiling, periodMs / 4.f);
 	if(lessIntrusive && periodMs < 75)

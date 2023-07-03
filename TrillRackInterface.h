@@ -63,7 +63,7 @@ private:
 		float phase;
 	};
 	std::array<LedColorsTimeout,kNumButtonColors> buttonLedColorTimeouts {};
-	unsigned int ledPwmIdx = 0;
+	uint8_t ledPwmIdx = 0;
 	float anOut[nAnOut];
 	double lastTimeMs;
 	unsigned int anInCh;

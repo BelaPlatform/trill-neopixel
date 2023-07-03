@@ -203,21 +203,25 @@ void TrillRackInterface::process(BelaContext* context)
 				lct.ms = 0;
 		}
 	}
-	enum { kLedPwmPeriod = 512 };
+	static constexpr size_t kLedPwmPeriod = 256;
+	static_assert((sizeof(ledPwmIdx) << 8) >= kLedPwmPeriod);
 	for(size_t n = 0; n < context->digitalFrames; ++n)
 	{
-		size_t activeC = ledPwmIdx & 1;
+		// scramble bit pattern to try and
+		static_assert(kLedPwmPeriod <= 256);
+		size_t idx = ledPwmIdx;
+		size_t activeC = idx & 1;
 		for(size_t c = 0; c < nDigOut; ++c)
 		{
 			bool isActive;
 			if(c == activeC)
-				isActive = ledPwmIdx < ledOut[activeC] *  float(kLedPwmPeriod);
+				isActive = idx < ledOut[activeC] *  float(kLedPwmPeriod);
 			else
 				isActive = false;
 			::digitalWriteOnce(context, n, diOutCh[c], isActive);
 		}
 		ledPwmIdx++;
-		if(kLedPwmPeriod == ledPwmIdx)
+		if(kLedPwmPeriod == ledPwmIdx) // never actually getting here if kLedPwmPeriod == 256
 			ledPwmIdx = 0;
 	}
 #if 0
