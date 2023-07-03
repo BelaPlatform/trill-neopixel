@@ -36,7 +36,7 @@ static constexpr uint32_t kPostAnimationTimeoutMs = kPostAnimationGlowingMs + 30
 #define ENABLE_SCALE_METER_MODE
 //#define ENABLE_BALANCED_OSCS_MODE
 #define ENABLE_EXPR_BUTTONS_MODE
-constexpr size_t kNumModes = 2 // calibration and factorytest are always enabled
+constexpr size_t kNumModes = 3 // calibration, factorytest and erasesettings are always enabled
 #ifdef ENABLE_DIRECT_CONTROL_MODE
 		+ 1
 #endif
@@ -6110,6 +6110,116 @@ private:
 	bool analogFailed;
 } gFactoryTestMode;
 
+static void requestNewMode(int mode);
+extern const ssize_t kFactoryTestModeIdx;
+
+class EraseSettingsMode: public PerformanceMode {
+public:
+	bool setup(double ms) override
+	{
+		ledSlidersSetupOneSlider(kRgbBlack, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
+		changeState(kStateWaitingForConfirmation);
+		return true;
+	}
+	void render(BelaContext* context, FrameData* frameData) override
+	{
+		if(gAlt)
+			return;
+		np.clear();
+		uint32_t ms = HAL_GetTick() - startMs;
+		auto halves = getHalves();
+		std::array<rgb_t,2> colors { kRgbRed, kRgbYellow };
+		size_t halfSize = np.getNumPixels() / 2;
+		switch(state)
+		{
+		case kStateWaitingForConfirmation:
+		{
+			constexpr size_t kPeriod = 1000;
+			bool half = ms % kPeriod > kPeriod / 2;
+			for(size_t h = 0; h < halves.size(); ++h)
+			{
+				size_t start = 0 + h * halfSize;
+				size_t stop = halfSize * (1 + h);
+				for(size_t n = start; n < stop; ++n)
+				{
+					rgb_t color = colors[h];
+					if(halves[h] && (n == ((start + stop) / 2) || n == ((start + stop) / 2 + 1) ||  n == ((start + stop) / 2 + 2)))
+						color = kRgbGreen;
+					np.setPixelColor(n, color.scaledBy(0.3 * (half == h || halves[h])));
+				}
+			}
+
+			// TODO: show current centroid in green
+			if(halves[0] && halves[1])
+				changeState(kStateConfirmationInProgress);
+			if(ms > 10000)
+				changeState(kStateAbort);
+		}
+			break;
+		case kStateConfirmationInProgress:
+		{
+			constexpr size_t kDuration = 3000;
+			float idx = ms / float(kDuration);
+			size_t start = halfSize - idx * halfSize;
+			size_t stop =  halfSize + idx * halfSize;
+			for(size_t n = start; n < stop && n < np.getNumPixels(); ++n)
+				np.setPixelColor(n, kRgbGreen.scaledBy(0.2));
+			if(!halves[0] || !halves[1])
+				changeState(kStateWaitingForConfirmation);
+			if(ms > kDuration)
+				changeState(kStateDisplayConfirmation);
+		}
+			break;
+		case kStateDisplayConfirmation:
+			for(size_t n = 0; n < np.getNumPixels(); ++n)
+				np.setPixelColor(n, kRgbGreen.scaledBy(0.2));
+			// ensure we run a couple of times before we erase flash, so display is shown
+			if(ms > 100)
+			{
+				printf("ERASE SETTINGS\n\r");
+				requestNewMode(kFactoryTestModeIdx);
+			}
+			break;
+		case kStateAbort:
+			for(size_t n = 0; n < np.getNumPixels(); ++n)
+				np.setPixelColor(n, kRgbRed.scaledBy(0.2));
+			if(ms > 3000)
+				requestNewMode(0);
+			break;
+		}
+	}
+	std::array<uint8_t,2> getHalves()
+	{
+		std::array<uint8_t,2> halves {};
+		for(size_t n = 0; n < globalSlider.getNumTouches(); ++n)
+		{
+			float loc = globalSlider.touchLocation(n);
+			halves[loc > 0.5]++;
+		}
+		for(size_t h = 0; h < halves.size(); ++h)
+		{
+			if(halves[h] != 1) // more than one finger: bad
+				halves[h] = 0;
+		}
+		return halves;
+	}
+	void updatePreset() override
+	{};
+	enum State {
+		kStateWaitingForConfirmation,
+		kStateConfirmationInProgress,
+		kStateDisplayConfirmation,
+		kStateAbort,
+	};
+	void changeState(State state)
+	{
+		this->state = state;
+		startMs = HAL_GetTick();
+	}
+	State state;
+	uint32_t startMs;
+} gEraseSettingsMode;
+
 static std::array<PerformanceMode*,kNumModes> performanceModes = {
 #ifdef TEST_MODE
 	&gTestMode,
@@ -6131,6 +6241,7 @@ static std::array<PerformanceMode*,kNumModes> performanceModes = {
 #endif // ENABLE_EXPR_BUTTONS_MODE
 	&gCalibrationMode,
 	&gFactoryTestMode,
+	&gEraseSettingsMode,
 };
 
 static size_t findModeIdx(const PerformanceMode& mode)
@@ -6146,7 +6257,8 @@ static size_t findModeIdx(const PerformanceMode& mode)
 	return idx;
 }
 static const ssize_t kCalibrationModeIdx = findModeIdx(gCalibrationMode);
-static const ssize_t kFactoryTestModeIdx = findModeIdx(gFactoryTestMode);
+const ssize_t kFactoryTestModeIdx = findModeIdx(gFactoryTestMode);
+static const ssize_t kEraseSettingsModeIdx = findModeIdx(gEraseSettingsMode);
 uint8_t gNewMode = kFactoryTestModeIdx; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
 
 bool performanceMode_setup(double ms)
@@ -7058,7 +7170,7 @@ static void requestIncMode()
 	 // special modes are skipped when incrementing
 	do
 		newMode = (newMode + 1) % kNumModes;
-	while(kCalibrationModeIdx == newMode || kFactoryTestModeIdx == newMode);
+	while(kCalibrationModeIdx == newMode || kFactoryTestModeIdx == newMode || kEraseSettingsModeIdx == newMode);
 	requestNewMode(newMode);
 }
 
@@ -8017,8 +8129,8 @@ int menu_setup(size_t page)
 {
 	if(3 == page)
 	{
-		printf("TODO: factory reset \n\r");
-		page -= 1; // get into factory test mode
+		requestNewMode(kEraseSettingsModeIdx);
+		return true;
 	}
 	if(2 == page)
 	{
