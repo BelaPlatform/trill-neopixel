@@ -2534,11 +2534,11 @@ public:
 	{
 		PerformanceMode::updated(p);
 		if(p.same(splitMode)) {
-			printf("DirectControlMode: updated splitMode: %d\n\r", splitMode.get());
+			M(printf("DirectControlMode: updated splitMode: %d\n\r", splitMode.get()));
 			setup(-1);
 		}
 		else if (p.same(autoLatch)) {
-			printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get());
+			M(printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get()));
 		}
 	}
 	void updatePreset()
@@ -3395,10 +3395,10 @@ public:
 	{
 		PerformanceMode::updated(p);
 		if(p.same(splitMode)) {
-			printf("RecorderMode: Updated splitMode: %d\n\r", splitMode.get());
+			M(printf("RecorderMode: Updated splitMode: %d\n\r", splitMode.get()));
 			setup(-1);
 		} else if (p.same(inputMode)) {
-			printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get());
+			M(printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get()));
 			if(kInputModeClock == inputMode)
 			{
 				for(auto& qrec : qrecs)
