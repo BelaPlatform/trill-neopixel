@@ -7252,7 +7252,7 @@ class MenuItemTypeDiscretePlus : public MenuItemTypeEvent
 {
 public:
 	MenuItemTypeDiscretePlus(const char* name, rgb_t baseColor, ParameterEnum& valueEn, bool alwaysDisplayOnFirstTap, uint32_t displayOldValueTimeout = 0):
-		MenuItemTypeEvent(name, baseColor, 1000), valueEn(valueEn), displayOldValueTimeout(displayOldValueTimeout), alwaysDisplayOnFirstTap(alwaysDisplayOnFirstTap) {}
+		MenuItemTypeEvent(name, baseColor, kHoldResetToDefault), valueEn(valueEn), displayOldValueTimeout(displayOldValueTimeout), alwaysDisplayOnFirstTap(alwaysDisplayOnFirstTap) {}
 	void event(Event e) override
 	{
 		switch (e)
@@ -7294,7 +7294,10 @@ public:
 	{
 		lastTick = 0;
 	}
-	virtual void enterPlus() {};
+	virtual void enterPlus() {
+		valueEn.set(0); // reset to default
+		buttonBlinkResetToDefault();
+	};
 protected:
 	ParameterEnum& valueEn;
 	uint32_t lastTick = 0;
