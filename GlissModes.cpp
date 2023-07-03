@@ -7248,7 +7248,7 @@ public:
 			{
 				// this one is on release so we avoid a spurious trigger when holding
 				bool shouldUpdate = true;
-				if(displayOldValueTimeout && (alwaysDisplayOnFirstTap || hasFsAnimation()))
+				if(displayOldValueTimeout && alwaysDisplayOnFirstTap)
 				{
 					// if we haven't been tapped in a while, do nothing.
 					// An inheriting class can leverage this to display
