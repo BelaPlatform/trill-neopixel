@@ -7698,7 +7698,6 @@ static void requestNewMode(int mode)
 	menu_updateSubmenu();
 }
 
-static constexpr rgb_t globalSettingsColor = kRgbOrange;
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
 {
 	static constexpr float kVoltsFs = 15;
@@ -7725,14 +7724,17 @@ static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntege
 		o /= kVoltsFs;
 	return out;
 }
+
+static constexpr rgb_t globalSettingsColor = kRgbOrange;
+static constexpr rgb_t globalSettingsContinuousOtherColor = kRgbYellow;
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
-static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsColor, gGlobalSettings.sizeScaleCoeff);
+static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsContinuousOtherColor, gGlobalSettings.sizeScaleCoeff);
 static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
 static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop);
 static MenuItemTypeDiscreteHold globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, 3000, gGlobalSettings.animationMode);
 
-static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsColor, gGlobalSettings.brightness);
+static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsContinuousOtherColor, gGlobalSettings.brightness);
 
 static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
 static constexpr rgb_t kIoRangeOtherColor = kRgbRed;
