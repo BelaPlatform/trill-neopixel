@@ -861,6 +861,35 @@ private:
 	std::array<centroid_t,kMaxNumValues> latchedValues;
 	std::array<AutoLatcher,kMaxNumValues> autoLatchers;
 };
+template <typename sample_t>
+class ArrayView {
+public:
+	ArrayView() = default;
+	ArrayView(sample_t* ptr, size_t sz) : ptr(ptr), sz(sz) {}
+	constexpr size_t size() const
+	{
+		return sz;
+	}
+	const sample_t* data() const
+	{
+		return ptr;
+	}
+	sample_t* data()
+	{
+		return ptr;
+	}
+	sample_t operator[](size_t n) const
+	{
+		return ptr[n];
+	}
+	sample_t& operator[](size_t n)
+	{
+		return ptr[n];
+	}
+private:
+	sample_t* ptr = nullptr;
+	size_t sz = 0;
+};
 
 template <typename sample_t>
 class Recorder
@@ -870,6 +899,26 @@ public:
 		sample_t sample;
 		bool valid;
 	};
+	Recorder() { setup({}); }
+	void setup(const ArrayView<sample_t>& newData)
+	{
+		start = 0;
+		end = 0;
+		current = 0;
+		active = false;
+		full = false;
+		if(newData.size())
+			setData(newData);
+		else
+			data = newData; // avoid needless recursion
+	}
+	void setData(const ArrayView<sample_t>& newData)
+	{
+		data = newData;
+		// try to keep existing recording, unless it exceeds boundaries, in which case just wipe it
+		if(start > data.size() || end > data.size() || current > data.size())
+			setup(newData);
+	}
 #if 0
 	void enable()
 	{
@@ -945,11 +994,10 @@ public:
 		size_t i = full ? size : (end - start + size) % size;
 		return i;
 	}
-	const std::array<sample_t, kMaxRecordLength>& getData()
+	const auto& getData()
 	{
 		return data;
 	}
-
 protected:
 	template<typename T> void increment(T& idx)
 	{
@@ -965,14 +1013,13 @@ protected:
 		else
 			--idx;
 	}
-
-	std::array<sample_t, kMaxRecordLength> data;
-	size_t start = 0;
-	size_t end = 0;
-	size_t current = 0;
-	bool active = false;
+	ArrayView<sample_t> data;
+	size_t start;
+	size_t end;
+	size_t current;
+	bool active;
 public:
-	bool full = false; // whether during recording the buffer becomes full
+	bool full; // whether during recording the buffer becomes full
 };
 
 #if 0
@@ -1146,6 +1193,8 @@ private:
 #endif
 
 #ifdef ENABLE_RECORDER_MODE
+static constexpr size_t kNumRecs = 4;
+static std::array<float,kMaxRecordLength * kNumRecs> recorderData;
 class GestureRecorder
 {
 public:
@@ -1281,7 +1330,7 @@ public:
 			rs[n].r.resize(recSize);
 		}
 	}
-	static constexpr size_t kNumRecs = 4;
+	static constexpr size_t kNumRecs = ::kNumRecs;
 	enum State {
 		kPlay = 0,
 		kRec = 2,
@@ -1304,6 +1353,10 @@ public:
 		std::array<Rcr,kNumRecs> rs;
 		std::array<Rcr*,kNumRecs> ptrs;
 	public:
+		enum WhichRecorders {
+			kWhichRecordersDouble,
+			kWhichRecordersDoubleWithBackup,
+		};
 		SwappableRecorders() {
 			for(size_t n = 0; n < kNumRecs; ++n)
 				ptrs[n] = &rs[n];
@@ -1313,6 +1366,54 @@ public:
 		}
 		Rcr& operator[] (size_t n) {
 			return *ptrs[n];
+		}
+		void setEnabled(WhichRecorders which)
+		{
+			size_t numEnabled = 0;
+			switch(which)
+			{
+			case kWhichRecordersDouble:
+				numEnabled = kNumRecs / 2;
+				break;
+			case kWhichRecordersDoubleWithBackup:
+				numEnabled = kNumRecs;
+				break;
+			}
+			size_t size = recorderData.size() / numEnabled;
+			for(size_t n = 0; n < ptrs.size(); ++n)
+			{
+				size_t start = 0;
+				switch(which)
+				{
+				case kWhichRecordersDouble:
+					start = (n % numEnabled) * size;
+					break;
+				case kWhichRecordersDoubleWithBackup:
+					if(0 == n)
+						start = 0;
+					else if (1 == n)
+						start = size * 2;
+					else if(2 == n)
+						start = size;
+					else if (3 == n)
+						start = size * 3;
+					break;
+				}
+				auto& r = ptrs[n]->r;
+				ArrayView<sample_t> newA = { recorderData.data() + start, size};
+				ArrayView<sample_t> oldA = r.getData();
+				size_t count = std::min(newA.size(), oldA.size());
+				if(n < kNumRecs / 2 && newA.data() != oldA.data())
+				{
+					// copy data where appropriate, so that it keeps being available for the next mode.
+					// TODO: could copy only the data that is actually in use (i.e.: recorder's size)
+					// TODO: improve r.setData() so that it clips to new size instead of discarding
+					// if past recording was larger than current
+					printf("Copying %u for %d from %p to %p\n\r", count, n, oldA.data(), newA.data());
+					std::copy(oldA.data(), oldA.data() + count, newA.data());
+				}
+				r.setData(newA);
+			}
 		}
 		// do not implement size() to avoid confusion when
 		// the user wants to call rs[n].r.size()
@@ -3412,6 +3513,9 @@ public:
 			{
 				for(auto& qrec : qrecs)
 					qrec = QuantisedRecorder();
+				gGestureRecorder.rs.setEnabled(GestureRecorder::SwappableRecorders::kWhichRecordersDoubleWithBackup);
+			} else {
+				gGestureRecorder.rs.setEnabled(GestureRecorder::SwappableRecorders::kWhichRecordersDouble);
 			}
 		}
 	}
