@@ -7605,8 +7605,8 @@ static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeCoupling("scaleMete
 static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[2], gScaleMeterMode.cutoff);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
-		&scaleMeterModeCoupling,
 		&scaleMeterModeOutputMode,
+		&scaleMeterModeCoupling,
 };
 #endif // ENABLE_SCALE_METER_MODE
 
@@ -7636,8 +7636,8 @@ static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModR
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 static std::array<MenuItemType*,kMaxModeParameters> exprButtonsModeMenu = {
 		&exprButtonsModeModRange,
-		&exprButtonsModeSeqMode,
 		&exprButtonsModeQuantised,
+		&exprButtonsModeSeqMode,
 };
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
