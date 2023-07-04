@@ -95,7 +95,7 @@ public:
 	{
 		centroid_t touch;
 		Position startLocation;
-		Id id;
+		Id id = kIdInvalid;
 	};
 private:
 	static_assert(std::is_signed<Position>::value); // if not signed, distance computation below may get fuzzy
