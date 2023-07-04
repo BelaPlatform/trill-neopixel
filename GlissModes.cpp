@@ -3055,9 +3055,10 @@ public:
 		size_t recordOffset = 0;
 		if(kInputModeClock == inputMode)
 			recordOffset += GestureRecorder::kNumRecs / 2;
+		bool inputIsTrigger = false;
 		if(analogRisingEdge)
 		{
-			bool inputIsTrigger = true;
+			inputIsTrigger = true;
 			lastAnalogRisingEdgeSamples = currentSamples;
 			switch(inputMode.get())
 			{
@@ -3151,9 +3152,9 @@ public:
 					break;
 				}
 			}
-			if(inputIsTrigger)
-				tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, getBlinkPeriod(context, redButtonIsOn));
 		}
+		if(inputIsTrigger || gate || triggerNow)
+			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, gate ? 10 : getBlinkPeriod(context, redButtonIsOn));
 		if(analogFallingEdge)
 		{
 			if(kInputModeEnvelope == inputMode) {
