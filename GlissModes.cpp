@@ -2848,6 +2848,8 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
+		if(inputMode == kInputModeClock)
+			gModeWantsInteractionPreMenu = true;
 		if(!buttonTriggers()) // we need to allow for fast repeated presses when the button triggers
 			performanceBtn = ButtonViewSimplify(performanceBtn);
 		if(!areRecording())
