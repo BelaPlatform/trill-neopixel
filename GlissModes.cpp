@@ -3311,9 +3311,9 @@ public:
 			{
 				bool autoRetrigger = (kInputModeLfo == inputMode);
 				ssize_t freezeAt = -1;
-				if(kInputModeEnvelope == inputMode)
+				if(kInputModeEnvelope == inputMode || kInputModeLfo == inputMode)
 				{
-					bool hangAtEndOfAttackOnShortGate = false;
+					bool hangAtEndOfAttackOnShortGate = (kInputModeLfo == inputMode);
 					// how to deal with a gate that is shorter than the attack
 					if(hangAtEndOfAttackOnShortGate)
 					{
