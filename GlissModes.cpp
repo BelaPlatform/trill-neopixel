@@ -1407,7 +1407,7 @@ public:
 				ArrayView<sample_t> newA = { recorderData.data() + start, size};
 				ArrayView<sample_t> oldA = r.getData();
 				size_t count = std::min(newA.size(), oldA.size());
-				if(n < kNumRecs / 2 && newA.data() != oldA.data())
+				if(n < kNumRecs / 2 && newA.data() != oldA.data() && newA.data() && oldA.data())
 				{
 					// copy data where appropriate, so that it keeps being available for the next mode.
 					// TODO: could copy only the data that is actually in use (i.e.: recorder's size)
