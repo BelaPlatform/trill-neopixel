@@ -270,3 +270,11 @@ uint8_t presetIsSynced()
 {
 	return storageIsSynced();
 }
+
+int presetEraseAll()
+{
+	int ret = 0;
+	for(size_t n = kPresetSectorStarts; n < kPresetSectorStops; ++n)
+		ret |= storageErase(n);
+	return ret;
+}

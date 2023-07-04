@@ -86,6 +86,11 @@ PresetFieldSize_t presetGetFieldSize(PresetField_t field);
  * Check whether the preset has been edited since it was last written to storage.
  */
 uint8_t presetIsSynced();
+/**
+ * Erases all flash sectors dedicated to presets.
+ * "static method"
+ */
+int presetEraseAll();
 
 #ifdef __cplusplus
 }
