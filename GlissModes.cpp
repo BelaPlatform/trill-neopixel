@@ -2911,7 +2911,7 @@ public:
 		uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
 		if(performanceBtn.onset)
 		{
-			if(kInputModeEnvelope == inputMode)
+			if(kInputModeEnvelope == inputMode || kInputModeLfo == inputMode)
 			{
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
@@ -3025,12 +3025,6 @@ public:
 					for(size_t n = 0; n < kNumSplits; ++n)
 						if(envelopeReleaseStarts[n] >= 0)
 							releaseStarts[n] = true;
-				break;
-			case kInputModeLfo:
-					// when LFO mode, triggering on button release, so not
-					// to disrupt it when entering menu
-					triggerNow = true;
-					tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 150);
 				break;
 			} // switch inputMode
 		}
