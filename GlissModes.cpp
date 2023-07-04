@@ -2810,6 +2810,7 @@ public:
 	};
 	bool setup(double ms) override
 	{
+		twis = {};
 		inputModeClockIsButton = false;
 		reinitInputModeClock();
 		gOutMode.fill(kOutModeManualBlock);
@@ -2848,7 +2849,7 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		if(inputMode == kInputModeClock)
+		if(kInputModeClock == inputMode)
 			gModeWantsInteractionPreMenu = true;
 		if(!buttonTriggers()) // we need to allow for fast repeated presses when the button triggers
 			performanceBtn = ButtonViewSimplify(performanceBtn);
@@ -3005,6 +3006,8 @@ public:
 			// This means that the keypress that triggered the recording onset has been used to
 			// enter the menu. Clear its side effects
 			reinitInputModeClock();
+			for(size_t n = 0; n < twis.size(); ++n)
+				ignoredTouch[n] = getId(twis, n);
 		}
 		// EG + Gate mode
 		if(kInputModeEnvelope == inputMode && (envelopeReleaseStarts[0] > 0 || envelopeReleaseStarts[1] > 0) && performanceBtn.pressed)
@@ -3156,7 +3159,7 @@ public:
 			}
 		}
 
-		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
@@ -3728,6 +3731,7 @@ private:
 	uint64_t lastAnalogRisingEdgeSamples = 0;
 	float idxFrac = 0;
 	size_t buttonBlinksIgnored;
+	std::array<TouchTracker::TouchWithId,kNumSplits> twis;
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton;
 } gRecorderMode;
