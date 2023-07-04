@@ -5340,7 +5340,7 @@ public:
 		};
 		presetDescSet(3, &presetDesc);
 	}
-	ParameterEnumT<2,bool> quantised {this, true};
+	ParameterEnumT<2,bool> quantised {this, false};
 	ParameterEnumT<2,bool> seqMode{this, false};
 	ParameterContinuous modRange {this, 0.1};
 	ParameterContinuous offsetParameterRaw {this, 0};
