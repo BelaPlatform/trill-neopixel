@@ -3179,6 +3179,7 @@ public:
 					else {
 						qrecStopNow[n] = qrec.periodsInRecording ? kStopNowLate : kStopNowOnEdge;
 					}
+					qrec.armedFor = kArmedForNone;
 				}
 
 				if(qrecStartNow[n])
