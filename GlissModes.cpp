@@ -2903,6 +2903,7 @@ public:
 				lastIgnoredPressId = performanceBtn.pressId;
 			}
 		}
+		uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
 		if(performanceBtn.onset)
 		{
 			if(kInputModeEnvelope == inputMode)
@@ -2932,22 +2933,69 @@ public:
 					}
 				}
 			} else
-			if(kInputModeClock == inputMode && inputModeClockIsButton)
+			if(kInputModeClock == inputMode)
 			{
-				// if clock in is disabled, button onset triggers immediate start or stop of recording
-				lastIgnoredPressId = performanceBtn.pressId;
-				if(areRecording()){
-					for(size_t n = 0; n < qrecs.size(); ++n)
-					{
-						if(isRecording(n))
-							qrecStopNow[n] = kStopNowOnEdge;
+				if(inputModeClockIsButton)
+				{
+					// if clock in is disabled, button onset triggers immediate start or stop of recording
+					lastIgnoredPressId = performanceBtn.pressId;
+					if(areRecording()){
+						for(size_t n = 0; n < qrecs.size(); ++n)
+						{
+							if(isRecording(n))
+								qrecStopNow[n] = kStopNowOnEdge;
+						}
+					} else {
+						qrecStartNow.fill(kRecOnButton);
 					}
 				} else {
-					qrecStartNow.fill(kRecOnButton);
+					// how late can a button press be to be considered as
+					// belonging to the previous edge
+					// this is clock-dependent with an upper limit
+					uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
+					bool closeEnough = (lateSamples < maxDelaySamples);
+					for(size_t n = 0; n < kNumSplits; ++n)
+					{
+						auto& qrec = qrecs[n];
+						if(closeEnough && 0 == n)
+							printf("C %.3fs\n\r", lateSamples / context->analogSampleRate);
+						switch(qrec.recording)
+						{
+						case kRecOnButton:
+							// normally lastIgnoredPressId will make sure we don't get here
+							// however, we may in case the clock started again since the recording started.
+							// In that case, ignore
+							break;
+						case kRecTentative:
+							// a button press came in slightly late, but we let it
+							// pass through as if it had arrived on time,
+							// given how we are already tentatively recording
+							if(closeEnough)
+							{
+								qrec.recording = kRecActual;
+								break;
+							}
+							// otherwise arm for recording on next edge
+							qrec.recording = kRecNone;
+							// NOBREAK
+						case kRecNone:
+							qrec.armedFor = kArmedForStart;
+							break;
+						case kRecActual:
+							if(closeEnough && !qrec.isSynced)
+							{
+								qrecStopNow[n] = kStopNowLate;
+							} else {
+								// wait for next edge
+								qrec.armedFor = kArmedForStop;
+							}
+							break;
+						} // switch qrec.recording
+					} // for kNumSplts
 				}
 			}
 		}
-		if(gAlt && inputModeClockIsButton && areRecording())
+		if(gAlt && kInputModeClock == inputMode && areRecording())
 		{
 			// We got into menu while recording.
 			// This means that the keypress that triggered the recording onset has been used to
@@ -2961,8 +3009,7 @@ public:
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		}
 		std::array<bool,kNumSplits> releaseStarts {false, false};
-		uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
-		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId && !inputModeClockIsButton)
+		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId)
 		{
 			switch(inputMode.get())
 			{
@@ -2977,53 +3024,6 @@ public:
 					// to disrupt it when entering menu
 					triggerNow = true;
 					tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 150);
-				break;
-			case kInputModeClock:
-			{
-				// how late can a button press be to be considered as
-				// belonging to the previous edge
-				// this is clock-dependent with an upper limit
-				uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
-				bool closeEnough = (lateSamples < maxDelaySamples);
-				for(size_t n = 0; n < kNumSplits; ++n)
-				{
-					auto& qrec = qrecs[n];
-					if(closeEnough && 0 == n)
-						printf("C %.3fs\n\r", lateSamples / context->analogSampleRate);
-					switch(qrec.recording)
-					{
-					case kRecOnButton:
-						// normally lastIgnoredPressId will make sure we don't get here
-						// however, we may in case the clock started again since the recording started.
-						// In that case, ignore
-						break;
-					case kRecTentative:
-						// a button press came in slightly late, but we let it
-						// pass through as if it had arrived on time,
-						// given how we are already tentatively recording
-						if(closeEnough)
-						{
-							qrec.recording = kRecActual;
-							break;
-						}
-						// otherwise arm for recording on next edge
-						qrec.recording = kRecNone;
-						// NOBREAK
-					case kRecNone:
-						qrec.armedFor = kArmedForStart;
-						break;
-					case kRecActual:
-						if(closeEnough && !qrec.isSynced)
-						{
-							qrecStopNow[n] = kStopNowLate;
-						} else {
-							// wait for next edge
-							qrec.armedFor = kArmedForStop;
-						}
-						break;
-					} // switch qrec.recording
-				}
-			} // case kInputModeClock:
 				break;
 			} // switch inputMode
 		}
