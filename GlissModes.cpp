@@ -358,7 +358,7 @@ static std::array<bool,kNumOutChannels> gOutUsesRange;
 bool gOutAddsIn;
 
 // Recording the gesture
-enum { kMaxRecordLength = 5000 };
+static constexpr size_t kMaxRecordLength = 5000;
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 const float kFixedCentroidSize = 0.3;
