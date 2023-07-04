@@ -6,6 +6,8 @@
 #include "LedSliders.h"
 #include "preset.h"
 #include "packed.h"
+#include "bootloader.h"
+
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 bool gModeWantsInteractionPreMenu = false;
@@ -6209,7 +6211,8 @@ public:
 			if(ms > 100)
 			{
 				printf("ERASE SETTINGS\n\r");
-				requestNewMode(kFactoryTestModeIdx);
+				presetEraseAll();
+				bootloaderResetTo(kBootloaderMagicUserBootloader);
 			}
 			break;
 		case kStateAbort:
