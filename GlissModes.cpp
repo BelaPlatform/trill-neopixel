@@ -7770,18 +7770,47 @@ static void doOutRangeOverride(size_t c)
 }
 
 class GlobalSettings : public ParameterUpdateCapable {
+	enum Flag {
+		kFlagJacksOnTop = 1 << 0,
+		kFlagAnimationsWithFs = 1 << 1,
+		kFlagMax = 1 << 2,
+	};
+	void flagSet(Flag flag, int value)
+	{
+		uint8_t f = flags.get();
+		if(value)
+			f |= int(flag);
+		else
+			f &= ~int(flag);
+		flags.set(f);
+	}
 public:
 	void updated(Parameter& p)
 	{
-		S(bool verbose = false);
+		S(bool verbose = true);
 		S(char const* str = "+++");
 		if(p.same(jacksOnTop)) {
-			gJacksOnTop = jacksOnTop;
 			S(str = "jacksOnTop");
+			flagSet(kFlagJacksOnTop, jacksOnTop);
 		}
 		else if(p.same(animationMode)) {
 			S(str = "animationMode");
-			gAnimationMode = AnimationMode(animationMode.get());
+			flagSet(kFlagAnimationsWithFs, animationMode);
+		}
+		else if(p.same(flags)) {
+			S(str = "flags");
+			printf("FLAGS: 0x%x\n\r", flags.get());
+			// we arrive here either because  set() has been called on the individual parameters
+			// or because it has been called on flags() directly (typically by the preset loader)
+			// so call set() from here only if different to avoid infinite recursion
+			bool anim = (flags & kFlagAnimationsWithFs);
+			if(animationMode.get() !=  anim)
+				animationMode.set(anim);
+			gAnimationMode = AnimationMode(anim);
+			bool jacks = (flags & kFlagJacksOnTop);
+			if(jacksOnTop.get() != jacks)
+				jacksOnTop.set(jacks);
+			gJacksOnTop = jacks;
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			S(str = "sizeScaleCoeff");
@@ -7811,25 +7840,25 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_NOIORANGES_FIELD4(sizeScaleCoeff, brightness, jacksOnTop, newMode);
+		UPDATE_PRESET_NOIORANGES_FIELD4(sizeScaleCoeff, brightness, flags, newMode);
 	}
 	GlobalSettings() :
 		presetFieldData {
 			.sizeScaleCoeff = sizeScaleCoeff,
 			.brightness = brightness,
-			.jacksOnTop = jacksOnTop,
+			.flags = flags,
 			.newMode = newMode,
 		}
 	{
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulterNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, jacksOnTop, newMode),
+			.defaulter = genericDefaulterNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, flags, newMode),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
 			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallbackNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, jacksOnTop, newMode),
+			.loadCallback = genericLoadCallbackNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, flags, newMode),
 		};
 		presetDescSet(5, &presetDesc);
 	}
@@ -7838,10 +7867,11 @@ public:
 	ParameterEnumT<kNumAnimationMode> animationMode {this, gAnimationMode};
 	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
+	ParameterEnumT<kFlagMax> flags {this, kFlagJacksOnTop};
 	PACKED_STRUCT(PresetFieldData_t {
 		float sizeScaleCoeff;
 		float brightness;
-		uint8_t jacksOnTop;
+		uint8_t flags;
 		uint8_t newMode;
 	}) presetFieldData;
 } gGlobalSettings;
