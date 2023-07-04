@@ -3032,7 +3032,7 @@ public:
 			redButtonIsOn = qrecs[0].armedFor || qrecs[1].armedFor || areRecording();
 		else
 			redButtonIsOn = gGestureRecorder.isRecording(0) || gGestureRecorder.isRecording(1);
-		tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.2f);
+		tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.6f);
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
