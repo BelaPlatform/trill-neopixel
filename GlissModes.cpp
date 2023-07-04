@@ -3509,8 +3509,7 @@ public:
 			M(printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get()));
 			if(kInputModeClock == inputMode)
 			{
-				for(auto& qrec : qrecs)
-					qrec = QuantisedRecorder();
+				reinitInputModeClock();
 				gGestureRecorder.rs.setEnabled(GestureRecorder::SwappableRecorders::kWhichRecordersDoubleWithBackup);
 			} else {
 				gGestureRecorder.rs.setEnabled(GestureRecorder::SwappableRecorders::kWhichRecordersDouble);
