@@ -2813,7 +2813,6 @@ public:
 	bool setup(double ms) override
 	{
 		twis = {};
-		inputModeClockIsButton = false;
 		reinitInputModeClock();
 		gOutMode.fill(kOutModeManualBlock);
 		hadTouch.fill(false);
@@ -2857,10 +2856,12 @@ public:
 			performanceBtn = ButtonViewSimplify(performanceBtn);
 		if(!areRecording())
 		{
-			bool newinputModeClockIsButton = !clockInIsActive(context) && kInputModeClock == inputMode;
+			bool newinputModeClockIsButton = !clockInIsActive(context);
 			if(newinputModeClockIsButton != inputModeClockIsButton)
 			{
 				reinitInputModeClock();
+				if(newinputModeClockIsButton)
+					tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 60);
 				inputModeClockIsButton = newinputModeClockIsButton;
 			}
 		}
@@ -3753,7 +3754,7 @@ private:
 	size_t buttonBlinksIgnored;
 	std::array<TouchTracker::TouchWithId,kNumSplits> twis;
 	bool pastAnalogInHigh = false;
-	bool inputModeClockIsButton;
+	bool inputModeClockIsButton = true;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
 
