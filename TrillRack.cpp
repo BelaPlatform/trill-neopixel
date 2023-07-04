@@ -153,7 +153,7 @@ static uint16_t midiInputCallback(uint8_t *msg, uint16_t length)
 		// TODO: wait for it but ensure the timer thread has a higher preemption priority than this one
 		np.show();
 		printf("Jumping to bootloader\n\r");
-		bootloaderResetTo();
+		bootloaderResetTo(kBootloaderMagicSystemBootloader);
 	}
 	return 0;
 }
