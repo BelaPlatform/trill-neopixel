@@ -3042,6 +3042,12 @@ public:
 		tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.6f);
 		// TODO: obey trigger level
 		bool analogInHigh = tri.analogRead() > 0.5;
+
+		bool gate = false;
+		if(inputMode == kInputModeEnvelope)
+		{
+			gate = analogInHigh || performanceBtn.pressed;
+		}
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		bool analogFallingEdge = (!analogInHigh && pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
@@ -3309,9 +3315,26 @@ public:
 			if(kInputModeLfo == inputMode || kInputModeEnvelope == inputMode || gGestureRecorder.isRecording(idx))
 			{
 				bool autoRetrigger = (kInputModeLfo == inputMode);
-				if(releaseStarts[n])
-					gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
-				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, envelopeReleaseStarts[n]);
+				ssize_t freezeAt = -1;
+				if(kInputModeEnvelope == inputMode)
+				{
+					bool hangAtEndOfAttackOnShortGate = false;
+					// how to deal with a gate that is shorter than the attack
+					if(hangAtEndOfAttackOnShortGate)
+					{
+						// hang at the end of attack
+						freezeAt = envelopeReleaseStarts[n];
+					} else {
+						// play through attack and release
+						freezeAt = envelopeReleaseStarts[n];
+						if(!gate) // if gate is off, allow release
+							releaseStarts[n] = true;
+					}
+					// never jump to release: only get there if already frozen
+					if(releaseStarts[n] && gGestureRecorder.rs[idx].frozen)
+						gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
+				}
+				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, freezeAt);
 				TouchTracker::Id id = getId(twis, n);
 				if(gGestureRecorder.isRecording(idx) && gGestureRecorder.rs[idx].r.full)
 				{
