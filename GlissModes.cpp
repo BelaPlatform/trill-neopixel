@@ -7426,6 +7426,8 @@ protected:
 
 static void menu_resetStates(const MenuItemType* src);
 
+static MenuItemTypeDiscretePlus* gAnimationIsPlaying = nullptr;
+static uint32_t gAnimationPlayedLast = 0;
 // displays an animation every kTransitionFalling event. It leverages
 // the fact that MenuItemTypeDiscretePlus displays current value upon first tap.
 class MenuItemTypeDiscreteFullScreenAnimation : public MenuItemTypeDiscretePlus
@@ -7451,6 +7453,8 @@ public:
 		bool hasAnimated = (gAnimateFs.hasWrittenCount() != lastCount);
 		if(hasAnimated)
 		{
+			gAnimationIsPlaying = this;
+			gAnimationPlayedLast = HAL_GetTick();
 			// displayOldValueTimeout  starts counting
 			// from the end of the animation
 			lastTick = currentMs;
@@ -8201,6 +8205,18 @@ void menu_render(BelaContext*, FrameData* frameData)
 
 	// set the color (i.e.: animation for the _next_ iteration)
 	// (it has already been rendered to np from the ledSliders.process() call above)
+	uint32_t ms = HAL_GetTick();
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
-		activeMenu->items[n]->process(ledSlidersAlt.sliders[n]);
+	{
+		MenuItemType* item = activeMenu->items[n];
+		// TODO: using timeout because it's easier, but it should be refactored
+		// so that it's more elegant
+		if(ms - gAnimationPlayedLast < 10)
+		{
+			// While FS animation is playing, only let the item that triggered it be tapped again
+			if(gAnimationIsPlaying && item != gAnimationIsPlaying)
+				continue;
+		}
+		item->process(ledSlidersAlt.sliders[n]);
+	}
 }
