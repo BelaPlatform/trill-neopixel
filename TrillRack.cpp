@@ -729,8 +729,10 @@ void tr_render(BelaContext* context)
 	// multiplexer part 2
 	bool performanceActive = (0 == gAlt) && !menuActive && kMenuChangeDisabled == menuState;
 	performanceBtn = (performanceActive && !menuExitWaitingButtonRelease) ? btn : disBtn;
-	ledSliders.enableTouch(performanceActive && !menuExitWaitingTouchRelease);
-	ledSliders.enableLeds(performanceActive);
+	bool forceAllowPerformanceInteraction = !menuActive && gModeWantsInteractionPreMenu;
+	gInPreMenu = (!menuActive && !performanceActive);
+	ledSliders.enableTouch((performanceActive && !menuExitWaitingTouchRelease) || forceAllowPerformanceInteraction);
+	ledSliders.enableLeds(performanceActive || forceAllowPerformanceInteraction);
 
 	static double setupMs;
 	static bool setupDone = false;

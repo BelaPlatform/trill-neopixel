@@ -165,6 +165,8 @@ extern CentroidDetectionScaled globalSlider;
 
 extern int menu_setup(size_t page);
 extern void menu_exit();
+extern bool gModeWantsInteractionPreMenu;
+extern bool gInPreMenu;
 
 #include "centroid.h"
 static inline centroid_t touchOrNot(const centroid_t& touch)

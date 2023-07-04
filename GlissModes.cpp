@@ -8,6 +8,8 @@
 #include "packed.h"
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
+bool gModeWantsInteractionPreMenu = false;
+bool gInPreMenu = false;
 
 static constexpr rgb_t kRgbRed {255, 0, 0};
 static constexpr rgb_t kRgbGreen {0, 255, 0};
@@ -6284,6 +6286,7 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gInUsesRange = true;
 	gOutUsesRange = {true, true};
 	gOutAddsIn = false;
+	gModeWantsInteractionPreMenu = false;
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 	{
