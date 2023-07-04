@@ -2960,8 +2960,8 @@ public:
 			// hold LED as long as button is down
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		}
-		std::array<uint32_t,kNumSplits> stopLateSamples {};
 		std::array<bool,kNumSplits> releaseStarts {false, false};
+		uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
 		if(performanceBtn.offset && performanceBtn.pressId != lastIgnoredPressId && !inputModeClockIsButton)
 		{
 			switch(inputMode.get())
@@ -2984,7 +2984,6 @@ public:
 				// belonging to the previous edge
 				// this is clock-dependent with an upper limit
 				uint64_t maxDelaySamples = std::min(gClockPeriod * 0.25f, 0.2f * context->analogSampleRate);
-				uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
 				bool closeEnough = (lateSamples < maxDelaySamples);
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
@@ -3017,7 +3016,6 @@ public:
 						if(closeEnough && !qrec.isSynced)
 						{
 							qrecStopNow[n] = kStopNowLate;
-							stopLateSamples[n] = lateSamples;
 						} else {
 							// wait for next edge
 							qrec.armedFor = kArmedForStop;
@@ -3221,7 +3219,7 @@ public:
 						{
 							// adjust the phase to make up for the lost time
 							float normFreq = getOscillatorFreq(context, n) / context->analogSampleRate;
-							phaseOffset = stopLateSamples[n] * normFreq * 2.f * float(M_PI);
+							phaseOffset = lateSamples * normFreq * 2.f * float(M_PI);
 						}
 					}
 					qrec.recording = kRecNone;
