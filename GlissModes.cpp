@@ -7564,7 +7564,6 @@ public:
 constexpr size_t kMaxModeParameters = 3;
 static const rgb_t buttonColor = kRgbRed;
 static MenuItemTypeDisabled disabled(kRgbBlack);
-static ButtonAnimation defaultAnimation;
 
 static ButtonAnimationSplit animationSplit(buttonColors);
 static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
@@ -7597,7 +7596,7 @@ static ButtonAnimationStillTriangle animationSingleStillTriangle{buttonColors};
 static ButtonAnimationSolid animationSolid{buttonColors};
 static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeOutputMode("scaleMeterModeOutputMode", buttonColors, gScaleMeterMode.outputMode, false, &animationSolid);
 static MenuItemTypeDiscreteFullScreenAnimation scaleMeterModeCoupling("scaleMeterModeCoupling", buttonColors, gScaleMeterMode.coupling, false, &animationSingleStillTriangle);
-static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[1], gScaleMeterMode.cutoff, &defaultAnimation);
+static MenuItemTypeEnterContinuous scaleMeterModeCutoff("scaleMeterModeCutoff", buttonColors[0], buttonColors[2], gScaleMeterMode.cutoff);
 static std::array<MenuItemType*,kMaxModeParameters> scaleMeterModeMenu = {
 		&scaleMeterModeCutoff,
 		&scaleMeterModeCoupling,
@@ -7625,7 +7624,7 @@ static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor,
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColors, gExprButtonsMode.quantised, false, &animationSmoothQuantised);
 static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColors, gExprButtonsMode.seqMode, false, &animationKeysSeq);
-static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[1], gExprButtonsMode.modRange, &defaultAnimation);
+static MenuItemTypeEnterContinuous exprButtonsModeModRange("gExprButtonsModeModRange", buttonColors[0], buttonColors[2], gExprButtonsMode.modRange);
 #endif // ENABLE_EXPR_BUTTONS_MODE
 
 #ifdef ENABLE_EXPR_BUTTONS_MODE
