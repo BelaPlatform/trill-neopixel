@@ -7,6 +7,7 @@
 #include "preset.h"
 #include "packed.h"
 #include "bootloader.h"
+#define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
@@ -3853,7 +3854,6 @@ private:
 
 static void menu_up();
 
-#define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx);
 
 #ifdef ENABLE_SCALE_METER_MODE
