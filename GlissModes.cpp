@@ -2903,7 +2903,7 @@ public:
 		bool analogRisingEdge = 1 == edgeFound;
 		bool analogFallingEdge = -1 == edgeFound;
 		// if we have a rising edge, use that for timing purposes, otherwise just use the middle of the block
-		uint64_t currentSamples = context->audioFramesElapsed + (analogRisingEdge ? edgeFrame : context->analogFrames / 2);
+		currentSamples = context->audioFramesElapsed + (analogRisingEdge ? edgeFrame : context->analogFrames / 2);
 		if(analogRisingEdge)
 		{
 			lastAnalogRisingEdgeSamples = currentSamples;
@@ -3848,6 +3848,7 @@ private:
 	std::array<ssize_t,kNumSplits> envelopeReleaseStarts { -1, -1 };
 	size_t lastIgnoredPressId = ButtonView::kPressIdInvalid;
 	uint64_t lastAnalogRisingEdgeSamples = 0;
+	uint64_t currentSamples = 0;
 	float idxFrac = 0;
 	size_t buttonBlinksIgnored;
 	std::array<TouchTracker::TouchWithId,kNumSplits> twis;
