@@ -2811,6 +2811,11 @@ public:
 		kInputModePhasor,
 		kInputModeNum,
 	};
+	enum FlashReason {
+		kFlashNone,
+		kFlashErased,
+		kFlashRestarted,
+	};
 	bool setup(double ms) override
 	{
 		twis = {};
@@ -2953,6 +2958,7 @@ public:
 				if(shouldClear[n])
 				{
 					emptyRecordings(n);
+					flashRequest(n, kFlashErased);
 				}
 			}
 			// clear possible side effects of previous press:
@@ -3409,6 +3415,10 @@ public:
 						gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
 				}
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, freezeAt);
+				if(gGestureRecorder.rs[idx].playHead < 1 && !gGestureRecorder.isRecording(idx))
+				{
+					flashRequest(n, kFlashRestarted);
+				}
 				TouchTracker::Id id = getId(twis, n);
 				if(gGestureRecorder.isRecording(idx) && gGestureRecorder.rs[idx].r.full)
 				{
@@ -3547,6 +3557,13 @@ public:
 		}
 		// this may set gManualAnOut even if they are ignored
 		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize);
+		for(size_t n = 0; n < currentSplits(); ++n)
+		{
+			// reset the flashes after a timeout
+			constexpr float kFlashDuration = 8000;
+			if(currentSamples > flashStart[n] + kFlashDuration || flashStart[n] > currentSamples)
+				flash[n] = kFlashNone;
+		}
 	}
 
 	float processTable(BelaContext* context, unsigned int c)
@@ -3585,6 +3602,13 @@ public:
 					float idx = oscs[c].process(normFreq);
 					float value = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
+					if(kInputModeClock == inputMode && idx * tableSize < 1)
+					{
+						// flash the split to notify of the reset
+						if(!isRecording(c))
+							flashRequest(c, kFlashRestarted);
+					}
+
 					if(0 == n)
 					{
 						// for visualisation purposes, avoid
@@ -3787,6 +3811,13 @@ private:
 		periodsInTables[n] = 1;
 		qrecs[n].recordedAs = kRecNone;
 	}
+	void flashRequest(size_t n, FlashReason fl)
+	{
+		if(n > flash.size())
+			return;
+		flash[n] = fl;
+		flashStart[n] = currentSamples;
+	}
 	TouchTracker::Id getId(std::array<TouchTracker::TouchWithId,kNumSplits>& twis, size_t c)
 	{
 		assert(c < twis.size());
@@ -3852,6 +3883,8 @@ private:
 	float idxFrac = 0;
 	size_t buttonBlinksIgnored;
 	std::array<TouchTracker::TouchWithId,kNumSplits> twis;
+	std::array<FlashReason,kNumSplits> flash = FILL_ARRAY(flash, kFlashNone);
+	std::array<uint64_t,kNumSplits> flashStart {};
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton = true;
 } gRecorderMode;
