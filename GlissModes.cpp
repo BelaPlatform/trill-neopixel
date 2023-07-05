@@ -2867,7 +2867,15 @@ public:
 		}
 		// set global states
 		setOutIsSize();
-		gInUsesRange = true; // may be overridden below depending on mode
+		switch(inputMode.get())
+		{
+		case kInputModeCv:
+		case kInputModeClock:
+			gInUsesRange = false; // we need actual voltage here
+			break;
+		default:
+			gInUsesRange = true;
+		}
 		uint64_t currentSamples = context->audioFramesElapsed;
 
 		enum StopMode {
@@ -3493,7 +3501,6 @@ public:
 			if(kInputModeCv == inputMode)
 			{
 				// input is CV
-				gInUsesRange = false; // we need actual voltage here
 				float volts = inToV(analogRead(context, 0, 0));
 				float baseFreq = 65.40639f; // a C
 				freq = vToFreq(volts, baseFreq);
