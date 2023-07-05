@@ -714,6 +714,9 @@ void tr_render(BelaContext* context)
 			menuExitWaitingButtonRelease = true;
 		if(globalSlider.getNumTouches())
 			menuExitWaitingTouchRelease = true;
+		// also reset the button's state machine
+		lastOnsetTime = 0;
+		lastLastOnsetTime = 0;
 	} else { // else ensures we don't run this uselessly in the same block where they were set
 		if(menuExitWaitingButtonRelease) {
 			if(!btn.pressed && !btn.offset)
