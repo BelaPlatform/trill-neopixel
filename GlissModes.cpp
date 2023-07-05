@@ -1312,9 +1312,9 @@ public:
 			from = 0;
 		rs[n].playHead = from;
 	}
-	void empty()
+	void empty(size_t n)
 	{
-		for(size_t n = 0; n < kNumRecs; ++n)
+		for( ; n < kNumRecs; n += 2)
 		{
 			rs[n].r.startRecording();
 			rs[n].r.stopRecording();
@@ -2919,7 +2919,38 @@ public:
 				(performanceBtn.pressDuration == msToNumBlocks(context, 3000)
 				|| (!buttonTriggers() && performanceBtn.tripleClick))) // if button triggers, it may be pressed repeatedly for performance reasons
 		{
-			emptyRecordings();
+			std::array<bool,kNumSplits> shouldClear {};
+			if(isSplit()) {
+				// if it's split, allow to delete only one of the two if you have a finger on it
+				bool zeroTouches = true;
+				for(size_t n = 0; n < kNumSplits; ++n)
+				{
+					if(hadTouch[n]) // using old touch as we haven't processed the new ones yet, but it's good enough
+					{
+						shouldClear[n] = true;
+						zeroTouches = false;
+						if(kInputModeClock != inputMode)
+						{
+							// if in a mode where this finger would immediately trigger a new recording, ignore it
+							ignoredTouch[n] = twis[n].id;
+						}
+					}
+				}
+				// or do them both
+				if(zeroTouches)
+					shouldClear.fill(true);
+			}
+			else
+				shouldClear.fill(true);
+			for(size_t n = 0; n < kNumSplits; ++n)
+			{
+				 // the semantic of n in this loop is slightly confusing as
+				// it refers to both splits and recorders... but it should be innocuous for now
+				if(shouldClear[n])
+				{
+					emptyRecordings(n);
+				}
+			}
 			// clear possible side effects of previous press:
 			reinitInputModeClock();
 			lastIgnoredPressId = performanceBtn.pressId;
@@ -3322,8 +3353,8 @@ public:
 					}
 				}
 			}
-			hadTouch = hasTouch;
 		}
+		hadTouch = hasTouch;
 
 		GestureRecorder::Gesture_t gesture; // used for visualization
 		std::array<float,kNumSplits> recIns;
@@ -3746,10 +3777,11 @@ private:
 			return true;
 		}
 	}
-	void emptyRecordings()
+	void emptyRecordings(size_t n)
 	{
-		gGestureRecorder.empty();
-		periodsInTables.fill(1);
+		gGestureRecorder.empty(n);
+		periodsInTables[n] = 1;
+		qrecs[n].recordedAs = kRecNone;
 	}
 	TouchTracker::Id getId(std::array<TouchTracker::TouchWithId,kNumSplits>& twis, size_t c)
 	{
