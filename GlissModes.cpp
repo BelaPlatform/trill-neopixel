@@ -3207,7 +3207,7 @@ public:
 					envelopeReleaseStarts[n] = -1;
 					qrec.recording = qrecStartNow[n];
 					qrec.periodsInRecording = 0;
-					qrec.framesAtStart = context->audioFramesElapsed;
+					qrec.framesAtStart = currentSamples;
 				}
 				float phaseOffset = 0;
 				if(kStopNone != qrecStopNow[n])
@@ -3231,7 +3231,7 @@ public:
 					if(valid)
 					{
 						qrec.recordedAs = qrec.recording;
-						qrec.framesInRecording = context->audioFramesElapsed - qrec.framesAtStart;
+						qrec.framesInRecording = currentSamples - qrec.framesAtStart;
 						gGestureRecorder.rs.swap(n, n + recordOffset);
 						if(kRecOnButton == qrec.recordedAs)
 						{
