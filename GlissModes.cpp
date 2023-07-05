@@ -12,6 +12,7 @@
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 bool gModeWantsInteractionPreMenu = false;
+bool gModeWantsMenuDelay = false;
 bool gInPreMenu = false;
 
 static constexpr rgb_t kRgbRed {255, 0, 0};
@@ -6481,6 +6482,7 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gOutUsesRange = {true, true};
 	gOutAddsIn = false;
 	gModeWantsInteractionPreMenu = false;
+	gModeWantsMenuDelay = false;
 	// call the processing callback
 	if(gNewMode < kNumModes && performanceModes[gNewMode])
 	{

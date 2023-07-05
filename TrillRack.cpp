@@ -646,7 +646,7 @@ void tr_render(BelaContext* context)
 		}
 		if(!numTouches) // we no longer touch
 			menuState = kMenuChangeDisabled;
-		if(kMenuPre == menuState)
+		if(kMenuPre == menuState && (!gModeWantsMenuDelay || timeNow - lastOnsetTime > msToNumBlocks(context, 500)))
 		{
 			if(numTouches > maxTouchesThisMenuPre)
 			{
