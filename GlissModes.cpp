@@ -2876,7 +2876,35 @@ public:
 		default:
 			gInUsesRange = true;
 		}
-		uint64_t currentSamples = context->audioFramesElapsed;
+
+		// handle analog ins
+		int edgeFound = 0;
+		size_t edgeFrame = 0;
+		bool analogInHigh = false;
+		// find at most one edge
+		for(size_t n = 0; n < context->analogFrames; ++n)
+		{
+			analogInHigh = analogRead(context, n, 0) > kTriggerInOnThreshold;
+			bool past = pastAnalogInHigh;
+			pastAnalogInHigh = analogInHigh;
+			if(analogInHigh != past)
+			{
+				edgeFound = analogInHigh - past;
+				edgeFrame = n;
+				// in case of edge, we ignore all remaining samples:
+				// we only can handle one edge per frame
+				break;
+			}
+		}
+		bool analogRisingEdge = 1 == edgeFound;
+		bool analogFallingEdge = -1 == edgeFound;
+		// if we have a rising edge, use that for timing purposes, otherwise just use the middle of the block
+		uint64_t currentSamples = context->audioFramesElapsed + (analogRisingEdge ? edgeFrame : context->analogFrames / 2);
+		if(analogRisingEdge)
+		{
+			lastAnalogRisingEdgeSamples = currentSamples;
+		}
+		uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
 
 		enum StopMode {
 			kStopNone = 0,
@@ -2919,7 +2947,6 @@ public:
 				lastIgnoredPressId = performanceBtn.pressId;
 			}
 		}
-		uint64_t lateSamples = currentSamples - lastAnalogRisingEdgeSamples;
 		if(performanceBtn.onset)
 		{
 			if(kInputModeEnvelope == inputMode || kInputModeLfo == inputMode)
@@ -3045,26 +3072,21 @@ public:
 		else
 			redButtonIsOn = gGestureRecorder.isRecording(0) || gGestureRecorder.isRecording(1);
 		tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.6f);
-		// TODO: obey trigger level
-		bool analogInHigh = tri.analogRead() > 0.5;
 
 		bool gate = false;
 		if(inputMode == kInputModeEnvelope)
 		{
 			gate = analogInHigh || performanceBtn.pressed;
 		}
-		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
-		bool analogFallingEdge = (!analogInHigh && pastAnalogInHigh);
-		pastAnalogInHigh = analogInHigh;
 		std::array<bool,kNumSplits> qrecResetPhase { false, false };
 		size_t recordOffset = 0;
 		if(kInputModeClock == inputMode)
 			recordOffset += GestureRecorder::kNumRecs / 2;
+
 		bool inputIsTrigger = false;
 		if(analogRisingEdge)
 		{
-			inputIsTrigger = true;
-			lastAnalogRisingEdgeSamples = currentSamples;
+			inputIsTrigger = true; // may be overridden below
 			switch(inputMode.get())
 			{
 				default:
