@@ -3269,15 +3269,26 @@ public:
 						{
 							// adjust the phase to make up for the lost time
 							float normFreq = getOscillatorFreq(context, n) / context->analogSampleRate;
-							phaseOffset = lateSamples * normFreq * 2.f * float(M_PI);
+							phaseOffset = lateSamples * normFreq;
 						}
 					}
 					qrec.recording = kRecNone;
 				}
 				// keep oscillators in phase with external clock pulses
 				if(qrecResetPhase[n]) {
-					oscs[n].setPhase(-M_PI + phaseOffset);
+					oscs[n].setPhase(phaseOffset);
 					qrec.periodsInPlayback = 0;
+				} else {
+					if(analogRisingEdge)
+					{
+						// we are using high-precision phase in the oscillators,
+						// so phase drift is minimal when the input is a steady clock.
+						// Regardless, we hard reset the phase on each incoming clock edge
+						// so that we can respond faster to changes in the speed of the input clock
+						float idx = qrec.periodsInPlayback / float(periodsInTables[n]);
+						float expPhase = idx;
+						oscs[n].setPhase(expPhase);
+					}
 				}
 			}
 
@@ -3536,7 +3547,7 @@ public:
 			float normFreq = freq / context->analogSampleRate;
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
-					float idx = mapAndConstrain(oscs[c].process(normFreq), -1, 1, 0, 1);
+					float idx = oscs[c].process(normFreq);
 					float value = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
 					if(0 == n)
@@ -3770,9 +3781,31 @@ private:
 		uint64_t framesInRecording;
 		bool isSynced;
 	};
+	class Phasor
+	{
+	public:
+		double process(double freq)
+		{
+			double oldPhase = phase;
+			phase += freq;
+			while(phase > 1)
+				phase -= 1;
+			return oldPhase;
+		}
+		double getPhase()
+		{
+			return phase;
+		}
+		void setPhase(double newPhase)
+		{
+			phase = newPhase;
+		}
+	private:
+		double phase = 0;
+	};
 	std::array<QuantisedRecorder,kNumSplits> qrecs {};
 	static constexpr size_t kNumSplits = ::kNumSplits;
-	std::array<Oscillator,kNumSplits> oscs {{{1, Oscillator::sawtooth}, {1, Oscillator::sawtooth}}};
+	std::array<Phasor,kNumSplits> oscs {};
 	std::array<size_t,kNumSplits> periodsInTables {1, 1};
 	std::array<bool,kNumSplits>  hadTouch;
 	std::array<TouchTracker::Id,kNumSplits> ignoredTouch;
