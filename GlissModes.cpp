@@ -3555,6 +3555,13 @@ public:
 			while(idxFrac >= 1)
 				idxFrac -= 1;
 		}
+		for(size_t n = 0; n < currentSplits(); ++n)
+		{
+			rgb_t sliderColor = color;
+			if(kFlashRestarted == flash[n])
+				sliderColor = kRgbGreen;
+			ledSliders.sliders[n].setColor(sliderColor);
+		}
 		// this may set gManualAnOut even if they are ignored
 		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize);
 		for(size_t n = 0; n < currentSplits(); ++n)
@@ -3563,6 +3570,34 @@ public:
 			constexpr float kFlashDuration = 8000;
 			if(currentSamples > flashStart[n] + kFlashDuration || flashStart[n] > currentSamples)
 				flash[n] = kFlashNone;
+			if(!gAlt)
+			{
+				// blink one or both splits if instructed to do so
+				float brightness = 1.f - (currentSamples - flashStart[n]) / kFlashDuration;
+				if(kFlashErased == flash[n])
+				{
+					size_t size = np.getNumPixels() / currentSplits();
+					size_t start;
+					if(isSplit())
+						start = (1 - n) * size + 1; // 1 - n because top split is number 0 but LEDs start counting from bottom split
+					else
+						start = 0;
+					for(size_t p = start; p < start + size - 1 && p < np.getNumPixels(); ++p)
+					{
+						bool isFree = true;
+						for(size_t c = 0; c < rgb_t::size(); ++c)
+						{
+							if(np.getPixelChannel(p, c))
+							{
+								isFree = false;
+								break;
+							}
+						}
+						if(isFree)
+							np.setPixelColor(p, kRgbRed.scaledBy(0.2 * brightness));
+					}
+				}
+			}
 		}
 	}
 
