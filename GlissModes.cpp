@@ -2861,8 +2861,12 @@ public:
 			if(newinputModeClockIsButton != inputModeClockIsButton)
 			{
 				reinitInputModeClock();
-				if(newinputModeClockIsButton)
-					tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 60);
+				if(kInputModeClock == inputMode)
+				{
+					// only display it if relevant to the current mode
+					if(newinputModeClockIsButton)
+						tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 60);
+				}
 				inputModeClockIsButton = newinputModeClockIsButton;
 			}
 		}
