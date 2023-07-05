@@ -28,8 +28,17 @@ struct rgb_t {
 			return b;
 		}
 	}
-	size_t size() const {
+	static constexpr size_t size() {
 		return 3;
+	}
+	bool operator==(const rgb_t& other) const {
+		for(size_t n = 0; n < size(); ++n)
+			if(this->operator[](n) != other[n])
+				return false;
+		return true;
+	}
+	bool operator!=(const rgb_t& other) const {
+		return !this->operator==(other);
 	}
 	void scale(float gain) {
 		for(size_t n = 0; n < size(); ++n)
