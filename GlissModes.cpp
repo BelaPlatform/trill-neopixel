@@ -2869,11 +2869,10 @@ public:
 		setOutIsSize();
 		switch(inputMode.get())
 		{
-		case kInputModeCv:
-		case kInputModeClock:
-			gInUsesRange = false; // we need actual voltage here
-			break;
 		default:
+			gInUsesRange = false; // we need actual voltage here for trigger in
+			break;
+		case kInputModePhasor:
 			gInUsesRange = true;
 		}
 
