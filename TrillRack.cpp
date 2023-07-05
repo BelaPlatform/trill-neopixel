@@ -574,7 +574,7 @@ void tr_render(BelaContext* context)
 	static_assert(inCal.points[1] == CalibrationData::kGnd); // we assume points[1] represents gnd
 	extern size_t msToNumBlocks(BelaContext* context, float ms);
 	static const uint32_t kDoubleClickTime = msToNumBlocks(context, 300);
-	static const uint32_t kTripleClickTime = msToNumBlocks(context, 500);
+	static const uint32_t kTripleClickTime = msToNumBlocks(context, 700);
 	static uint32_t timeNow = 0;
 	static uint32_t lastOnsetTime = 0;
 	static uint32_t lastLastOnsetTime = 0;
