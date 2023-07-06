@@ -2815,7 +2815,7 @@ public:
 	enum FlashReason {
 		kFlashNone,
 		kFlashErased,
-		kFlashRestarted,
+		kFlashRestarted, // currently unhandled
 	};
 	bool setup(double ms) override
 	{
@@ -3563,8 +3563,6 @@ public:
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
 			rgb_t sliderColor = color;
-			if(kFlashRestarted == flash[n])
-				sliderColor = kRgbGreen;
 			ledSliders.sliders[n].setColor(sliderColor);
 		}
 		// this may set gManualAnOut even if they are ignored
