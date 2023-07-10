@@ -8,7 +8,7 @@
 #include <cmath>
 #include <assert.h>
 #include <atomic>
-#include "../../bootloader_stuff/stringId.h"
+#include "../../common_stuff/verificationBlock.h"
 
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 

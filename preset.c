@@ -1,5 +1,5 @@
 #include "preset.h"
-#include "../../bootloader_stuff/storage.h"
+#include "../../common_stuff/storage.h"
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
