@@ -219,7 +219,7 @@ void tr_snpDone()
 
 int tr_setup()
 {
-	printf("stringId: %s\n\r", stringId);
+	printf("stringId: %s\n\r", kVerificationBlock.stringId);
 #ifdef TRILL_BAR
 	padsToOrderMap.resize(kNumPads);
 	for(size_t n = 0; n < padsToOrderMap.size(); ++n)

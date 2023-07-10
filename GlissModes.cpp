@@ -6382,7 +6382,7 @@ public:
 			{
 				printf("ERASE SETTINGS\n\r");
 				presetEraseAll();
-				bootloaderResetTo(kBootloaderMagicUserBootloader);
+				bootloaderResetTo(kBootloaderMagicUserApplication);
 			}
 			break;
 		case kStateAbort:
