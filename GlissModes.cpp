@@ -3003,7 +3003,7 @@ public:
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
 					// in envelope mode,
-					if(gGestureRecorder.isRecording(n)) {
+					if(gGestureRecorder.isRecording(n)) { // TODO: this should not be allowed for kInputModeLfo
 						// if a button is pressed while recording
 						// we use this intermediate point to act as
 						// a separator between attack and release when playing back
@@ -3404,9 +3404,9 @@ public:
 			{
 				bool autoRetrigger = (kInputModeLfo == inputMode);
 				ssize_t freezeAt = -1;
-				if(kInputModeEnvelope == inputMode || kInputModeLfo == inputMode)
+				if(kInputModeEnvelope == inputMode)
 				{
-					bool hangAtEndOfAttackOnShortGate = (kInputModeLfo == inputMode);
+					bool hangAtEndOfAttackOnShortGate = false;
 					// how to deal with a gate that is shorter than the attack
 					if(hangAtEndOfAttackOnShortGate)
 					{
