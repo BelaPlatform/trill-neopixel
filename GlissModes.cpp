@@ -5557,6 +5557,13 @@ static constexpr uint16_t toCode(float out)
 	return 4096.f * out;
 }
 
+static void calibrationPrint(const CalibrationData& c)
+{
+	for(auto v : c.values)
+		printf("%f(%d) ", v, unsigned(v * 4096));
+	printf("\n\r");
+}
+
 class CalibrationProcedure : public ParameterUpdateCapable {
 public:
 typedef enum {
@@ -5642,10 +5649,12 @@ CalibrationProcedure() :
 void updated(Parameter& p)
 {
 	if(p.same(calibrationOut)) {
-		printf("CalibrationProcedure: updated calibration out %f %f %f\n\r", calibrationOut.values[0], calibrationOut.values[1], calibrationOut.values[2]);
+		printf("CalibrationProcedure: updated calibration out: ");
+		calibrationPrint(calibrationOut);
 	}
 	else if (p.same(calibrationIn)) {
-		printf("CalibrationProcedure: updated calibration in %f %f %f\n\r", calibrationIn.values[0], calibrationIn.values[1], calibrationIn.values[2]);
+		printf("CalibrationProcedure: updated calibration in: ");
+		calibrationPrint(calibrationIn);
 	}
 }
 void updatePreset() override
