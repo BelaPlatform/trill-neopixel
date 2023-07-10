@@ -2974,7 +2974,10 @@ public:
 		bool triggerNow = false;
 		if(performanceBtn.doubleClick)
 		{
-			if(kInputModeClock == inputMode)
+			// synced recording is broken when no input clock, so the easiest thing is to prohibit it
+			// as we do here
+			// TODO: fix it if useful and re-enable it
+			if(kInputModeClock == inputMode && !inputModeClockIsButton)
 			{
 				for(auto& qrec : qrecs)
 				{
