@@ -513,6 +513,15 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 				.lastLed = lastLed,
 		});
 	}
+	if(2 == numSplits) {
+		// it's hard to evenly distribute an arbitrary number
+		// of splits across 23 LEDs.
+		// In the common case of two splits, we ensure
+		// they are evenly split and extend to the last LED
+		size_t diff = kNumLeds - boundaries[0].lastLed;
+		boundaries[0].lastLed = kNumLeds;
+		boundaries[0].firstLed += diff;
+	}
 	LedSliders::Settings settings = {
 			.order = padsToOrderMap,
 			.sizeScale = gSizeScale,
