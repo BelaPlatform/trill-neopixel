@@ -166,7 +166,7 @@ int LedSlider::writeCentroidToArray(const centroid_t& centroid, size_t numWeight
 		return -1;
 	float weights[numWeights];
 	int idx0 = int(idx - numWeights / 2) + 1;
-	idxToWeights(idx - idx0, weights, numWeights);
+	idxToWeights(std::max(idx - idx0, 0.f), weights, numWeights);
 	for(unsigned int i = 0; i < numWeights; ++i)
 	{
 		int ii = i + idx0 - 1;
