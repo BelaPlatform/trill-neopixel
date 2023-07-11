@@ -8009,11 +8009,11 @@ public:
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			S(str = "sizeScaleCoeff");
-			float tmp = 0.1f + 1.5f * (powf(2, 0.5 + sizeScaleCoeff) - 1);
+			float tmp = 0.1f + 1.2f * (powf(2, 0.5 + sizeScaleCoeff) - 1); // 0.59 to 2.29, default 1.3
 			if(sizeScaleCoeff > 0.98) {
 				// make it very big at the top, so it works like a gate,
 				// no matter how small the touch
-				tmp = 10;
+				tmp = 50;
 			}
 			float coeff = kSizeScale / (tmp * tmp * tmp);
 			setAllSizeScales(coeff);
