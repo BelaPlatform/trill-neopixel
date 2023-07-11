@@ -248,17 +248,25 @@ int tr_setup()
 #ifdef TRILL_BAR
 	Trill::Device device = Trill::BAR;
 	uint8_t startAddr = 0x20;
+	const uint8_t kExpectedAddr = 0x20;
 #else
 	Trill::Device device = Trill::FLEX;
 	uint8_t startAddr = 0x48;
+	const uint8_t kExpectedAddr = 0x4c;
 #endif
+	// to speed up things, try the expected address and if it fails try the full range
 	uint8_t foundAddress = 0;
-	for(uint8_t addr = startAddr; addr <= startAddr + 8; ++addr)
+	if(!trill.setup(1, device, kExpectedAddr))
 	{
-		if(!trill.setup(1, device, addr))
+		foundAddress = kExpectedAddr;
+	} else {
+		for(uint8_t addr = startAddr; addr <= startAddr + 8; ++addr)
 		{
-			foundAddress = addr;
-			break;
+			if(!trill.setup(1, device, addr))
+			{
+				foundAddress = addr;
+				break;
+			}
 		}
 	}
 	if(!foundAddress)
