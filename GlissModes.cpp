@@ -2386,9 +2386,12 @@ protected:
 				std::array<centroid_t,kNumSplits> centroids;
 				float value = displayValues[n].size;
 				float spread = 0.15f * std::min(1.f, displayValues[n].size);
+				float start = (n == 0) ? 0.4 : 0.65;
+				if(!gJacksOnTop)
+					start -= 0.05;
 				for(size_t c = 0; c < centroids.size(); ++c)
 				{
-					centroids[c].location = 0.5f + (0 == c ? -spread : +spread);
+					centroids[c].location = start + (0 == c ? -spread : +spread);
 					centroids[c].size = value;
 				}
 				ledSliders.sliders[n].setLedsCentroids(centroids.data(), centroids.size());
