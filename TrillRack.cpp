@@ -133,7 +133,7 @@ std::vector<unsigned int> padsToOrderMap = {
 CentroidDetectionScaled globalSlider;
 int gAlt = 0;
 
-#if 0
+#if 1
 uint8_t midiInToPixel(uint8_t value)
 {
 	value = value * 2;
@@ -142,8 +142,9 @@ uint8_t midiInToPixel(uint8_t value)
 	return value;
 }
 #include "LedSliders.h" // rgb_t
+bool shouldOverrideDisplay = false;
 static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
-	bool shouldOverrideDisplay = false;
+	tri.buttonLedSet(TrillRackInterface::kSolid, TrillRackInterface::kG, 1, 50);
 	if (num < 100){
 		static rgb_t color;
 		if(num < 3) {
@@ -217,9 +218,11 @@ void tr_snpDone()
 }
 #endif // STM32_NEOPIXEL
 
+extern "C" int setHdlCtlChange(void (*fptr)(uint8_t ch, uint8_t num, uint8_t value));
 int tr_setup()
 {
 	printf("stringId: %s\n\r", kVerificationBlock.stringId);
+	setHdlCtlChange(midiCtlCallback);
 #ifdef TRILL_BAR
 	padsToOrderMap.resize(kNumPads);
 	for(size_t n = 0; n < padsToOrderMap.size(); ++n)
@@ -475,6 +478,8 @@ static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned 
 
 void tr_render(BelaContext* context)
 {
+	np.show();
+	return;
 	static uint32_t pastFrameId = kInvalidFrameId;
 	uint32_t frameId = trillFrameId.load();
 	bool newFrame = false;
