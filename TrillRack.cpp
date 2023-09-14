@@ -16,7 +16,6 @@ extern std::array<rgb_t, 2> gBalancedLfoColors;
 extern bool performanceMode_setup(double);
 extern void performanceMode_render(BelaContext*, FrameData*);
 extern void menu_render(BelaContext*, FrameData*);
-extern bool menuShouldChangeMode();
 extern float getGnd();
 extern bool modeAlt_setup();
 extern void triggerInToClock(BelaContext* context);
@@ -27,6 +26,12 @@ extern ButtonView menuBtn;
 extern ButtonView performanceBtn;
 extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates);
 std::array<float,kNumOutChannels> gManualAnOut;
+
+uint8_t gDebugFlags = 0;
+void setDebugFlags(uint8_t flags)
+{
+	gDebugFlags = flags;
+}
 
 #define STM32_NEOPIXEL
 
@@ -378,7 +383,19 @@ void tr_newData(const uint8_t* newData, size_t len)
 		// operate on it
 		trill.newData(newData, len, true);
 		// mark data as valid again
-		trillFrameId.store(trill.getFrameIdUnwrapped());
+		uint32_t frameId = trill.getFrameIdUnwrapped();
+		trillFrameId.store(frameId);
+		if((gDebugFlags & 0x1) || ((gDebugFlags & 0x2) && (0 == (frameId % 5))))
+		{
+			const uint8_t* p = newData + 1; // skip status byte
+			for(size_t n = 1; n < len; n += 2)
+			{
+				uint16_t val = (*p++) << 8;
+				val |= *p++;
+				printf("%d ", val);
+			}
+			printf("\n\r");
+		}
 	}
 }
 
@@ -532,7 +549,8 @@ void tr_render(BelaContext* context)
 		pastTicksIdx &= pastTicks.size() - 1;
 
 	if(!different){
-		printf("C");
+		if(!(0x3 & gDebugFlags))
+			printf("C");
 		backoff = 2;
 		return;
 	}
