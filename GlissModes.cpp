@@ -6338,7 +6338,7 @@ private:
 	bool analogFailed;
 } gFactoryTestMode;
 
-static void requestNewMode(int mode);
+void requestNewMode(int mode);
 extern const ssize_t kFactoryTestModeIdx;
 
 class EraseSettingsMode: public PerformanceMode {
@@ -7393,8 +7393,6 @@ private:
 	const float* display;
 };
 
-static void requestNewMode(int mode);
-
 static void requestIncMode()
 {
 	int newMode = gNewMode;
@@ -8072,7 +8070,7 @@ public:
 } gGlobalSettings;
 
 static void menu_updateSubmenu();
-static void requestNewMode(int mode)
+void requestNewMode(int mode)
 {
 	bool different = (gNewMode != mode);
 	gNewMode = mode;
