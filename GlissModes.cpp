@@ -6230,7 +6230,7 @@ public:
 				if(gCalibrationProcedure.done())
 				{
 					auto& in = getCalibrationInput().values;
-					auto& out = getCalibrationInput().values;
+					auto& out = getCalibrationOutput().values;
 					// calibration is done, check if its values make sense
 					if(in[0] > 0 && in[0] < 0.1
 						&& in[2] > 0.9 && in[2] < 4095.f/4096.f
