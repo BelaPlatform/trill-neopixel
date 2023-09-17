@@ -6113,7 +6113,7 @@ public:
 		ledSlidersSetupOneSlider(kRgbBlack, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
 		gOutMode.fill(kOutModeManualSample);
 		stateSuccess = false;
-		analogFailed = false;
+		testFailed = false;
 		state = kNumStates;
 		nextState();
 		return true;
@@ -6122,6 +6122,9 @@ public:
 	{
 		if(!gAlt)
 			np.clear();
+		gOutMode.fill(kOutModeManualSample);
+		gInUsesRange = false;
+		gOutUsesRange.fill(false);
 		if(performanceBtn.offset)
 		{
 			// by checking this early on, we make sure
@@ -6135,7 +6138,7 @@ public:
 			} else
 				nextState();
 		}
-		if(analogFailed)
+		if(testFailed)
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
 		if(stateSuccess)
 		{
@@ -6226,25 +6229,63 @@ public:
 					stateSuccess = true;
 			}
 				break;
-			case kStateAnalog:
-				if(gCalibrationProcedure.done())
+			case kStateCalibrationAndTopOut:
+			{
+				switch(topOutState)
 				{
-					auto& in = getCalibrationInput().values;
-					auto& out = getCalibrationOutput().values;
-					// calibration is done, check if its values make sense
-					if(in[0] > 0 && in[0] < 0.1
-						&& in[2] > 0.9 && in[2] < 4095.f/4096.f
-						&& out[0] > 0 && out[0] < 0.1
-						&& out[2] > 0.9 && out[2] < 4095.f/4096.f
-					)
+					case kTopOutCalibrating:
+						// process until calibration is done
+						gCalibrationMode.render(context, frameData);
+						if(gCalibrationProcedure.done())
+						{
+							auto& in = getCalibrationInput().values;
+							auto& out = getCalibrationOutput().values;
+							// calibration is done, check if its values make sense
+							if(in[0] > 0 && in[0] < 0.1
+								&& in[2] > 0.9 && in[2] < 4095.f/4096.f
+								&& out[0] > 0 && out[0] < 0.1
+								&& out[2] > 0.9 && out[2] < 4095.f/4096.f
+							)
+							{
+								topOutState = kTopOutVerifying;
+								analogVerifier = AnalogVerifier(0);
+							} else
+								testFailed = true;
+						}
+						break;
+					case kTopOutVerifying:
 					{
-						stateSuccess = true;
-						analogFailed = false;
-					} else
-						analogFailed = true;
-				} else // process until calibration is done
-					gCalibrationMode.render(context, frameData);
+						int ret = analogVerifier.render(context);
+						if(ret)
+						{
+							stateSuccess = ret > 0;
+							testFailed |= ret < 0;
+						}
+					}
+						break;
+				}
 				break;
+			}
+			case kStateVerifyBottomOut:
+			{
+				int ret = analogVerifier.render(context);
+				if(ret)
+				{
+					stateSuccess = ret > 0;
+					testFailed |= ret < 0;
+				}
+				if(!gAlt)
+				{
+					if(!testFailed)
+					{
+						float tri = simpleTriangle(context->audioFramesElapsed, unsigned(context->analogSampleRate) * 2);
+						rgb_t color = kRgbOrange;
+						size_t n = tri * np.getNumPixels();
+						np.setPixelColor(n, color);
+					}
+				}
+				break;
+			}
 			case kNumStates:
 				bool success = true;
 				for(auto& t : testSuccessful)
@@ -6263,17 +6304,6 @@ public:
 						np.setPixelColor(n, color.scaledBy(0.2));
 				}
 			}
-		}
-		if(kStateAnalog == state && !gCalibrationProcedure.done())
-		{
-			// global settings set by gCalibrationMode.
-			// TODO: verify this conditional is not actually needed (i.e.: same results with or without)
-		} else {
-			gOutMode.fill(kOutModeManualSample);
-			gInUsesCalibration = false;
-			gInUsesRange = false;
-			gOutUsesCalibration = false;
-			gOutUsesRange = { false, false };
 		}
 		countMs += context->analogFrames / context->analogSampleRate * 1000;
 	}
@@ -6294,6 +6324,7 @@ private:
 	}
 	void initState()
 	{
+		testFailed = false;
 		// update global states
 		switch(state)
 		{
@@ -6306,9 +6337,13 @@ private:
 		case kStatePads:
 			padStates.fill(kPadStateInitial);
 			break;
-		case kStateAnalog:
+		case kStateCalibrationAndTopOut:
 			gCalibrationMode.setup(-1);
 			gCalibrationProcedure.start();
+			topOutState = kTopOutCalibrating;
+			break;
+		case kStateVerifyBottomOut:
+			analogVerifier = AnalogVerifier(1);
 			break;
 		case kNumStates:
 			finalButtonCount = 0;
@@ -6321,10 +6356,16 @@ private:
 		kStateButton,
 		kStateSliderLeds,
 		kStatePads,
-		kStateAnalog,
+		kStateCalibrationAndTopOut,
+		kStateVerifyBottomOut,
 		kNumStates,
 	};
 	State state = kStateButton;
+	enum TopOutState {
+		kTopOutCalibrating,
+		kTopOutVerifying,
+	};
+	TopOutState topOutState;
 	size_t stateSliderLedCount;
 	enum PadState {
 		kPadStateInitial,
@@ -6335,7 +6376,74 @@ private:
 	std::array<bool,kNumStates> testSuccessful;
 	size_t finalButtonCount;
 	bool stateSuccess = false;
-	bool analogFailed;
+	bool testFailed;
+	class AnalogVerifier {
+	private:
+		uint64_t lastSet;
+		float value;
+		size_t channel;
+		size_t failCount;
+		bool inited;
+		void setValue(uint64_t now, float val)
+		{
+			lastSet = now;
+			value = val;
+			failCount = 0;
+		}
+	public:
+		AnalogVerifier(size_t channel):
+			channel(channel),
+			inited(false)
+		{}
+		int render(BelaContext* context)
+		{
+			static constexpr float kThreshold = 0.05;
+			static constexpr size_t kMaxFails = 5;
+			uint64_t now = context->audioFramesElapsed;
+			if(!inited)
+			{
+				setValue(now, 0.05);
+				inited = true;
+			}
+			bool outOfRange = false;
+			// a generous wait between starting to write a value and reading it back
+			// this is for two reasons:
+			// - a longer wait is needed when resetting from 1 to 0
+			// because of the external capacitance and large voltage swing
+			// - much larger wait is used for channel 1 so that the procedure takes
+			// long enough that the operator notices it happens
+			if(now - lastSet >= context->analogFrames * 12 * (0 == channel ? 1 : 5))
+			{
+				float minDiff = 10000;
+				float maxDiff = -1;
+				for(size_t n = 0; n < context->analogFrames; ++n)
+				{
+					float diff = value - analogRead(context, n, 0);
+					if(std::abs(diff) > kThreshold)
+						outOfRange = true;
+					maxDiff = std::max(maxDiff, diff);
+					minDiff = std::min(minDiff, diff);
+				}
+				if(outOfRange && failCount <= kMaxFails)
+				{
+					failCount++;
+					printf(".");
+				}
+				else
+				{
+					printf("%d,o:%.2f,%s,{%.5f,%.5f}\n\r", channel, value, outOfRange ? "FAIL" : "PASS", minDiff, maxDiff);
+					if(!outOfRange)
+						setValue(now, value + 0.05);
+				}
+			}
+			analogWrite(context, 0, channel, value);
+			if(failCount > kMaxFails)
+				return -1;
+			if(value > 0.99) // done successfully
+				return 1;
+			return 0;
+		}
+	} analogVerifier = AnalogVerifier(0);
 } gFactoryTestMode;
 
 void requestNewMode(int mode);
