@@ -6424,17 +6424,16 @@ private:
 					maxDiff = std::max(maxDiff, diff);
 					minDiff = std::min(minDiff, diff);
 				}
-				if(outOfRange && failCount <= kMaxFails)
-				{
+				if(outOfRange)
 					failCount++;
+				if(outOfRange && failCount < kMaxFails)
 					printf(".");
-				}
-				else
+				else if(kMaxFails == failCount || !outOfRange)
 				{
 					printf("%d,o:%.2f,%s,{%.5f,%.5f}\n\r", channel, value, outOfRange ? "FAIL" : "PASS", minDiff, maxDiff);
-					if(!outOfRange)
-						setValue(now, value + 0.05);
 				}
+				if(!outOfRange)
+					setValue(now, value + 0.05);
 			}
 			analogWrite(context, 0, channel, value);
 			if(failCount > kMaxFails)
