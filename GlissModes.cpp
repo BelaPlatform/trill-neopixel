@@ -6287,16 +6287,10 @@ public:
 				break;
 			}
 			case kNumStates:
-				bool success = true;
-				for(auto& t : testSuccessful)
-				{
-					if(!t)
-						success = false;
-				}
 				if(!gAlt)
 				{
 					rgb_t color;
-					if(success)
+					if(allTestsSuccessful())
 						color = kRgbGreen;
 					else
 						color = kRgbRed;
@@ -6311,6 +6305,16 @@ public:
 	void updatePreset() override
 	{}
 private:
+	bool allTestsSuccessful()
+	{
+		bool success = true;
+		for(auto& t : testSuccessful)
+		{
+			if(!t)
+				success = false;
+		}
+		return success;
+	}
 	void nextState() {
 		if(stateSuccess)
 			testSuccessful[state] = true;
