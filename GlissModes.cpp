@@ -9,6 +9,8 @@
 #include "bootloader.h"
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 
+static void updateAllPresets();
+
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
 bool gModeWantsInteractionPreMenu = false;
@@ -8458,14 +8460,19 @@ static void menu_update()
 	}
 }
 
+static void updateAllPresets()
+{
+	for(auto& p : performanceModes)
+		p->updatePreset();
+	gGlobalSettings.updatePreset();
+}
+
 void menu_exit()
 {
 	// when exiting menu, ensure any changes
 	// to parameters are reflected in the presets
 	// so that presetCheckSave() can write them soon thereafter
-	for(auto& p : performanceModes)
-		p->updatePreset();
-	gGlobalSettings.updatePreset();
+	updateAllPresets();
 
 	menuStack.resize(0);
 	activeMenu = nullptr;
