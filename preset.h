@@ -91,7 +91,11 @@ uint8_t presetIsSynced();
  * "static method"
  */
 int presetEraseAll();
-
+/**
+ * Call this if you want that next time presetCheckSave() is called
+ * it will indeed write to storage.
+ */
+int presetTriggerFlushToStorage();
 #ifdef __cplusplus
 }
 #endif //  __cplusplus

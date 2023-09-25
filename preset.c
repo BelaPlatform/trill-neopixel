@@ -239,6 +239,11 @@ int presetCheckSave()
 	}
 }
 
+int presetTriggerFlushToStorage()
+{
+	p.lastChangedTime = 0;
+}
+
 PresetFieldSize_t presetGetFieldSize(const PresetField_t field)
 {
 	PresetDesc_t* desc = getPresetDesc(field);
