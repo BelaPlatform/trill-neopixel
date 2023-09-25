@@ -10,6 +10,7 @@
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 
 static void updateAllPresets();
+void requestNewMode(int mode);
 
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
@@ -6135,7 +6136,13 @@ public:
 			performanceBtn.tripleClick = false;
 			if(kNumStates == state)
 			{
-				if(++finalButtonCount >= 2)
+				if(allTestsSuccessful())
+				{
+					requestNewMode(0);
+					updateAllPresets();
+					presetTriggerFlushToStorage();
+				}
+				else if(++finalButtonCount >= 2)
 					nextState();
 			} else
 				nextState();
@@ -6451,7 +6458,6 @@ private:
 	} analogVerifier = AnalogVerifier(0);
 } gFactoryTestMode;
 
-void requestNewMode(int mode);
 extern const ssize_t kFactoryTestModeIdx;
 
 class EraseSettingsMode: public PerformanceMode {
