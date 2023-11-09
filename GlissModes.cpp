@@ -6275,6 +6275,11 @@ public:
 				}
 				break;
 			}
+			case kStateWiggleTop:
+			{
+				processWiggler(context, 0);
+				break;
+			}
 			case kStateVerifyBottomOut:
 			{
 				int ret = analogVerifier.render(context);
@@ -6293,6 +6298,11 @@ public:
 						np.setPixelColor(n, color);
 					}
 				}
+				break;
+			}
+			case kStateWiggleBottom:
+			{
+				processWiggler(context, 1);
 				break;
 			}
 			case kNumStates:
@@ -6355,8 +6365,14 @@ private:
 			gCalibrationProcedure.start();
 			topOutState = kTopOutCalibrating;
 			break;
+		case kStateWiggleTop:
+			analogWiggler = AnalogWiggler();
+			break;
 		case kStateVerifyBottomOut:
 			analogVerifier = AnalogVerifier(1);
+			break;
+		case kStateWiggleBottom:
+			analogWiggler = AnalogWiggler();
 			break;
 		case kNumStates:
 			finalButtonCount = 0;
@@ -6370,7 +6386,9 @@ private:
 		kStateSliderLeds,
 		kStatePads,
 		kStateCalibrationAndTopOut,
+		kStateWiggleTop,
 		kStateVerifyBottomOut,
+		kStateWiggleBottom,
 		kNumStates,
 	};
 	State state = kStateButton;
@@ -6456,6 +6474,79 @@ private:
 			return 0;
 		}
 	} analogVerifier = AnalogVerifier(0);
+	class AnalogWiggler {
+	private:
+		size_t count;
+		size_t samplingCount;
+		double ref;
+		bool inited;
+	public:
+		AnalogWiggler():
+			inited(false)
+		{
+		}
+		int render(BelaContext* context, size_t outCh)
+		{
+			constexpr float kThreshold = 0.02;
+			size_t startSampling = context->analogFrames * 10;
+			size_t startWiggling = startSampling + context->analogSampleRate * 0.1;
+			size_t stopWiggling = startWiggling + context->analogSampleRate * 6;
+			if(!inited)
+			{
+				inited = true;
+				count = 0;
+				ref = 0;
+				samplingCount = 0;
+			}
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				// write a fixed value
+				analogWriteOnce(context, n, outCh, 0.6f);
+				count++;
+				float in = analogRead(context, n, 0);
+				if(count >= startSampling && count <= startWiggling)
+				{
+					ref += in;
+					samplingCount++;
+				}
+				if(count == startWiggling)
+				{
+					ref /= samplingCount;
+				}
+				if(count >= startWiggling && count < stopWiggling)
+				{
+					if(std::abs(in - ref) > kThreshold)
+					{
+						printf("wiggler: %.5f %.5f\n\r", ref, in);
+						return -1;
+					}
+				}
+				if(count >= stopWiggling)
+					return 1; // done
+			}
+			return 0;
+		}
+	} analogWiggler;
+	void processWiggler(BelaContext* context, size_t outCh)
+	{
+		int ret = analogWiggler.render(context, outCh);
+		if(ret)
+		{
+			stateSuccess = ret > 0;
+			testFailed |= ret < 0;
+		}
+		if(!gAlt)
+		{
+			//viz during test
+			bool highSide = gJacksOnTop ? 0 == outCh : 1 == outCh;
+			if(!testFailed)
+			{
+				rgb_t color = kRgbYellow;
+				for(size_t n = highSide * 0.8f * kNumLeds; n < (0.2f + 0.8f * highSide) * kNumLeds; ++n)
+					np.setPixelColor(n, color);
+			}
+		}
+	}
 } gFactoryTestMode;
 
 extern const ssize_t kFactoryTestModeIdx;
