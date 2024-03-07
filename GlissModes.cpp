@@ -6722,7 +6722,7 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gInRange.enabled = gInUsesRange;
 }
 
-constexpr size_t kMaxBtnStates = 6;
+constexpr size_t kMaxBtnStates = 7;
 typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
 static AnimationColors buttonColors = {
 		kRgbRed,
@@ -6730,6 +6730,7 @@ static AnimationColors buttonColors = {
 		kRgbYellow,
 		kRgbGreen,
 		kRgbWhite,
+		kRgbBlack, // dummy
 		kRgbBlack, // dummy
 };
 
@@ -8317,7 +8318,7 @@ static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
 static constexpr rgb_t kIoRangeOtherColor = kRgbRed;
 static MenuItemTypeDisabled disabledIoRange(kIoRangeButtonColor.scaledBy(0.2));
 static constexpr AnimationColors ioRangeColors {
-	kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeOtherColor
+	kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeOtherColor
 };
 class PerformanceModeIoRangesMenuPage : public MenuPage {
 public:
