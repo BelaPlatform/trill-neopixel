@@ -1651,38 +1651,22 @@ public:
 		{
 			if(!gAnimateFs.writeInit(*this, l))
 				return;
-			const rgb_t otherColor = kRgbRed;
 			float bottom = 0;
 			float top = 0;
-			const float kMinus5 = 0;
-			const float kGnd = 0.33;
-			const float kPlus5 = 0.66;
-			const float kPlus10 = 1;
+			rgb_t otherColor = kRgbRed;
 			rgb_t secondaryColor = baseColor;
-
-			switch(get())
+			CvRange range = CvRange(get());
+			if(kCvRangeCustom == range)
 			{
-			case kCvRangeBipolar:
-				bottom = kMinus5;
-				top = kPlus5;
-				break;
-			case kCvRangeCustom:
 				bottom = min;
 				top = max;
 				secondaryColor = otherColor;
-				break;
-			case kCvRangeFull:
-				bottom = kMinus5;
-				top = kPlus10;
-				break;
-			case kCvRangePositive5:
-				bottom = kGnd;
-				top = kPlus5;
-				break;
-			case kCvRangePositive10:
-				bottom = kGnd;
-				top = kPlus10;
-				break;
+			} else {
+				IoRange r = {
+					.range = range,
+					.enabled = true,
+				};
+				r.getMinMax(bottom, top);
 			}
 			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
 
