@@ -40,6 +40,13 @@ static AnimationColors buttonColors = {
 		kRgbBlack, // dummy
 };
 
+static const rgb_t& getQuantisedColor(const AnimationColors& colors, float v)
+{
+	// sorry about the magic numbers below, I see no better way
+	unsigned int validColors = std::min(size_t(5), colors.size());
+	return colors[unsigned(v * 15) % validColors];
+}
+
 // When a WithFs kAnimationMode is enabled, there is a kPostAnimationTimeoutMs during
 // which if you tap the selector, it is going to advance to the next value.
 // If in kAnimationModeSolidGlowingWithFs, during this period (or actually slightly less than that),
@@ -1665,14 +1672,14 @@ public:
 				return;
 			float bottom = 0;
 			float top = 0;
-			rgb_t otherColor = kRgbRed;
 			rgb_t secondaryColor = baseColor;
 			CvRange range = CvRange(get());
 			if(kCvRangeCustom == range)
 			{
 				bottom = min;
 				top = max;
-				secondaryColor = otherColor;
+				baseColor = getQuantisedColor(buttonColors, bottom);
+				secondaryColor = getQuantisedColor(buttonColors, top);
 			} else {
 				IoRange r = {
 					.range = range,
@@ -7551,6 +7558,8 @@ private:
 	virtual void updateDisplay(LedSlider& slider)
 	{
 		slider.directBegin();
+		otherColor = getQuantisedColor(buttonColors, displayLocations[0]);
+		baseColor = getQuantisedColor(buttonColors, displayLocations[1]);
 		slider.directWriteCentroid({ displayLocations[0], 0.15 }, otherColor);
 		slider.directWriteCentroid({ displayLocations[1], 0.15 }, baseColor);
 	}
