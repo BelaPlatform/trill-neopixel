@@ -28,6 +28,18 @@ static constexpr float kMenuButtonDefaultBrightness = 0.2;
 static constexpr float kMenuButtonActiveBrightness = 0.7;
 static constexpr float kDefaultThreshold = 0.03;
 
+constexpr size_t kMaxBtnStates = 7;
+typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
+static AnimationColors buttonColors = {
+		kRgbRed,
+		kRgbOrange,
+		kRgbYellow,
+		kRgbGreen,
+		kRgbWhite,
+		kRgbBlack, // dummy
+		kRgbBlack, // dummy
+};
+
 // When a WithFs kAnimationMode is enabled, there is a kPostAnimationTimeoutMs during
 // which if you tap the selector, it is going to advance to the next value.
 // If in kAnimationModeSolidGlowingWithFs, during this period (or actually slightly less than that),
@@ -6721,18 +6733,6 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	// callbacks know about that.
 	gInRange.enabled = gInUsesRange;
 }
-
-constexpr size_t kMaxBtnStates = 7;
-typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
-static AnimationColors buttonColors = {
-		kRgbRed,
-		kRgbOrange,
-		kRgbYellow,
-		kRgbGreen,
-		kRgbWhite,
-		kRgbBlack, // dummy
-		kRgbBlack, // dummy
-};
 
 static bool pulses(uint32_t ms, uint32_t period, size_t numPulses)
 {
