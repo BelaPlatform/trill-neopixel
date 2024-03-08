@@ -6827,7 +6827,7 @@ public:
 protected:
 	size_t getIdx(size_t value)
 	{
-		return std::min(value, kMaxBtnStates - 1);
+		return std::min(value, std::tuple_size<AnimationColors>::value - 1);
 	}
 };
 
