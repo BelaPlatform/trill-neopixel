@@ -3563,8 +3563,9 @@ public:
 						{
 							vizValues[c].size = isSizeOnly ? vizValues[c].location : kFixedCentroidSize;
 						} else {
-							const float* table = gGestureRecorder.rs[c].r.getData().data();
-							size_t tableSize = gGestureRecorder.rs[c].r.size();
+							// be explicit about indeces here, as we are only here if c == 0
+							const float* table = gGestureRecorder.rs[1].r.getData().data();
+							size_t tableSize = gGestureRecorder.rs[1].r.size();
 							if(tableSize)
 								vizValues[0].size = interpolatedRead(table, tableSize, idxFrac, kTreatPassThrough);
 						}
