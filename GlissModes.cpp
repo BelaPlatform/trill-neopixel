@@ -1014,6 +1014,25 @@ public:
 	{
 		// nothing to do here at the moment. Just use start and end as set in record().
 	}
+	void trim(float bottom, float top)
+	{
+		// shadow the method so it doesn't get called by mistake, as it may be inaccurate
+		// while start and end are being assigned
+		size_t size = this->size();
+		if(!size)
+			return;
+		size_t relativeStart = size * bottom;
+		size_t relativeEnd = size * top;
+		float normCurrent = (current - start + data.size()) % data.size() / float(size);
+		size_t relativeCurrent = size * normCurrent;
+		if(relativeCurrent < relativeStart || relativeCurrent >= relativeEnd)
+			relativeCurrent = relativeStart;
+//		printf("[%d] {%d %d %d} (%.3f %.3f)-> ", size, start, current, end, bottom, top);
+		end = size_t(start + relativeEnd) % (data.size());
+		current = size_t(start + relativeCurrent) % data.size();
+		start = size_t(start + relativeStart) % (data.size());
+//		printf("[%d] {%d %d %d} => {%d %d %d}\n\r", size, relativeStart, relativeCurrent, relativeEnd, start, current ,end);
+	}
 	void resize(size_t newEnd)
 	{
 		newEnd = std::min(newEnd, data.size());
@@ -1044,9 +1063,12 @@ public:
 #endif
 	size_t size()
 	{
-		size_t size = data.size();
-		size_t i = full ? size : (end - start + size) % size;
-		return i;
+		size_t mx = data.size();
+		size_t sz = mx;
+		if(sz) {
+			sz = full ? mx : (end - start + mx) % mx;
+		}
+		return sz;
 	}
 	const auto& getData()
 	{
@@ -1075,6 +1097,10 @@ protected:
 public:
 	bool full; // whether during recording the buffer becomes full
 	bool circular; // whether to record circularly on a fixed-size buffer
+	const sample_t* first()
+	{
+		return getData().data() + start;
+	}
 };
 
 #if 0
@@ -2901,6 +2927,19 @@ public:
 	{
 		return kInputModeCv == inputMode || kInputModePhasor == inputMode;
 	}
+	float applyTrim(float idx)
+	{
+		if(modeAllowsCircular())
+			idx = map(idx, 0, 1, trimRangeBottom, trimRangeTop);
+		return idx;
+	}
+	void finaliseTrim()
+	{
+		for(size_t n = 0; n < gGestureRecorder.rs.size(); ++n)
+			 gGestureRecorder.rs[n].r.trim(trimRangeBottom, trimRangeTop);
+		trimRangeBottom.set(0);
+		trimRangeTop.set(1);
+	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
 		if(kInputModeClock == inputMode)
@@ -3135,13 +3174,34 @@ public:
 		}
 		if(modeAllowsCircular())
 		{
+			if(!gAlt) {
+				// Workaround to detect when we exit trim mode
+				if(kCircularModeTrim == circularMode)
+					circularMode = kCircularModeNew;
+			}
 			if(performanceBtn.offset)
 			{
+				// NOTE: This won't be hit when exiting trimming as that's swallowed by menuBtn,
+				// hence the above workaround
 				if(kCircularModeNew != circularMode) {
 					circularMode = kCircularModeNew;
 				} else {
-					// button click: toggle overwriting
-					circularMode = kCircularModeOverwrite;
+					if(globalSlider.getNumTouches())
+					{
+						// button click with touch: get into overwriting
+						circularMode = kCircularModeOverwrite;
+					} else {
+						if(!gAlt) {
+							// button click, no touch: get into trimming
+							circularMode = kCircularModeTrim;
+							static float dummy;
+							menu_enterRangeDisplay(kRgbYellow, {kRgbRed, kRgbRed}, false, trimRangeBottom, trimRangeTop, dummy);
+							// TODO: line below is just a workaround because we don't have a clean way of
+							// _exiting_ the menu from here while ignoring the _first_ slider readings
+							static std::array<float,kNumPads> data = {0};
+							ledSliders.sliders[0].process(data.data());
+						}
+					}
 				}
 			}
 		}
@@ -3179,7 +3239,12 @@ public:
 			redButtonIsOn = qrecs[0].armedFor || qrecs[1].armedFor || areRecording();
 		else
 			redButtonIsOn = gGestureRecorder.isRecording(0) || gGestureRecorder.isRecording(1);
-		tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.6f);
+		if(kCircularModeOverwrite == circularMode && !redButtonIsOn) {
+			tri.buttonLedSet(TRI::kGlow, TRI::kR);
+		} else if(kCircularModeTrim == circularMode) {
+			tri.buttonLedSet(TRI::kSolid, TRI::kG);
+		} else
+			tri.buttonLedSet(TRI::kSolid, TRI::kR, redButtonIsOn * 0.6f);
 
 		bool gate = false;
 		if(inputMode == kInputModeEnvelope)
@@ -3290,8 +3355,6 @@ public:
 		}
 		if(inputIsTrigger || gate || triggerNow)
 			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, gate ? 10 : getBlinkPeriod(context, redButtonIsOn));
-		if(kCircularModeOverwrite == circularMode)
-			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, 10);
 		if(analogFallingEdge)
 		{
 			if(kInputModeEnvelope == inputMode) {
@@ -3417,6 +3480,7 @@ public:
 			{
 				if(hasTouch[n] != hadTouch[n]) //state change
 				{
+					finaliseTrim();
 					if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
 						bool preserveSize = false;
 						if(modeAllowsCircular() && kCircularModeOverwrite == circularMode)
@@ -3603,13 +3667,13 @@ public:
 				if(TouchTracker::kIdInvalid == getId(twis, c))
 				{
 					preserveSplitLocationSize[c] = true;
-					const float* table = gGestureRecorder.rs[c].r.getData().data();
+					const float* table = gGestureRecorder.rs[c].r.first();
 					size_t tableSize = gGestureRecorder.rs[c].r.size();
 					vizValues[c] = {};
 					if(tableSize)
 					{
 						// visualise with fix period
-						vizValues[c].location = interpolatedRead(table, tableSize, idxFrac, kTreatPassThrough);
+						vizValues[c].location = interpolatedRead(table, tableSize, applyTrim(idxFrac), kTreatPassThrough);
 						if(isSplit())
 						{
 							vizValues[c].size = isSizeOnly ? vizValues[c].location : kFixedCentroidSize;
@@ -3618,7 +3682,9 @@ public:
 							const float* table = gGestureRecorder.rs[1].r.getData().data();
 							size_t tableSize = gGestureRecorder.rs[1].r.size();
 							if(tableSize)
-								vizValues[0].size = interpolatedRead(table, tableSize, idxFrac, kTreatPassThrough);
+								vizValues[0].size = interpolatedRead(table, tableSize, applyTrim(idxFrac), kTreatPassThrough);
+							else // shouldn't get here
+								vizValues[0].size = kFixedCentroidSize;
 						}
 						// animate the centroid so you can tell it's not "real" but fixed period
 						vizValues[c].size *= 0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed, unsigned(context->analogSampleRate * 0.1f));
@@ -3681,7 +3747,7 @@ public:
 	{
 		assert(c < context->analogOutChannels && c < gGestureRecorder.kNumRecs && c < kNumSplits);
 		float vizOut = 0;
-		const float* table = gGestureRecorder.rs[c].r.getData().data();
+		const float* table = gGestureRecorder.rs[c].r.first();
 		size_t tableSize = gGestureRecorder.rs[c].r.size();
 		if(!tableSize)
 		{
@@ -3711,7 +3777,7 @@ public:
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 					float idx = oscs[c].process(normFreq);
-					float value = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
+					float value = interpolatedRead(table, tableSize, applyTrim(idx), kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
 					if(kInputModeClock == inputMode && idx * tableSize < 1)
 					{
@@ -3732,7 +3798,7 @@ public:
 			{
 				float idx = analogRead(context, n, 0);
 				{
-					float out = interpolatedRead(table, tableSize, idx, kTreatPassThrough);
+					float out = interpolatedRead(table, tableSize, applyTrim(idx), kTreatPassThrough);
 					analogWriteOnce(context, n, c, out);
 					if(0 == n)
 						vizOut = out;
@@ -3755,6 +3821,7 @@ public:
 		} else if (p.same(inputMode)) {
 			M(printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get()));
 			circularMode = kCircularModeNew;
+			finaliseTrim();
 			if(kInputModeClock == inputMode)
 			{
 				reinitInputModeClock();
@@ -3864,6 +3931,8 @@ public:
 	}
 	//splitMode from the base class
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeLfo};
+	ParameterContinuous trimRangeBottom {this, 0};
+	ParameterContinuous trimRangeTop {this, 1};
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t splitMode;
