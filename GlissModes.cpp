@@ -974,10 +974,19 @@ public:
 		return active;
 	}
 #endif
-	virtual void startRecording()
+	virtual void startRecording(bool preserveSize)
 	{
 		active = true;
-		resize(0);
+		circular = preserveSize && size() != 0;
+		if(circular)
+		{
+			// If we are at the end of the buffer (just finished a non-circular)
+			// recording, start circular recording from the beginning, otherwise
+			// keep recording from where we left off
+			if(current == end)
+				current = start;
+		} else
+			resize(0);
 		full = false;
 	}
 	ValidSample record(const sample_t& in)
@@ -987,10 +996,17 @@ public:
 		} else {
 			data[current] = in;
 			increment(current);
-			// if the circular buffer becomes full, make a note of it
-			if(current == start)
-				full = true;
-			end = current;
+			if(circular) {
+				if(current == end) {
+					// wrap around to the beginning and keep recording
+					current = start;
+				}
+			} else {
+				// if the buffer becomes full, make a note of it
+				if(current == start)
+					full = true;
+				end = current;
+			}
 			return {in, true};
 		}
 	}
@@ -1002,6 +1018,7 @@ public:
 	{
 		newEnd = std::min(newEnd, data.size());
 		current = end = newEnd;
+		start = 0;
 		full = (newEnd == data.size());
 	}
 #if 0
@@ -1057,6 +1074,7 @@ protected:
 	bool active;
 public:
 	bool full; // whether during recording the buffer becomes full
+	bool circular; // whether to record circularly on a fixed-size buffer
 };
 
 #if 0
@@ -1249,11 +1267,11 @@ public:
 			return 2;
 		}
 	};
-	void startRecording(size_t n)
+	void startRecording(size_t n, bool preserveSize)
 	{
 		if(n < kNumRecs)
 		{
-			rs[n].r.startRecording();
+			rs[n].r.startRecording(preserveSize);
 			rs[n].state = kRecJustStarted;
 			rs[n].activity = 0;
 			rs[n].frozen = false;
@@ -1349,7 +1367,7 @@ public:
 	{
 		for( ; n < kNumRecs; n += 2)
 		{
-			rs[n].r.startRecording();
+			rs[n].r.startRecording(false);
 			rs[n].r.stopRecording();
 		}
 	}
@@ -1397,6 +1415,9 @@ public:
 		SwappableRecorders() {
 			for(size_t n = 0; n < kNumRecs; ++n)
 				ptrs[n] = &rs[n];
+		}
+		constexpr size_t size() const {
+			return rs.size();
 		}
 		void swap(size_t a, size_t b) {
 			std::swap(ptrs[a], ptrs[b]);
@@ -2820,6 +2841,9 @@ static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
 }
 
 #ifdef ENABLE_RECORDER_MODE
+#define MENU_ENTER_RANGE_DISPLAY
+static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
+
 class RecorderMode : public SplitPerformanceMode {
 public:
 	enum InputMode {
@@ -2872,6 +2896,10 @@ public:
 	}
 	bool buttonTriggers(){
 		return kInputModeLfo == inputMode || kInputModeEnvelope == inputMode;
+	}
+	bool modeAllowsCircular()
+	{
+		return kInputModeCv == inputMode || kInputModePhasor == inputMode;
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
@@ -3105,6 +3133,19 @@ public:
 				}
 			}
 		}
+		if(modeAllowsCircular())
+		{
+			if(performanceBtn.offset)
+			{
+				if(kCircularModeNew != circularMode) {
+					circularMode = kCircularModeNew;
+				} else {
+					// button click: toggle overwriting
+					circularMode = kCircularModeOverwrite;
+				}
+			}
+		}
+
 		if(gAlt && kInputModeClock == inputMode && areRecording())
 		{
 			// We got into menu while recording.
@@ -3249,6 +3290,8 @@ public:
 		}
 		if(inputIsTrigger || gate || triggerNow)
 			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, gate ? 10 : getBlinkPeriod(context, redButtonIsOn));
+		if(kCircularModeOverwrite == circularMode)
+			tri.buttonLedSet(TRI::kSolid, TRI::kY, 1, 10);
 		if(analogFallingEdge)
 		{
 			if(kInputModeEnvelope == inputMode) {
@@ -3292,7 +3335,7 @@ public:
 
 				if(qrecStartNow[n])
 				{
-					gGestureRecorder.startRecording(n + recordOffset);
+					gGestureRecorder.startRecording(n + recordOffset, false);
 					envelopeReleaseStarts[n] = -1;
 					qrec.recording = qrecStartNow[n];
 					qrec.periodsInRecording = 0;
@@ -3375,7 +3418,15 @@ public:
 				if(hasTouch[n] != hadTouch[n]) //state change
 				{
 					if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
-						gGestureRecorder.startRecording(n);
+						bool preserveSize = false;
+						if(modeAllowsCircular() && kCircularModeOverwrite == circularMode)
+						{
+							// if we already have a recording and are in circular mode we start overwriting
+							// the wavetable from the beginning while keeping the fixed size
+							if(gGestureRecorder.rs[n].r.size())
+								preserveSize = true;
+						}
+						gGestureRecorder.startRecording(n, preserveSize);
 						envelopeReleaseStarts[n] = -1;
 					} else if(0 == hasTouch[n]) {
 						// going to 0 touches
@@ -3703,6 +3754,7 @@ public:
 			setup(-1);
 		} else if (p.same(inputMode)) {
 			M(printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get()));
+			circularMode = kCircularModeNew;
 			if(kInputModeClock == inputMode)
 			{
 				reinitInputModeClock();
@@ -3947,6 +3999,11 @@ private:
 	std::array<uint64_t,kNumSplits> flashStart {};
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton = true;
+	enum CircularMode {
+		kCircularModeNew,
+		kCircularModeOverwrite,
+		kCircularModeTrim,
+	} circularMode;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
 
