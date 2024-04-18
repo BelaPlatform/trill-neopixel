@@ -34,6 +34,7 @@ void setDebugFlags(uint8_t flags)
 }
 
 #define STM32_NEOPIXEL
+// #define MIDI_CTL_SETS_PIXELS
 
 // Gliss revs:
 // 1: no logo, exposed copper, non-inverting I/O, only used internally
@@ -138,7 +139,8 @@ std::vector<unsigned int> padsToOrderMap = {
 CentroidDetectionScaled globalSlider;
 int gAlt = 0;
 
-#if 0
+#ifdef MIDI_CTL_SETS_PIXELS
+#include "usbd_midi_if.h"
 uint8_t midiInToPixel(uint8_t value)
 {
 	value = value * 2;
@@ -203,10 +205,17 @@ static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
 			shouldOverrideDisplay = true; // override display so we know something's off
 		}
 	}
-	if(shouldOverrideDisplay)
+	static int pastAlt = -1;
+	if(shouldOverrideDisplay) {
+		if(gAlt != 2)
+			pastAlt = gAlt;
 		gAlt = 2;
+	} else {
+		if(pastAlt >= 0)
+			gAlt = pastAlt;
+	}
 }
-#endif
+#endif // MIDI_CTL_SETS_PIXELS
 #ifdef STM32_NEOPIXEL
 static Stm32NeoPixelT<uint32_t, kNumLeds> snp(&neoPixelHtim, neoPixelHtim_TIM_CHANNEL_x, 0.66 * neoPixelHtim_COUNTER_PERIOD, 0.33 * neoPixelHtim_COUNTER_PERIOD);
 #endif // STM32_NEOPIXEL
@@ -225,6 +234,9 @@ void tr_snpDone()
 int tr_setup()
 {
 	printf("stringId: %s\n\r", kVerificationBlock.stringId);
+#ifdef MIDI_CTL_SETS_PIXELS
+	setHdlCtlChange(midiCtlCallback);
+#endif // MIDI_CTL_SETS_PIXELS
 #ifdef TRILL_BAR
 	padsToOrderMap.resize(kNumPads);
 	for(size_t n = 0; n < padsToOrderMap.size(); ++n)
@@ -492,6 +504,13 @@ static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned 
 
 void tr_render(BelaContext* context)
 {
+#ifdef MIDI_CTL_SETS_PIXELS
+	if(2 == gAlt)
+	{
+		np.show();
+		return;
+	}
+#endif // MIDI_CTL_SETS_PIXELS
 	static uint32_t pastFrameId = kInvalidFrameId;
 	uint32_t frameId = trillFrameId.load();
 	bool newFrame = false;
