@@ -3194,8 +3194,7 @@ public:
 					circularMode = kCircularModeNew;
 				if(kCircularModeTrim == circularMode)
 				{
-						static float dummy;
-						menu_enterRangeDisplay(kRgbYellow, {kRgbGreen, kRgbGreen}, false, trimRangeBottom, trimRangeTop, dummy);
+						menu_enterRangeDisplay(kRgbYellow, {kRgbGreen, kRgbGreen}, false, trimRangeBottom, trimRangeTop, circularModeViz);
 						// TODO: line below is just a workaround because we don't have a clean way of
 						// _exiting_ the menu from here while ignoring the _first_ slider readings
 						static std::array<float,kNumPads> data = {0};
@@ -3697,6 +3696,7 @@ public:
 			while(idxFrac >= 1)
 				idxFrac -= 1;
 		}
+		circularModeViz = vizValues[0].location;
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
 			rgb_t sliderColor = color;
@@ -4064,6 +4064,7 @@ private:
 	std::array<TouchTracker::TouchWithId,kNumSplits> twis;
 	std::array<FlashReason,kNumSplits> flash = FILL_ARRAY(flash, kFlashNone);
 	std::array<uint64_t,kNumSplits> flashStart {};
+	float circularModeViz = 0;
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton = true;
 	enum CircularMode {
