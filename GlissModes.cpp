@@ -3174,34 +3174,32 @@ public:
 		}
 		if(modeAllowsCircular())
 		{
-			if(!gAlt) {
-				// Workaround to detect when we exit trim mode
-				if(kCircularModeTrim == circularMode)
-					circularMode = kCircularModeNew;
+			bool goesNext = false;
+			static int oldGAlt = gAlt;
+			if(!gAlt && oldGAlt) {
+				// Workaround to detect when we are exiting kCircularModeTrim
+				goesNext = true;
 			}
+			oldGAlt = gAlt;
 			if(performanceBtn.offset)
 			{
 				// NOTE: This won't be hit when exiting trimming as that's swallowed by menuBtn,
 				// hence the above workaround
-				if(kCircularModeNew != circularMode) {
+				goesNext = true;
+			}
+			if(goesNext)
+			{
+				circularMode = CircularMode((int)circularMode + 1);
+				if(circularMode >= kCircularModeNum)
 					circularMode = kCircularModeNew;
-				} else {
-					if(globalSlider.getNumTouches())
-					{
-						// button click with touch: get into overwriting
-						circularMode = kCircularModeOverwrite;
-					} else {
-						if(!gAlt) {
-							// button click, no touch: get into trimming
-							circularMode = kCircularModeTrim;
-							static float dummy;
-							menu_enterRangeDisplay(kRgbYellow, {kRgbRed, kRgbRed}, false, trimRangeBottom, trimRangeTop, dummy);
-							// TODO: line below is just a workaround because we don't have a clean way of
-							// _exiting_ the menu from here while ignoring the _first_ slider readings
-							static std::array<float,kNumPads> data = {0};
-							ledSliders.sliders[0].process(data.data());
-						}
-					}
+				if(kCircularModeTrim == circularMode)
+				{
+						static float dummy;
+						menu_enterRangeDisplay(kRgbYellow, {kRgbGreen, kRgbGreen}, false, trimRangeBottom, trimRangeTop, dummy);
+						// TODO: line below is just a workaround because we don't have a clean way of
+						// _exiting_ the menu from here while ignoring the _first_ slider readings
+						static std::array<float,kNumPads> data = {0};
+						ledSliders.sliders[0].process(data.data());
 				}
 			}
 		}
@@ -3240,7 +3238,7 @@ public:
 		else
 			redButtonIsOn = gGestureRecorder.isRecording(0) || gGestureRecorder.isRecording(1);
 		if(kCircularModeOverwrite == circularMode && !redButtonIsOn) {
-			tri.buttonLedSet(TRI::kGlow, TRI::kR);
+			tri.buttonLedSet(TRI::kSolid, TRI::kR);
 		} else if(kCircularModeTrim == circularMode) {
 			tri.buttonLedSet(TRI::kSolid, TRI::kG);
 		} else
@@ -4072,6 +4070,7 @@ private:
 		kCircularModeNew,
 		kCircularModeOverwrite,
 		kCircularModeTrim,
+		kCircularModeNum,
 	} circularMode;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
