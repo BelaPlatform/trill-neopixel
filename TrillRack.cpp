@@ -502,6 +502,13 @@ static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned 
 	analogWriteOnce(context, frame, c, value);
 }
 
+static void renderMenuEnter(unsigned int n)
+{
+	menu_setup(n);
+	gAlt = 1;
+	tri.buttonLedSet(TrillRackInterface::kSolid, TrillRackInterface::kG, 1, 100);
+}
+
 void tr_render(BelaContext* context)
 {
 #ifdef MIDI_CTL_SETS_PIXELS
@@ -674,9 +681,7 @@ void tr_render(BelaContext* context)
 				{
 					if(touchesForMenu[n] == numTouches)
 					{
-						menu_setup(n);
-						gAlt = 1;
-						tri.buttonLedSet(TrillRackInterface::kSolid, TrillRackInterface::kG, 1, 100);
+						renderMenuEnter(n);
 						break;
 					}
 				}
