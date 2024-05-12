@@ -608,6 +608,7 @@ void tr_render(BelaContext* context)
 	static bool wasPressed = !tri.digitalRead(0);
 	static uint32_t doubleClickPressId = -1;
 	static uint32_t tripleClickPressId = -1;
+	static bool menuLocked = false;
 	btn = {false, false, false, false, false, false, false, false, btn.pressId, btn.pressDuration};
 	bool isPressed = !tri.digitalRead(0);
 	btn.enabled = true;
@@ -655,6 +656,8 @@ void tr_render(BelaContext* context)
 		kMenuChangeDisabled = 0,
 		kMenuPre,
 	} menuState = kMenuChangeDisabled;
+	static constexpr size_t kTouchesForMenuLock = 4;
+	static size_t maxTouchesThisMenuPre = 0;
 	if(btn.pressed)
 	{
 		static constexpr size_t kTouchesForFactoryTest = 5;
@@ -665,7 +668,6 @@ void tr_render(BelaContext* context)
 		};
 
 		// keep tracking of max touches to avoid entering the wrong mode when releasing
-		static size_t maxTouchesThisMenuPre = 0;
 		if(numTouches && !hadTouch) {// we start touching
 			menuState = kMenuPre;
 			maxTouchesThisMenuPre = 0;
@@ -674,7 +676,7 @@ void tr_render(BelaContext* context)
 			menuState = kMenuChangeDisabled;
 		if(kMenuPre == menuState && (!gModeWantsMenuDelay || timeNow - lastOnsetTime > msToNumBlocks(context, 500)))
 		{
-			if(numTouches > maxTouchesThisMenuPre)
+			if(numTouches > maxTouchesThisMenuPre && !menuLocked)
 			{
 				// we have a new touch
 				for(ssize_t n = touchesForMenu.size() - 1; n >= 0; --n)
@@ -693,7 +695,15 @@ void tr_render(BelaContext* context)
 				touchesLastChanged = context->audioFramesElapsed;
 			}
 			pastTouches = numTouches;
-			if(kTouchesForFactoryTest == numTouches)
+			// some additional special cases are handled here:
+			if(menuLocked)
+			{
+				if(kTouchesForMenuLock == numTouches && context->audioFramesElapsed > touchesLastChanged + 4 * context->analogSampleRate)
+				{
+					menuLocked = false;
+					renderMenuEnter(0);
+				}
+			} else if(kTouchesForFactoryTest == numTouches)
 			{
 				if(context->audioFramesElapsed > touchesLastChanged + 10 * context->analogSampleRate)
 				{
@@ -725,8 +735,10 @@ void tr_render(BelaContext* context)
 		menu_render(context, &frameData); // this will set gAlt back to 0 when exiting menu
 	}
 
+	static unsigned int showLock = 0;
 	static bool menuExitWaitingButtonRelease = false;
 	static bool menuExitWaitingTouchRelease = false;
+	static unsigned int menuExitTouchHoldButtonPresses = 0;
 	static int oldAlt = gAlt;
 	if(1 == oldAlt && 0 == gAlt)
 	{
@@ -738,6 +750,7 @@ void tr_render(BelaContext* context)
 			menuExitWaitingButtonRelease = true;
 		if(globalSlider.getNumTouches())
 			menuExitWaitingTouchRelease = true;
+		menuExitTouchHoldButtonPresses = 0;
 		// also reset the button's state machine
 		lastOnsetTime = 0;
 		lastLastOnsetTime = 0;
@@ -747,14 +760,33 @@ void tr_render(BelaContext* context)
 				menuExitWaitingButtonRelease = false;
 		}
 		if(menuExitWaitingTouchRelease) {
+			if(btn.onset)
+			{
+				menuExitTouchHoldButtonPresses++;
+				if(kTouchesForMenuLock == maxTouchesThisMenuPre)
+				{
+					if(3 == menuExitTouchHoldButtonPresses)
+					{
+						menuLocked = true;
+						showLock = 400;
+					}
+				}
+			}
 			if(!globalSlider.getNumTouches())
 				menuExitWaitingTouchRelease = false;
 		}
 	}
 	oldAlt = gAlt;
+	if(showLock)
+	{
+		showLock--;
+		for(size_t n = np.getNumPixels() * 0.25f; n < np.getNumPixels() * 0.75f; ++n)
+			np.setPixelColor(n, {100, 0, 0});
+	}
+
 
 	// multiplexer part 2
-	bool performanceActive = (0 == gAlt) && !menuActive && kMenuChangeDisabled == menuState;
+	bool performanceActive = (0 == gAlt) && !menuActive && kMenuChangeDisabled == menuState && !showLock;
 	performanceBtn = (performanceActive && !menuExitWaitingButtonRelease) ? btn : disBtn;
 	bool forceAllowPerformanceInteraction = !menuActive && gModeWantsInteractionPreMenu;
 	gInPreMenu = (!menuActive && !performanceActive);
