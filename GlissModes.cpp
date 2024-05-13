@@ -641,7 +641,7 @@ static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false, 1);
 }
 
-static void ledSlidersSetupTwoSliders(unsigned int guardPads, rgb_t color, LedSlider::LedMode_t mode)
+static void ledSlidersSetupTwoSliders(rgb_t color, LedSlider::LedMode_t mode)
 {
 	ledSlidersSetupMultiSlider(ledSliders, {color, color}, mode, false, 1, kTopBottom);
 }
@@ -1826,7 +1826,7 @@ public:
 	bool setup(double ms) override
 	{
 		gOutMode.fill(kOutModeFollowLeds);
-		ledSlidersSetupTwoSliders(1, colorDefs[0], LedSlider::MANUAL_CENTROIDS);
+		ledSlidersSetupTwoSliders(colorDefs[0], LedSlider::MANUAL_CENTROIDS);
 		for(unsigned int n = 0; n < kNumLeds; ++n)
 			np.setPixelColor(n, 0, 0, 0);
 		state = kNumStates - 1;
@@ -2559,9 +2559,8 @@ public:
 		gOutMode.fill(kOutModeManualBlockCustomSmoothed);
 		if(isSplit())
 		{
-			unsigned int guardPads = 1;
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(guardPads, color, LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS);
 		} else {
 			if(ms <= 0)
 			{
@@ -2922,9 +2921,8 @@ public:
 		buttonBlinksIgnored = 0;
 		if(isSplit())
 		{
-			unsigned int guardPads = 1;
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(guardPads, color, LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS);
 		}
 		else
 		{
