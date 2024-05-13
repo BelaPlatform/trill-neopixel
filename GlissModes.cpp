@@ -8324,7 +8324,8 @@ class GlobalSettings : public ParameterUpdateCapable {
 	enum Flag {
 		kFlagJacksOnTop = 1 << 0,
 		kFlagAnimationsWithFs = 1 << 1,
-		kFlagMax = 1 << 2,
+		kFlagMenuLocked = 1 << 2,
+		kFlagMax = 1 << 3,
 	};
 	void flagSet(Flag flag, int value)
 	{
@@ -8348,6 +8349,10 @@ public:
 			S(str = "animationMode");
 			flagSet(kFlagAnimationsWithFs, animationMode);
 		}
+		else if(p.same(menuLocked)) {
+			S(str = "menuLocked");
+			flagSet(kFlagMenuLocked, menuLocked);
+		}
 		else if(p.same(flags)) {
 			S(str = "flags");
 			printf("FLAGS: 0x%x\n\r", flags.get());
@@ -8362,6 +8367,9 @@ public:
 			if(jacksOnTop.get() != jacks)
 				jacksOnTop.set(jacks);
 			gJacksOnTop = jacks;
+			bool menu = kFlagMenuLocked & flags;
+			if(menuLocked.get() != menu)
+				menuLocked.set(menu);
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			S(str = "sizeScaleCoeff");
@@ -8413,9 +8421,11 @@ public:
 		};
 		presetDescSet(5, &presetDesc);
 	}
+	bool menuLocked_ = false;
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, true};
 	ParameterEnumT<kNumAnimationMode> animationMode {this, gAnimationMode};
+	ParameterEnumT<2> menuLocked {this, menuLocked_};
 	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	ParameterEnumT<kFlagMax> flags {this, kFlagJacksOnTop};
@@ -8427,16 +8437,15 @@ public:
 	}) presetFieldData;
 } gGlobalSettings;
 
-static bool gMenuLocked = false;
 bool menu_isLocked()
 {
-	return gMenuLocked;
+	return gGlobalSettings.menuLocked.get();
 }
 
 void menu_setLocked(bool val)
 {
-	M("menu_setLocked %d\n\r", val);
-	gMenuLocked = val;
+	M(printf("menu_setLocked %d\n\r", val));
+	gGlobalSettings.menuLocked.set(val);
 	updateAllPresets(); // this won't be triggered by exiting the menu, so we do it manually
 }
 
