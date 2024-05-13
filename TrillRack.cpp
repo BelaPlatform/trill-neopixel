@@ -856,6 +856,12 @@ void tr_render(BelaContext* context)
 		smoothed[c] = (gOutMode[c] == kOutModeManualBlock) || (gOutMode[c] == kOutModeManualSampleSmoothed || (gOutMode[c] == kOutModeManualBlockCustomSmoothed));
 		block[c] = (gOutMode[c] == kOutModeManualBlock) || (gOutMode[c] == kOutModeManualBlockCustomSmoothed);
 	}
+	std::array<float,kNumOutChannels> rangeGnd;
+	for(size_t n = 0; n < kNumOutChannels; ++n)
+	{
+		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
+		rangeGnd[n] = constrain(gnd, 0, 1); // TODO: is constrain appropriate here?
+	}
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
 		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
@@ -868,7 +874,7 @@ void tr_render(BelaContext* context)
 			if(kOutModeManualBlockCustomSmoothed == gOutMode[channel])
 			{
 				if(kNoOutput == start) // pretend we have some actual data: go to 0V
-					start = CalibrationData::kGnd;
+					start = rangeGnd[channel];
 			}
 			static auto pastSmoothed = smoothed;
 			static std::array<bool,kNumOutChannels> pastStartWasNoOutput{true, true};

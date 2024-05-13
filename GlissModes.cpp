@@ -2556,7 +2556,7 @@ class DirectControlMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gOutMode.fill(kOutModeManualBlock);
+		gOutMode.fill(kOutModeManualBlockCustomSmoothed);
 		if(isSplit())
 		{
 			unsigned int guardPads = 1;
@@ -2660,6 +2660,16 @@ public:
 				}
 			}
 		}
+		for(size_t n = 0; n < kNumOutChannels; ++n)
+		{
+			unsigned int refIdx = isSplit() ? n : 0;
+			if(values[refIdx].size ||
+					(!isSplit() && 0 == n && isLatched[refIdx]) // convoluted way of saying: if it's location and only location is latched
+				)
+				gCustomSmoothedAlpha[n] = kAlphaDefault;
+			else
+				gCustomSmoothedAlpha[n] = alpha;
+		}
 		renderOut(gManualAnOut, values, displayValues);
 		if(shouldOverrideOut0) {
 			// fixup: yet another hack to get something displayed, kNoOutput size output,
@@ -2714,15 +2724,27 @@ public:
 		else if (p.same(autoLatch)) {
 			M(printf("DirectControlMode: updated autoLatch: %d\n\r", autoLatch.get()));
 		}
+		else if(p.same(smooth)) {
+			const float kDeadZone = 0.03;
+			const float kRange = (1.f - kAlphaDefault - 0.0000003f); // stay clear of 1.0
+			if(smooth < kDeadZone)
+					alpha = kAlphaDefault;
+			else {
+				float smooth = mapAndConstrain(this->smooth.get(), kDeadZone, 1, 0, 1);
+				alpha = kAlphaDefault + powf(smooth, 0.05) * kRange;
+			}
+			M(printf("DirectControlMode: updated smooth: %f -> alpha = %0.10f\n\r", smooth.get(), alpha));
+		}
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2(splitMode, autoLatch);
+		UPDATE_PRESET_FIELD3(splitMode, autoLatch, smooth);
 	}
 	DirectControlMode() :
 		SplitPerformanceMode(kRgbRed),
 		presetFieldData{
 			.ioRanges = ioRangesParameters,
+			.smooth = smooth,
 			.splitMode = splitMode,
 			.autoLatch = autoLatch,
 		}
@@ -2730,15 +2752,17 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2(DirectControlMode, splitMode, autoLatch),
-			.loadCallback = genericLoadCallback2(DirectControlMode, splitMode, autoLatch),
+			.defaulter = genericDefaulter3(DirectControlMode, splitMode, autoLatch, smooth),
+			.loadCallback = genericLoadCallback3(DirectControlMode, splitMode, autoLatch, smooth),
 		};
 		presetDescSet(0, &presetDesc);
 	}
 	// splitMode from base class
 	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
+	ParameterContinuous smooth{this, 0};
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
+		float smooth;
 		uint8_t splitMode;
 		uint8_t autoLatch;
 	}) presetFieldData;
@@ -2760,6 +2784,7 @@ private:
 	LatchProcessor latchProcessor;
 	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
 	uint32_t lastLatchCount = ButtonView::kPressIdInvalid;
+	float alpha = 0;
 } gDirectControlMode;
 #endif // ENABLE_DIRECT_CONTROL_MODE
 
@@ -8136,8 +8161,9 @@ static constexpr rgb_t kSettingsSubmenuButtonColor = kRgbWhite;
 static ButtonAnimationPulsatingStill animationPulsatingStill(buttonColors);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeSplit("directControlModeSplit", buttonColors, gDirectControlMode.splitMode, false, &animationSplit);
 static MenuItemTypeDiscreteFullScreenAnimation directControlModeLatch("directControlModeAutoLatch", buttonColors, gDirectControlMode.autoLatch, false, &animationPulsatingStill);
+static MenuItemTypeEnterContinuous directControlModeSmooth("directControlModeSmooth", buttonColors[0], buttonColors[2], gDirectControlMode.smooth);
 static std::array<MenuItemType*,kMaxModeParameters> directControlModeMenu = {
-		&disabled,
+		&directControlModeSmooth,
 		&directControlModeLatch,
 		&directControlModeSplit,
 };
