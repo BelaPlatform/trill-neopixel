@@ -10,6 +10,7 @@ typedef enum {
 } OutMode;
 constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
 extern std::array<OutMode,kNumOutChannels> gOutMode;
+constexpr float kAlphaDefault = 0.993;
 
 struct CalibrationData {
 	static constexpr float kGnd = 0.3333333333f;

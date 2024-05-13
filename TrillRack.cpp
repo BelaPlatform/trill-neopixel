@@ -884,7 +884,7 @@ void tr_render(BelaContext* context)
 				if(startIsNoOutput || pastStartWasNoOutput[channel])
 					alpha = 0;
 				else
-					alpha = 0.993;
+					alpha = kAlphaDefault;
 			} else
 				alpha = 0;
 			pastStartWasNoOutput[channel] = startIsNoOutput;
