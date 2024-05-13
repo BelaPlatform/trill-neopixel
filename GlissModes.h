@@ -7,8 +7,10 @@ typedef enum {
 	kOutModeManualBlock,
 	kOutModeManualSample,
 	kOutModeManualSampleSmoothed,
+	kOutModeManualBlockCustomSmoothed,
 } OutMode;
 constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->analogOutChannels
+extern std::array<float,kNumOutChannels> gCustomSmoothedAlpha;
 extern std::array<OutMode,kNumOutChannels> gOutMode;
 constexpr float kAlphaDefault = 0.993;
 

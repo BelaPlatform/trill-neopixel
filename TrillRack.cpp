@@ -853,8 +853,8 @@ void tr_render(BelaContext* context)
 	std::array<bool,kNumOutChannels> block {};
 	for(size_t c = 0; c < kNumOutChannels; ++c)
 	{
-		smoothed[c] = (gOutMode[c] == kOutModeManualBlock) || (gOutMode[c] == kOutModeManualSampleSmoothed);
-		block[c] = (gOutMode[c] == kOutModeManualBlock);
+		smoothed[c] = (gOutMode[c] == kOutModeManualBlock) || (gOutMode[c] == kOutModeManualSampleSmoothed || (gOutMode[c] == kOutModeManualBlockCustomSmoothed));
+		block[c] = (gOutMode[c] == kOutModeManualBlock) || (gOutMode[c] == kOutModeManualBlockCustomSmoothed);
 	}
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
@@ -865,6 +865,11 @@ void tr_render(BelaContext* context)
 				start = gManualAnOut[channel];
 			else // analogOut has already been written. Rescale in-place
 				start = context->analogOut[n * kNumOutChannels + channel];
+			if(kOutModeManualBlockCustomSmoothed == gOutMode[channel])
+			{
+				if(kNoOutput == start) // pretend we have some actual data: go to 0V
+					start = CalibrationData::kGnd;
+			}
 			static auto pastSmoothed = smoothed;
 			static std::array<bool,kNumOutChannels> pastStartWasNoOutput{true, true};
 			static std::array<float,kNumOutChannels> pastOut {};
@@ -884,7 +889,7 @@ void tr_render(BelaContext* context)
 				if(startIsNoOutput || pastStartWasNoOutput[channel])
 					alpha = 0;
 				else
-					alpha = kAlphaDefault;
+					alpha = gOutMode[channel] == kOutModeManualBlockCustomSmoothed ? gCustomSmoothedAlpha[channel] : kAlphaDefault;
 			} else
 				alpha = 0;
 			pastStartWasNoOutput[channel] = startIsNoOutput;

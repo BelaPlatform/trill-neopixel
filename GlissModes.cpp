@@ -347,6 +347,7 @@ std::array<Oscillator, 2> oscillators;
 const std::array<rgb_t, 2> gBalancedLfoColorsInit = {{kRgbYellow, kRgbGreen}};
 std::array<rgb_t, 2> gBalancedLfoColors; // copy so that we can set them via MIDI without changing defaults
 
+std::array<float,kNumOutChannels> gCustomSmoothedAlpha;
 std::array<OutMode,kNumOutChannels> gOutMode { kOutModeManualBlock, kOutModeManualBlock };
 int gCounter = 0;
 int gSubMode = 0;
