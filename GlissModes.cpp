@@ -8427,6 +8427,19 @@ public:
 	}) presetFieldData;
 } gGlobalSettings;
 
+static bool gMenuLocked = false;
+bool menu_isLocked()
+{
+	return gMenuLocked;
+}
+
+void menu_setLocked(bool val)
+{
+	M("menu_setLocked %d\n\r", val);
+	gMenuLocked = val;
+	updateAllPresets(); // this won't be triggered by exiting the menu, so we do it manually
+}
+
 static void menu_updateSubmenu();
 void requestNewMode(int mode)
 {

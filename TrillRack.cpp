@@ -608,7 +608,6 @@ void tr_render(BelaContext* context)
 	static bool wasPressed = !tri.digitalRead(0);
 	static uint32_t doubleClickPressId = -1;
 	static uint32_t tripleClickPressId = -1;
-	static bool menuLocked = false;
 	btn = {false, false, false, false, false, false, false, false, btn.pressId, btn.pressDuration};
 	bool isPressed = !tri.digitalRead(0);
 	btn.enabled = true;
@@ -676,7 +675,7 @@ void tr_render(BelaContext* context)
 			menuState = kMenuChangeDisabled;
 		if(kMenuPre == menuState && (!gModeWantsMenuDelay || timeNow - lastOnsetTime > msToNumBlocks(context, 500)))
 		{
-			if(numTouches > maxTouchesThisMenuPre && !menuLocked)
+			if(numTouches > maxTouchesThisMenuPre && !menu_isLocked())
 			{
 				// we have a new touch
 				for(ssize_t n = touchesForMenu.size() - 1; n >= 0; --n)
@@ -696,11 +695,11 @@ void tr_render(BelaContext* context)
 			}
 			pastTouches = numTouches;
 			// some additional special cases are handled here:
-			if(menuLocked)
+			if(menu_isLocked())
 			{
 				if(kTouchesForMenuLock == numTouches && context->audioFramesElapsed > touchesLastChanged + 4 * context->analogSampleRate)
 				{
-					menuLocked = false;
+					menu_setLocked(false);
 					renderMenuEnter(0);
 				}
 			} else if(kTouchesForFactoryTest == numTouches)
@@ -767,7 +766,7 @@ void tr_render(BelaContext* context)
 				{
 					if(3 == menuExitTouchHoldButtonPresses)
 					{
-						menuLocked = true;
+						menu_setLocked(true);
 						showLock = 400;
 					}
 				}

@@ -187,6 +187,9 @@ extern bool gModeWantsInteractionPreMenu;
 extern bool gModeWantsMenuDelay;
 extern bool gInPreMenu;
 
+bool menu_isLocked();
+void menu_setLocked(bool val);
+
 #include "centroid.h"
 static inline centroid_t touchOrNot(const centroid_t& touch)
 {
