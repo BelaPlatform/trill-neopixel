@@ -27,6 +27,7 @@ static constexpr rgb_t kRgbBlack {0, 0, 0};
 static constexpr float kMenuButtonDefaultBrightness = 0.2;
 static constexpr float kMenuButtonActiveBrightness = 0.7;
 static constexpr float kDefaultThreshold = 0.03;
+const float kAsymmetricalSplitPoint = 0.3;
 
 constexpr size_t kMaxBtnStates = 7;
 typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
@@ -496,7 +497,7 @@ typedef enum {
 	kBottomUp,
 	kTopBottom,
 } LedSlidersOrder;
-static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids, LedSlidersOrder order = kBottomUp)
+static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids, LedSlidersOrder order = kBottomUp, bool asymmetricalSplit = false)
 {
 	std::vector<LedSliders::delimiters_t> boundaries;
 	size_t numSplits = colors.size();
@@ -510,31 +511,39 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		guardPads = 0;
 		guardLeds = 0;
 	}
-	float activePads = (kNumPads - (guardPads * (numSplits - 1))) / float(numSplits);
-	float activeLeds = (kNumLeds - (guardLeds * (numSplits - 1))) / float(numSplits);
+	static size_t nextPad = 0;
+	static size_t nextLed = 0;
+	nextPad = 0;
+	nextLed = 0;
 	for(size_t n = 0; n < numSplits; ++n)
 	{
-		size_t i;
-		switch (order)
-		{
-		default:
-		case kBottomUp:
-			i = n;
-			break;
-		case kTopBottom:
-			i = numSplits - 1 - n;
-			break;
-		}
-		size_t firstPad = i * (activePads + guardPads);
-		size_t firstLed = i * (activeLeds + guardLeds);
+		float coeff = 1;
+		if(2 == numSplits && asymmetricalSplit)
+			coeff = 2 * (0 == n ? (1.f - kAsymmetricalSplitPoint) : kAsymmetricalSplitPoint);
+		float activePads = ((kNumPads - (guardPads * (numSplits - 1))) * coeff) / numSplits;
+		float activeLeds = ((kNumLeds - (guardLeds * (numSplits - 1))) * coeff) / numSplits;
+		auto applyOrder = [](LedSlidersOrder order,size_t& first, size_t& last, size_t max) {
+			if(kBottomUp == order)
+				return;
+			first = max - 1 - first;
+			last = max - 1 - last;
+			std::swap(first, last);
+		};
+		size_t firstPad = nextPad;
+		size_t firstLed = nextLed;
 		size_t lastPad = firstPad + activePads;
 		size_t lastLed = firstLed + activeLeds;
+		applyOrder(order, firstPad, lastPad, kNumPads);
+		applyOrder(order, firstLed, lastLed, kNumLeds);
+
 		boundaries.push_back({
 				.firstPad = firstPad,
 				.lastPad = lastPad,
 				.firstLed = firstLed,
 				.lastLed = lastLed,
 		});
+		nextPad += activePads + guardPads;
+		nextLed +=  activeLeds + guardLeds;
 	}
 	if(2 == numSplits) {
 		// it's hard to evenly distribute an arbitrary number
@@ -641,9 +650,9 @@ static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false, 1);
 }
 
-static void ledSlidersSetupTwoSliders(rgb_t color, LedSlider::LedMode_t mode)
+static void ledSlidersSetupTwoSliders(rgb_t color, LedSlider::LedMode_t mode, bool asymmetricalSplit = false)
 {
-	ledSlidersSetupMultiSlider(ledSliders, {color, color}, mode, false, 1, kTopBottom);
+	ledSlidersSetupMultiSlider(ledSliders, {color, color}, mode, false, 1, kTopBottom, asymmetricalSplit);
 }
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
@@ -2351,7 +2360,7 @@ static bool areEqual(const T& a, const T& b)
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
-std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split)
+std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split, bool asymmetricalSplit)
 {
 	std::array<TouchTracker::TouchWithId,kNumSplits> values {};
 	if(shouldProcess)
@@ -2359,12 +2368,27 @@ std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetec
 	size_t numTouches = gTouchTracker.getNumTouches();
 	// per each split
 	static_assert(kNumSplits == 2); // or the loop below won't work
-	const float midMin = 0.45;
-	const float midMax = 0.55;
+	const float mid = asymmetricalSplit ? kAsymmetricalSplitPoint : 0.5;
+	const float midMin = mid - 0.05;
+	const float midMax = mid + 0.05;
 	for(ssize_t s = 0; s < 1 + split; ++s)
 	{
-		const float min = split ? (kNumSplits - 1 - s) * midMax : 0;
-		const float max = split ? min + midMin : 1;
+		float min;
+		float max;
+		if(split)
+		{
+			if(0 == s)
+			{
+				min = midMax;
+				max = 1;
+			} else {
+				min = 0;
+				max = midMin;
+			}
+		} else {
+			min = 0;
+			max = 1;
+		}
 		TouchTracker::TouchWithId twi = TouchTracker::kInvalidTouch;
 		for(ssize_t i = numTouches - 1; i >= 0; --i)
 		{
@@ -2411,6 +2435,10 @@ protected:
 	bool isSplit()
 	{
 		return splitMode != kModeNoSplit;
+	}
+	bool isAsymmetricalSplit()
+	{
+		return kModeSplitLocationSize == splitMode;
 	}
 	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues, std::array<bool,kNumSplits> preserveSplitLocationSize = {})
 	{
@@ -2598,7 +2626,7 @@ public:
 		if(isSplit())
 		{
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, isAsymmetricalSplit());
 		} else {
 			if(ms <= 0)
 			{
@@ -2629,7 +2657,7 @@ public:
 		bool analogInHigh = tri.analogRead() > kTriggerInOnThreshold;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
-		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit(), isAsymmetricalSplit());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
 			values[n] = processSize(twis[n].touch, n);
@@ -2960,7 +2988,7 @@ public:
 		if(isSplit())
 		{
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS);
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, isAsymmetricalSplit());
 		}
 		else
 		{
@@ -3425,7 +3453,7 @@ public:
 			}
 		}
 
-		twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit());
+		twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit(), isAsymmetricalSplit());
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
