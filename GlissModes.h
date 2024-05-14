@@ -1,4 +1,6 @@
 #include <array>
+#include <Utilities.h>
+
 constexpr size_t kNumPads = 26;
 constexpr size_t kNumLeds = 23;
 constexpr float kSliderBottomMargin = 0.05;
@@ -46,6 +48,7 @@ struct IoRange {
 	// of the floats. Instead, we add initialised padding bytes.
 	// static_assert below should remind us about this if we change the elements of this struct
 	uint16_t padding {0};
+	static constexpr float gnd = CalibrationData::kGnd;
 public:
 	static IoRange init() {
 		return IoRange {
@@ -56,7 +59,6 @@ public:
 		};
 	}
 	void getMinMax(float& min, float& max) const {
-		constexpr float gnd = CalibrationData::kGnd;
 		CvRange range = enabled ? this->range : kCvRangeFull;
 		switch (range)
 		{
@@ -86,6 +88,15 @@ public:
 				max = this->max;
 				break;
 		}
+	}
+	// What value should we set to obtain 0V
+	// May return a value outside [0, 1]
+	float getGnd() const
+	{
+		float min;
+		float max;
+		getMinMax(min, max);
+		return map(gnd, min, max, 0, 1);
 	}
 };
 
@@ -147,7 +158,6 @@ struct FrameData {
 };
 //#define TEST_MODE
 
-#include <Utilities.h>
 static inline float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
 {
 	float value = map(x, in_min, in_max, out_min, out_max);
