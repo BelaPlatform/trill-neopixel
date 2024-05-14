@@ -3264,24 +3264,25 @@ public:
 		}
 		if(modeAllowsCircular())
 		{
-			bool goesNext = false;
+			CircularMode nextCircularMode = circularMode;
 			static int oldGAlt = gAlt;
 			if(!gAlt && oldGAlt) {
-				// Workaround to detect when we are exiting kCircularModeTrim
-				goesNext = true;
+				// Workaround to detect when we are exiting kCircularModeTrim or exiting menu
+				nextCircularMode = kCircularModeNew;
 			}
 			oldGAlt = gAlt;
 			if(performanceBtn.offset)
 			{
 				// NOTE: This won't be hit when exiting trimming as that's swallowed by menuBtn,
 				// hence the above workaround
-				goesNext = true;
+				nextCircularMode = CircularMode((int)circularMode + 1);
+				if(nextCircularMode >= kCircularModeNum)
+					nextCircularMode = kCircularModeNew;
+
 			}
-			if(goesNext)
+			if(circularMode != nextCircularMode)
 			{
-				circularMode = CircularMode((int)circularMode + 1);
-				if(circularMode >= kCircularModeNum)
-					circularMode = kCircularModeNew;
+				circularMode = nextCircularMode;
 				if(kCircularModeTrim == circularMode)
 				{
 						menu_enterRangeDisplay(kRgbYellow, {kRgbGreen, kRgbGreen}, false, trimRangeBottom, trimRangeTop, circularModeViz);
