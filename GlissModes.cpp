@@ -2452,6 +2452,35 @@ protected:
 				out[n] = touchOrNot(values[n]).size;
 			}
 				break;
+			case kModeSplitLocationSize:
+			{
+				if(1 == n) // all set on first iteration
+					continue;
+				// TODO: refactor with the previous ones
+				centroid_t centroid;
+				centroid.location = displayValues[0].location;
+				centroid.size = (displayValues[0].size > 0) * kFixedCentroidSize;
+				ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+
+				// Use multiple centroids to make a bigger dot.
+				// Their spacing increases with the size
+				std::array<centroid_t,2> centroids;
+				float value = displayValues[1].size;
+				float spread = 0.15f * std::min(1.f, displayValues[1].size);
+				float start = 0.5;
+				if(!gJacksOnTop)
+					start -= 0.05;
+				for(size_t c = 0; c < centroids.size(); ++c)
+				{
+					centroids[c].location = start + (0 == c ? -spread : +spread);
+					centroids[c].size = value;
+				}
+				ledSliders.sliders[1].setLedsCentroids(centroids.data(), centroids.size());
+
+				out[0] = touchOrNot(values[0]).location;
+				out[1] = touchOrNot(values[1]).size;
+			}
+				break;
 			}
 		}
 	}
@@ -2468,6 +2497,10 @@ protected:
 		case kModeSplitLocation:
 			gOutIsSize = {false, false};
 			break;
+		case kModeSplitLocationSize:
+			gOutIsSize = {false, true};
+			break;
+
 		}
 	}
 	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
@@ -2492,6 +2525,10 @@ protected:
 					gAnimateFs.directWriteCentroid(p, l, { .location = 0.1, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					gAnimateFs.directWriteCentroid(p, l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
+				case kModeSplitLocationSize:
+					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					break;
 				}
 			}
 		}
@@ -2501,8 +2538,9 @@ public:
 		kModeNoSplit,
 		kModeSplitLocation,
 		kModeSplitSize,
+		kModeSplitLocationSize,
 	};
-	ParameterEnumT<3> splitMode{this, kModeNoSplit};
+	ParameterEnumT<4> splitMode{this, kModeNoSplit};
 	SplitPerformanceMode(rgb_t color) : PerformanceMode(color) {}
 	SplitPerformanceMode() {}
 };
@@ -2647,10 +2685,10 @@ public:
 					values[n].size = 0;
 					// TODO: this also sets location to kNoOutput, so we have to "fixup" it below.
 					// so we make a not of it here
-					if(kModeNoSplit == splitMode)
+					if(kModeNoSplit == splitMode || kModeSplitLocationSize == splitMode)
 						shouldOverrideOut0 = true;
 					// display:
-					if(kModeSplitSize == splitMode)
+					if(gOutIsSize[n]) // it's size and shouldn't be latched
 						// display is dark
 						displayValues[n].size = 0;
 					else
@@ -3547,6 +3585,10 @@ public:
 			recIns[0] = t0.size;
 			recIns[1] = t1.size;
 			break;
+		case kModeSplitLocationSize:
+			recIns[0] = t0.location;
+			recIns[1] = t1.size;
+			break;
 		}
 		// gesture may be overwritten below before it is visualised
 		for(size_t n = 0; n < recIns.size(); ++n)
@@ -3614,8 +3656,21 @@ public:
 					if(directControl[n])
 					{
 						gOutMode[n] = kOutModeManualBlock;
+						float sample = 0;
+						switch(splitMode.get())
+						{
+						case kModeSplitLocation:
+							sample = touch.location;
+							break;
+						case kModeSplitSize:
+							sample = touch.size;
+							break;
+						case kModeSplitLocationSize:
+							sample = 0 == n ? touch.location : touch.size;
+							break;
+						}
 						gesture[n] = GestureRecorder::HalfGesture_t {
-							.sample = kModeSplitLocation == splitMode ? touch.location : touch.size,
+							.sample = sample,
 							.valid = true,
 						};
 					} else // otherwise, keep playing back from table
@@ -3657,14 +3712,14 @@ public:
 		static constexpr centroid_t kInvalid = {0, 0};
 		// visualise
 		std::array<centroid_t,kNumSplits> vizValues;
-		bool isSizeOnly = (kModeSplitSize == splitMode);
+		std::array<bool,2> isSizeOnly = { kModeSplitSize == splitMode, kModeSplitLocationSize == splitMode || kModeSplitSize == splitMode };
 		if(isSplit()){
 			for(size_t n = 0; n < gesture.size(); ++n)
 			{
 				if(gesture[n].valid)
 				{
 					vizValues[n].location = gesture[n].sample;
-					vizValues[n].size = isSizeOnly ? gesture[n].sample : kFixedCentroidSize;
+					vizValues[n].size = isSizeOnly[n] ? gesture[n].sample : kFixedCentroidSize;
 				} else {
 					vizValues[n] = kInvalid;
 				}
@@ -3697,7 +3752,7 @@ public:
 						vizValues[c].location = interpolatedRead(table, tableSize, applyTrim(idxFrac), kTreatPassThrough);
 						if(isSplit())
 						{
-							vizValues[c].size = isSizeOnly ? vizValues[c].location : kFixedCentroidSize;
+							vizValues[c].size = isSizeOnly[c] ? vizValues[c].location : kFixedCentroidSize;
 						} else {
 							// be explicit about indeces here, as we are only here if c == 0
 							const float* table = gGestureRecorder.rs[1].r.getData().data();
@@ -4006,6 +4061,8 @@ private:
 			return n == 1;
 		case kModeSplitSize:
 			return true;
+		case kModeSplitLocationSize:
+			return n == 1;
 		}
 	}
 	void emptyRecordings(size_t n)
@@ -6993,6 +7050,10 @@ public:
 		case SplitPerformanceMode::kModeSplitSize:
 			coeff = tri;
 		break;
+		case SplitPerformanceMode::kModeSplitLocationSize: // TODO
+			coeff = tri;
+		break;
+
 		}
 		rgb_t color = colors[getIdx(value)];
 		color.scale(coeff);
