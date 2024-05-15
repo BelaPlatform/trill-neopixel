@@ -436,7 +436,7 @@ static uint32_t gClockPeriodUpdateCounter = 0;
 static float gClockPeriod = 10000; // arbitrary init to avoid divisions by zero. TODO: instead check before using it
 static uint64_t gClockPeriodLastUpdate = -1;
 
-static constexpr float kTriggerInOnThreshold = 0.6;
+static constexpr float kTriggerInOnThreshold = 0.46667; // approx 2V
 void triggerInToClock(BelaContext* context)
 {
 	const float kTriggerInOffThreshold = kTriggerInOnThreshold - 0.05;
