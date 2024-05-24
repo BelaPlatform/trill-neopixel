@@ -1534,27 +1534,48 @@ public:
 	virtual void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) {};
 };
 
-template <typename T>
 class ParameterGeneric : public Parameter {
 public:
-	ParameterGeneric<T>() {}
-	ParameterGeneric<T>(ParameterUpdateCapable* that, T value):
-		that(that), value(value) {}
-	void set(T value)
+	ParameterGeneric() {};
+	ParameterGeneric(ParameterUpdateCapable* that, size_t size, const void* initialValue):
+		that(that), genericValue(size)
 	{
-		this->value = value;
+		memcpy(genericValue.data(), initialValue, genericValue.size());
+	}
+	void genericSet(const void* newValue)
+	{
+		memcpy(genericValue.data(), newValue, genericValue.size());
 		if(that)
 			that->updated(*this);
 	}
-	T get() const {
-		return value;
+	const void* genericGet() const {
+		return genericValue.data();
 	}
-	operator const T&() const {
-		return value;
+	size_t size()
+	{
+		return genericValue.size();
 	}
 private:
 	ParameterUpdateCapable* that = nullptr;
-	T value;
+	std::vector<uint8_t> genericValue;
+};
+
+template <typename T>
+class ParameterGenericT : public ParameterGeneric {
+public:
+	ParameterGenericT<T>() {};
+	ParameterGenericT<T>(ParameterUpdateCapable* that, T value):
+		ParameterGeneric(that, sizeof(T), (const void*)&value) {}
+	void set(T value)
+	{
+		genericSet(&value);
+	}
+	const T& get() const {
+		return *(T*)genericGet();
+	}
+	operator const T&() const {
+		return get();
+	}
 };
 
 class ParameterEnum : public Parameter {
@@ -5782,7 +5803,7 @@ public:
 		ParameterContinuous(this, semiToNorm(71)), // B
 		ParameterContinuous(this, semiToNorm(74)), // D
 	};
-	std::array<ParameterGeneric<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
+	std::array<ParameterGenericT<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
 	PACKED_STRUCT(PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t quantised;
@@ -5844,7 +5865,7 @@ private:
 Calibration_t calibrationState;
 CalibrationDataParameter calibrationOut {this};
 CalibrationDataParameter calibrationIn {this};
-ParameterGeneric<uint8_t> dummy {this, 0}; // so that we don't need too many noioranges macros
+ParameterGenericT<uint8_t> dummy {this, 0}; // so that we don't need too many noioranges macros
 
 typedef enum {
 	kFindingDacGnd,
