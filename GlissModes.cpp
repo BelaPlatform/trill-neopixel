@@ -1655,6 +1655,85 @@ private:
 	const float defaultValue;
 };
 
+// generic container for parameters with fixed resolution
+// performs data conversion when setting/getting
+class ParameterContainer {
+public:
+	template <typename T>
+	ParameterContainer(T& parameter) : p(&parameter)
+	{
+		if(std::is_base_of<ParameterEnum, T>::value)
+		{
+			type = kParameterEnum;
+		}
+		else
+		if(std::is_base_of<ParameterContinuous, T>::value)
+		{
+			type = kParameterContinuous;
+		}
+		else
+		if(std::is_base_of<ParameterGeneric, T>::value)
+		{
+			type = kParameterGeneric;
+		}
+		else
+		{
+			Error_Handler();
+			type = kParameterGeneric; // make compiler happy
+		}
+	}
+	static constexpr unsigned int numBits = 14;
+	typedef uint16_t Type;
+	void set(Type v)
+	{
+		switch(type)
+		{
+		case kParameterEnum:
+			((ParameterEnum*)p)->set(v);
+			break;
+		case kParameterContinuous:
+			((ParameterContinuous*)p)->set(v / kMaxValue);
+			break;
+		case kParameterGeneric:
+		{
+			ParameterGeneric* pg = (ParameterGeneric*)p;
+			uint8_t vals[pg->size()];
+			memset(vals, 0, sizeof(vals));
+			memcpy(vals, &v, std::min(sizeof(v), sizeof(vals)));
+			pg->genericSet(vals);
+		}
+			break;
+		}
+	}
+	Type get() const {
+		switch(type)
+		{
+		default:
+		case kParameterEnum:
+			return ((ParameterEnum*)p)->get();
+		case kParameterContinuous:
+			return ((ParameterContinuous*)p)->get() * kMaxValue;
+		case kParameterGeneric:
+		{
+			ParameterGeneric* pg = (ParameterGeneric*)p;
+			const void* value = pg->genericGet();
+			Type ret;
+			memset(&ret, 0, sizeof(ret));
+			memcpy(&ret, value, std::min(sizeof(ret), pg->size()));
+			return ret;
+		}
+		}
+	}
+private:
+	enum {
+		kParameterEnum,
+		kParameterContinuous,
+		kParameterGeneric,
+	} type;
+	static constexpr float kMaxValue = (1 << numBits) - 1;
+	Parameter* p;
+};
+
 class AnimateFs
 {
 public:
