@@ -1,6 +1,7 @@
 #include <TrillRackApplication_bsp.h>
 #include "TrillRackInterface.h"
 #include "GlissModes.h"
+#include "GlissProtocol.h"
 #include "preset.h"
 #include <libraries/Trill/Trill.h> // include this above NeoPixel or "HEX" gets screwed up
 #include <libraries/Trill/CentroidDetection.h> // include this above NeoPixel or "HEX" gets screwed up
@@ -511,6 +512,7 @@ static void renderMenuEnter(unsigned int n)
 
 void tr_render(BelaContext* context)
 {
+	gp_processIncoming();
 #ifdef MIDI_CTL_SETS_PIXELS
 	if(2 == gAlt)
 	{

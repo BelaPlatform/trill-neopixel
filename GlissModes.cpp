@@ -9059,3 +9059,47 @@ void menu_render(BelaContext*, FrameData* frameData)
 		item->process(ledSlidersAlt.sliders[n]);
 	}
 }
+
+void gp_setMode(uint8_t mode)
+{
+	requestNewMode(mode);
+}
+
+void gp_setModeParameter(uint8_t mode, uint8_t parameter, uint16_t value)
+{
+	if(mode < performanceModes.size())
+	{
+		ParameterContainer* p = performanceModes[mode]->getParameter(parameter);
+		if(p)
+			p->set(value);
+	}
+}
+
+void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t min, uint16_t max)
+{
+	if(mode < performanceModes.size())
+	{
+		IoRangesParameters& io = performanceModes[mode]->ioRangesParameters;
+		if(rangeIdx < io.size())
+		{
+			ParameterContainer(io[rangeIdx].cvRange).set(cvRange);
+			ParameterContainer(io[rangeIdx].min).set(min);
+			ParameterContainer(io[rangeIdx].max).set(max);
+		}
+	}
+}
+
+void gp_setModeColor(uint8_t mode, uint8_t colorIdx, uint8_t r, uint8_t g, uint8_t b)
+{
+	// TODO
+}
+
+void gp_setMenuColor(uint8_t idx, uint8_t r, uint8_t g, uint8_t b)
+{
+	// TODO
+}
+
+void gp_store()
+{
+	// TODO
+}
