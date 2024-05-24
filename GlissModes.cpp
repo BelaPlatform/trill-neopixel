@@ -1922,6 +1922,11 @@ public:
 			}
 		}
 	};
+	ParameterContainer* getParameter(size_t idx)
+	{
+		return idx < parameters.size() ? &parameters[idx]: nullptr;
+	}
+	std::vector<ParameterContainer> parameters;
 	PerformanceMode() : buttonColor(kRgbGreen) {}
 	PerformanceMode(rgb_t color)
 	: buttonColor(kRgbGreen) // TODO: change kRgbGreen to color if you want to obey the color
@@ -2914,6 +2919,7 @@ public:
 			.autoLatch = autoLatch,
 		}
 	{
+		parameters = {{splitMode, autoLatch, smooth}};
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
@@ -4127,6 +4133,7 @@ public:
 			.inputMode = inputMode,
 		}
 	{
+		parameters = {{splitMode, inputMode, trimRangeBottom, trimRangeTop}};
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
@@ -4613,6 +4620,7 @@ public:
 			.cutoff = cutoff,
 		}
 	{
+		parameters = {{ outputMode, coupling, cutoff, outRangeMin, outRangeMax, inRangeBottom, inRangeTop }};
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
@@ -5862,6 +5870,11 @@ public:
 			},
 		}
 	{
+		parameters = {{ seqMode, quantised, modRange,
+			// offsetParameterRaw, // TODO: doesn't need to be exposed
+			// offsetParameters, // TODO: array, needs special treatment
+			// keyStepModes, // TODO: array, needs special treatment
+		}};
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
