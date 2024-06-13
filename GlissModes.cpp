@@ -6492,8 +6492,7 @@ public:
 				if(allTestsSuccessful())
 				{
 					requestNewMode(0);
-					updateAllPresets();
-					presetTriggerFlushToStorage();
+					gp_store();
 				}
 				else if(++finalButtonCount >= 2)
 					nextState();
@@ -9101,5 +9100,6 @@ void gp_setMenuColor(uint8_t idx, uint8_t r, uint8_t g, uint8_t b)
 
 void gp_store()
 {
-	// TODO
+	updateAllPresets();
+	presetTriggerFlushToStorage();
 }
