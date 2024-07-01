@@ -1,5 +1,6 @@
 #include "TrillRackInterface.h"
 #include "GlissModes.h"
+#include "GlissProtocol.h"
 #include <vector>
 #include <libraries/Trill/Trill.h> // include this above NeoPixel or "HEX" gets screwed up
 #include <libraries/Oscillator/Oscillator.h>
