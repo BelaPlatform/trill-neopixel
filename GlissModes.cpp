@@ -5437,22 +5437,9 @@ public:
 				} else if (seqMode)
 				{
 					coeff *= stepIsEnabled(n);
-					switch(keyStepModes[n].get().s)
-					{
-					case kStepModesNum:
-					case kStepNormal:
-						color = kRgbGreen;
-						break;
-					case kStepHold:
-						color = kRgbYellow.scaledBy(0.7);
-						break;
-					case kStepMuted:
-						color = kRgbRed.scaledBy(0.7);
-						break;
-					case kStepDisabled:
-						color = kRgbBlack;
-						break;
-					}
+					size_t idx = keyStepModes[n].get().s;
+					if(idx < stepColors.size())
+						color = stepColors[idx];
 					// TODO: animating buttons while they are traversed by the sequencer
 					// gives a messy result. Try syncing it to the clock input, or use a
 					// different display strategy (e.g.: button?)
@@ -5737,6 +5724,13 @@ private:
 		kStepDisabled,
 		kStepModesNum,
 	};
+	// order matches the above
+	std::array<rgb_t,kStepModesNum> stepColors = {{
+			kRgbGreen,
+			kRgbYellow.scaledBy(0.7),
+			kRgbRed.scaledBy(0.7),
+			kRgbBlack,
+	}};
 	struct KeyStepMode {
 		bool k : 4;
 		StepMode s : 4;
