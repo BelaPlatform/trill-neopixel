@@ -5,13 +5,13 @@ enum ProtocolPeripheral {
 	kGpI2c,
 };
 enum ProtocolCmd {
-	kGpMode,
-	kGpParameter,
-	kGpIoRange,
-	kGpColor,
-	kGpMenuColor,
-//	kGpRecorderModeGesture,
-	kGpDebugFlags,
+	kGpMode = 0,
+	kGpParameter = 1,
+	kGpIoRange = 2,
+	kGpModeColor = 3,
+	kGpMenuColor = 4,
+//	kGpRecorderModeGesture = 5,
+	kGpDebugFlags = 6,
 };
 // I/O and processing
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);

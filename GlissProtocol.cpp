@@ -106,7 +106,7 @@ public:
 				}
 				break;
 			}
-			case kGpColor:
+			case kGpModeColor:
 			{
 				if(5 == msgLen)
 				{
