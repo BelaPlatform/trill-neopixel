@@ -2220,6 +2220,18 @@ private:
 	DEFAULTER_PROCESS(C); \
 }
 
+#define genericDefaulter2PlusArray(CLASS,A,B,A0) \
+[](PresetField_t field, PresetFieldSize_t size, void* data) \
+{ \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	DEFAULTER_PROCESS_IORANGES(); \
+	DEFAULTER_PROCESS(A); \
+	DEFAULTER_PROCESS(B); \
+	for(size_t n = 0; n < that->A0.size(); ++n) \
+		UN_T_ASS(pfd->A0[n], that->A0[n]); \
+}
+
 #define genericDefaulter3PlusArrays(CLASS,A,B,C,A0,A1) \
 [](PresetField_t field, PresetFieldSize_t size, void* data) \
 { \
@@ -2291,6 +2303,17 @@ private:
 	LOADER_PROCESS_IORANGES(); \
 	LOADER_PROCESS(A); \
 	LOADER_PROCESS(B); \
+}
+
+#define genericLoadCallback2PlusArray(CLASS,A,B,A0) \
+[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
+	CLASS* that = (CLASS*)field; \
+	LOADER_PROCESS_IORANGES(); \
+	LOADER_PROCESS(A); \
+	LOADER_PROCESS(B); \
+	for(size_t n = 0; n < that->A0.size(); ++n) \
+		LOADER_PROCESS(A0[n]); \
 }
 
 #define genericLoadCallback3(CLASS,A,B,C) \
@@ -2379,6 +2402,28 @@ static bool areEqual(const T& a, const T& b)
 	presetFieldData.B = B; \
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
+}
+
+#define UPDATE_PRESET_FIELD2PlusArray(A,B,A0) \
+{ \
+	bool same = true; \
+	UPDATE_PRESET_IORANGES_WITH_SAME(); \
+	for(size_t n = 0; n < A0.size(); ++n) \
+	{ \
+		auto a0 = A0[n].get(); \
+		if(memcmp(&a0, &presetFieldData.A0[n], sizeof(a0))) \
+		{ \
+			same = false; \
+			break; \
+		} \
+	} \
+	if(presetFieldData.A != A || presetFieldData.B != B || !same) { \
+		presetFieldData.A = A; \
+		presetFieldData.B = B; \
+		for(size_t n = 0; n < A0.size(); ++n) \
+			presetFieldData.A0[n] = A0[n]; \
+		presetSetField(this, &presetFieldData); \
+	} \
 }
 
 #define UPDATE_PRESET_FIELD3(A,B,C) \
