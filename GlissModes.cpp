@@ -31,7 +31,7 @@ static constexpr float kDefaultThreshold = 0.03;
 const float kAsymmetricalSplitPoint = 0.3;
 
 constexpr size_t kMaxBtnStates = 7;
-typedef const std::array<rgb_t,kMaxBtnStates> AnimationColors;
+typedef std::array<rgb_t,kMaxBtnStates> AnimationColors;
 static AnimationColors buttonColors = {
 		kRgbRed,
 		kRgbOrange,
@@ -1927,6 +1927,7 @@ public:
 	{
 		return idx < parameters.size() ? &parameters[idx]: nullptr;
 	}
+	virtual void setColor(size_t idx, const rgb_t& color) = 0;
 	std::vector<ParameterContainer> parameters;
 	static constexpr rgb_t buttonColor {kRgbGreen};
 };
@@ -2922,6 +2923,11 @@ public:
 			.loadCallback = genericLoadCallback3(DirectControlMode, splitMode, autoLatch, smooth),
 		};
 		presetDescSet(0, &presetDesc);
+	}
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		if(0 == idx)
+			this->color = color;
 	}
 	// splitMode from base class
 	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
@@ -4136,6 +4142,11 @@ public:
 		};
 		presetDescSet(1, &presetDesc);
 	}
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		if(0 == idx)
+			this->color = color;
+	}
 	//splitMode from the base class
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeLfo};
 	ParameterContinuous trimRangeBottom {this, 0};
@@ -4622,6 +4633,15 @@ public:
 		};
 		presetDescSet(2, &presetDesc);
 	}
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		if(0 == idx)
+			signalColor = color;
+		if(1 == idx)
+			endpointsColorIn = color;
+		if(2 == idx)
+			endpointsColorOut = color;
+	}
 	ParameterEnumT<kOutputModeNum> outputMode {this, 0};
 	ParameterEnumT<kCouplingNum> coupling {this, kCouplingDc};
 	ParameterContinuous cutoff {this, 0.5};
@@ -4659,9 +4679,9 @@ private:
 			np.setPixelColor(n, color.scaledBy(scale));
 		}
 	}
-	const rgb_t signalColor = kRgbGreen;
-	const rgb_t endpointsColorIn = kRgbRed;
-	const rgb_t endpointsColorOut = kRgbYellow;
+	rgb_t signalColor = kRgbGreen;
+	rgb_t endpointsColorIn = kRgbRed;
+	rgb_t endpointsColorOut = kRgbYellow;
 	float x1;
 	float y1;
 	float env;
@@ -5869,6 +5889,16 @@ public:
 		};
 		presetDescSet(3, &presetDesc);
 	}
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		if(idx < colors.size())
+			colors[idx] = color;
+		else {
+			idx -= colors.size();
+			if(idx < stepColors.size())
+				stepColors[idx] = color;
+		}
+	}
 	ParameterEnumT<2,bool> quantised {this, false};
 	ParameterEnumT<2,bool> seqMode{this, false};
 	ParameterContinuous modRange {this, 0.1};
@@ -6336,6 +6366,11 @@ public:
 		baseColor(color),
 		startTime(HAL_GetTick())
 	{}
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		if(0 == idx)
+			baseColor = color;
+	}
 	bool setup(double ms){
 		gCalibrationProcedure.setup();
 		resetDemoMode();
@@ -6450,6 +6485,10 @@ public:
 
 class FactoryTestMode: public PerformanceMode {
 public:
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		// TODO
+	}
 	bool setup(double ms) override
 	{
 		ledSlidersSetupOneSlider(kRgbBlack, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
@@ -6891,6 +6930,10 @@ extern const ssize_t kFactoryTestModeIdx;
 
 class EraseSettingsMode: public PerformanceMode {
 public:
+	void setColor(size_t idx, const rgb_t& color) override
+	{
+		// TODO
+	}
 	bool setup(double ms) override
 	{
 		ledSlidersSetupOneSlider(kRgbBlack, LedSlider::MANUAL_DIRECT); // dummy so that ledSliders are initialised
