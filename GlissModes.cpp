@@ -331,7 +331,7 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 
 // pick one of the two for more or less debugging printf and memory usage
 //#define S(...) __VA_ARGS__
-#define S(a)
+#define S(a) ;
 //#define M(...) __VA_ARGS__
 #define M(a)
 //#define printf(...) // disable printf altogether
@@ -2720,6 +2720,12 @@ public:
 	ParameterEnumT<4> splitMode{this, kModeNoSplit};
 };
 
+template <typename T>
+static inline int sign(T val)
+{
+	return (T(0) < val) - (val < T(0));
+}
+
 static centroid_t processSize(centroid_t c, size_t split)
 {
 	static std::array<float,2> pastSizes {};
@@ -2769,6 +2775,7 @@ class DirectControlMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
+		asrs.fill(kAsrAttack);
 		gOutMode.fill(kOutModeManualBlockCustomSmoothed);
 		if(isSplit())
 		{
@@ -2872,17 +2879,112 @@ public:
 				}
 			}
 		}
+		renderOut(gManualAnOut, values, displayValues);
 		for(size_t n = 0; n < kNumOutChannels; ++n)
 		{
 			unsigned int refIdx = isSplit() ? n : 0;
-			if(values[refIdx].size ||
-					(!isSplit() && 0 == n && isLatched[refIdx]) // convoluted way of saying: if it's location and only location is latched
-				)
-				gCustomSmoothedAlpha[n] = kAlphaDefault;
-			else
-				gCustomSmoothedAlpha[n] = alpha;
+			float val = values[refIdx].size;
+			// update state
+			if(gOutIsSize[n])
+			{
+				// out is size
+				// Broadly speaking:
+				// - "attack" is when the nominal output is increasing,
+				// - "release" is when the nominal output is decreasing or zero.
+				// This ensures that upon release with a high smoothing value
+				// there's no unintended jump from the curren tvalue to something lower
+				// (due to a release size artifact) before the filter kicks in.
+				// There is no "sustain".
+				if(!val)
+				{
+					// no touch
+					if(kAsrRelease != asrs[n])
+					{
+						S(printf("%d rel\n\r", n));
+					}
+					asrs[n] = kAsrRelease;
+				}
+				else if(getOutputSmoothDiff(n) <= 0)
+				{
+					if(kAsrAttack != asrs[n])
+					{
+						S(printf("%d att\n\r", n));
+					}
+					asrs[n] = kAsrAttack;
+				}
+				else
+				{
+					if(kAsrRelease != asrs[n])
+					{
+						S(printf("%d r\n\r", n));
+					}
+					asrs[n] = kAsrRelease;
+				}
+			} else {
+				// out is location
+				// - "attack" is until the actual output becomes close enough to the nominal output
+				// - "sustain" follows, until
+				// - "release" begins when the touch stops
+				float osd = getOutputSmoothDiff(n);
+				static std::array<float,kNumSplits> pastOsd {};
+				static std::array<float,kNumSplits> pastVals {};
+				bool crossedOver = false;
+				bool touchStarts = false;
+				static int count = 0;
+				count++;
+				if(pastVals[n] && val)
+				{
+					// touch is already in progress
+					if(sign(pastOsd[n]) == -sign(osd))
+						crossedOver = true;
+				}
+				if(val && !pastVals[n])
+				{
+					// touch started
+					asrs[n] = kAsrAttack;
+					S(printf("%d %d attack\n\r", count, n));
+					touchStarts = true;
+				} else if(!val && pastVals[n])
+				{
+					 // touch ended / was unlatched
+					asrs[n] = kAsrRelease;
+					S(printf("%d %d rel\n\r", count, n));
+				} else if(kAsrAttack == asrs[n])
+				{
+					if(std::abs(osd) < 0.001 || crossedOver)
+					{
+						// if close enough or crossed over, attack is completed
+						asrs[n] = kAsrSustain;
+						S(printf("%d %d s %s\n\r", count, n, crossedOver ? "cross" : ""));
+					}
+				}
+				if(touchStarts)
+				{
+					// reset state
+					pastOsd[n] = 0;
+					S(printf("%d %d reset\n\r", count, n));
+				} else
+					pastOsd[n] = osd;
+				pastVals[n] = val;
+			}
+			float alpha = 0;
+			static_assert(kNumOutChannels * 2 ==  std::tuple_size<decltype(alphas)>::value, "indexing below wouldn't work");
+			// select alpha based on state
+			switch(asrs[n])
+			{
+			case kAsrAttack:
+				alpha = alphas[2 * n];
+				break;
+			case kAsrSustain:
+					alpha = kAlphaDefault;
+				break;
+			case kAsrRelease:
+				alpha = alphas[2 * n + 1];
+				break;
+			}
+			gCustomSmoothedAlpha[n] = alpha;
+
 		}
-		renderOut(gManualAnOut, values, displayValues);
 		if(shouldOverrideOut0) {
 			// fixup: yet another hack to get something displayed, kNoOutput size output,
 			// but valid location output. See TODO above
@@ -3022,6 +3124,12 @@ private:
 	std::array<LatchProcessor::Reason,2> isLatched = {LatchProcessor::kLatchNone, LatchProcessor::kLatchNone};
 	uint32_t lastLatchCount = ButtonView::kPressIdInvalid;
 	std::array<float,kNumSmooths> alphas;
+	enum AsrState {
+		kAsrAttack,
+		kAsrSustain,
+		kAsrRelease,
+	};
+	std::array<AsrState,kNumSplits> asrs;
 } gDirectControlMode;
 #endif // ENABLE_DIRECT_CONTROL_MODE
 
