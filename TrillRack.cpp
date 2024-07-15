@@ -510,6 +510,8 @@ static void renderMenuEnter(unsigned int n)
 	tri.buttonLedSet(TrillRackInterface::kSolid, TrillRackInterface::kG, 1, 100);
 }
 
+static std::array<float,kNumOutChannels> outDiffs {};
+
 void tr_render(BelaContext* context)
 {
 	gp_processIncoming();
@@ -903,6 +905,7 @@ void tr_render(BelaContext* context)
 			float out = tmp * alpha + rescaled * (1.f - alpha);
 			analogWriteOnce(context, n, channel, out);
 			pastOut[channel] = out;
+			outDiffs[channel] = out - rescaled;
 		}
 	}
 	// we do the loop again to swap channels if needed
@@ -955,4 +958,11 @@ void tr_render(BelaContext* context)
 		analogWriteOnce(context, n , 1, (osc + 2048) / 4096.f);
 	}
 #endif
+}
+
+float getOutputSmoothDiff(size_t idx)
+{
+	if(idx < kNumOutChannels)
+		return outDiffs[idx];
+	return 0;
 }

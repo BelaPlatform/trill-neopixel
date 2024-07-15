@@ -15,6 +15,7 @@ constexpr size_t kNumOutChannels = 2; // TODO: assert it's the same as context->
 extern std::array<float,kNumOutChannels> gCustomSmoothedAlpha;
 extern std::array<OutMode,kNumOutChannels> gOutMode;
 constexpr float kAlphaDefault = 0.993;
+float getOutputSmoothDiff(size_t idx);
 
 struct CalibrationData {
 	static constexpr float kGnd = 0.3333333333f;
