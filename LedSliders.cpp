@@ -16,7 +16,6 @@ int LedSlider::setup(const Settings& settings)
 	maxNumPadCentroids = settings.maxNumCentroids;
 	ledValues.resize(settings.numLeds);
 	ledCentroids.resize(maxNumPadCentroids);
-	scratch.resize(settings.numPads);
 	return 0;
 }
 
@@ -47,9 +46,7 @@ void LedSlider::process(const float* rawData)
 {
 	if(touchEnabled)
 		CentroidDetectionScaled::process(rawData);
-	if(AUTO_RAW == mode)
-		memcpy(scratch.data(), rawData, sizeof(rawData[0]) * scratch.size());
-	else if(AUTO_CENTROIDS == mode)
+	if(AUTO_CENTROIDS == mode)
 	{
 		ledCentroids.resize(maxNumPadCentroids);
 		unsigned int n;
@@ -187,7 +184,6 @@ void LedSlider::updateLeds()
 		return;
 	if(AUTO_CENTROIDS == mode || MANUAL_CENTROIDS == mode)
 	{
-		//memset(scratch.data(), 0, sizeof(scratch[0]) * scratch.size());
 		memset(ledValues.data(), 0, sizeof(ledValues[0]) * ledValues.size());
 		for(unsigned int n = 0; n < ledCentroids.size(); ++n)
 		{
@@ -197,8 +193,6 @@ void LedSlider::updateLeds()
 			//printf("[%d]: %f ", n, ledValues[n]);
 		//printf("\n\n");
 	}
-	if(AUTO_RAW == mode)
-		resample(ledValues.data(), ledValues.size(), scratch.data(), scratch.size());
 	// MANUAL_RAW will have set ledValues elsewhere
 	// so at this point ledValues is all set and we use it to set the LEDs
 	for(unsigned int n = 0; n < ledValues.size(); ++n)

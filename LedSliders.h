@@ -11,7 +11,6 @@ public:
 	static constexpr size_t kDefaultNumWeights = 2;
 	typedef enum {
 		AUTO_CENTROIDS,
-		AUTO_RAW,
 		MANUAL_CENTROIDS,
 		MANUAL_RAW,
 		MANUAL_DIRECT, // uses directBegin(), directWriteCentroid()
@@ -48,7 +47,6 @@ private:
 	unsigned int maxNumPadCentroids;
 	std::vector<float> ledValues;
 	std::vector<centroid_t> ledCentroids;
-	std::vector<float> scratch;
 	bool touchEnabled = true;
 	bool ledsEnabled = true;
 };
