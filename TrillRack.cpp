@@ -812,7 +812,7 @@ void tr_render(BelaContext* context)
 	if(setupDone)
 	{
 		if(newFrame)
-			ledSliders.process(trill.rawData.data());
+			ledSliders.process(globalSlider);
 		performanceMode_render(context, &frameData);
 	} else {
 		// zero the outputs

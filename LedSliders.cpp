@@ -8,7 +8,7 @@ LedSlider::LedSlider(const Settings& settings)
 
 int LedSlider::setup(const Settings& settings)
 {
-	if(CentroidDetection::setup(settings.numPads, settings.maxNumCentroids, settings.sizeScale))
+	if(CentroidDetection::setup(0 /* unused */, 5, settings.sizeScale))
 		return -1;
 	np = settings.np;
 	ledOffset = settings.ledOffset;
@@ -42,10 +42,12 @@ void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length)
 	updateLeds();
 }
 
-void LedSlider::process(const float* rawData)
+void LedSlider::process(const float* newLocations, const float* newSizes, unsigned int length)
 {
 	if(touchEnabled)
-		CentroidDetectionScaled::process(rawData);
+	{
+		CentroidSettableScaled::set(newLocations, newSizes, length);
+	}
 	if(AUTO_CENTROIDS == mode)
 	{
 		ledCentroids.resize(maxNumPadCentroids);
@@ -208,7 +210,6 @@ LedSliders::LedSliders(const Settings& settings)
 int LedSliders::setup(const Settings& settings)
 {
 	s = settings;
-	pads.resize(s.order.size());
 	sliders.clear();
 	sliders.resize(s.boundaries.size());
 	for(unsigned int n = 0; n < s.boundaries.size(); ++n)
@@ -218,14 +219,13 @@ int LedSliders::setup(const Settings& settings)
 		if(settings.maxNumCentroids.size() > n)
 			maxNumCentroids = settings.maxNumCentroids[n];
 		sliders[n].setup({
-			.numPads = b.lastPad - b.firstPad,
 			.maxNumCentroids = maxNumCentroids,
 			.sizeScale = s.sizeScale,
 			.np = s.np,
 			.numLeds = b.lastLed - b.firstLed,
 			.ledOffset = b.firstLed,
 		});
-		sliders[n].setUsableRange(settings.min, settings.max);
+		sliders[n].setUsableRange(b.sliderMin, b.sliderMax);
 	}
 	return 0;
 }
@@ -237,22 +237,35 @@ static void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
-void LedSliders::process(const float* rawData)
+void LedSliders::process(const CentroidDetectionScaled& globalSlider)
 {
-	sort(pads.data(), rawData, s.order.data(), s.order.size());
-	extern bool gJacksOnTop; // TODO: handle this globally at trill.newData() instead
-	if(gJacksOnTop)
-	{
-		for(size_t n = 0; n < pads.size() / 2; ++n)
-			std::swap(pads[n], pads[pads.size() - n - 1]);
-	}
 	if(ledsEnabled)
 	{
 		//TODO: only clear unused LEDs
 		s.np->clear();
 	}
+	static constexpr size_t kMaxTouches = 5;
 	for(unsigned int n = 0; n < sliders.size(); ++n)
-		sliders[n].process(pads.data() + s.boundaries[n].firstPad);
+	{
+		float locations[kMaxTouches];
+		float sizes[kMaxTouches];
+		size_t count = 0;
+		float min = s.boundaries[n].sliderMin;
+		float max = s.boundaries[n].sliderMax;
+		// find all relevant touches
+		for(unsigned int c = 0; c < globalSlider.getNumTouches() && c < kMaxTouches; ++c)
+		{
+			float location = globalSlider.touchLocation(c);
+			float size = globalSlider.touchSize(c);
+			if(location >= min && location < max && size)
+			{
+				locations[count] = location;
+				sizes[count] = size;
+				count++;
+			}
+		}
+		sliders[n].process(locations, sizes, count);
+	}
 }
 
 void LedSliders::enableTouch(bool enable)

@@ -5,7 +5,7 @@
 #include "rgb.h"
 #include "centroid.h"
 
-class LedSlider : public CentroidDetectionScaled
+class LedSlider : public CentroidSettableScaled
 {
 public:
 	static constexpr size_t kDefaultNumWeights = 2;
@@ -17,7 +17,6 @@ public:
 	} LedMode_t;
 	struct Settings
 	{
-		unsigned int numPads;
 		unsigned int maxNumCentroids;
 		float sizeScale;
 		NeoPixel* np;
@@ -31,7 +30,7 @@ public:
 	void setLedMode(LedMode_t mode);
 	void setLedsRaw(const float* values);
 	void setLedsCentroids(const centroid_t* values, unsigned int length);
-	void process(const float* rawData);
+	void process(const float* locations, const float* sizes, unsigned int length);
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
 	void directBegin();
@@ -55,26 +54,23 @@ class LedSliders
 {
 public:
 	struct delimiters_t {
-		unsigned int firstPad;
-		unsigned int lastPad;
+		float sliderMin;
+		float sliderMax;
 		unsigned int firstLed;
 		unsigned int lastLed;
 	};
 	struct Settings
 	{
-		std::vector<unsigned int> order;
 		float sizeScale;
 		std::vector<delimiters_t> boundaries;
 		std::vector<unsigned int> maxNumCentroids;
 		NeoPixel* np;
-		float min;
-		float max;
 	};
 
 	LedSliders() {};
 	LedSliders(const Settings& settings);
 	int setup(const Settings& settings);
-	void process(const float* rawData);
+	void process(const CentroidDetectionScaled& globalSlider);
 	std::vector<LedSlider> sliders;
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
@@ -89,7 +85,6 @@ public:
 	bool areLedsEnabled();
 	bool isTouchEnabled();
 private:
-	std::vector<float> pads;
 	Settings s;
 	bool ledsEnabled = true;
 	bool touchEnabled = true;

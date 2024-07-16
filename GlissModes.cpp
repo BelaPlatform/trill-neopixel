@@ -498,6 +498,17 @@ typedef enum {
 	kBottomUp,
 	kTopBottom,
 } LedSlidersOrder;
+
+template <typename T>
+static inline void applyOrder(LedSlidersOrder order, T& first, T& last, T max)
+{
+	if(kBottomUp == order)
+		return;
+	first = max - 1 - first;
+	last = max - 1 - last;
+	std::swap(first, last);
+};
+
 static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const& colors, const LedSlider::LedMode_t& mode, bool setInitial, size_t maxNumCentroids, LedSlidersOrder order = kBottomUp, bool asymmetricalSplit = false)
 {
 	std::vector<LedSliders::delimiters_t> boundaries;
@@ -507,15 +518,8 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 
 	float guardPads = 2;
 	float guardLeds = 2;
-	if(0 == numSplits)
-	{
-		guardPads = 0;
-		guardLeds = 0;
-	}
-	static size_t nextPad = 0;
-	static size_t nextLed = 0;
-	nextPad = 0;
-	nextLed = 0;
+	float nextPad = 0;
+	size_t nextLed = 0;
 	for(size_t n = 0; n < numSplits; ++n)
 	{
 		float coeff = 1;
@@ -523,23 +527,18 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 			coeff = 2 * (0 == n ? (1.f - kAsymmetricalSplitPoint) : kAsymmetricalSplitPoint);
 		float activePads = ((kNumPads - (guardPads * (numSplits - 1))) * coeff) / numSplits;
 		float activeLeds = ((kNumLeds - (guardLeds * (numSplits - 1))) * coeff) / numSplits;
-		auto applyOrder = [](LedSlidersOrder order,size_t& first, size_t& last, size_t max) {
-			if(kBottomUp == order)
-				return;
-			first = max - 1 - first;
-			last = max - 1 - last;
-			std::swap(first, last);
-		};
-		size_t firstPad = nextPad;
+		float firstPad = nextPad;
+		float lastPad = firstPad + activePads;
 		size_t firstLed = nextLed;
-		size_t lastPad = firstPad + activePads;
 		size_t lastLed = firstLed + activeLeds;
-		applyOrder(order, firstPad, lastPad, kNumPads);
+		applyOrder(order, firstPad, lastPad, float(kNumPads));
 		applyOrder(order, firstLed, lastLed, kNumLeds);
+		float sliderMin = nextPad / float(kNumPads);
+		float sliderMax = lastPad / float(kNumPads);
 
 		boundaries.push_back({
-				.firstPad = firstPad,
-				.lastPad = lastPad,
+				.sliderMin = sliderMin,
+				.sliderMax = sliderMax,
 				.firstLed = firstLed,
 				.lastLed = lastLed,
 		});
@@ -556,13 +555,10 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		boundaries[0].firstLed += diff;
 	}
 	LedSliders::Settings settings = {
-			.order = padsToOrderMap,
 			.sizeScale = gSizeScale,
 			.boundaries = boundaries,
 			.maxNumCentroids = {maxNumCentroids},
 			.np = &np,
-			.min = kSliderBottomMargin,
-			.max = 1.f - kSliderTopMargin,
 	};
 	ls.setup(settings);
 	assert(numSplits == ls.sliders.size());
@@ -3568,8 +3564,7 @@ public:
 						menu_enterRangeDisplay(kRgbYellow, {kRgbGreen, kRgbGreen}, false, trimRangeBottom, trimRangeTop, circularModeViz);
 						// TODO: line below is just a workaround because we don't have a clean way of
 						// _exiting_ the menu from here while ignoring the _first_ slider readings
-						static std::array<float,kNumPads> data = {0};
-						ledSliders.sliders[0].process(data.data());
+						ledSliders.sliders[0].process(nullptr, nullptr, 0);
 				}
 			}
 		}
@@ -4525,7 +4520,6 @@ public:
 		// we can quickly get into menu mode from here
 		if(!gAlt)
 		{
-			static std::array<float,kNumPads> data = {0};
 			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
 			{
 				// only touch on: set output range
@@ -4533,7 +4527,7 @@ public:
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _entering_ menu from here while ignoring the _last_ slider readings,
 				// resulting in automatically re-entering immediately after exiting
-				ledSliders.sliders[0].process(data.data());
+				ledSliders.sliders[0].process(nullptr, nullptr, 0);
 			}
 			if(performanceBtn.offset)
 			{
@@ -4541,7 +4535,7 @@ public:
 				menu_enterRangeDisplay(signalColor, {endpointsColorIn, endpointsColorIn}, false, inRangeBottom, inRangeTop, inDisplay);
 				// TODO: line below is just a workaround because we don't have a clean way of
 				// _exiting_ the menu from here while ignoring the _first_ slider readings
-				ledSliders.sliders[0].process(data.data());
+				ledSliders.sliders[0].process(nullptr, nullptr, 0);
 			}
 		}
 		// ugly workaround to turn on the red LED when in the "clipping" page
@@ -9286,11 +9280,10 @@ void menu_render(BelaContext*, FrameData* frameData)
 		// conversely, tr_render() doesn't know if we have to ignore touches again at some point
 		// e.g.: because we entered a submenu from here.
 		// TODO: simplify
-		constexpr size_t kNumChannelsMax = 30; // from trill.cpp
-		static std::array<float,kNumChannelsMax> dummyData {};
-		ledSlidersAlt.process(dummyData.data());
+		static CentroidDetectionScaled dummySlider;
+		ledSlidersAlt.process(dummySlider);
 	} else
-		ledSlidersAlt.process(trill.rawData.data()); // TODO: calling this only on frameData.isNew causes troubles when gJacksOnTop. Investigate why
+		ledSlidersAlt.process(globalSlider); // TODO: calling this only on frameData.isNew causes troubles when gJacksOnTop. Investigate why
 
 	// set the color (i.e.: animation for the _next_ iteration)
 	// (it has already been rendered to np from the ledSliders.process() call above)
