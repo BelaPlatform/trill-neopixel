@@ -126,6 +126,7 @@ public:
 		centroid_t touch;
 		Position startLocation;
 		Id id = kIdInvalid;
+		bool assigned = false;
 	};
 private:
 	static_assert(std::is_signed<Position>::value); // if not signed, distance computation below may get fuzzy
@@ -140,6 +141,7 @@ private:
 public:
 	static constexpr TouchWithId kInvalidTouch = {
 		.id = kIdInvalid,
+		.assigned = false,
 	};
 private:
 	size_t getTouchOrderById(const Id id)
@@ -259,6 +261,7 @@ public:
 
 			const Id id = sortedTouchIds[i];
 			Position startLocation = -1;
+			bool assigned = false;
 			if(id >= firstNewId)
 				startLocation = touches[i].location;
 			else {
@@ -269,6 +272,7 @@ public:
 					if(id == prevSortedTouches[n].id)
 					{
 						startLocation = prevSortedTouches[n].startLocation;
+						assigned = prevSortedTouches[n].assigned;
 						break;
 					}
 				}
@@ -278,6 +282,7 @@ public:
 				.touch = touches[i],
 				.startLocation = startLocation,
 				.id = id,
+				.assigned = assigned,
 			};
 		}
 		// empty remaining touches. Not that they should ever be accessed...
@@ -287,7 +292,7 @@ public:
 		for(size_t n = 0; n < numTouches; ++n)
 		{
 			auto& t = getTouchOrdered(n);
-			printf("[%u]%lu %.2f %.1f ", n, t.id, t.touch.location, t.startLocation);
+			printf("[%u]%lu %.2f %.1f %d ", n, t.id, t.touch.location, t.startLocation, t.assigned);
 		}
 		if(numTouches)
 			printf("\n\r");
@@ -310,6 +315,12 @@ public:
 		size_t n = getTouchOrderById(id);
 		if(n < numTouches)
 			sortedTouches[n].startLocation = newLocation;
+	}
+	void assignTouchById(const Id id)
+	{
+		size_t n = getTouchOrderById(id);
+		if(n < numTouches)
+			sortedTouches[n].assigned = true;
 	}
 	// the last is the most recent
 	const TouchWithId& getTouchOrdered(size_t n)
@@ -2505,34 +2516,34 @@ static bool areEqual(const T& a, const T& b)
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
-std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, bool split, bool asymmetricalSplit)
+void touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, size_t numSplits, bool asymmetricalSplit, TouchTracker::TouchWithId* values)
 {
-	std::array<TouchTracker::TouchWithId,kNumSplits> values {};
 	if(shouldProcess)
 		gTouchTracker.process(globalSlider);
 	size_t numTouches = gTouchTracker.getNumTouches();
-	// per each split
-	static_assert(kNumSplits == 2); // or the loop below won't work
-	const float mid = asymmetricalSplit ? kAsymmetricalSplitPoint : 0.5;
-	const float midMin = mid - 0.05;
-	const float midMax = mid + 0.05;
-	for(ssize_t s = 0; s < 1 + split; ++s)
+	float deadZone;
+	if(numSplits <= 2)
+		deadZone = 0.1;
+	else
+		deadZone = 0.05;
+	const float activeZone = (1.f - deadZone * (numSplits - 1)) / numSplits;
+	for(size_t s = 0; s < numSplits; ++s)
 	{
 		float min;
 		float max;
-		if(split)
+		if(2 == numSplits && asymmetricalSplit)
 		{
 			if(0 == s)
 			{
-				min = midMax;
+				min = kAsymmetricalSplitPoint + deadZone * 0.5f;
 				max = 1;
 			} else {
 				min = 0;
-				max = midMin;
+				max = kAsymmetricalSplitPoint - deadZone * 0.5f;
 			}
 		} else {
-			min = 0;
-			max = 1;
+			min = (numSplits - 1 - s) * (activeZone + deadZone);
+			max = min + activeZone;
 		}
 		TouchTracker::TouchWithId twi = TouchTracker::kInvalidTouch;
 		for(ssize_t i = numTouches - 1; i >= 0; --i)
@@ -2541,9 +2552,10 @@ std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetec
 			const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
 			if(t.startLocation >= min && t.startLocation <= max)
 			{
+				gTouchTracker.assignTouchById(t.id);
 				twi = t;
 				break;
-			} else if(t.startLocation > midMin && t.startLocation < midMax) {
+			} else if(!t.assigned && (t.startLocation < min || t.startLocation > max)) {
 				// touch originated in the region between the splits.
 				if(t.touch.location >= min && t.touch.location <= max)
 				{
@@ -2551,6 +2563,7 @@ std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetec
 					// we assign it to it for future reference
 					// and immediately start using it
 					gTouchTracker.setStartLocationById(t.id, t.touch.location);
+					gTouchTracker.assignTouchById(t.id);
 					twi = t;
 					break;
 				}
@@ -2558,16 +2571,11 @@ std::array<TouchTracker::TouchWithId,kNumSplits> touchTrackerSplit(CentroidDetec
 		}
 		values[s] = twi;
 		if(TouchTracker::kIdInvalid != twi.id) {
-			// TODO: this used to be compoundTouch)
-			values[s].touch.location = mapAndConstrain(twi.touch.location, min, max, 0, 1);
-		}
-		if(split)
-		{
-			// start location relative to split, like location
+			// adjust locations relative to split
+			values[s].touch.location = mapAndConstrain(values[s].touch.location, min, max, 0, 1);
 			values[s].startLocation = mapAndConstrain(values[s].startLocation, min, max, 0, 1);
 		}
 	}
-	return values;
 }
 
 class SplitPerformanceMode : public PerformanceMode {
@@ -2807,7 +2815,8 @@ public:
 		bool analogInHigh = tri.analogRead() > kTriggerInOnThreshold;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
-		std::array<TouchTracker::TouchWithId,kNumSplits> twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit(), isAsymmetricalSplit());
+		std::array<TouchTracker::TouchWithId,kNumSplits> twis;
+		touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
 			values[n] = processSize(twis[n].touch, n);
@@ -3728,8 +3737,7 @@ public:
 				}
 			}
 		}
-
-		twis = touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit(), isAsymmetricalSplit());
+		touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
