@@ -1944,6 +1944,12 @@ public:
 	std::vector<ParameterContainer> parameters;
 	static constexpr rgb_t buttonColor {kRgbGreen};
 };
+
+// a class that affects the behaviour of updatePresetField() in that it
+// prevents it from storing IoRanges
+class PerformanceModeWithoutRanges : public PerformanceMode {
+};
+
 constexpr rgb_t PerformanceMode::buttonColor;
 
 #ifdef TEST_MODE
@@ -2396,132 +2402,76 @@ static bool areEqual(const T& a, const T& b)
 	return !memcmp(&a, &b, sizeof(T));
 }
 
-#define UPDATE_PRESET_IORANGES() { \
-	presetFieldData.ioRanges = ioRangesParameters; \
+template <typename pfd_t, typename PerfMode, typename T, typename U, typename BasePerfMode>
+bool updatePresetFieldPairActual(pfd_t* pfd, PerfMode* that, T pfd_t::*a_, const U BasePerfMode::* A_)
+{
+	static_assert(std::is_pod<T>::value, "First argument in pairs should be POD");
+	static_assert(std::is_base_of<Parameter,U>::value, "Second argument in pairs should be source Parameter");
+	auto& a = pfd->*a_;
+	const auto& A = that->*A_;
+	bool changed = a != A.get();
+	a = A.get();
+	M(printf("update plain %s\n\r", changed ? "changed" : ""));
+	return changed;
 }
 
-#define UPDATE_PRESET_IORANGES_WITH_SAME() { \
-	auto ioRanges = presetFieldData.ioRanges; \
-	UPDATE_PRESET_IORANGES(); \
-	if(memcmp(&ioRanges, &presetFieldData.ioRanges, sizeof(ioRanges))) \
-		same = false; \
+template <typename pfd_t, typename PerfMode, typename T, typename U, size_t N, typename BasePerfMode>
+bool updatePresetFieldPairActual(pfd_t* pfd, PerfMode* that, std::array<T,N> pfd_t::*& a_, std::array<U,N> BasePerfMode::*& A_)
+{
+	static_assert(std::is_pod<T>::value, "First argument in pairs should be POD");
+	static_assert(std::is_base_of<Parameter,U>::value, "Second argument in pairs should be source Parameter");
+	auto& a = pfd->*a_;
+	const auto& A = that->*A_;
+	bool changed = false;
+	for(size_t n = 0; n < A.size(); ++n)
+	{
+		auto a0 = A[n].get();
+		if(memcmp(&a0, &a[n], sizeof(a0)))
+		{
+			changed = true;
+			break;
+		}
+	}
+	for(size_t n = 0; n < A.size(); ++n)
+		a[n] = A[n];
+	M(printf("update array %s\n\r", changed ? "changed" : ""));
+	return changed;
 }
 
-#define UPDATE_PRESET_FIELD2(A,B) \
-{ \
-	PresetFieldData_t bak = presetFieldData; \
-	UPDATE_PRESET_IORANGES(); \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
+template <typename pfd_t, typename PerfMode>
+static inline bool updatePresetFieldT(pfd_t*, PerfMode*) { return false; } // termination case
+
+template <typename pfd_t, typename PerfMode, typename T, typename U, typename BasePerfMode, typename... Ts>
+static bool updatePresetFieldT(pfd_t* pfd, const PerfMode* that, T pfd_t::*a, U BasePerfMode::* A, Ts&... varargs)
+{
+	static_assert(std::is_base_of<BasePerfMode,PerfMode>::value, "Type mismatch");
+	bool changed = updatePresetFieldPairActual(pfd, that, a, A);
+	changed |= updatePresetFieldT(pfd, that, varargs...);
+	return changed;
 }
 
-#define UPDATE_PRESET_FIELD2PlusArray(A,B,A0) \
-{ \
-	bool same = true; \
-	UPDATE_PRESET_IORANGES_WITH_SAME(); \
-	for(size_t n = 0; n < A0.size(); ++n) \
-	{ \
-		auto a0 = A0[n].get(); \
-		if(memcmp(&a0, &presetFieldData.A0[n], sizeof(a0))) \
-		{ \
-			same = false; \
-			break; \
-		} \
-	} \
-	if(presetFieldData.A != A || presetFieldData.B != B || !same) { \
-		presetFieldData.A = A; \
-		presetFieldData.B = B; \
-		for(size_t n = 0; n < A0.size(); ++n) \
-			presetFieldData.A0[n] = A0[n]; \
-		presetSetField(this, &presetFieldData); \
-	} \
+// once a Parameter has been updated, this updates the corresponding preset field if it has changed
+// In other words, it makes sure that the preset is up to date with the data that is in memory
+template <typename PerfMode, typename... Ts>
+void updatePresetField(PerfMode* that, Ts... varargs)
+{
+	static_assert(0 == (sizeof...(Ts) & 1), "Arguments should be: `this`, then destination, source pairs");
+	bool changed = false;
+
+	if constexpr(std::is_base_of<PerformanceMode,PerfMode>::value && !std::is_base_of<PerformanceModeWithoutRanges,PerfMode>::value)
+	{
+		auto bakIoRanges = that->presetFieldData.ioRanges;
+		that->presetFieldData.ioRanges = that->ioRangesParameters;
+		if(memcmp(&bakIoRanges, &that->presetFieldData.ioRanges, sizeof(bakIoRanges)))
+			changed |= true;
+	}
+	changed |= updatePresetFieldT(&that->presetFieldData, that, varargs...);
+	if(changed)
+	{
+		presetSetField(that, &that->presetFieldData);
+	}
 }
 
-#define UPDATE_PRESET_FIELD3(A,B,C) \
-{ \
-	PresetFieldData_t bak = presetFieldData; \
-	UPDATE_PRESET_IORANGES(); \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	presetFieldData.C = C; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
-}
-
-#define UPDATE_PRESET_NOIORANGES_FIELD3(A,B,C) { \
-	PresetFieldData_t bak = presetFieldData; \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	presetFieldData.C = C; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
-}
-
-#define UPDATE_PRESET_FIELD3PlusArrays(A,B,C,A0,A1) \
-{ \
-	bool same = true; \
-	UPDATE_PRESET_IORANGES_WITH_SAME(); \
-	for(size_t n = 0; n < A0.size(); ++n) \
-	{ \
-		auto a0 = A0[n].get(); \
-		if(memcmp(&a0, &presetFieldData.A0[n], sizeof(a0))) \
-		{ \
-			same = false; \
-			break; \
-		} \
-	} \
-	for(size_t n = 0; n < A1.size(); ++n) \
-	{ \
-		auto a1 = A1[n].get(); \
-		if(memcmp(&a1, &presetFieldData.A1[n], sizeof(a1))) \
-		{ \
-			same = false; \
-			break; \
-		} \
-	} \
-	if(presetFieldData.A != A || presetFieldData.B != B || presetFieldData.C != C || !same) { \
-		presetFieldData.A = A; \
-		presetFieldData.B = B; \
-		presetFieldData.C = C; \
-		for(size_t n = 0; n < A0.size(); ++n) \
-			presetFieldData.A0[n] = A0[n]; \
-		for(size_t n = 0; n < A1.size(); ++n) \
-			presetFieldData.A1[n] = A1[n]; \
-		presetSetField(this, &presetFieldData); \
-	} \
-}
-
-#define UPDATE_PRESET_NOIORANGES_FIELD4(A,B,C,D) { \
-	PresetFieldData_t bak = presetFieldData; \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	presetFieldData.C = C; \
-	presetFieldData.D = D; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
-}
-
-#define UPDATE_PRESET_FIELD12(A,B,C,D,E,F,G,H,I,J,K,L) \
-{ \
-	PresetFieldData_t bak = presetFieldData; \
-	UPDATE_PRESET_IORANGES(); \
-	presetFieldData.A = A; \
-	presetFieldData.B = B; \
-	presetFieldData.C = C; \
-	presetFieldData.D = D; \
-	presetFieldData.E = E; \
-	presetFieldData.F = F; \
-	presetFieldData.G = G; \
-	presetFieldData.H = H; \
-	presetFieldData.I = I; \
-	presetFieldData.J = J; \
-	presetFieldData.K = K; \
-	presetFieldData.L = L; \
-	if(!areEqual(bak, presetFieldData)) \
-		presetSetField(this, &presetFieldData); \
-}
 // values must have enough space for numSplits * maxTouchesPerSplit elements.
 // it will contain, interleaved, maxTouchesPerSplit elements per each split. Invalid
 // elements (i.e.: non-touches) will have a kIdInvalid id.
@@ -3081,7 +3031,11 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2PlusArray(splitMode, autoLatch, smooths);
+		updatePresetField(this,
+				&PresetFieldData_t::splitMode, &DirectControlMode::splitMode,
+				&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
+				&PresetFieldData_t::smooths, &DirectControlMode::smooths
+				);
 	}
 	DirectControlMode() :
 		presetFieldData{
@@ -3121,12 +3075,12 @@ public:
 		{this, 0},
 		{this, 0},
 	}};
-	PACKED_STRUCT(PresetFieldData_t {
+	struct PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t splitMode;
 		uint8_t autoLatch;
 		std::array<float,kNumSmooths> smooths;
-	}) presetFieldData;
+	} presetFieldData;
 private:
 	bool hasSizeOutput()
 	{
@@ -4317,7 +4271,10 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD2(splitMode, inputMode);
+		updatePresetField(this,
+				&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
+				&PresetFieldData_t::inputMode, &RecorderMode::inputMode
+				);
 	}
 	RecorderMode() :
 		presetFieldData {
@@ -4795,7 +4752,11 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3(outputMode, coupling, cutoff);
+		updatePresetField(this,
+				&PresetFieldData_t::outputMode, &ScaleMeterMode::outputMode,
+				&PresetFieldData_t::coupling, &ScaleMeterMode::coupling,
+				&PresetFieldData_t::cutoff, &ScaleMeterMode::cutoff
+			);
 	}
 	enum {
 		kCouplingDc,
@@ -4841,12 +4802,12 @@ public:
 	ParameterContinuous outRangeMax {this, 1};
 	ParameterContinuous inRangeBottom {this, 0};
 	ParameterContinuous inRangeTop {this, 1};
-	PACKED_STRUCT(PresetFieldData_t {
+	struct PresetFieldData_t {
 		IoRanges ioRanges;
 		int outputMode;
 		int coupling;
 		float cutoff;
-	}) presetFieldData;
+	} presetFieldData;
 	size_t inDisplayUpdated;
 	float inDisplay;
 private:
@@ -4985,7 +4946,11 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3(waveform, centreFrequency, inputMode);
+		updatePresetField(this,
+				&PresetFieldData_t::waveform, &BalancedOscsMode::waveform,
+				&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
+				&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
+			);
 	}
 	BalancedOscsMode() :
 		presetFieldData {
@@ -5011,12 +4976,12 @@ public:
 	ParameterEnumT<Oscillator::numOscTypes> waveform {this, Oscillator::triangle};
 	ParameterContinuous centreFrequency {this};
 	ParameterEnumT<kNumInputModes> inputMode {this, kInputModeTrig};
-	PACKED_STRUCT(PresetFieldData_t {
+	struct PresetFieldData_t {
 		IoRanges ioRanges;
 		float centreFrequency = centreFrequency;
 		uint8_t waveform = waveform;
 		uint8_t inputMode = inputMode;
-	}) presetFieldData;
+	} presetFieldData;
 private:
 	float divisionPoint = 0.5;
 	uint32_t lastClockPeriodUpdateCounter = gClockPeriodUpdateCounter;
@@ -6044,7 +6009,13 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_FIELD3PlusArrays(quantised, seqMode, modRange, offsetParameters, keyStepModes);
+		updatePresetField(this,
+				&PresetFieldData_t::quantised, &ExprButtonsMode::quantised,
+				&PresetFieldData_t::seqMode, &ExprButtonsMode::seqMode,
+				&PresetFieldData_t::modRange, &ExprButtonsMode::modRange,
+				&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
+				&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
+		);
 	}
 	ExprButtonsMode() :
 		presetFieldData {
@@ -6104,14 +6075,14 @@ public:
 		ParameterContinuous(this, semiToNorm(74)), // D
 	};
 	std::array<ParameterGenericT<KeyStepMode>,kMaxNumButtons> keyStepModes = FILL_ARRAY(keyStepModes, {this, KeyStepMode::getDefault()});
-	PACKED_STRUCT(PresetFieldData_t {
+	struct PresetFieldData_t {
 		IoRanges ioRanges;
 		uint8_t quantised;
 		uint8_t seqMode;
 		float modRange;
 		std::array<float,kMaxNumButtons> offsetParameters;
 		std::array<KeyStepMode,kMaxNumButtons> keyStepModes;
-	}) presetFieldData;
+	} presetFieldData;
 private:
 	float out = 0;
 	size_t keyBeingAdjusted = kKeyInvalid;
@@ -6168,7 +6139,7 @@ private:
 Calibration_t calibrationState;
 CalibrationDataParameter calibrationOut {this};
 CalibrationDataParameter calibrationIn {this};
-ParameterGenericT<uint8_t> dummy {this, 0}; // so that we don't need too many noioranges macros
+ParameterGenericT<uint8_t> dummy {this, 0}; // TODO: remove once templated all the macros
 
 typedef enum {
 	kFindingDacGnd,
@@ -6238,13 +6209,17 @@ void updated(Parameter& p)
 }
 void updatePreset() override
 {
-	UPDATE_PRESET_NOIORANGES_FIELD3(calibrationOut, calibrationIn, dummy);
+	updatePresetField(this,
+			&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
+			&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
+			&PresetFieldData_t::dummy, &CalibrationProcedure::dummy
+		);
 }
-PACKED_STRUCT(PresetFieldData_t {
+struct PresetFieldData_t {
 	CalibrationData calibrationOut;
 	CalibrationData calibrationIn;
 	uint8_t dummy;
-}) presetFieldData;
+} presetFieldData;
 void setup()
 {
 	count = 0;
@@ -6541,7 +6516,7 @@ static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx)
 }
 
 static constexpr rgb_t kCalibrationColor = kRgbRed;
-class CalibrationMode : public PerformanceMode {
+class CalibrationMode : public PerformanceModeWithoutRanges {
 	enum Animation {
 		kBlink,
 		kStatic,
@@ -6678,7 +6653,7 @@ public:
 	}
 } gCalibrationMode(kCalibrationColor);
 
-class FactoryTestMode: public PerformanceMode {
+class FactoryTestMode: public PerformanceModeWithoutRanges {
 public:
 	void setColor(size_t idx, const rgb_t& color) override
 	{
@@ -7123,7 +7098,7 @@ private:
 
 extern const ssize_t kFactoryTestModeIdx;
 
-class EraseSettingsMode: public PerformanceMode {
+class EraseSettingsMode: public PerformanceModeWithoutRanges {
 public:
 	void setColor(size_t idx, const rgb_t& color) override
 	{
@@ -8867,7 +8842,12 @@ public:
 	}
 	void updatePreset()
 	{
-		UPDATE_PRESET_NOIORANGES_FIELD4(sizeScaleCoeff, brightness, flags, newMode);
+		updatePresetField(this,
+				&PresetFieldData_t::sizeScaleCoeff, &GlobalSettings::sizeScaleCoeff,
+				&PresetFieldData_t::brightness, &GlobalSettings::brightness,
+				&PresetFieldData_t::flags, &GlobalSettings::flags,
+				&PresetFieldData_t::newMode, &GlobalSettings::newMode
+		);
 	}
 	GlobalSettings() :
 		presetFieldData {
@@ -8897,12 +8877,12 @@ public:
 	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	ParameterEnumT<kFlagMax> flags {this, kFlagJacksOnTop};
-	PACKED_STRUCT(PresetFieldData_t {
+	struct PresetFieldData_t {
 		float sizeScaleCoeff;
 		float brightness;
 		uint8_t flags;
 		uint8_t newMode;
-	}) presetFieldData;
+	} presetFieldData;
 } gGlobalSettings;
 
 bool menu_isLocked()
