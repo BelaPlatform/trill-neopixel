@@ -12,7 +12,7 @@ int LedSlider::setup(const Settings& settings)
 		return -1;
 	np = settings.np;
 	ledOffset = settings.ledOffset;
-	setLedMode(AUTO_CENTROIDS);
+	setLedMode(MANUAL_CENTROIDS);
 	maxNumPadCentroids = settings.maxNumCentroids;
 	ledValues.resize(settings.numLeds);
 	ledCentroids.resize(maxNumPadCentroids);
@@ -47,29 +47,6 @@ void LedSlider::process(const float* newLocations, const float* newSizes, unsign
 	if(touchEnabled)
 	{
 		CentroidSettableScaled::set(newLocations, newSizes, length);
-	}
-	if(AUTO_CENTROIDS == mode)
-	{
-		ledCentroids.resize(maxNumPadCentroids);
-		unsigned int n;
-		for(n = 0; n < getNumTouches(); ++n)
-		{
-			if(1 == maxNumPadCentroids)
-			{
-				ledCentroids[n].size = compoundTouchSize();
-				ledCentroids[n].location = compoundTouchLocation();
-			}
-			else
-			{
-				ledCentroids[n].size = touchSize(n);
-				ledCentroids[n].location = touchLocation(n);
-			}
-		}
-		for( ; n < ledCentroids.size(); ++n)
-		{
-			ledCentroids[n].size = 0;
-			ledCentroids[n].location = 0;
-		}
 	}
 	updateLeds();
 }
@@ -184,7 +161,7 @@ void LedSlider::updateLeds()
 		return;
 	if(!ledValues.size())
 		return;
-	if(AUTO_CENTROIDS == mode || MANUAL_CENTROIDS == mode)
+	if(MANUAL_CENTROIDS == mode)
 	{
 		memset(ledValues.data(), 0, sizeof(ledValues[0]) * ledValues.size());
 		for(unsigned int n = 0; n < ledCentroids.size(); ++n)

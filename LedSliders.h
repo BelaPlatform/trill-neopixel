@@ -10,7 +10,6 @@ class LedSlider : public CentroidSettableScaled
 public:
 	static constexpr size_t kDefaultNumWeights = 2;
 	typedef enum {
-		AUTO_CENTROIDS,
 		MANUAL_CENTROIDS,
 		MANUAL_RAW,
 		MANUAL_DIRECT, // uses directBegin(), directWriteCentroid()
