@@ -337,7 +337,9 @@ public:
 	{
 		return sortedTouches[0];
 	}
-} gTouchTracker;
+};
+TouchTracker gTouchTracker;
+TouchTracker gTouchTrackerAlt;
 static_assert(kNumOutChannels >= 2); // too many things to list depend on this in this file.
 
 //#define TRIGGER_IN_TO_CLOCK_USES_MOVING_AVERAGE
@@ -8208,6 +8210,7 @@ private:
 	bool ignoreNextRelease = false;
 };
 
+static constexpr size_t kMaxMenuItems = 5; // TODO: validate this is respected by MenuPage
 class MenuPage { //todo: make non-copyable
 public:
 	const char* name;
@@ -9303,8 +9306,32 @@ void menu_render(BelaContext*, FrameData* frameData)
 		// TODO: simplify
 		static CentroidDetectionScaled dummySlider;
 		ledSlidersAlt.process(dummySlider);
-	} else
-		ledSlidersAlt.process(globalSlider); // TODO: calling this only on frameData.isNew causes troubles when gJacksOnTop. Investigate why
+	} else {
+		if(activeMenu)
+		{
+			// calling this only on frameData->isNew would cause
+			// flickering because the LEDs are cleared in tr_render()
+			// so we call it unconditionally
+			ssize_t numSplits = std::min(activeMenu->items.size(), kMaxMenuItems);
+			static constexpr size_t kMaxTouchesPerSplit = 2;
+			std::array<TouchTracker::TouchWithId,kMaxMenuItems*kMaxTouchesPerSplit> twis;
+			touchTrackerSplit(gTouchTrackerAlt, globalSlider, ledSlidersAlt.isTouchEnabled() && frameData->isNew, numSplits, kMaxTouchesPerSplit, false, twis.data());
+			std::array<centroid_t const*,kMaxMenuItems*kMaxTouchesPerSplit + kMaxMenuItems> centroids {}; // enough for kMaxTouchePerSplit touches per menu item + separators
+			size_t c = 0;
+			// reverse because globalSlider behaves backwards wrt splits.
+			for(ssize_t n = numSplits - 1; n >= 0; --n)
+			{
+				for(size_t t = 0; t < kMaxTouchesPerSplit; ++t)
+				{
+					auto const& twi = twis[n * kMaxTouchesPerSplit + t];
+					if(n < numSplits && TouchTracker::kIdInvalid != twi.id)
+						centroids[c++] = &twi.touch;
+				}
+				centroids[c++] = nullptr; // separator between sub-sliders
+			}
+			ledSlidersAlt.process(centroids.data());
+		}
+	}
 
 	// set the color (i.e.: animation for the _next_ iteration)
 	// (it has already been rendered to np from the ledSliders.process() call above)
