@@ -2516,11 +2516,11 @@ static bool areEqual(const T& a, const T& b)
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
-void touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, size_t numSplits, bool asymmetricalSplit, TouchTracker::TouchWithId* values)
+void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slider, bool shouldProcess, size_t numSplits, bool asymmetricalSplit, TouchTracker::TouchWithId* values)
 {
 	if(shouldProcess)
-		gTouchTracker.process(globalSlider);
-	size_t numTouches = gTouchTracker.getNumTouches();
+		touchTracker.process(globalSlider);
+	size_t numTouches = touchTracker.getNumTouches();
 	float deadZone;
 	if(numSplits <= 2)
 		deadZone = 0.1;
@@ -2549,10 +2549,10 @@ void touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, size_t num
 		for(ssize_t i = numTouches - 1; i >= 0; --i)
 		{
 			// get the most recent touch which started on this split
-			const TouchTracker::TouchWithId& t = gTouchTracker.getTouchOrdered(i);
+			const TouchTracker::TouchWithId& t = touchTracker.getTouchOrdered(i);
 			if(t.startLocation >= min && t.startLocation <= max)
 			{
-				gTouchTracker.assignTouchById(t.id);
+				touchTracker.assignTouchById(t.id);
 				twi = t;
 				break;
 			} else if(!t.assigned && (t.startLocation < min || t.startLocation > max)) {
@@ -2562,8 +2562,8 @@ void touchTrackerSplit(CentroidDetection& slider, bool shouldProcess, size_t num
 					// if it enters one of the splits,
 					// we assign it to it for future reference
 					// and immediately start using it
-					gTouchTracker.setStartLocationById(t.id, t.touch.location);
-					gTouchTracker.assignTouchById(t.id);
+					touchTracker.setStartLocationById(t.id, t.touch.location);
+					touchTracker.assignTouchById(t.id);
 					twi = t;
 					break;
 				}
@@ -2816,7 +2816,7 @@ public:
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis;
-		touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
+		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
 			values[n] = processSize(twis[n].touch, n);
@@ -3737,7 +3737,7 @@ public:
 				}
 			}
 		}
-		touchTrackerSplit(globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
+		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
