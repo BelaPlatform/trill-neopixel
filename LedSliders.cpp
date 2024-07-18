@@ -214,6 +214,32 @@ static void sort(T* out, U* in, unsigned int* order, unsigned int size)
 		out[n] = in[order[n]];
 }
 
+// takes a nullptr-separated list of centroids
+void LedSliders::process(const centroid_t** centroids)
+{
+	if(ledsEnabled)
+	{
+		//TODO: only clear unused LEDs
+		s.np->clear();
+	}
+	centroid_t const** cen = centroids;
+	for(unsigned int n = 0; n < sliders.size(); ++n)
+	{
+		size_t start = cen - centroids;
+		size_t count = 0;
+		while(*cen++) // look for next empty one
+			count++;
+		float locations[count];
+		float sizes[count];
+		for(size_t c = 0; c < count; ++c)
+		{
+			locations[c] = centroids[start + c]->location;
+			sizes[c] = centroids[start + c]->size;
+		}
+		sliders[n].process(locations, sizes, count);
+	}
+}
+
 void LedSliders::process(const CentroidDetectionScaled& globalSlider)
 {
 	if(ledsEnabled)

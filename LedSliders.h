@@ -69,6 +69,7 @@ public:
 	LedSliders() {};
 	LedSliders(const Settings& settings);
 	int setup(const Settings& settings);
+	void process(const centroid_t** centroids);
 	void process(const CentroidDetectionScaled& globalSlider);
 	std::vector<LedSlider> sliders;
 	void enableTouch(bool enable);
