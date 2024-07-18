@@ -2516,7 +2516,10 @@ static bool areEqual(const T& a, const T& b)
 	if(!areEqual(bak, presetFieldData)) \
 		presetSetField(this, &presetFieldData); \
 }
-void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slider, bool shouldProcess, size_t numSplits, bool asymmetricalSplit, TouchTracker::TouchWithId* values)
+// values must have enough space for numSplits * maxTouchesPerSplit elements.
+// it will contain, interleaved, maxTouchesPerSplit elements per each split. Invalid
+// elements (i.e.: non-touches) will have a kIdInvalid id.
+void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slider, bool shouldProcess, size_t numSplits, size_t maxTouchesPerSplit, bool asymmetricalSplit, TouchTracker::TouchWithId* values)
 {
 	if(shouldProcess)
 		touchTracker.process(globalSlider);
@@ -2545,16 +2548,16 @@ void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slid
 			min = (numSplits - 1 - s) * (activeZone + deadZone);
 			max = min + activeZone;
 		}
-		TouchTracker::TouchWithId twi = TouchTracker::kInvalidTouch;
-		for(ssize_t i = numTouches - 1; i >= 0; --i)
+		TouchTracker::TouchWithId twi[maxTouchesPerSplit];
+		size_t touches = 0;
+		for(ssize_t i = numTouches - 1; i >= 0 && touches < maxTouchesPerSplit; --i)
 		{
-			// get the most recent touch which started on this split
+			// get maxTouchesPerSplit most recent touches which started on this split
 			const TouchTracker::TouchWithId& t = touchTracker.getTouchOrdered(i);
 			if(t.startLocation >= min && t.startLocation <= max)
 			{
 				touchTracker.assignTouchById(t.id);
-				twi = t;
-				break;
+				twi[touches++] = t;
 			} else if(!t.assigned && (t.startLocation < min || t.startLocation > max)) {
 				// touch originated in the region between the splits.
 				if(t.touch.location >= min && t.touch.location <= max)
@@ -2564,16 +2567,20 @@ void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slid
 					// and immediately start using it
 					touchTracker.setStartLocationById(t.id, t.touch.location);
 					touchTracker.assignTouchById(t.id);
-					twi = t;
-					break;
+					twi[touches++] = t;
 				}
 			}
 		}
-		values[s] = twi;
-		if(TouchTracker::kIdInvalid != twi.id) {
-			// adjust locations relative to split
-			values[s].touch.location = mapAndConstrain(values[s].touch.location, min, max, 0, 1);
-			values[s].startLocation = mapAndConstrain(values[s].startLocation, min, max, 0, 1);
+		for(size_t t = 0; t < maxTouchesPerSplit; ++t)
+		{
+			size_t idx = s * maxTouchesPerSplit + t;
+			values[idx] = twi[t];
+			if(TouchTracker::kIdInvalid != twi[t].id)
+			{
+				// adjust locations relative to split
+				values[idx].touch.location = mapAndConstrain(twi[t].touch.location, min, max, 0, 1);
+				values[idx].startLocation = mapAndConstrain(twi[t].startLocation, min, max, 0, 1);
+			}
 		}
 	}
 }
@@ -2816,10 +2823,14 @@ public:
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis;
-		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
+		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, currentSplits(), 1, isAsymmetricalSplit(), twis.data());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
+		{
+			if(TouchTracker::kIdInvalid == twis[n].id)
+				twis[n].touch = {0, 0};
 			values[n] = processSize(twis[n].touch, n);
+		}
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
 
@@ -3737,7 +3748,7 @@ public:
 				}
 			}
 		}
-		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, isSplit() + 1, isAsymmetricalSplit(), twis.data());
+		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, currentSplits(), 1, isAsymmetricalSplit(), twis.data());
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
