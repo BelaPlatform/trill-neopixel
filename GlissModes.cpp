@@ -2215,6 +2215,9 @@ private:
 } gTestMode;
 #endif // TEST_MODE
 
+#define ENUMERATE_ARRAY_4(tuple) tuple[0], tuple[1], tuple[2], tuple[3]
+#define ENUMERATE_ARRAY_5(tuple) ENUMERATE_ARRAY_4(tuple), tuple[4]
+
 #define type_unref(A) typename std::remove_reference<decltype(A)>::type
 // unaligned target assign with type conversion
 #define UN_T_ASS(dst, src) { \
@@ -3009,17 +3012,10 @@ public:
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
 			.autoLatch = autoLatch,
-			.smooths = {
-					smooths[0],
-					smooths[1],
-					smooths[2],
-					smooths[3],
-			},
+			.smooths = { ENUMERATE_ARRAY_4(smooths), },
 		}
 	{
-		parameters = {{splitMode, autoLatch,
-				// smooths is array, needs special treatment
-		}};
+		parameters = {{splitMode, autoLatch, ENUMERATE_ARRAY_4(smooths)}};
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
@@ -6021,25 +6017,17 @@ public:
 			.seqMode = seqMode,
 			.modRange = modRange,
 			.offsetParameters = {
-				offsetParameters[0],
-				offsetParameters[1],
-				offsetParameters[2],
-				offsetParameters[3],
-				offsetParameters[4],
+				ENUMERATE_ARRAY_5(offsetParameters),
 			},
 			.keyStepModes = {
-				keyStepModes[0],
-				keyStepModes[1],
-				keyStepModes[2],
-				keyStepModes[3],
-				keyStepModes[4],
+				ENUMERATE_ARRAY_5(keyStepModes),
 			},
 		}
 	{
 		parameters = {{ seqMode, quantised, modRange,
-			// offsetParameterRaw, // TODO: doesn't need to be exposed
-			// offsetParameters, // TODO: array, needs special treatment
-			// keyStepModes, // TODO: array, needs special treatment
+				ENUMERATE_ARRAY_5(offsetParameters),
+				ENUMERATE_ARRAY_5(keyStepModes),
+				// offsetParameterRaw, // doesn't need to be exposed
 		}};
 		PresetDesc_t presetDesc = {
 			.field = this,
