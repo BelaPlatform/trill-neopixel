@@ -353,6 +353,33 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 #define animationDuration(a) a
 //#define animationDuration(a) (a * 0.1) // fast animations, useful for quick iterations
 
+#if 0
+// a small buffer that we can use to print before the UART is available. Data is cached and can be printed later
+static char early_printf_buf[200];
+static bool early_printf_done = false;
+static size_t early_printf_ptr = 0;
+template <typename... Ts>
+static int early_printf(Ts... varargs) {
+	int available = sizeof(early_printf_buf) > early_printf_ptr ? sizeof(early_printf_buf) - early_printf_ptr : 0;
+	int printed = snprintf(early_printf_buf + early_printf_ptr, available, varargs...);
+	if(printed > available)
+		early_printf_ptr = sizeof(early_printf_buf);
+	else
+		early_printf_ptr += printed;
+	return printed;
+}
+
+static void do_early_printf()
+{
+	if(!early_printf_done)
+		printf("%.*s\n", early_printf_ptr, early_printf_buf);
+	early_printf_done = true;
+}
+#else
+#define early_printf(...)
+#define do_early_printf()
+#endif
+
 extern int gAlt;
 typedef TrillRackInterface TRI; // shorthand
 extern TRI tri;
@@ -7246,6 +7273,7 @@ bool performanceMode_setup(double ms)
 
 void performanceMode_render(BelaContext* context, FrameData* frameData)
 {
+	do_early_printf(); // the first time we start we print what happened early on
 	// these are set here but may be overridden by render() below
 	gOutUsesCalibration = true;
 	gInUsesCalibration = true;
