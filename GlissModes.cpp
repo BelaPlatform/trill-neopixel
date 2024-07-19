@@ -2202,98 +2202,66 @@ private:
 	memcpy(&(dst), &(src), sizeof(dst)); \
 }
 
-#define DEFAULTER_PROCESS(A) UN_T_ASS(pfd->A, that->A)
-#define DEFAULTER_PROCESS_IORANGES() { \
-	IoRanges ioRanges = that->ioRangesParameters; \
-	UN_T_ASS(pfd->ioRanges, ioRanges); \
+template <typename pfd_t, typename PerfMode, typename T, typename U, typename BasePerfMode>
+void genericDefaultsPairActual(pfd_t* pfd, PerfMode* that, T pfd_t::*& a, const U BasePerfMode::* const& A)
+{
+	M(printf("genericDefaultsPairActual plain\n\r"));
+	UN_T_ASS(pfd->*a, that->*A);
 }
 
-#define genericDefaulter2(CLASS,A,B) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS_IORANGES(); \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
+template <typename pfd_t, typename PerfMode, typename T, typename U, size_t N, typename BasePerfMode>
+void genericDefaultsPairActual(pfd_t* pfd, PerfMode* that, std::array<T,N> pfd_t::*& a, const std::array<U,N> BasePerfMode::* const& A)
+{
+	M(printf("genericDefaultsPairActual array %u\n\r", (that->*A).size()));
+	for(size_t n = 0; n < (that->*A).size(); ++n)
+		UN_T_ASS((pfd->*a)[n], (that->*A)[n]);
 }
 
-#define genericDefaulter3(CLASS,A,B,C) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS_IORANGES(); \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
+template <typename pfd_t, typename PerfMode>
+static inline void genericDefaultsT(pfd_t*, PerfMode*) { } // termination case
+
+template <typename pfd_t, typename PerfMode, typename T, typename U, typename BasePerfMode, typename... Ts>
+static void genericDefaultsT(pfd_t* pfd, PerfMode* that, T pfd_t::*a, const U BasePerfMode::* const& A, Ts&... varargs)
+{
+	static_assert(std::is_base_of<BasePerfMode,PerfMode>::value, "Type mismatch");
+	genericDefaultsPairActual(pfd, that, a, A);
+	genericDefaultsT(pfd, that, varargs...);
 }
 
-#define genericDefaulterNoioranges3(CLASS,A,B,C) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
+// when a preset is created with default values, call this function to populate its fields from the
+// Parameter's initial values
+template <typename CLASS, typename... Ts>
+auto genericDefaults(Ts... varargs)
+{
+	static_assert(0 == (sizeof...(Ts) & 1), "Arguments should be: pairs of destination, source member pointers");
+	return [varargs...](PresetField_t field, PresetFieldSize_t size, void* data)
+	{
+		typedef typename CLASS::PresetFieldData_t pfd_t;
+		constexpr size_t expSize = sizeof(pfd_t);
+		if(size != expSize)
+		{
+			printf("genericDefaults: wrong size %u vs %u\n\r", size, expSize);
+			if(size < expSize)
+			{
+				printf("Too small\n\r");
+				Error_Handler();
+			}
+		}
+		pfd_t* pfd = (pfd_t*)data;
+		CLASS* that = (CLASS*)field;
+		if constexpr(std::is_base_of<PerformanceMode,CLASS>::value && !std::is_base_of<PerformanceModeWithoutRanges,CLASS>::value)
+		{
+			IoRanges ioRanges = that->ioRangesParameters;
+			UN_T_ASS(pfd->ioRanges, ioRanges);
+		}
+		genericDefaultsT(pfd, that, varargs...);
+	};
 }
 
-#define genericDefaulter2PlusArray(CLASS,A,B,A0) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS_IORANGES(); \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	for(size_t n = 0; n < that->A0.size(); ++n) \
-		UN_T_ASS(pfd->A0[n], that->A0[n]); \
-}
-
-#define genericDefaulter3PlusArrays(CLASS,A,B,C,A0,A1) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS_IORANGES(); \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
-	for(size_t n = 0; n < that->A0.size(); ++n) \
-		UN_T_ASS(pfd->A0[n], that->A0[n]); \
-	for(size_t n = 0; n < that->A1.size(); ++n) \
-		UN_T_ASS(pfd->A1[n], that->A1[n]); \
-}
-
-#define genericDefaulterNoioranges4(CLASS,A,B,C,D) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
-	DEFAULTER_PROCESS(D); \
-}
-
-#define genericDefaulter12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
-[](PresetField_t field, PresetFieldSize_t size, void* data) \
-{ \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	DEFAULTER_PROCESS(A); \
-	DEFAULTER_PROCESS(B); \
-	DEFAULTER_PROCESS(C); \
-	DEFAULTER_PROCESS(D); \
-	DEFAULTER_PROCESS(E); \
-	DEFAULTER_PROCESS(F); \
-	DEFAULTER_PROCESS(G); \
-	DEFAULTER_PROCESS(H); \
-	DEFAULTER_PROCESS(I); \
-	DEFAULTER_PROCESS(J); \
-	DEFAULTER_PROCESS(K); \
-	DEFAULTER_PROCESS(L); \
+#define GENERIC_DEFAULTER(...) { \
+	[](PresetField_t field, PresetFieldSize_t size, void* data){ \
+		genericDefaults<type_unref(*this)>(__VA_ARGS__)(field, size, data); \
+	} \
 }
 
 #define LOADER_PROCESS(A) { \
@@ -3056,7 +3024,11 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2PlusArray(DirectControlMode, splitMode, autoLatch, smooths),
+			.defaulter = GENERIC_DEFAULTER(
+					&PresetFieldData_t::splitMode, &DirectControlMode::splitMode,
+					&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
+					&PresetFieldData_t::smooths, &DirectControlMode::smooths
+				),
 			.loadCallback = genericLoadCallback2PlusArray(DirectControlMode, splitMode, autoLatch, smooths),
 		};
 		presetDescSet(0, &presetDesc);
@@ -4287,7 +4259,10 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter2(RecorderMode, splitMode,  inputMode),
+			.defaulter = GENERIC_DEFAULTER(
+					&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
+					&PresetFieldData_t::inputMode, &RecorderMode::inputMode
+					),
 			.loadCallback = genericLoadCallback2(RecorderMode, splitMode, inputMode),
 		};
 		presetDescSet(1, &presetDesc);
@@ -4781,7 +4756,11 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3(ScaleMeterMode, outputMode, coupling, cutoff),
+			.defaulter = GENERIC_DEFAULTER(
+					&PresetFieldData_t::outputMode, &ScaleMeterMode::outputMode,
+					&PresetFieldData_t::coupling, &ScaleMeterMode::outputMode,
+					&PresetFieldData_t::cutoff, &ScaleMeterMode::outputMode
+				),
 			.loadCallback = genericLoadCallback3(ScaleMeterMode, outputMode, coupling, cutoff),
 		};
 		presetDescSet(2, &presetDesc);
@@ -4963,7 +4942,11 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3(BalancedOscsMode, waveform, centreFrequency, inputMode),
+			.defaulter = GENERIC_DEFAULTER(
+					&PresetFieldData_t::waveform, &BalancedOscsMode::waveform,
+					&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
+					&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
+				),
 			.loadCallback = genericLoadCallback3(BalancedOscsMode, waveform, centreFrequency, inputMode),
 		};
 		presetDescSet(6, &presetDesc);
@@ -6047,7 +6030,13 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulter3PlusArrays(ExprButtonsMode, quantised, seqMode, modRange, offsetParameters, keyStepModes),
+			.defaulter = GENERIC_DEFAULTER(
+					&PresetFieldData_t::quantised, &ExprButtonsMode::quantised,
+					&PresetFieldData_t::seqMode, &ExprButtonsMode::seqMode,
+					&PresetFieldData_t::modRange, &ExprButtonsMode::modRange,
+					&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
+					&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
+				),
 			.loadCallback = genericLoadCallback3PlusArrays(ExprButtonsMode, quantised, seqMode, modRange, offsetParameters, keyStepModes),
 		};
 		presetDescSet(3, &presetDesc);
@@ -6191,7 +6180,10 @@ CalibrationProcedure() :
 	PresetDesc_t presetDesc = {
 		.field = this,
 		.size = sizeof(PresetFieldData_t),
-		.defaulter = genericDefaulterNoioranges3(CalibrationProcedure, calibrationOut, calibrationIn, dummy),
+		.defaulter = GENERIC_DEFAULTER(
+				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
+				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
+				&PresetFieldData_t::dummy, &CalibrationProcedure::dummy),
 		.loadCallback = genericLoadCallbackNoioranges3(CalibrationProcedure, calibrationOut, calibrationIn, dummy),
 	};
 	presetDescSet(4, &presetDesc);
@@ -8860,7 +8852,12 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = genericDefaulterNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, flags, newMode),
+			.defaulter = GENERIC_DEFAULTER(
+					&PresetFieldData_t::sizeScaleCoeff, &GlobalSettings::sizeScaleCoeff,
+					&PresetFieldData_t::brightness, &GlobalSettings::brightness,
+					&PresetFieldData_t::flags, &GlobalSettings::flags,
+					&PresetFieldData_t::newMode, &GlobalSettings::newMode
+				),
 			// currently the {out,in}RangeEnums have to go after the corresponding
 			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
 			// reset the enum
