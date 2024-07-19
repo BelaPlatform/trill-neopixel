@@ -1651,7 +1651,7 @@ public:
 	{
 		return value;
 	}
-	operator float() { return get(); }
+	operator float() const { return get(); }
 	bool isDefault(float threshold) const
 	{
 		return std::abs(value - defaultValue) < threshold;
@@ -1822,7 +1822,7 @@ public:
 	ParameterEnumT<kCvRangeNum,CvRange>& cvRange = *this; // for backwards compatibility
 	ParameterContinuous min;
 	ParameterContinuous max;
-	operator IoRange() {
+	operator IoRange() const {
 		return IoRange{
 			.min = min,
 			.max = max,
@@ -1886,7 +1886,7 @@ public:
 	IoRangeParameters in;
 	IoRangeParameters outTop;
 	IoRangeParameters outBottom;
-	operator IoRanges()
+	operator IoRanges const ()
 	{
 		return IoRanges{
 			.in = in,
