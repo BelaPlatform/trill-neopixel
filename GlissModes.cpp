@@ -123,8 +123,8 @@ public:
 	typedef CentroidDetection::DATA_T Position;
 	struct TouchWithId
 	{
-		centroid_t touch;
-		Position startLocation;
+		centroid_t touch = centroid_t{0, 0};
+		Position startLocation = 0;
 		Id id = kIdInvalid;
 		bool assigned = false;
 	};
@@ -139,7 +139,9 @@ private:
 	std::array<unsigned int,kMaxTouches> sortedTouchIds {};
 	std::array<TouchWithId,kMaxTouches> sortedTouches {};
 public:
-	static constexpr TouchWithId kInvalidTouch = {
+	static constexpr TouchWithId kInvalidTouch = { // I believe it is a compiler error that I need to defined these values again here
+		.touch = {0, 0},
+		.startLocation = 0,
 		.id = kIdInvalid,
 		.assigned = false,
 	};
