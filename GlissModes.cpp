@@ -2182,18 +2182,18 @@ private:
 } gTestMode;
 #endif // TEST_MODE
 
-#define type_unref(A) std::remove_reference<decltype(A)>::type
+#define type_unref(A) typename std::remove_reference<decltype(A)>::type
 // unaligned target assign with type conversion
 #define UN_T_ASS(dst, src) { \
 	type_unref(dst) cpy; \
 	cpy = src; /* apply any conversion */ \
-	memcpy(&dst, &cpy, sizeof(dst)); \
+	memcpy(&(dst), &(cpy), sizeof(dst)); \
 }
 
 // unaligned source assign
 #define UN_S_ASS(dst, src) { \
 	static_assert(std::is_same<type_unref(dst), type_unref(src)>::value); \
-	memcpy(&dst, &src, sizeof(dst)); \
+	memcpy(&(dst), &(src), sizeof(dst)); \
 }
 
 #define DEFAULTER_PROCESS(A) UN_T_ASS(pfd->A, that->A)
