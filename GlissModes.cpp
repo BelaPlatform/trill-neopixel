@@ -2264,104 +2264,76 @@ auto genericDefaults(Ts... varargs)
 	} \
 }
 
-#define LOADER_PROCESS(A) { \
-		type_unref(pfd->A) a; \
-		UN_S_ASS(a, pfd->A); \
-		that->A.set(a); \
-		that->presetFieldData.A = a; \
+template <typename pfd_t, typename PerfMode, typename T, typename U, typename BasePerfMode>
+void loadCallbackPairActual(pfd_t* pfd, PerfMode* that, T pfd_t::* a, U BasePerfMode::* A)
+{
+	type_unref(pfd->*a) tmp;
+	UN_S_ASS(tmp, pfd->*a);
+	(that->*A).set(tmp);
+	(that->presetFieldData.*a) = tmp;
+	M(printf("loadCallbackPairActual plain\n\r"));
 }
 
-#define LOADER_PROCESS_IORANGES() { \
-	IoRanges a; \
-	UN_S_ASS(a, pfd->ioRanges); \
-	for(size_t n = 0; n < IoRangesParameters::size(); ++n) { \
-		that->ioRangesParameters[n].min.set(a[n].min); \
-		that->ioRangesParameters[n].max.set(a[n].max); \
-		 /* this last, so that setting min/max won't override cvRange with kCvRangeCustom */ \
-		that->ioRangesParameters[n].cvRange.set(a[n].range); \
+template <typename pfd_t, typename PerfMode, typename T, typename U, size_t N, typename BasePerfMode>
+void loadCallbackPairActual(pfd_t* pfd, PerfMode* that, std::array<T,N> pfd_t::*& a, std::array<U,N> BasePerfMode::*& A)
+{
+	M(printf("loadCallbackPairActual array %d\n\r", (that->*A).size()));
+	for(size_t n = 0; n < (that->*A).size(); ++n)
+	{
+		type_unref((pfd->*a)[n]) tmp;
+		UN_S_ASS(tmp, (pfd->*a)[n]);
+		(that->*A)[n].set(tmp);
+		(that->presetFieldData.*a)[n] = tmp;
+	}
+}
+
+template <typename pfd_t, typename PerfMode>
+static inline void loadCallbackT(pfd_t*, PerfMode*) { } // termination case
+
+template <typename pfd_t, typename PerfMode, typename T, typename U, typename BasePerfMode, typename... Ts>
+static void loadCallbackT(pfd_t* pfd, PerfMode* that, T pfd_t::*a, U BasePerfMode::* A, Ts&... varargs)
+{
+	static_assert(std::is_base_of<BasePerfMode,PerfMode>::value, "Type mismatch");
+	loadCallbackPairActual(pfd, that, a, A);
+	loadCallbackT(pfd, that, varargs...);
+}
+
+// when a preset is loaded, call this function to populate the class's PresetFieldData_t and Parameter fields
+// with the data read from storage
+template <typename CLASS, typename... Ts>
+auto loadCallback(Ts... varargs)
+{
+	static_assert(0 == (sizeof...(Ts) & 1), "Arguments should be: pairs of PresetFieldData_t, Parameter member pointers");
+	return [varargs...](PresetField_t field, PresetFieldSize_t size, const void* data)
+	{
+		typedef typename CLASS::PresetFieldData_t pfd_t;
+		constexpr size_t expSize = sizeof(pfd_t);
+		if(size != expSize)
+		{
+			printf("loadCallback: wrong size %u vs %u\n\r", size, expSize);
+			Error_Handler();
+		}
+		pfd_t* pfd = (pfd_t*)data;
+		CLASS* that = (CLASS*)field;
+		if constexpr(std::is_base_of<PerformanceMode,CLASS>::value && !std::is_base_of<PerformanceModeWithoutRanges,CLASS>::value)
+		{
+			IoRanges ioRanges;
+			UN_S_ASS(ioRanges, pfd->ioRanges);
+			for(size_t n = 0; n < IoRangesParameters::size(); ++n) {
+				that->ioRangesParameters[n].min.set(ioRanges[n].min);
+				that->ioRangesParameters[n].max.set(ioRanges[n].max);
+				 /* this last, so that setting min/max won't override cvRange with kCvRangeCustom */ \
+				that->ioRangesParameters[n].cvRange.set(ioRanges[n].range);
+			}
+			that->presetFieldData.ioRanges = ioRanges;
+		}
+		loadCallbackT(pfd, that, varargs...);
+	};
+}
+#define LOAD_CALLBACK(...) {\
+	[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
+		loadCallback<type_unref(*this)>(__VA_ARGS__)(field, size, data); \
 	} \
-	that->presetFieldData.ioRanges = a; \
-}
-
-#define genericLoadCallback2(CLASS,A,B) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS_IORANGES(); \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-}
-
-#define genericLoadCallback2PlusArray(CLASS,A,B,A0) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS_IORANGES(); \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	for(size_t n = 0; n < that->A0.size(); ++n) \
-		LOADER_PROCESS(A0[n]); \
-}
-
-#define genericLoadCallback3(CLASS,A,B,C) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS_IORANGES(); \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-}
-
-#define genericLoadCallbackNoioranges3(CLASS,A,B,C) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-}
-
-#define genericLoadCallback3PlusArrays(CLASS,A,B,C,A0,A1) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS_IORANGES(); \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-	for(size_t n = 0; n < that->A0.size(); ++n) \
-		LOADER_PROCESS(A0[n]); \
-	for(size_t n = 0; n < that->A1.size(); ++n) \
-		LOADER_PROCESS(A1[n]); \
-}
-
-#define genericLoadCallbackNoioranges4(CLASS,A,B,C,D) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-	LOADER_PROCESS(D); \
-}
-
-#define genericLoadCallback12(CLASS,A,B,C,D,E,F,G,H,I,J,K,L) \
-[](PresetField_t field, PresetFieldSize_t size, const void* data) { \
-	PresetFieldData_t* pfd = (PresetFieldData_t*)data; \
-	CLASS* that = (CLASS*)field; \
-	LOADER_PROCESS(A); \
-	LOADER_PROCESS(B); \
-	LOADER_PROCESS(C); \
-	LOADER_PROCESS(D); \
-	LOADER_PROCESS(E); \
-	LOADER_PROCESS(F); \
-	LOADER_PROCESS(G); \
-	LOADER_PROCESS(H); \
-	LOADER_PROCESS(I); \
-	LOADER_PROCESS(J); \
-	LOADER_PROCESS(K); \
-	LOADER_PROCESS(L); \
 }
 
 template <typename T>
@@ -3029,7 +3001,11 @@ public:
 					&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
 					&PresetFieldData_t::smooths, &DirectControlMode::smooths
 				),
-			.loadCallback = genericLoadCallback2PlusArray(DirectControlMode, splitMode, autoLatch, smooths),
+			.loadCallback = LOAD_CALLBACK(
+					&PresetFieldData_t::splitMode, &DirectControlMode::splitMode,
+					&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
+					&PresetFieldData_t::smooths, &DirectControlMode::smooths
+					),
 		};
 		presetDescSet(0, &presetDesc);
 	}
@@ -4263,7 +4239,10 @@ public:
 					&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
 					&PresetFieldData_t::inputMode, &RecorderMode::inputMode
 					),
-			.loadCallback = genericLoadCallback2(RecorderMode, splitMode, inputMode),
+			.loadCallback = LOAD_CALLBACK(
+					&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
+					&PresetFieldData_t::inputMode, &RecorderMode::inputMode
+					),
 		};
 		presetDescSet(1, &presetDesc);
 	}
@@ -4761,7 +4740,11 @@ public:
 					&PresetFieldData_t::coupling, &ScaleMeterMode::outputMode,
 					&PresetFieldData_t::cutoff, &ScaleMeterMode::outputMode
 				),
-			.loadCallback = genericLoadCallback3(ScaleMeterMode, outputMode, coupling, cutoff),
+			.loadCallback = LOAD_CALLBACK(
+					&PresetFieldData_t::outputMode, &ScaleMeterMode::outputMode,
+					&PresetFieldData_t::coupling, &ScaleMeterMode::outputMode,
+					&PresetFieldData_t::cutoff, &ScaleMeterMode::outputMode
+				),
 		};
 		presetDescSet(2, &presetDesc);
 	}
@@ -4947,7 +4930,11 @@ public:
 					&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
 					&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
 				),
-			.loadCallback = genericLoadCallback3(BalancedOscsMode, waveform, centreFrequency, inputMode),
+			.loadCallback = LOAD_CALLBACK(
+					&PresetFieldData_t::waveform, &BalancedOscsMode::waveform,
+					&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
+					&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
+				),
 		};
 		presetDescSet(6, &presetDesc);
 	}
@@ -6037,7 +6024,13 @@ public:
 					&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
 					&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
 				),
-			.loadCallback = genericLoadCallback3PlusArrays(ExprButtonsMode, quantised, seqMode, modRange, offsetParameters, keyStepModes),
+			.loadCallback = LOAD_CALLBACK(
+					&PresetFieldData_t::quantised, &ExprButtonsMode::quantised,
+					&PresetFieldData_t::seqMode, &ExprButtonsMode::seqMode,
+					&PresetFieldData_t::modRange, &ExprButtonsMode::modRange,
+					&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
+					&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
+				),
 		};
 		presetDescSet(3, &presetDesc);
 	}
@@ -6184,7 +6177,11 @@ CalibrationProcedure() :
 				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
 				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
 				&PresetFieldData_t::dummy, &CalibrationProcedure::dummy),
-		.loadCallback = genericLoadCallbackNoioranges3(CalibrationProcedure, calibrationOut, calibrationIn, dummy),
+		.loadCallback = LOAD_CALLBACK(
+				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
+				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
+				&PresetFieldData_t::dummy, &CalibrationProcedure::dummy
+			),
 	};
 	presetDescSet(4, &presetDesc);
 }
@@ -8858,11 +8855,12 @@ public:
 					&PresetFieldData_t::flags, &GlobalSettings::flags,
 					&PresetFieldData_t::newMode, &GlobalSettings::newMode
 				),
-			// currently the {out,in}RangeEnums have to go after the corresponding
-			// corresponding Range{Bottom,Top}, as setting the Range last would otherwise
-			// reset the enum
-			// TODO: make this more future-proof
-			.loadCallback = genericLoadCallbackNoioranges4(GlobalSettings, sizeScaleCoeff, brightness, flags, newMode),
+			.loadCallback = LOAD_CALLBACK(
+					&PresetFieldData_t::sizeScaleCoeff, &GlobalSettings::sizeScaleCoeff,
+					&PresetFieldData_t::brightness, &GlobalSettings::brightness,
+					&PresetFieldData_t::flags, &GlobalSettings::flags,
+					&PresetFieldData_t::newMode, &GlobalSettings::newMode
+				),
 		};
 		presetDescSet(5, &presetDesc);
 	}
