@@ -6121,7 +6121,6 @@ private:
 Calibration_t calibrationState;
 CalibrationDataParameter calibrationOut {this};
 CalibrationDataParameter calibrationIn {this};
-ParameterGenericT<uint8_t> dummy {this, 0}; // TODO: remove once templated all the macros
 
 typedef enum {
 	kFindingDacGnd,
@@ -6166,7 +6165,6 @@ CalibrationProcedure() :
 	presetFieldData({
 		.calibrationOut = calibrationOut,
 		.calibrationIn = calibrationIn,
-		.dummy = dummy,
 	})
 {
 	publishCalibrationData(); // load factory settings
@@ -6175,12 +6173,11 @@ CalibrationProcedure() :
 		.size = sizeof(PresetFieldData_t),
 		.defaulter = GENERIC_DEFAULTER(
 				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
-				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
-				&PresetFieldData_t::dummy, &CalibrationProcedure::dummy),
+				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn
+			),
 		.loadCallback = LOAD_CALLBACK(
 				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
-				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
-				&PresetFieldData_t::dummy, &CalibrationProcedure::dummy
+				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn
 			),
 	};
 	presetDescSet(4, &presetDesc);
@@ -6200,14 +6197,12 @@ void updatePreset() override
 {
 	updatePresetField(this,
 			&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
-			&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn,
-			&PresetFieldData_t::dummy, &CalibrationProcedure::dummy
+			&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn
 		);
 }
 struct PresetFieldData_t {
-	CalibrationData calibrationOut;
-	CalibrationData calibrationIn;
-	uint8_t dummy;
+	CalibrationData calibrationOut {};
+	CalibrationData calibrationIn {};
 } presetFieldData;
 void setup()
 {
