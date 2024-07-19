@@ -1,4 +1,5 @@
 #include <array>
+#include <string.h>
 #include <Utilities.h>
 
 constexpr size_t kNumPads = 26;
@@ -22,6 +23,9 @@ struct CalibrationData {
 	static constexpr size_t kNumPoints = 3;
 	static constexpr std::array<float,kNumPoints> points = {{0, kGnd, 1}};
 	std::array<float,kNumPoints> values;
+	operator std::array<float,kNumPoints>() const { return values; }
+	bool operator== (const CalibrationData& other) { return !memcmp(this, &other, sizeof(other)); }
+	bool operator!= (const CalibrationData& other) { return !(*this == other); }
 };
 CalibrationData const& getCalibrationInput();
 CalibrationData const& getCalibrationOutput();

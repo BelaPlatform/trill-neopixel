@@ -1633,7 +1633,7 @@ public:
 		if(hasFsAnimation())
 			that->animate(*this, l, color, ms);
 	}
-	operator type() { return type(value); }
+	operator type() const { return type(value); }
 private:
 	ParameterUpdateCapable* that;
 	uint8_t value;
@@ -6158,6 +6158,9 @@ public:
 	void set(const CalibrationData& cal) {
 		values = cal.values;
 		that->updated(*this);
+	}
+	CalibrationData get() const {
+		return *(CalibrationData*)this;
 	}
 private:
 	ParameterUpdateCapable* that;
