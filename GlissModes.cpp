@@ -350,6 +350,8 @@ static_assert(kNumOutChannels >= 2); // too many things to list depend on this i
 //#define M(...) __VA_ARGS__
 #define M(a)
 //#define printf(...) // disable printf altogether
+#define animationDuration(a) a
+//#define animationDuration(a) (a * 0.1) // fast animations, useful for quick iterations
 
 extern int gAlt;
 typedef TrillRackInterface TRI; // shorthand
@@ -2809,7 +2811,7 @@ public:
 			return true;
 		// opening animation
 		// single point starts in middle, zips off in two directions to the top and bottom
-		constexpr float kAnimationDuration = 1200;
+		constexpr float kAnimationDuration = animationDuration(1200);
 		float loc = ms / (kAnimationDuration * 2) + 0.5f;
 		float size = kFixedCentroidSize;
 		for(auto l : { &ledSliders, &ledSlidersAlt})
@@ -3299,7 +3301,7 @@ public:
 			return true;
 		// opening animation
 		// single point whips from the bottom, to the top, and back to the bottom
-		constexpr float kAnimationDuration = 1600;
+		constexpr float kAnimationDuration = animationDuration(1600);
 		float phase = 2.f * ms / kAnimationDuration;
 		float loc = phase < 1 ? phase : 2.f - phase;
 		float size = kFixedCentroidSize;
@@ -4523,7 +4525,7 @@ public:
 		// VU meter colour appears from bottom to top.
 		// As soon as it is full it starts to disappear from the bottom upwards
 		np.clear();
-		constexpr float kAnimationDuration = 1200;
+		constexpr float kAnimationDuration = animationDuration(1200);
 		float phase = ms / kAnimationDuration;
 		size_t start = constrain(phase * 2.f - 1.f, 0, 1) * np.getNumPixels();
 		size_t stop = constrain(phase * 2.f, 0, 1) * np.getNumPixels();
@@ -4903,7 +4905,7 @@ public:
 		gOutMode.fill(kOutModeManualSample);
 		if(ms < 0)
 			return true;
-		return modeChangeBlinkSplit(ms, gBalancedLfoColors.data(), kNumLeds / 2, kNumLeds / 2);
+		return modeChangeBlinkSplit(animationDuration(ms), gBalancedLfoColors.data(), kNumLeds / 2, kNumLeds / 2);
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
@@ -5048,7 +5050,7 @@ public:
 			return true;
 		// animation
 		// buttons appear and disappear one by one, fading in and out quickly
-		constexpr size_t kAnimationDuration = 1400;
+		constexpr size_t kAnimationDuration = animationDuration(1400);
 		constexpr size_t kPerButton = kAnimationDuration / kMaxNumButtons;
 		size_t button = std::min(kMaxNumButtons - 1, size_t(ms) / kPerButton);
 		size_t phase = size_t(ms) % kPerButton;
