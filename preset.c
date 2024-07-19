@@ -242,6 +242,7 @@ int presetCheckSave()
 int presetTriggerFlushToStorage()
 {
 	p.lastChangedTime = 0;
+	return 0;
 }
 
 PresetFieldSize_t presetGetFieldSize(const PresetField_t field)
