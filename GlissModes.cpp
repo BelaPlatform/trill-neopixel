@@ -6190,8 +6190,9 @@ void publishCalibrationData()
 public:
 CalibrationProcedure() :
 	presetFieldData({
-		.calibrationOut = calibrationOut,
-		.calibrationIn = calibrationIn,
+		// using get() to (inexplicably?) remove a (spurious?) compiler warning
+		.calibrationOut = calibrationOut.get(),
+		.calibrationIn = calibrationIn.get(),
 	})
 {
 	publishCalibrationData(); // load factory settings
