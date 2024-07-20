@@ -2218,6 +2218,10 @@ private:
 #define ENUMERATE_ARRAY_4(tuple) tuple[0], tuple[1], tuple[2], tuple[3]
 #define ENUMERATE_ARRAY_5(tuple) ENUMERATE_ARRAY_4(tuple), tuple[4]
 
+// see https://stackoverflow.com/a/50067142/2958741 for alternatives in case this breaks
+#define GET_CLASS std::remove_reference<decltype(*this)>::type
+#define MP(a) &PresetFieldData_t::a, &GET_CLASS::a
+
 #define type_unref(A) typename std::remove_reference<decltype(A)>::type
 // unaligned target assign with type conversion
 #define UN_T_ASS(dst, src) { \
@@ -3001,11 +3005,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this,
-				&PresetFieldData_t::splitMode, &DirectControlMode::splitMode,
-				&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
-				&PresetFieldData_t::smooths, &DirectControlMode::smooths
-				);
+		updatePresetField(this, MP(splitMode), MP(autoLatch), MP(smooths));
 	}
 	DirectControlMode() :
 		presetFieldData{
@@ -3019,16 +3019,8 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(
-					&PresetFieldData_t::splitMode, &DirectControlMode::splitMode,
-					&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
-					&PresetFieldData_t::smooths, &DirectControlMode::smooths
-				),
-			.loadCallback = LOAD_CALLBACK(
-					&PresetFieldData_t::splitMode, &DirectControlMode::splitMode,
-					&PresetFieldData_t::autoLatch, &DirectControlMode::autoLatch,
-					&PresetFieldData_t::smooths, &DirectControlMode::smooths
-					),
+			.defaulter = GENERIC_DEFAULTER(MP(splitMode), MP(autoLatch), MP(smooths)),
+			.loadCallback = LOAD_CALLBACK(MP(splitMode), MP(autoLatch), MP(smooths)),
 		};
 		presetDescSet(0, &presetDesc);
 	}
@@ -4242,10 +4234,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this,
-				&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
-				&PresetFieldData_t::inputMode, &RecorderMode::inputMode
-				);
+		updatePresetField(this, MP(splitMode), MP(inputMode));
 	}
 	RecorderMode() :
 		presetFieldData {
@@ -4258,14 +4247,8 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(
-					&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
-					&PresetFieldData_t::inputMode, &RecorderMode::inputMode
-					),
-			.loadCallback = LOAD_CALLBACK(
-					&PresetFieldData_t::splitMode, &RecorderMode::splitMode,
-					&PresetFieldData_t::inputMode, &RecorderMode::inputMode
-					),
+			.defaulter = GENERIC_DEFAULTER(MP(splitMode), MP(inputMode)),
+			.loadCallback = LOAD_CALLBACK(MP(splitMode), MP(inputMode)),
 		};
 		presetDescSet(1, &presetDesc);
 	}
@@ -4729,11 +4712,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this,
-				&PresetFieldData_t::outputMode, &ScaleMeterMode::outputMode,
-				&PresetFieldData_t::coupling, &ScaleMeterMode::coupling,
-				&PresetFieldData_t::cutoff, &ScaleMeterMode::cutoff
-			);
+		updatePresetField(this, MP(outputMode), MP(coupling), MP(cutoff));
 	}
 	enum {
 		kCouplingDc,
@@ -4758,16 +4737,8 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(
-					&PresetFieldData_t::outputMode, &ScaleMeterMode::outputMode,
-					&PresetFieldData_t::coupling, &ScaleMeterMode::outputMode,
-					&PresetFieldData_t::cutoff, &ScaleMeterMode::outputMode
-				),
-			.loadCallback = LOAD_CALLBACK(
-					&PresetFieldData_t::outputMode, &ScaleMeterMode::outputMode,
-					&PresetFieldData_t::coupling, &ScaleMeterMode::outputMode,
-					&PresetFieldData_t::cutoff, &ScaleMeterMode::outputMode
-				),
+			.defaulter = GENERIC_DEFAULTER(MP(outputMode), MP(coupling), MP(cutoff)),
+			.loadCallback = LOAD_CALLBACK(MP(outputMode), MP(coupling), MP(cutoff)),
 		};
 		presetDescSet(2, &presetDesc);
 	}
@@ -4931,11 +4902,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this,
-				&PresetFieldData_t::waveform, &BalancedOscsMode::waveform,
-				&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
-				&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
-			);
+		updatePresetField(this, MP(waveform), MP(centreFrequency), MP(inputMode));
 	}
 	BalancedOscsMode() :
 		presetFieldData {
@@ -4948,16 +4915,8 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(
-					&PresetFieldData_t::waveform, &BalancedOscsMode::waveform,
-					&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
-					&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
-				),
-			.loadCallback = LOAD_CALLBACK(
-					&PresetFieldData_t::waveform, &BalancedOscsMode::waveform,
-					&PresetFieldData_t::centreFrequency, &BalancedOscsMode::centreFrequency,
-					&PresetFieldData_t::inputMode, &BalancedOscsMode::inputMode
-				),
+			.defaulter = GENERIC_DEFAULTER(MP(waveform), MP(centreFrequency), MP(inputMode)),
+			.loadCallback = LOAD_CALLBACK(MP(waveform), MP(centreFrequency), MP(inputMode)),
 		};
 		presetDescSet(6, &presetDesc);
 	}
@@ -6002,13 +5961,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this,
-				&PresetFieldData_t::quantised, &ExprButtonsMode::quantised,
-				&PresetFieldData_t::seqMode, &ExprButtonsMode::seqMode,
-				&PresetFieldData_t::modRange, &ExprButtonsMode::modRange,
-				&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
-				&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
-		);
+		updatePresetField(this, MP(quantised), MP(seqMode), MP(modRange), MP(offsetParameters), MP(keyStepModes));
 	}
 	ExprButtonsMode() :
 		presetFieldData {
@@ -6032,20 +5985,8 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(
-					&PresetFieldData_t::quantised, &ExprButtonsMode::quantised,
-					&PresetFieldData_t::seqMode, &ExprButtonsMode::seqMode,
-					&PresetFieldData_t::modRange, &ExprButtonsMode::modRange,
-					&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
-					&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
-				),
-			.loadCallback = LOAD_CALLBACK(
-					&PresetFieldData_t::quantised, &ExprButtonsMode::quantised,
-					&PresetFieldData_t::seqMode, &ExprButtonsMode::seqMode,
-					&PresetFieldData_t::modRange, &ExprButtonsMode::modRange,
-					&PresetFieldData_t::offsetParameters, &ExprButtonsMode::offsetParameters,
-					&PresetFieldData_t::keyStepModes, &ExprButtonsMode::keyStepModes
-				),
+			.defaulter = GENERIC_DEFAULTER(MP(quantised), MP(seqMode), MP(modRange), MP(offsetParameters), MP(keyStepModes)),
+			.loadCallback = LOAD_CALLBACK(MP(quantised), MP(seqMode), MP(modRange), MP(offsetParameters), MP(keyStepModes)),
 		};
 		presetDescSet(3, &presetDesc);
 	}
@@ -6187,14 +6128,8 @@ CalibrationProcedure() :
 	PresetDesc_t presetDesc = {
 		.field = this,
 		.size = sizeof(PresetFieldData_t),
-		.defaulter = GENERIC_DEFAULTER(
-				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
-				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn
-			),
-		.loadCallback = LOAD_CALLBACK(
-				&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
-				&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn
-			),
+		.defaulter = GENERIC_DEFAULTER(MP(calibrationOut), MP(calibrationOut)),
+		.loadCallback = LOAD_CALLBACK(MP(calibrationOut), MP(calibrationOut)),
 	};
 	presetDescSet(4, &presetDesc);
 }
@@ -6211,10 +6146,7 @@ void updated(Parameter& p)
 }
 void updatePreset() override
 {
-	updatePresetField(this,
-			&PresetFieldData_t::calibrationOut, &CalibrationProcedure::calibrationOut,
-			&PresetFieldData_t::calibrationIn, &CalibrationProcedure::calibrationIn
-		);
+	updatePresetField(this, MP(calibrationOut), MP(calibrationIn));
 }
 struct PresetFieldData_t {
 	CalibrationData calibrationOut {};
@@ -8843,12 +8775,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this,
-				&PresetFieldData_t::sizeScaleCoeff, &GlobalSettings::sizeScaleCoeff,
-				&PresetFieldData_t::brightness, &GlobalSettings::brightness,
-				&PresetFieldData_t::flags, &GlobalSettings::flags,
-				&PresetFieldData_t::newMode, &GlobalSettings::newMode
-		);
+		updatePresetField(this, MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode));
 	}
 	GlobalSettings() :
 		presetFieldData {
@@ -8861,18 +8788,8 @@ public:
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(
-					&PresetFieldData_t::sizeScaleCoeff, &GlobalSettings::sizeScaleCoeff,
-					&PresetFieldData_t::brightness, &GlobalSettings::brightness,
-					&PresetFieldData_t::flags, &GlobalSettings::flags,
-					&PresetFieldData_t::newMode, &GlobalSettings::newMode
-				),
-			.loadCallback = LOAD_CALLBACK(
-					&PresetFieldData_t::sizeScaleCoeff, &GlobalSettings::sizeScaleCoeff,
-					&PresetFieldData_t::brightness, &GlobalSettings::brightness,
-					&PresetFieldData_t::flags, &GlobalSettings::flags,
-					&PresetFieldData_t::newMode, &GlobalSettings::newMode
-				),
+			.defaulter = GENERIC_DEFAULTER(MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode)),
+			.loadCallback = LOAD_CALLBACK(MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode)),
 		};
 		presetDescSet(5, &presetDesc);
 	}
