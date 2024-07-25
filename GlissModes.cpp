@@ -1446,6 +1446,7 @@ public:
 		{
 			rs[n].r.startRecording(false);
 			rs[n].r.stopRecording();
+			rs[n].state = kPlay;
 		}
 	}
 	bool isRecording(size_t n)
