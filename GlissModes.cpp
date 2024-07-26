@@ -1877,8 +1877,8 @@ public:
 			{
 				bottom = min;
 				top = max;
-				baseColor = getQuantisedColor(buttonColors, bottom);
-				secondaryColor = getQuantisedColor(buttonColors, top);
+				baseColor = getQuantisedColor(buttonColors, top);
+				secondaryColor = getQuantisedColor(buttonColors, bottom);
 			} else {
 				IoRange r = {
 					.range = range,
@@ -1887,11 +1887,13 @@ public:
 				r.getMinMax(bottom, top);
 			}
 			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
-
-			if(bottom != 0)
-				bottom += kMargin;
-			if(top != 1)
-				top -= kMargin;
+			if(std::abs(bottom - top) > 2 * kMargin)
+			{
+				if(bottom != 0)
+					bottom += kMargin;
+				if(top != 1)
+					top -= kMargin;
+			}
 			size_t start = std::round((kNumLeds - 1) * bottom);
 			size_t stop = std::round((kNumLeds - 1) * top);
 			for(size_t n = start; n <= stop; ++n)
