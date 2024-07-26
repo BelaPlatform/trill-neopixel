@@ -2992,16 +2992,14 @@ public:
 			{
 				if(p.same(smooths[n]))
 				{
-					const float kDeadZone = 0.03;
-					const float kRange = (1.f - kAlphaDefault - 0.0000003f); // stay clear of 1.0
+					constexpr float SAMPLE_RATE = 42500;
+					constexpr float kDeadZone = 0.03;
+					constexpr float kMinTau = 1.f / SAMPLE_RATE / (1.f - kAlphaDefault);
 					float val = smooths[n];
-					if(val < kDeadZone)
-							alphas[n] = kAlphaDefault;
-					else {
-						float smooth = mapAndConstrain(val, kDeadZone, 1, 0, 1);
-						alphas[n] = kAlphaDefault + powf(smooth, 0.05) * kRange;
-					}
-					M(printf("DirectControlMode: updated smooth %d: %f -> alpha = %0.10f\n\r", n, val, alphas[n]));
+					float smooth = mapAndConstrain(val, kDeadZone, 1, 0, 1);
+					float tau = kMinTau + powf(smooth, 5.3) * 50; // approx 1s at 50% range and 50s at 100% range
+					alphas[n] = 1.f - (1.f / SAMPLE_RATE / tau);
+					M(printf("DirectControlMode: %.4fs -> %0.10f\n\r", tau, alphas[n]));
 				}
 			}
 		}
