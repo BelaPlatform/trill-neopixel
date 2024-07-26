@@ -3866,7 +3866,7 @@ public:
 						gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
 				}
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, freezeAt);
-				if(gGestureRecorder.rs[idx].playHead < 1 && !gGestureRecorder.isRecording(idx))
+				if(gGestureRecorder.rs[idx].r.size() && gGestureRecorder.rs[idx].playHead < 1 && !gGestureRecorder.isRecording(idx))
 				{
 					flashRequest(n, kFlashRestarted);
 				}
