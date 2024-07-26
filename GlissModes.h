@@ -56,8 +56,8 @@ struct IoRange {
 public:
 	static IoRange init() {
 		return IoRange {
-			.min = 0,
-			.max = 1,
+			.min = gnd - gnd / 5.f, // -1 V
+			.max = gnd + gnd / 5.f, // +1 V
 			.range = kCvRangePositive10,
 			.enabled = true,
 		};
