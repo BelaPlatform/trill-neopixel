@@ -3358,6 +3358,8 @@ public:
 				if(shouldClear[n])
 				{
 					emptyRecordings(n);
+					// also clear the untouched recording or it will eventually fill up
+					gGestureRecorder.empty(!n + 2);
 					flashRequest(n, kFlashErased);
 				}
 			}
@@ -3519,6 +3521,8 @@ public:
 			// This means that the keypress that triggered the recording onset has been used to
 			// enter the menu. Clear its side effects
 			reinitInputModeClock();
+			gGestureRecorder.empty(2);
+			gGestureRecorder.empty(3);
 			for(size_t n = 0; n < twis.size(); ++n)
 				ignoredTouch[n] = getId(twis, n);
 		}
