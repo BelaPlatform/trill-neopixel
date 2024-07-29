@@ -3,6 +3,13 @@
 #include <sys/types.h>
 #include <stdio.h>
 
+static rgb_t protocolMakeColor(const uint8_t* data)
+{
+	rgb_t color;
+	for(size_t n = 0; n < color.size(); ++n)
+		color[n] = !!data[n] + 2 * data[n]; // 0, 3, 5, 7 ... 255
+	return color;
+}
 
 class Queue
 {
@@ -111,16 +118,7 @@ public:
 				if(5 == msgLen)
 				{
 					state = kMsgEmpty;
-					gp_setModeColor(m[0], m[1], m[2], m[3], m[4]);
-				}
-				break;
-			}
-			case kGpMenuColor:
-			{
-				if(4 == msgLen)
-				{
-					state = kMsgEmpty;
-					gp_setMenuColor(m[0], m[1], m[2], m[3]);
+					gp_setModeColor(m[0], m[1], protocolMakeColor(m + 2));
 				}
 				break;
 			}
@@ -132,6 +130,7 @@ public:
 					extern void setDebugFlags(uint8_t flags);
 					setDebugFlags(m[0]);
 				}
+				break;
 			}
 			}
 		}

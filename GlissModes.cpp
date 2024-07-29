@@ -9331,16 +9331,18 @@ void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t
 	}
 }
 
-void gp_setModeColor(uint8_t mode, uint8_t idx, uint8_t r, uint8_t g, uint8_t b)
+void gp_setModeColor(uint8_t mode, uint8_t idx, const rgb_t& color)
 {
-	if(idx < performanceModes.size())
-		performanceModes[idx]->setColor(idx, {r, g, b});
-}
-
-void gp_setMenuColor(uint8_t idx, uint8_t r, uint8_t g, uint8_t b)
-{
-	if(idx < buttonColors.size())
-		buttonColors[idx] = {r, g, b};
+	if(mode < performanceModes.size())
+	{
+		performanceModes[mode]->setColor(idx, color);
+	}
+	else if(127 == mode)
+	{
+		// menu colors
+		if(idx < gGlobalSettings.menuColors.size())
+			gGlobalSettings.menuColors[idx].set(color);
+	}
 }
 
 void gp_store()
