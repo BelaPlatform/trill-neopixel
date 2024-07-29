@@ -26,7 +26,7 @@ static constexpr rgb_t kRgbRed {255, 0, 0};
 static constexpr rgb_t kRgbGreen {0, 255, 0};
 static constexpr rgb_t kRgbOrange {255, 127, 0};
 static constexpr rgb_t kRgbYellow {255, 255, 0};
-static constexpr rgb_t kRgbWhite {0, 50, 255};
+static constexpr rgb_t kRgbWhite {0, 51, 255};
 static constexpr rgb_t kRgbBlack {0, 0, 0};
 static constexpr float kMenuButtonDefaultBrightness = 0.2;
 static constexpr float kMenuButtonActiveBrightness = 0.7;
