@@ -8838,6 +8838,12 @@ public:
 		uint8_t newMode;
 		std::array<rgb_t,SIZE(GlobalSettings::menuColors)> menuColors;
 	} presetFieldData;
+	std::vector<ParameterContainer> parameters = {
+			sizeScaleCoeff,
+			brightness,
+			flags,
+			// menuColors is exposed via gp_setMenuColor()
+	};
 } gGlobalSettings;
 
 bool menu_isLocked()
@@ -9303,6 +9309,10 @@ void gp_setModeParameter(uint8_t mode, uint8_t parameter, uint16_t value)
 		ParameterContainer* p = performanceModes[mode]->getParameter(parameter);
 		if(p)
 			p->set(value);
+	} else if (127 == mode) {
+		// global settings
+		if(parameter < gGlobalSettings.parameters.size())
+			gGlobalSettings.parameters[parameter].set(value);
 	}
 }
 
