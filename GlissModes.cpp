@@ -5260,7 +5260,7 @@ public:
 					outTop.getMinMax(min, max);
 					// reverse map the range so that we start with an initial centroid that represents
 					// the current voltage
-					float initialValue = mapAndConstrain(offsetParameters[actualKey], min, max, 0, 1);
+					float initialValue = map(offsetParameters[actualKey], min, max, 0, 1); // this is allowed to be outside the [0, 1] range
 					offsetParameterRaw.set(initialValue);
 					menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameterRaw);
 					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
@@ -7848,7 +7848,9 @@ public:
 			if(!tracking && frame.size)
 			{
 				// check if we crossed the initial point
-				float refPos = parameter->get();
+				// limit to a range we can actually reach on the slider, even if the initial
+				// value is allowed to be outside the slider rane
+				float refPos = constrain(parameter->get(), 0, 1);
 				float current = frame.location;
 				if(
 						(initialPos <= refPos && current >= refPos) ||
@@ -7860,7 +7862,7 @@ public:
 			gMenuAutoLatcher.process(frame, latched);
 			// set the centroid position to whatever the current parameter value is
 			centroid_t centroid = {
-					.location = parameter->get(),
+					.location = constrain(parameter->get(), 0, 1), // ensure it's within the visualisable range
 					.size = kFixedCentroidSize / 2,
 			};
 			rgb_t color;
