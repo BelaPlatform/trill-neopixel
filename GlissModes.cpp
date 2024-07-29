@@ -9323,9 +9323,10 @@ void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t
 		IoRangesParameters& io = performanceModes[mode]->ioRangesParameters;
 		if(rangeIdx < io.size())
 		{
-			ParameterContainer(io[rangeIdx].cvRange).set(cvRange);
 			ParameterContainer(io[rangeIdx].min).set(min);
 			ParameterContainer(io[rangeIdx].max).set(max);
+			// this last, so that setting min/max won't override cvRange with kCvRangeCustom
+			ParameterContainer(io[rangeIdx].cvRange).set(cvRange);
 		}
 	}
 }
