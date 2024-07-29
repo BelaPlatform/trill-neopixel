@@ -8,6 +8,9 @@
 #include "preset.h"
 #include "packed.h"
 #include "bootloader.h"
+#include <tuple>
+
+#define SIZE(a) (std::tuple_size<decltype(a)>::value) // gives you a constexpr size of the tuple
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 
 static void updateAllPresets();
