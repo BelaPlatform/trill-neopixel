@@ -8780,7 +8780,18 @@ public:
 		else if(p.same(newMode)) {
 			S(str = "newMode");
 			requestNewMode(newMode);
+		} else {
+			for(size_t n = 0; n < menuColors.size(); ++n)
+			{
+				if(p.same(menuColors[n]))
+				{
+					rgb_t c = menuColors[n].get();
+					buttonColors[n] = c;
+					break;
+				}
+			}
 		}
+
 		S(
 			if(verbose)
 				printf("%s\n\r", str);
@@ -8788,7 +8799,7 @@ public:
 	}
 	void updatePreset()
 	{
-		updatePresetField(this, MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode));
+		updatePresetField(this, MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode), MP(menuColors));
 	}
 	GlobalSettings() :
 		presetFieldData {
@@ -8798,11 +8809,16 @@ public:
 			.newMode = newMode,
 		}
 	{
+		for(size_t n = 0; n < buttonColors.size() && n < menuColors.size(); ++n)
+		{
+			menuColors[n] = {this, buttonColors[n]};
+		}
+
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
-			.defaulter = GENERIC_DEFAULTER(MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode)),
-			.loadCallback = LOAD_CALLBACK(MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode)),
+			.defaulter = GENERIC_DEFAULTER(MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode), MP(menuColors)),
+			.loadCallback = LOAD_CALLBACK(MP(sizeScaleCoeff), MP(brightness), MP(flags), MP(newMode), MP(menuColors)),
 		};
 		presetDescSet(5, &presetDesc);
 	}
@@ -8814,11 +8830,13 @@ public:
 	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	ParameterEnumT<kFlagMax> flags {this, kFlagJacksOnTop};
+	std::array<ParameterGenericT<rgb_t>,kMaxBtnStates> menuColors;
 	struct PresetFieldData_t {
 		float sizeScaleCoeff;
 		float brightness;
 		uint8_t flags;
 		uint8_t newMode;
+		std::array<rgb_t,SIZE(GlobalSettings::menuColors)> menuColors;
 	} presetFieldData;
 } gGlobalSettings;
 
