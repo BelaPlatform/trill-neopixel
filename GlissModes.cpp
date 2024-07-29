@@ -2755,6 +2755,9 @@ public:
 	void render(BelaContext*, FrameData* frameData) override
 	{
 		setOutIsSize();
+		// ensure a change in the mode color is updated on each callback
+		for(auto& s : ledSliders.sliders)
+			s.setColor(color);
 		bool analogInHigh = tri.analogRead() > kTriggerInOnThreshold;
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
