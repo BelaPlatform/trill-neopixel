@@ -132,6 +132,15 @@ public:
 				}
 				break;
 			}
+			case kGpStore:
+			{
+				if(0 == msgLen)
+				{
+					state = kMsgEmpty;
+					gp_store();
+				}
+				break;
+			}
 			}
 		}
 	}

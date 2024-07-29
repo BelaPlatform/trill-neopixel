@@ -13,14 +13,15 @@ enum ProtocolCmd {
 	kGpModeColor = 3,
 //	kGpRecorderModeGesture = 5,
 	kGpDebugFlags = 6,
+	kGpStore = 7,
 };
 // I/O and processing
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);
 int gp_outgoing(ProtocolPeripheral dst, void* data, size_t maxLen);
 void gp_processIncoming(); // call from the audio thread to process incoming messages
-void gp_store(); // store to disk
 
 // global methods
+void gp_store(); // store to disk
 // gp_getCalibration()
 // gp_setCalibration();
 // gp_setTouch(); // override touch data
