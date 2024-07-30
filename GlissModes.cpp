@@ -9342,15 +9342,15 @@ static IoRangeParameters* getmeModeIoRange(uint8_t mode, uint8_t rangeIdx)
 	return nullptr;
 }
 
-void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t min, uint16_t max)
+void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, const GpIoRange& ioRange)
 {
 	auto p = getmeModeIoRange(mode, rangeIdx);
 	if(p)
 	{
-		ParameterContainer(p->min).set(min);
-		ParameterContainer(p->max).set(max);
+		ParameterContainer(p->min).set(ioRange.min);
+		ParameterContainer(p->max).set(ioRange.max);
 		// this last, so that setting min/max won't override cvRange with kCvRangeCustom
-		ParameterContainer(p->cvRange).set(cvRange);
+		ParameterContainer(p->cvRange).set(ioRange.cvRange);
 	}
 }
 

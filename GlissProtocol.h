@@ -21,6 +21,11 @@ enum ProtocolCmd {
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);
 int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, size_t maxLen));
 void gp_processIncoming(); // call from the audio thread to process incoming messages
+struct GpIoRange {
+	uint8_t cvRange;
+	uint16_t min;
+	uint16_t max;
+};
 
 // global methods
 void gp_store(); // store to disk
@@ -34,7 +39,7 @@ void gp_store(); // store to disk
 // per-mode/pseudo-mode generic universal controls. Allow to set menu or non-menu `Parameter`s.
 void gp_setMode(uint8_t mode);
 void gp_setModeParameter(uint8_t mode, uint8_t parameter, uint16_t value);
-void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t min, uint16_t max);
+void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, const GpIoRange& ioRange);
 void gp_setModeColor(uint8_t mode, uint8_t colorIdx, const rgb_t& color);
 void gp_setDebugFlags(uint16_t flags);
 

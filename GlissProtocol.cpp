@@ -142,7 +142,11 @@ public:
 				if(7 == msgLen)
 				{
 					state = kMsgEmpty;
-					gp_setModeIoRange(m[0], m[1], m[2], getUint14(m + 3), getUint14(m + 5));
+					gp_setModeIoRange(m[0], m[1], {
+							.cvRange = m[2],
+							.min = getUint14(m + 3),
+							.max = getUint14(m + 5),
+						});
 				}
 				break;
 			}
