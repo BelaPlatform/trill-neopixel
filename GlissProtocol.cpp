@@ -2,6 +2,7 @@
 #include <array>
 #include <sys/types.h>
 #include <stdio.h>
+#include <string.h>
 
 static rgb_t protocolMakeColor(const uint8_t* data)
 {
@@ -179,19 +180,132 @@ public:
 			}
 			case kGpGet:
 			{
-				if(1 == msgLen)
+				if(msgLen > 0)
 				{
-					state = kMsgEmpty;
-					printf("GPGET\n\r");
-					uint8_t bytes[] = {0, 1, 2, 3, 4, 5, kReserved};
-					bytes[0] = m[0];
-					outQ.push(bytes, sizeof(bytes));
+					if(handleGpGet(m, msgLen, outQ))
+					{
+						state = kMsgEmpty;
+					}
 				}
+				break;
 			}
+			case kGpGetResponse:
+				break;
 			}
 		}
 	}
 private:
+	// only allow uint16_t to be passed to lsb()_ and msb()
+	template <typename T> uint8_t lsb(T) = delete;
+	template <typename T> uint8_t msb(T) = delete;
+	static uint8_t lsb(uint16_t arg)
+	{
+		return arg & 0x7f;
+	}
+	static uint8_t lsbF(float arg)
+	{
+		return lsb(uint16_t(arg * ((1 << 14) - 1)));
+	}
+	static uint8_t msb(uint16_t arg)
+	{
+		return (arg >> 7) & 0x7f;
+	}
+	// make it static to avoid confusion with variable names
+	static int handleGpGet(const uint8_t* m, size_t msgLen, Queue& outQ)
+	{
+		if(0 == msgLen)
+			return 0;
+		ProtocolCmd cmd = ProtocolCmd(m[0]);
+		m++;
+		msgLen--;
+		std::array<uint8_t,20> data;
+		constexpr size_t kHeaderBytes = 2; // leave space for kGpGetResponse, cmd and copying the request
+		const size_t initialN = msgLen + kHeaderBytes;
+		size_t n = initialN;
+		switch(cmd)
+		{
+		case kGpMode:
+		{
+			if(0 == msgLen)
+			{
+				data[n++] = gp_getMode();
+			}
+			break;
+		}
+		case kGpParameter:
+		{
+			if(2 == msgLen)
+			{
+				uint16_t par = gp_getModeParameter(m[0], m[1]);
+				data[n++] = lsb(par);
+				data[n++] = msb(par);
+			}
+			break;
+		}
+		case kGpIoRange:
+		{
+			if(2 == msgLen)
+			{
+				GpIoRange range = gp_getModeIoRange(m[0], m[1]);
+				data[n++] = range.cvRange;
+				data[n++] = lsb(range.min);
+				data[n++] = msb(range.min);
+				data[n++] = lsb(range.max);
+				data[n++] = msb(range.max);
+			}
+			break;
+		}
+		case kGpModeColor:
+		{
+			if(2 == msgLen)
+			{
+				rgb_t color = gp_getModeColor(m[0], m[1]);
+				for(size_t c = 0 ; c < color.size(); ++c)
+					data[n++] = color[c] / 2;
+			}
+			break;
+		}
+		case kGpDebugFlags:
+		{
+			if(0 == msgLen)
+			{
+				uint16_t flags = gp_getDebugFlags();
+				data[n++] = lsb(flags);
+				data[n++] = msb(flags);
+			}
+			break;
+		}
+		case kGpStore:
+		case kGpGet:
+		case kGpGetResponse:
+			break;
+		}
+		if(n > initialN)
+		{
+			// an actual response was provided
+			if(n >= data.size() - 1)
+			{
+				// buffer overflow
+				printf("ERROR: we wrote too much data: %d\n\r", n);
+				return 1; // pretend it's handled to avoid making things worse in subsequent calls
+			}
+			// fill the space we reserved in the first part of the buffer with the request data
+			// so it identifies the actual payload that has been written in the switch()
+			data[0] = kGpGetResponse;
+			data[1] = cmd;
+			memcpy(data.data() + kHeaderBytes, m, msgLen);
+			// mark the end of the message
+			data[n++] = kReserved;
+#if 0
+			printf("SENT ");
+			for(size_t c = 0; c < n; ++c)
+				printf("%d ", data[c]);
+			printf("\n\r");
+#endif
+			outQ.push(data.data(), n);
+		}
+		return 0;
+	}
 	static uint16_t getUint14(const uint8_t* data)
 	{
 		return (data[0] & 0x7f) | ((data[1] & 0x7f) << 7);

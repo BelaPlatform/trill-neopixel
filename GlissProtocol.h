@@ -16,6 +16,7 @@ enum ProtocolCmd {
 	kGpDebugFlags = 6,
 	kGpStore = 7,
 	kGpGet = 8,
+	kGpGetResponse = 9,
 };
 // I/O and processing
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);
@@ -42,6 +43,12 @@ void gp_setModeParameter(uint8_t mode, uint8_t parameter, uint16_t value);
 void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, const GpIoRange& ioRange);
 void gp_setModeColor(uint8_t mode, uint8_t colorIdx, const rgb_t& color);
 void gp_setDebugFlags(uint16_t flags);
+
+uint8_t gp_getMode();
+uint16_t gp_getModeParameter(uint8_t mode, uint8_t parameter);
+GpIoRange gp_getModeIoRange(uint8_t mode, uint8_t rangeIdx);
+rgb_t gp_getModeColor(uint8_t mode, uint8_t colorIdx);
+uint16_t gp_getDebugFlags();
 
 // mode specialties
 void gp_RecorderMode_setGesture(uint8_t, ...); // TODO: set as array?

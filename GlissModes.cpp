@@ -9380,3 +9380,52 @@ void gp_store()
 	updateAllPresets();
 	presetTriggerFlushToStorage();
 }
+
+uint8_t gp_getMode()
+{
+	return gNewMode;
+}
+
+uint16_t gp_getModeParameter(uint8_t mode, uint8_t parameter)
+{
+	auto p = getmeModeParameter(mode, parameter);
+	if(p)
+		return p->get();
+	return 0;
+}
+
+GpIoRange gp_getModeIoRange(uint8_t mode, uint8_t rangeIdx)
+{
+	auto p = getmeModeIoRange(mode, rangeIdx);
+	GpIoRange ioRange {};
+	if(p) {
+		ioRange.min = ParameterContainer(p->min).get();
+		ioRange.max = ParameterContainer(p->max).get();
+		// this last, so that setting min/max won't override cvRange with kCvRangeCustom
+		ioRange.cvRange = ParameterContainer(p->cvRange).get();
+	}
+	return ioRange;
+}
+
+rgb_t gp_getModeColor(uint8_t mode, uint8_t colorIdx)
+{
+	// hard to factor this out
+	if(mode < performanceModes.size())
+	{
+		auto p = performanceModes[mode]->getColor(colorIdx);
+		if(p)
+			return *p;
+	}
+	else if(127 == mode)
+	{
+		// menu colors
+		if(colorIdx < gGlobalSettings.menuColors.size())
+			return gGlobalSettings.menuColors[colorIdx].get();
+	}
+	return {0, 0, 0};
+}
+
+uint16_t gp_getDebugFlags()
+{
+	return gDebugFlags;
+}
