@@ -1973,7 +1973,7 @@ public:
 	{
 		return idx < parameters.size() ? &parameters[idx]: nullptr;
 	}
-	virtual void setColor(size_t idx, const rgb_t& color) = 0;
+	virtual rgb_t* getColor(size_t idx) = 0;
 	std::vector<ParameterContainer> parameters;
 	static constexpr rgb_t buttonColor {kRgbGreen};
 };
@@ -3031,10 +3031,11 @@ public:
 		};
 		presetDescSet(0, &presetDesc);
 	}
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		if(0 == idx)
-			this->color = color;
+			return &this->color;
+		return nullptr;
 	}
 	// splitMode from base class
 	ParameterEnumT<3> autoLatch{this, kAutoLatchOff};
@@ -4263,10 +4264,11 @@ public:
 		};
 		presetDescSet(1, &presetDesc);
 	}
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		if(0 == idx)
-			this->color = color;
+			return &color;
+		return nullptr;
 	}
 	//splitMode from the base class
 	ParameterEnumT<kInputModeNum> inputMode{this, kInputModeLfo};
@@ -4753,14 +4755,15 @@ public:
 		};
 		presetDescSet(2, &presetDesc);
 	}
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		if(0 == idx)
-			signalColor = color;
+			return &signalColor;
 		if(1 == idx)
-			endpointsColorIn = color;
+			return &endpointsColorIn;
 		if(2 == idx)
-			endpointsColorOut = color;
+			return &endpointsColorOut;
+		return nullptr;
 	}
 	ParameterEnumT<kOutputModeNum> outputMode {this, 0};
 	ParameterEnumT<kCouplingNum> coupling {this, kCouplingDc};
@@ -6001,15 +6004,16 @@ public:
 		};
 		presetDescSet(3, &presetDesc);
 	}
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		if(idx < colors.size())
-			colors[idx] = color;
+			return &colors[idx];
 		else {
 			idx -= colors.size();
 			if(idx < stepColors.size())
-				stepColors[idx] = color;
+				return &stepColors[idx];
 		}
+		return nullptr;
 	}
 	ParameterEnumT<2,bool> quantised {this, false};
 	ParameterEnumT<2,bool> seqMode{this, false};
@@ -6479,10 +6483,11 @@ public:
 		baseColor(color),
 		startTime(HAL_GetTick())
 	{}
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		if(0 == idx)
-			baseColor = color;
+			return &baseColor;
+		return nullptr;
 	}
 	bool setup(double ms){
 		gCalibrationProcedure.setup();
@@ -6598,9 +6603,10 @@ public:
 
 class FactoryTestMode: public PerformanceModeWithoutRanges {
 public:
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		// TODO
+		return nullptr;
 	}
 	bool setup(double ms) override
 	{
@@ -7043,9 +7049,10 @@ extern const ssize_t kFactoryTestModeIdx;
 
 class EraseSettingsMode: public PerformanceModeWithoutRanges {
 public:
-	void setColor(size_t idx, const rgb_t& color) override
+	rgb_t* getColor(size_t idx) override
 	{
 		// TODO
+		return nullptr;
 	}
 	bool setup(double ms) override
 	{
@@ -9335,7 +9342,7 @@ void gp_setModeColor(uint8_t mode, uint8_t idx, const rgb_t& color)
 {
 	if(mode < performanceModes.size())
 	{
-		performanceModes[mode]->setColor(idx, color);
+		*performanceModes[mode]->getColor(idx) = color;
 	}
 	else if(127 == mode)
 	{
