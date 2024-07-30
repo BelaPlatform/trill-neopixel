@@ -9309,37 +9309,54 @@ void gp_setMode(uint8_t mode)
 	requestNewMode(mode);
 }
 
-void gp_setModeParameter(uint8_t mode, uint8_t parameter, uint16_t value)
+static ParameterContainer* getmeModeParameter(uint8_t mode, uint8_t parameter)
 {
 	if(mode < performanceModes.size())
 	{
-		ParameterContainer* p = performanceModes[mode]->getParameter(parameter);
-		if(p)
-			p->set(value);
+		return performanceModes[mode]->getParameter(parameter);
 	} else if (127 == mode) {
 		// global settings
 		if(parameter < gGlobalSettings.parameters.size())
-			gGlobalSettings.parameters[parameter].set(value);
+			return &gGlobalSettings.parameters[parameter];
 	}
+	return nullptr;
 }
 
-void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t min, uint16_t max)
+void gp_setModeParameter(uint8_t mode, uint8_t parameter, uint16_t value)
+{
+	auto p = getmeModeParameter(mode, parameter);
+	if(p)
+		p->set(value);
+}
+
+static IoRangeParameters* getmeModeIoRange(uint8_t mode, uint8_t rangeIdx)
 {
 	if(mode < performanceModes.size())
 	{
 		IoRangesParameters& io = performanceModes[mode]->ioRangesParameters;
 		if(rangeIdx < io.size())
 		{
-			ParameterContainer(io[rangeIdx].min).set(min);
-			ParameterContainer(io[rangeIdx].max).set(max);
-			// this last, so that setting min/max won't override cvRange with kCvRangeCustom
-			ParameterContainer(io[rangeIdx].cvRange).set(cvRange);
+			return &io[rangeIdx];
 		}
+	}
+	return nullptr;
+}
+
+void gp_setModeIoRange(uint8_t mode, uint8_t rangeIdx, uint8_t cvRange, uint16_t min, uint16_t max)
+{
+	auto p = getmeModeIoRange(mode, rangeIdx);
+	if(p)
+	{
+		ParameterContainer(p->min).set(min);
+		ParameterContainer(p->max).set(max);
+		// this last, so that setting min/max won't override cvRange with kCvRangeCustom
+		ParameterContainer(p->cvRange).set(cvRange);
 	}
 }
 
 void gp_setModeColor(uint8_t mode, uint8_t idx, const rgb_t& color)
 {
+	// hard to factor this out
 	if(mode < performanceModes.size())
 	{
 		*performanceModes[mode]->getColor(idx) = color;
