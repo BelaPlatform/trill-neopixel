@@ -15,6 +15,7 @@ enum ProtocolCmd {
 //	kGpRecorderModeGesture = 5,
 	kGpDebugFlags = 6,
 	kGpStore = 7,
+	kGpGet = 8,
 };
 // I/O and processing
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);

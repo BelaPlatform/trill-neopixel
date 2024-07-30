@@ -92,7 +92,7 @@ public:
 			if(0 == count)
 				return 0; // an empty (spurious?) message, discard
 			else
-				return count - 1;
+				return count;
 		}
 		return 0;
 	}
@@ -173,6 +173,17 @@ public:
 					gp_store();
 				}
 				break;
+			}
+			case kGpGet:
+			{
+				if(1 == msgLen)
+				{
+					state = kMsgEmpty;
+					printf("GPGET\n\r");
+					uint8_t bytes[] = {0, 1, 2, 3, 4, 5, kReserved};
+					bytes[0] = m[0];
+					outQ.push(bytes, sizeof(bytes));
+				}
 			}
 			}
 		}
