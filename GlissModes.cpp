@@ -4746,7 +4746,7 @@ public:
 			.cutoff = cutoff,
 		}
 	{
-		parameters = {{ outputMode, coupling, cutoff, outRangeMin, outRangeMax, inRangeBottom, inRangeTop }};
+		parameters = {{ outputMode, coupling, cutoff, inRangeBottom, inRangeTop, outRangeMin, outRangeMax }};
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
