@@ -9352,6 +9352,12 @@ void gp_setModeColor(uint8_t mode, uint8_t idx, const rgb_t& color)
 	}
 }
 
+uint16_t gDebugFlags = 0;
+void gp_setDebugFlags(uint16_t flags)
+{
+	gDebugFlags = flags;
+}
+
 void gp_store()
 {
 	updateAllPresets();

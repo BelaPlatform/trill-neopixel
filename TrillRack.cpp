@@ -29,12 +29,6 @@ extern ButtonView performanceBtn;
 extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& states, std::vector<size_t>& onsets, std::vector<size_t>& offsets, bool onlyUpdateStates);
 std::array<float,kNumOutChannels> gManualAnOut;
 
-uint8_t gDebugFlags = 0;
-void setDebugFlags(uint8_t flags)
-{
-	gDebugFlags = flags;
-}
-
 #define STM32_NEOPIXEL
 // #define MIDI_CTL_SETS_PIXELS
 

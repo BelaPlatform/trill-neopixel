@@ -160,8 +160,7 @@ public:
 				if(2 == msgLen)
 				{
 					state = kMsgEmpty;
-					extern void setDebugFlags(uint8_t flags);
-					setDebugFlags(m[0]);
+					gp_setDebugFlags(getUint14(m));
 				}
 				break;
 			}
