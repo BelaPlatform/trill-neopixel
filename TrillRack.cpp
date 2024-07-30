@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <atomic>
 #include "../../common_stuff/verificationBlock.h"
+#include "../../common_stuff/sysex.h"
 
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
@@ -345,6 +346,7 @@ void tr_mainLoop()
 			printf("presetCheckSave: %d\n\r", ret);
 	}
 	processMidiMessage();
+	gp_outgoing(kGpMidi, sysexSend);
 #endif // TEST_MODE
 }
 
