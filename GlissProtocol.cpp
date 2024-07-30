@@ -56,7 +56,7 @@ private:
 class GlissProtocolProcessor
 {
 public:
-	int push(const uint8_t* data, size_t len)
+	int msgIncoming(const uint8_t* data, size_t len)
 	{
 		int ret = inQ.push(data, len);
 		uint8_t c = kReserved;
@@ -168,7 +168,7 @@ static std::array<GlissProtocolProcessor,kGpNumPp> processors;
 
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len)
 {
-	return processors[src].push((const uint8_t*)data, len);
+	return processors[src].msgIncoming((const uint8_t*)data, len);
 }
 
 void gp_processIncoming()
