@@ -5,6 +5,7 @@
 enum ProtocolPeripheral {
 	kGpMidi,
 	kGpI2c,
+	kGpNumPp,
 };
 enum ProtocolCmd {
 	kGpMode = 0,

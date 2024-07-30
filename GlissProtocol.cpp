@@ -164,7 +164,7 @@ private:
 	static constexpr uint8_t kReserved = 255;
 };
 
-static std::array<GlissProtocolProcessor,2> processors;
+static std::array<GlissProtocolProcessor,kGpNumPp> processors;
 
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len)
 {
