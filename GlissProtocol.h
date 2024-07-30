@@ -18,7 +18,7 @@ enum ProtocolCmd {
 };
 // I/O and processing
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);
-int gp_outgoing(ProtocolPeripheral dst, void* data, size_t maxLen);
+int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, size_t maxLen));
 void gp_processIncoming(); // call from the audio thread to process incoming messages
 
 // global methods

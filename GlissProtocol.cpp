@@ -43,6 +43,20 @@ public:
 		readPtr = r;
 		return len;
 	}
+	ssize_t find(uint8_t val, size_t maxLen)
+	{
+		size_t r = readPtr;
+		for(size_t count = 0; count < maxLen; ++count)
+		{
+			if(r == writePtr) // end of buffer
+				break;
+			if(raw[r] == val)
+				return count;
+			if(++r >= raw.size())
+				r = 0;
+		}
+		return -1;
+	}
 	size_t size() const
 	{
 		return (writePtr - readPtr - 1 + raw.size()) % raw.size();
@@ -62,6 +76,25 @@ public:
 		uint8_t c = kReserved;
 		ret |= inQ.push(&c, sizeof(c)); // end of message
 		return ret;
+	}
+	size_t msgOutgoing(uint8_t* data, size_t maxLen)
+	{
+		ssize_t count = outQ.find(kReserved, maxLen);
+		if(count >= 0)
+		{
+			outQ.pop(data, count + 1);
+			if(kReserved != data[count])
+			{
+				// uh-oh that shouldn't be the case. WTF?
+				printf("msgOutgoing found wrong value\n\r");
+				return 0;
+			}
+			if(0 == count)
+				return 0; // an empty (spurious?) message, discard
+			else
+				return count - 1;
+		}
+		return 0;
 	}
 	void process()
 	{
@@ -150,6 +183,7 @@ private:
 		return (data[0] & 0x7f) | ((data[1] & 0x7f) << 7);
 	}
 	Queue inQ;
+	Queue outQ;
 	static constexpr size_t kMaxCmdLength = 10;
 	std::array<uint8_t,kMaxCmdLength> msg;
 	uint8_t* const m = msg.data(); // allows terser style above
@@ -175,4 +209,23 @@ void gp_processIncoming()
 {
 	for(auto& p : processors)
 		p.process();
+}
+
+int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, size_t maxLen))
+{
+	constexpr size_t kMaxSent = 48; // arbitrary limit. Outgoing queues for the peripherals are the actual limiting factors
+	std::array<uint8_t,kMaxSent> buffer;
+	size_t sent = 0;
+	int ret = 0;
+	while(sent < kMaxSent && !ret)
+	{
+		size_t count = processors[dst].msgOutgoing(buffer.data(), std::min(kMaxSent - sent, buffer.size()));
+		if(count)
+		{
+			ret |= callback(buffer.data(), count);
+			sent += count;
+		} else
+			break;
+	}
+	return ret;
 }
