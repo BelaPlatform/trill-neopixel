@@ -129,9 +129,17 @@ public:
 	}
 	void process()
 	{
-		uint8_t c;
-		while(1 == inQ.pop(&c, sizeof(c)))
+		uint8_t msg[kMaxMsgLength];
+		size_t len = msgPopIncoming(msg, sizeof(msg));
+		if(len <= 0)
+			return;
+		uint8_t* m = msg + 1;
+		// we refactored this to pop the message at once, and we now have a full message
+		// before the loop, so a lot of the state machine
+		// and the char-by-char processing is not really needed anymore, but we keep it
+		for(size_t n = 0; n < len; ++n)
 		{
+			uint8_t c = msg[n];
 			if(kReserved == c)
 			{
 				// message ended, discard anything that might have been
@@ -146,7 +154,7 @@ public:
 			} else
 			if(kMsgInProgress == state)
 			{
-				m[msgLen++] = c;
+				msgLen++;
 			}
 			switch(cmd)
 			{
@@ -368,9 +376,7 @@ private:
 	}
 	Queue inQ;
 	Queue outQ;
-	static constexpr size_t kMaxCmdLength = 10;
-	std::array<uint8_t,kMaxCmdLength> msg;
-	uint8_t* const m = msg.data(); // allows terser style above
+	static constexpr size_t kMaxMsgLength = 50;
 	size_t msgLen;
 	size_t msgDesiredLen;
 	enum State {
