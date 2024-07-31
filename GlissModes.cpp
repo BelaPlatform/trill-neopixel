@@ -1474,6 +1474,7 @@ public:
 		kRecJustStarted = -2,
 	};
 	class SwappableRecorders {
+	public:
 		struct Rcr {
 			Recorder<sample_t> r;
 			State state {};
@@ -1486,6 +1487,7 @@ public:
 			bool activity {};
 			bool frozen {};
 		};
+	private:
 		std::array<Rcr,kNumRecs> rs;
 		std::array<Rcr*,kNumRecs> ptrs;
 	public:
@@ -1493,6 +1495,7 @@ public:
 			kWhichRecordersDouble,
 			kWhichRecordersDoubleWithBackup,
 		};
+		WhichRecorders which;
 		SwappableRecorders() {
 			for(size_t n = 0; n < kNumRecs; ++n)
 				ptrs[n] = &rs[n];
@@ -1506,8 +1509,10 @@ public:
 		Rcr& operator[] (size_t n) {
 			return *ptrs[n];
 		}
-		void setEnabled(WhichRecorders which)
+		ArrayView<sample_t> getArrayViewForPointer(size_t n)
 		{
+			size_t start;
+			size_t size;
 			size_t numEnabled = 0;
 			switch(which)
 			{
@@ -1518,28 +1523,41 @@ public:
 				numEnabled = kNumRecs;
 				break;
 			}
-			size_t size = recorderData.size() / numEnabled;
+			size = recorderData.size() / numEnabled;
+			start = 0;
+			auto* data = recorderData.data();
+			switch(which)
+			{
+			case kWhichRecordersDouble:
+				start = (n % numEnabled) * size;
+				break;
+			case kWhichRecordersDoubleWithBackup:
+				if(0 == n)
+					start = 0;
+				else if (1 == n)
+					start = size * 2;
+				else if(2 == n)
+					start = size;
+				else if (3 == n)
+					start = size * 3;
+				else
+				{
+					// invalid index
+					start = 0;
+					data = nullptr;
+					size = 0;
+				}
+				break;
+			}
+			return { data + start, size};
+		}
+		void setEnabled(WhichRecorders which)
+		{
+			this->which = which;
 			for(size_t n = 0; n < ptrs.size(); ++n)
 			{
-				size_t start = 0;
-				switch(which)
-				{
-				case kWhichRecordersDouble:
-					start = (n % numEnabled) * size;
-					break;
-				case kWhichRecordersDoubleWithBackup:
-					if(0 == n)
-						start = 0;
-					else if (1 == n)
-						start = size * 2;
-					else if(2 == n)
-						start = size;
-					else if (3 == n)
-						start = size * 3;
-					break;
-				}
 				auto& r = ptrs[n]->r;
-				ArrayView<sample_t> newA = { recorderData.data() + start, size};
+				ArrayView<sample_t> newA = getArrayViewForPointer(n);;
 				ArrayView<sample_t> oldA = r.getData();
 				size_t count = std::min(newA.size(), oldA.size());
 				if(n < kNumRecs / 2 && newA.data() != oldA.data() && newA.data() && oldA.data())
