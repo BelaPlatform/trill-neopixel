@@ -9470,7 +9470,10 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t l
 
 void gp_RecorderMode_setGestureLength(uint8_t recorder, size_t offset, size_t length)
 {
-	// TODO
+	if(recorder < gGestureRecorder.rs.size())
+	{
+		gGestureRecorder.rs[recorder].r.setEndpoints(offset, offset + length);
+	}
 }
 
 uint32_t gp_RecorderMode_getGestureLength(uint8_t recorder)
