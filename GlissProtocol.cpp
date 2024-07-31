@@ -3,6 +3,11 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
+extern "C" {
+#include "../../common_stuff/z_ringbuffer.h"
+};
+extern "C" { void HAL_Delay(uint32_t Delay); void Error_Handler(); };
 
 static rgb_t protocolMakeColor(const uint8_t* data)
 {
@@ -17,55 +22,34 @@ class Queue
 public:
 	int push(const uint8_t* data, size_t len)
 	{
-		size_t w = writePtr;
-		while(len--)
-		{
-			if(((readPtr - 1 + raw.size()) % raw.size()) == w) // full!
-				return 1;
-			raw[w++] = *data++;
-			if(w >= raw.size())
-				w = 0;
-		}
-		writePtr = w;
-		return 0;
+		size_t available = rb_available_to_write(&rb);
+		if(available < len)
+			return -1;
+		return rb_write_to_buffer(&rb, 1, (char*)data, len);
 	}
-	ssize_t pop(uint8_t* data, size_t maxLen)
+	ssize_t pop(uint8_t* data, size_t len)
 	{
-		size_t len = 0;
-		size_t r = readPtr;
-		while(maxLen--)
-		{
-			if(r == writePtr) // empty!
-				break;
-			data[len++] = raw[r++];
-			if(r >= raw.size())
-				r = 0;
-		}
-		readPtr = r;
-		return len;
+		size_t available = rb_available_to_read(&rb);
+		if(len > available)
+			return -1;
+		int ret = rb_read_from_buffer(&rb, (char*)data, len);
+		if(0 == ret)
+			return len;
+		else
+			return -std::abs(ret);
 	}
 	ssize_t find(uint8_t val, size_t maxLen)
 	{
-		size_t r = readPtr;
-		for(size_t count = 0; count < maxLen; ++count)
-		{
-			if(r == writePtr) // end of buffer
-				break;
-			if(raw[r] == val)
-				return count;
-			if(++r >= raw.size())
-				r = 0;
-		}
-		return -1;
+		return rb_find(&rb, maxLen, val);
 	}
-	size_t size() const
+	Queue()
 	{
-		return (writePtr - readPtr - 1 + raw.size()) % raw.size();
+		if(rb_init_preallocated(&rb, (char*)raw.data(), raw.size()))
+			Error_Handler();
 	}
 private:
-	volatile size_t writePtr = 0;
-	volatile size_t readPtr = 0;
-	std::array<uint8_t,100> raw;
+	std::array<uint8_t,256> raw;
+	ring_buffer rb;
 };
 
 class GlissProtocolProcessor
