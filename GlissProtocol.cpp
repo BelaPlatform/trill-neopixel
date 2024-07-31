@@ -360,7 +360,6 @@ private:
 	}
 	Queue inQ;
 	Queue outQ;
-	static constexpr size_t kMaxMsgLength = 50;
 	size_t msgLen;
 	size_t msgDesiredLen;
 	enum State {
@@ -370,12 +369,19 @@ private:
 	} state = kMsgEmpty;
 	ProtocolCmd cmd;
 	static constexpr uint8_t kReserved = 255;
+public:
+	static constexpr size_t kMaxMsgLength = 50;
 };
 
 static std::array<GlissProtocolProcessor,kGpNumPp> processors;
 
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len)
 {
+	if(len > GlissProtocolProcessor::kMaxMsgLength)
+	{
+		printf("discarding long msg [%u]\n\r", len);
+		return 1;
+	}
 	return processors[src].msgPushIncoming((const uint8_t*)data, len);
 }
 
