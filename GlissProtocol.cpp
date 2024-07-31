@@ -160,6 +160,31 @@ public:
 				}
 				break;
 			}
+			case kGpRecorderModeGesture:
+			{
+				constexpr size_t kHeaderLength = 6; // 1 'status', 1 recorder, 2 offset, 2 length
+				if(msgLen >= kHeaderLength)
+				{
+					size_t recorder = m[1];
+					size_t offset = getUint14(m + 2);
+					size_t length = getUint14(m + 4);
+					if(0 == m[0] && 6 == msgLen)
+					{
+						gp_RecorderMode_setGestureLength(recorder, offset, length);
+						state = kMsgEmpty;
+					}
+					if(1 == m[0])
+					{
+						constexpr size_t kDataWidth = sizeof(uint16_t);
+						if(length * kDataWidth + kHeaderLength == msgLen)
+						{
+							gp_RecorderMode_setGestureContent(recorder, offset, length, m + kHeaderLength);
+							state = kMsgEmpty;
+						}
+					}
+				}
+				break;
+			}
 			case kGpDebugFlags:
 			{
 				if(2 == msgLen)
@@ -275,6 +300,7 @@ private:
 			}
 			break;
 		}
+		case kGpRecorderModeGesture:
 		case kGpStore:
 		case kGpGet:
 		case kGpGetResponse:

@@ -12,7 +12,7 @@ enum ProtocolCmd {
 	kGpParameter = 1,
 	kGpIoRange = 2,
 	kGpModeColor = 3,
-//	kGpRecorderModeGesture = 5,
+	kGpRecorderModeGesture = 4,
 	kGpDebugFlags = 6,
 	kGpStore = 7,
 	kGpGet = 8,
