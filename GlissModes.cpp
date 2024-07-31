@@ -9449,7 +9449,7 @@ uint16_t gp_getDebugFlags()
 }
 
 
-void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t length, size_t offset, const uint8_t* data)
+void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t length, const uint8_t* data)
 {
 	auto array = gGestureRecorder.rs.getArrayViewForPointer(recorder);
 	for(size_t n = 0; n < length && offset + n < array.size(); ++n)
@@ -9464,7 +9464,7 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t length, size_t o
 	}
 }
 
-void gp_RecorderMode_setGestureLength(uint8_t recorder, uint32_t length)
+void gp_RecorderMode_setGestureLength(uint8_t recorder, size_t offset, size_t length)
 {
 	// TODO
 }
