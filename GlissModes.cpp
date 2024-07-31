@@ -9447,3 +9447,26 @@ uint16_t gp_getDebugFlags()
 {
 	return gDebugFlags;
 }
+
+
+void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t length, size_t offset, const uint8_t* data)
+{
+	auto array = gGestureRecorder.rs.getArrayViewForPointer(recorder);
+	for(size_t n = 0; n < length && offset + n < array.size(); ++n)
+		array[offset + n] = (data[2 * n] + (data[2 * n + 1] << 7)) / float(1 << 14);
+}
+
+void gp_RecorderMode_setGestureLength(uint8_t recorder, uint32_t length)
+{
+	// TODO
+}
+
+uint32_t gp_RecorderMode_getGestureLength(uint8_t recorder)
+{
+	return 0; //TODO
+}
+
+size_t gp_RecorderMode_getGestureContent(uint8_t recorder, size_t length, size_t offset, uint16_t* data)
+{
+	return 0; //TODO
+}

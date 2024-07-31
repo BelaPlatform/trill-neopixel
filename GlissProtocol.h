@@ -51,4 +51,8 @@ rgb_t gp_getModeColor(uint8_t mode, uint8_t colorIdx);
 uint16_t gp_getDebugFlags();
 
 // mode specialties
-void gp_RecorderMode_setGesture(uint8_t, ...); // TODO: set as array?
+void gp_RecorderMode_setGestureLength(uint8_t recorder, uint32_t length);
+void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t length, size_t offset, const uint8_t* data);
+
+uint32_t gp_RecorderMode_getGestureLength(uint8_t recorder);
+size_t gp_RecorderMode_getGestureContent(uint8_t recorder, size_t length, size_t offset, uint16_t* data);
