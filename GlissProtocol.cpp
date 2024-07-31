@@ -70,24 +70,37 @@ private:
 
 class GlissProtocolProcessor
 {
-public:
-	int msgIncoming(const uint8_t* data, size_t len)
+	static int msgPush(Queue& q, const uint8_t* data, size_t len)
 	{
-		int ret = inQ.push(data, len);
-		uint8_t c = kReserved;
-		ret |= inQ.push(&c, sizeof(c)); // end of message
-		return ret;
+		if(len > kMaxMsgLength)
+			return -1;
+		// use a temp buffer to push all at once
+		// TODO: write a variadic push instead to save this copy
+		uint8_t msg[len + 1];
+		memcpy(msg, data, len);
+		msg[len] = kReserved;
+		return q.push(msg, sizeof(msg));
 	}
-	size_t msgOutgoing(uint8_t* data, size_t maxLen)
+	static int msgPop(Queue& q, uint8_t* data, size_t maxLen)
 	{
-		ssize_t count = outQ.find(kReserved, maxLen);
+		ssize_t count = q.find(kReserved, std::min(maxLen, kMaxMsgLength));
 		if(count >= 0)
 		{
-			outQ.pop(data, count + 1);
-			if(kReserved != data[count])
+			// get message body
+			ssize_t ret = q.pop(data, count);
+			uint8_t c;
+			// remove separator
+			ssize_t secondRet = q.pop(&c, sizeof(c));
+			if(kReserved != c)
 			{
 				// uh-oh that shouldn't be the case. WTF?
-				printf("msgOutgoing found wrong value\n\r");
+				printf("msgPop bad sep\n\r");
+				return 0;
+			}
+			if(secondRet != 1 || ret != count)
+			{
+				// uh-oh that shouldn't be the case. WTF?
+				printf("msgPop bad ret: %d %d\n\r", ret, secondRet);
 				return 0;
 			}
 			if(0 == count)
@@ -96,6 +109,23 @@ public:
 				return count;
 		}
 		return 0;
+	}
+public:
+	int msgPushIncoming(const uint8_t* data, size_t len)
+	{
+		return msgPush(inQ, data, len);
+	}
+	int msgPopIncoming(uint8_t* data, size_t maxLen)
+	{
+		return msgPop(inQ, data, maxLen);
+	}
+	int msgPushOutgoing(const uint8_t* data, size_t len)
+	{
+		return msgPush(outQ, data, len);
+	}
+	size_t msgPopOutgoing(uint8_t* data, size_t maxLen)
+	{
+		return msgPop(outQ, data, maxLen);
 	}
 	void process()
 	{
@@ -356,7 +386,7 @@ static std::array<GlissProtocolProcessor,kGpNumPp> processors;
 
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len)
 {
-	return processors[src].msgIncoming((const uint8_t*)data, len);
+	return processors[src].msgPushIncoming((const uint8_t*)data, len);
 }
 
 void gp_processIncoming()
@@ -373,7 +403,7 @@ int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, siz
 	int ret = 0;
 	while(sent < kMaxSent && !ret)
 	{
-		size_t count = processors[dst].msgOutgoing(buffer.data(), std::min(kMaxSent - sent, buffer.size()));
+		size_t count = processors[dst].msgPopOutgoing(buffer.data(), std::min(kMaxSent - sent, buffer.size()));
 		if(count)
 		{
 			ret |= callback(buffer.data(), count);
