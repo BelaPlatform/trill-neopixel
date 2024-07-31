@@ -382,7 +382,12 @@ int gp_incoming(ProtocolPeripheral src, const void* data, size_t len)
 		printf("discarding long msg [%u]\n\r", len);
 		return 1;
 	}
-	return processors[src].msgPushIncoming((const uint8_t*)data, len);
+	while(processors[src].msgPushIncoming((const uint8_t*)data, len))
+	{
+		printf("W\n\r");
+		HAL_Delay(1);
+	}
+	return 0;
 }
 
 void gp_processIncoming()
