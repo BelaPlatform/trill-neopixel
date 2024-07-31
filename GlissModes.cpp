@@ -1070,13 +1070,17 @@ public:
 	}
 	void trim(float bottom, float top)
 	{
+			return;
+		size_t relativeStart = size() * bottom;
+		size_t relativeEnd = size() * top;
+		setEndpoints(relativeStart, relativeEnd);
+	}
+	void setEndpoints(size_t relativeStart, size_t relativeEnd)
+	{
 		// shadow the method so it doesn't get called by mistake, as it may be inaccurate
 		// while start and end are being assigned
 		size_t size = this->size();
-		if(!size)
-			return;
-		size_t relativeStart = size * bottom;
-		size_t relativeEnd = size * top;
+
 		float normCurrent = (current - start + data.size()) % data.size() / float(size);
 		size_t relativeCurrent = size * normCurrent;
 		if(relativeCurrent < relativeStart || relativeCurrent >= relativeEnd)
