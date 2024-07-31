@@ -9453,7 +9453,15 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t length, size_t o
 {
 	auto array = gGestureRecorder.rs.getArrayViewForPointer(recorder);
 	for(size_t n = 0; n < length && offset + n < array.size(); ++n)
-		array[offset + n] = (data[2 * n] + (data[2 * n + 1] << 7)) / float(1 << 14);
+	{
+		float val;
+		unsigned int in = data[2 * n] + (data[2 * n + 1] << 7);
+		if(16383 == in) // use 16383 as a special marker for 'no touch'
+			val = kNoOutput;
+		else
+			val = float(in) / 16382.f;
+		array[offset + n] = val;
+	}
 }
 
 void gp_RecorderMode_setGestureLength(uint8_t recorder, uint32_t length)
