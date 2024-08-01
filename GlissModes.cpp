@@ -1440,11 +1440,13 @@ public:
 	{
 		rs[n].frozen = true;
 	}
-	void resumePlaybackFrom(size_t n, ssize_t from)
+	void resumePlaybackFrom(size_t n, double from)
 	{
 		rs[n].frozen = false;
 		if(from < 0)
 			from = 0;
+		if(from >= rs[n].r.size())
+			from = rs[n].r.size() - 1;
 		rs[n].playHead = from;
 	}
 	void empty(size_t n)
