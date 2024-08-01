@@ -67,5 +67,7 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t l
 void gp_recorderMode_setGesturePlayHead(uint8_t recorder, size_t offset);
 void gp_recorderMode_setGesturePlayRate(uint8_t recorder, uint32_t rate);
 
-uint32_t gp_RecorderMode_getGestureLength(uint8_t recorder);
-size_t gp_RecorderMode_getGestureContent(uint8_t recorder, size_t length, size_t offset, uint16_t* data);
+GpRmgEndpoints gp_RecorderMode_getGestureEndpoints(uint8_t recorder);
+int gp_RecorderMode_getGestureContent(uint8_t recorder, size_t offset, size_t length, uint8_t* data);
+size_t gp_recorderMode_getGesturePlayHead(uint8_t recorder);
+uint32_t gp_recorderMode_getGesturePlayRate(uint8_t recorder);
