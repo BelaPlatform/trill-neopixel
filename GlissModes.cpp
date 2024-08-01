@@ -9471,15 +9471,15 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t l
 	}
 }
 
-void gp_RecorderMode_setGestureLength(uint8_t recorder, size_t offset, size_t length)
+void gp_RecorderMode_setGestureEndpoints(uint8_t recorder, const GpRmgEndpoints& eps)
 {
 	if(recorder < gGestureRecorder.rs.size())
 	{
-		gGestureRecorder.rs[recorder].r.setEndpoints(offset, offset + length);
+		gGestureRecorder.rs[recorder].r.setEndpoints(eps.offset, eps.offset + eps.length);
 	}
 }
 
-void gp_recorderMode_setGesturePlayOffset(uint8_t recorder, size_t offset)
+void gp_recorderMode_setGesturePlayHead(uint8_t recorder, size_t offset)
 {
 	if(recorder < gGestureRecorder.rs.size())
 	{

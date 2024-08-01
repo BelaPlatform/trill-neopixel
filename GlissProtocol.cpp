@@ -184,25 +184,42 @@ public:
 			}
 			case kGpRecorderModeGesture:
 			{
-				constexpr size_t kHeaderLength = 6; // 1 'status', 1 recorder, 2 offset, 2 length
-				if(msgLen >= kHeaderLength)
+				if(msgLen >= 4)
 				{
+					uint8_t status = m[0];
 					size_t recorder = m[1];
-					size_t offset = getUint14(m + 2);
-					size_t length = getUint14(m + 4);
-					if(0 == m[0] && 6 == msgLen)
+					constexpr size_t kHeaderLength = 6; // 1 'status', 1 recorder, 2 offset, 2 length
+					if(status < 2 && msgLen >= kHeaderLength)
 					{
-						gp_RecorderMode_setGestureLength(recorder, offset, length);
-						state = kMsgEmpty;
-					}
-					if(1 == m[0])
-					{
-						constexpr size_t kDataWidth = sizeof(uint16_t);
-						if(length * kDataWidth + kHeaderLength == msgLen)
+						size_t offset = getUint14(m + 2);
+						size_t length = getUint14(m + 4);
+						if(kGpRmgEndpoints == status && 6 == msgLen)
 						{
-							gp_RecorderMode_setGestureContent(recorder, offset, length, m + kHeaderLength);
+							gp_RecorderMode_setGestureEndpoints(recorder, { .offset = offset, .length = length });
 							state = kMsgEmpty;
 						}
+						if(kGpRmgContent == status)
+						{
+							constexpr size_t kDataWidth = sizeof(uint16_t);
+							if(length * kDataWidth + kHeaderLength == msgLen)
+							{
+								gp_RecorderMode_setGestureContent(recorder, offset, length, m + kHeaderLength);
+								state = kMsgEmpty;
+							}
+						}
+					}
+					if(kGpRmgPlayHead == status && 4 == msgLen)
+					{
+						size_t playHead = getUint14(m + 2);
+						gp_recorderMode_setGesturePlayHead(recorder, playHead);
+						state = kMsgEmpty;
+
+					}
+					if(kGpRmgPlayRate == status && 6 == msgLen)
+					{
+						uint32_t rate = getUint28(m + 2);
+						gp_recorderMode_setGesturePlayRate(recorder, rate);
+						state = kMsgEmpty;
 					}
 				}
 				break;

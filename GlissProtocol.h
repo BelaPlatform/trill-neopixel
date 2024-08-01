@@ -18,6 +18,13 @@ enum ProtocolCmd {
 	kGpGet = 8,
 	kGpGetResponse = 9,
 };
+enum ProtocolCmdRecorderModeGesture {
+	kGpRmgEndpoints = 0,
+	kGpRmgContent = 1,
+	kGpRmgPlayHead = 2,
+	kGpRmgPlayRate = 3,
+};
+
 // I/O and processing
 int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);
 int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, size_t maxLen));
@@ -26,6 +33,10 @@ struct GpIoRange {
 	uint8_t cvRange;
 	uint16_t min;
 	uint16_t max;
+};
+struct GpRmgEndpoints {
+	size_t offset;
+	size_t length;
 };
 
 // global methods
@@ -51,8 +62,10 @@ rgb_t gp_getModeColor(uint8_t mode, uint8_t colorIdx);
 uint16_t gp_getDebugFlags();
 
 // mode specialties
-void gp_RecorderMode_setGestureLength(uint8_t recorder, size_t offset, size_t length);
+void gp_RecorderMode_setGestureEndpoints(uint8_t recorder, const GpRmgEndpoints& endpoints);
 void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t length, const uint8_t* data);
+void gp_recorderMode_setGesturePlayHead(uint8_t recorder, size_t offset);
+void gp_recorderMode_setGesturePlayRate(uint8_t recorder, uint32_t rate);
 
 uint32_t gp_RecorderMode_getGestureLength(uint8_t recorder);
 size_t gp_RecorderMode_getGestureContent(uint8_t recorder, size_t length, size_t offset, uint16_t* data);
