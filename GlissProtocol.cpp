@@ -95,6 +95,7 @@ class GlissProtocolProcessor
 		return 0;
 	}
 public:
+	static constexpr size_t kMaxMsgLength = 50;
 	int msgPushIncoming(const uint8_t* data, size_t len)
 	{
 		return msgPush(inQ, data, len);
@@ -274,6 +275,26 @@ private:
 	{
 		return (arg >> 7) & 0x7f;
 	}
+	template <typename T>
+	static size_t setUintT(uint8_t* data, T val, size_t bytes)
+	{
+		size_t n = 0;
+		size_t b = 0;
+		for( ; b < 7 * bytes; b += 7, ++n)
+		{
+			data[n] = val & 0x7f;
+			val >>= 7;
+		}
+		return n;
+	}
+	static size_t setUint28(uint8_t* data, uint32_t val)
+	{
+		return setUintT(data, val, 4);
+	}
+	static size_t setUint14(uint8_t* data, uint32_t val)
+	{
+		return setUintT(data, val, 2);
+	}
 	// make it static to avoid confusion with variable names
 	static int handleGpGet(const uint8_t* m, size_t msgLen, Queue& outQ)
 	{
@@ -282,7 +303,7 @@ private:
 		ProtocolCmd cmd = ProtocolCmd(m[0]);
 		m++;
 		msgLen--;
-		std::array<uint8_t,20> data;
+		std::array<uint8_t,kMaxMsgLength> data;
 		constexpr size_t kHeaderBytes = 2; // leave space for kGpGetResponse, cmd and copying the request
 		const size_t initialN = msgLen + kHeaderBytes;
 		size_t n = initialN;
@@ -340,6 +361,10 @@ private:
 			break;
 		}
 		case kGpRecorderModeGesture:
+		{
+			handleGpRecorderModeGestureGet(data, n, ProtocolCmdRecorderModeGesture(m[0]), m + 1, msgLen - 1);
+			break;;
+		}
 		case kGpStore:
 		case kGpGet:
 		case kGpGetResponse:
@@ -368,13 +393,61 @@ private:
 			printf("\n\r");
 #endif
 			outQ.push(data.data(), n);
+			return 1;
 		}
 		return 0;
+	}
+	static void handleGpRecorderModeGestureGet(std::array<uint8_t,kMaxMsgLength>& data, size_t& n,
+			ProtocolCmdRecorderModeGesture cmd, const uint8_t* m, size_t msgLen)
+	{
+		if(msgLen > 0)
+		{
+			uint8_t recorder = m[0];
+			switch(cmd)
+			{
+			case kGpRmgEndpoints:
+			{
+				GpRmgEndpoints eps = gp_RecorderMode_getGestureEndpoints(recorder);
+				n += setUint14(data.data() + n, eps.offset);
+				n += setUint14(data.data() + n, eps.length);
+			}
+				break;
+			case kGpRmgContent:
+			{
+				size_t offset = getUint14(m + 1);
+				size_t length = m[3];
+				size_t numBytes = length * sizeof(uint16_t);
+				if(numBytes < data.size() - n)
+				{
+					gp_RecorderMode_getGestureContent(recorder, offset, length, data.data() + n);
+					n += numBytes;
+				}
+			}
+				break;
+			case kGpRmgPlayRate:
+			{
+				uint32_t playRate = gp_recorderMode_getGesturePlayRate(recorder);
+				n += setUint28(data.data() + n, playRate);
+			}
+				break;
+			case kGpRmgPlayHead:
+			{
+				size_t playHead = gp_recorderMode_getGesturePlayHead(recorder);
+				n += setUint14(data.data() + n, playHead);
+			}
+				break;
+			}
+		}
 	}
 	static uint16_t getUint14(const uint8_t* data)
 	{
 		return (data[0] & 0x7f) | ((data[1] & 0x7f) << 7);
 	}
+	static uint32_t getUint28(const uint8_t* data)
+	{
+		return getUint14(data) | (getUint14(data + 2) << 14);
+	}
+
 	Queue inQ;
 	Queue outQ;
 	size_t msgLen;
@@ -386,8 +459,6 @@ private:
 	} state = kMsgEmpty;
 	ProtocolCmd cmd;
 	static constexpr uint8_t kReserved = 255;
-public:
-	static constexpr size_t kMaxMsgLength = 50;
 };
 
 static std::array<GlissProtocolProcessor,kGpNumPp> processors;
