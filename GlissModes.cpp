@@ -1420,7 +1420,7 @@ public:
 					if(!rs[n].frozen)
 						rs[n].playHead += rs[n].playbackInc;
 					if(rs[n].playHead >= rs[n].r.size() && loop)
-						rs[n].playHead -= rs[n].r.size(); // loop back keeping phase offset
+						rs[n].playHead = fmod(rs[n].playHead, rs[n].r.size()); // loop back keeping phase offset
 				}
 				else {
 					if(loop) {
