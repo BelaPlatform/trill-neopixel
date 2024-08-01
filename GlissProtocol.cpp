@@ -119,6 +119,7 @@ public:
 		if(len <= 0)
 			return;
 		uint8_t* m = msg + 1;
+#if 0
 		// we refactored this to pop the message at once, and we now have a full message
 		// before the loop, so a lot of the state machine
 		// and the char-by-char processing is not really needed anymore, but we keep it
@@ -141,6 +142,12 @@ public:
 			{
 				msgLen++;
 			}
+#else
+		if(len >= 1)
+		{
+			msgLen = len - 1; // remove cmd
+			cmd = ProtocolCmd(msg[0]);
+#endif
 			switch(cmd)
 			{
 			case kGpMode:
