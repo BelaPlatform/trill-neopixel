@@ -9454,6 +9454,7 @@ uint16_t gp_getDebugFlags()
 	return gDebugFlags;
 }
 
+static constexpr unsigned int kNoOutputInt = 16383;
 
 void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t length, const uint8_t* data)
 {
@@ -9462,10 +9463,10 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t l
 	{
 		float val;
 		unsigned int in = data[2 * n] + (data[2 * n + 1] << 7);
-		if(16383 == in) // use 16383 as a special marker for 'no touch'
+		if(kNoOutputInt == in) // use as a special marker for 'no touch'
 			val = kNoOutput;
-		else
-			val = float(in) / 16382.f;
+		else // normalize the rest
+			val = float(in) / float(kNoOutputInt - 1);
 		array[offset + n] = val;
 	}
 }
@@ -9475,6 +9476,23 @@ void gp_RecorderMode_setGestureLength(uint8_t recorder, size_t offset, size_t le
 	if(recorder < gGestureRecorder.rs.size())
 	{
 		gGestureRecorder.rs[recorder].r.setEndpoints(offset, offset + length);
+	}
+}
+
+void gp_recorderMode_setGesturePlayOffset(uint8_t recorder, size_t offset)
+{
+	if(recorder < gGestureRecorder.rs.size())
+	{
+		gGestureRecorder.resumePlaybackFrom(recorder, offset);
+	}
+}
+
+void gp_recorderMode_setGesturePlayRate(uint8_t recorder, uint32_t rate)
+{
+	if(recorder < gGestureRecorder.rs.size())
+	{
+		double frate = double(rate) / double(1 << 16);
+		gGestureRecorder.rs[recorder].playbackInc = frate;
 	}
 }
 
