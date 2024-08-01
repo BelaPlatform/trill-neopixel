@@ -1091,6 +1091,11 @@ public:
 		start = size_t(start + relativeStart) % (data.size());
 //		printf("[%d] {%d %d %d} => {%d %d %d}\n\r", size, relativeStart, relativeCurrent, relativeEnd, start, current ,end);
 	}
+	void getEndpoints(size_t& start, size_t& stop)
+	{
+		start = this->start;
+		stop = this->end;
+	}
 	void resize(size_t newEnd)
 	{
 		newEnd = std::min(newEnd, data.size());
@@ -9496,12 +9501,60 @@ void gp_recorderMode_setGesturePlayRate(uint8_t recorder, uint32_t rate)
 	}
 }
 
-uint32_t gp_RecorderMode_getGestureLength(uint8_t recorder)
+GpRmgEndpoints gp_RecorderMode_getGestureEndpoints(uint8_t recorder)
 {
-	return 0; //TODO
+	GpRmgEndpoints eps {};
+	if(recorder < gGestureRecorder.rs.size())
+	{
+		size_t start;
+		size_t stop;
+		gGestureRecorder.rs[recorder].r.getEndpoints(start, stop);
+		eps.offset = start;
+		eps.length = stop - start;
+	}
+	return eps;
 }
 
-size_t gp_RecorderMode_getGestureContent(uint8_t recorder, size_t length, size_t offset, uint16_t* data)
+int gp_RecorderMode_getGestureContent(uint8_t recorder, size_t offset, size_t length, uint8_t* data)
 {
-	return 0; //TODO
+	auto array = gGestureRecorder.rs.getArrayViewForPointer(recorder);
+	bool hasData = false;
+	for(size_t n = 0; n < length; ++n)
+	{
+		unsigned int out;
+		if(offset + n < array.size())
+		{
+			hasData = true;
+			float val = array[offset + n];
+			if(val < 0 || val > 1 || kNoOutput == val)
+				out = kNoOutputInt;
+			else
+				out = val * float(kNoOutputInt - 1);
+		} else {
+			out = kNoOutputInt;
+		}
+		data[2 * n] = out & 0x7f;
+		data[2 * n + 1] = (out >> 7) & 0x7f;
+	}
+	return hasData ? 0 : -1;
+}
+
+size_t gp_recorderMode_getGesturePlayHead(uint8_t recorder)
+{
+	if(recorder < gGestureRecorder.rs.size())
+	{
+		return gGestureRecorder.rs[recorder].playHead;
+	}
+	return 0;
+}
+
+uint32_t gp_recorderMode_getGesturePlayRate(uint8_t recorder)
+{
+	if(recorder < gGestureRecorder.rs.size())
+	{
+		double frate = gGestureRecorder.rs[recorder].playbackInc;
+		uint32_t rate = frate * (1 << 16);
+		return rate;
+	}
+	return 0;
 }
