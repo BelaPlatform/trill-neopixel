@@ -2004,15 +2004,17 @@ public:
 	}
 	virtual rgb_t* getColor(size_t idx) = 0;
 	std::vector<ParameterContainer> parameters;
-	static constexpr rgb_t buttonColor {kRgbGreen};
+	PerformanceMode() : buttonColor(kRgbGreen) {}
+	PerformanceMode(rgb_t color)
+	: buttonColor(kRgbGreen) // TODO: change kRgbGreen to color if you want to obey the color
+	{}
+	rgb_t buttonColor {kRgbGreen};
 };
 
 // a class that affects the behaviour of updatePresetField() in that it
 // prevents it from storing IoRanges
 class PerformanceModeWithoutRanges : public PerformanceMode {
 };
-
-constexpr rgb_t PerformanceMode::buttonColor;
 
 #ifdef TEST_MODE
 class TestMode: public PerformanceMode {
@@ -2694,6 +2696,8 @@ public:
 		kModeSplitLocationSize,
 	};
 	ParameterEnumT<4> splitMode{this, kModeNoSplit};
+	SplitPerformanceMode(rgb_t color) : PerformanceMode(color) {}
+	SplitPerformanceMode() {}
 };
 
 template <typename T>
@@ -3044,6 +3048,7 @@ public:
 		updatePresetField(this, MP(splitMode), MP(autoLatch), MP(smooths));
 	}
 	DirectControlMode() :
+		SplitPerformanceMode(kRgbRed),
 		presetFieldData{
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
@@ -4278,6 +4283,7 @@ public:
 		updatePresetField(this, MP(splitMode), MP(inputMode));
 	}
 	RecorderMode() :
+		SplitPerformanceMode(kRgbYellow),
 		presetFieldData {
 			.ioRanges = ioRangesParameters,
 			.splitMode = splitMode,
@@ -4768,6 +4774,7 @@ public:
 		kOutputModeNum
 	};
 	ScaleMeterMode() :
+		PerformanceMode(kRgbGreen),
 		presetFieldData{
 			.ioRanges = ioRangesParameters,
 			.outputMode = outputMode,
@@ -6007,6 +6014,7 @@ public:
 		updatePresetField(this, MP(quantised), MP(seqMode), MP(modRange), MP(offsetParameters), MP(keyStepModes));
 	}
 	ExprButtonsMode() :
+		PerformanceMode(kRgbOrange),
 		presetFieldData {
 			.ioRanges = ioRangesParameters,
 			.quantised = quantised,
