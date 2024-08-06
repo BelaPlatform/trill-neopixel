@@ -8196,7 +8196,6 @@ public:
 		kMenuTypeSlider,
 		kMenuTypeQuantised,
 		kMenuTypeRange,
-		kMenuTypeRaw,
 	};
 	MenuPage(const char* name, const std::vector<MenuItemType*>& items = {}, Type type = kMenuTypeButtons): name(name), items(items), type(type) {}
 	Type type;
@@ -9134,6 +9133,7 @@ static void menu_update()
 		// clear display
 		np.clear();
 		// TODO: the below is not particularly elegant: add a parameter to MenuPage
+		LedSlider::LedMode_t ledMode = LedSlider::MANUAL_CENTROIDS;
 		if(MenuPage::kMenuTypeButtons == activeMenu->type)
 		{
 			//buttons
@@ -9146,30 +9146,13 @@ static void menu_update()
 					activeMenu->items[3]->baseColor,
 					activeMenu->items[4]->baseColor,
 				},
-				LedSlider::MANUAL_CENTROIDS,
+				ledMode,
 				true,
 				1
 			);
 			menuWaitsForTouchRelease = true;
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
-			LedSlider::LedMode_t ledMode;
-			switch(activeMenu->type)
-			{
-			default:
-				case MenuPage::kMenuTypeRange:
-					ledMode = LedSlider::MANUAL_CENTROIDS;
-					break;
-				case MenuPage::kMenuTypeSlider:
-					ledMode = LedSlider::MANUAL_CENTROIDS;
-					break;
-				case MenuPage::kMenuTypeQuantised:
-					ledMode = LedSlider::MANUAL_CENTROIDS;
-					break;
-				case MenuPage::kMenuTypeRaw:
-					ledMode = LedSlider::MANUAL_RAW;
-					break;
-			}
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{
