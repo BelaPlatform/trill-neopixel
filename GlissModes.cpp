@@ -9256,8 +9256,10 @@ void menu_render(BelaContext*, FrameData* frameData)
 				doExit = true;
 		}
 		// if in one of the submenus, exit
+#ifdef ENABLE_DIRECT_CONTROL_MODE
 		if(activeMenu == &gDirectControlModeSmoothMenuPage)
 			doExit = true;
+#endif // ENABLE_DIRECT_CONTROL_MODE
 		if(doExit)
 		{
 			menu_exit();
