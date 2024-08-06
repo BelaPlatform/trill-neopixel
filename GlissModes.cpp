@@ -8959,7 +8959,7 @@ static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrigh
 
 static constexpr rgb_t kIoRangeButtonColor = kRgbYellow;
 static constexpr rgb_t kIoRangeOtherColor = kRgbRed;
-static MenuItemTypeDisabled disabledIoRange(kIoRangeButtonColor.scaledBy(0.2));
+static MenuItemTypeDisabled disabledIoRange(kRgbRed.scaledBy(0.4));
 static constexpr AnimationColors ioRangeColors {
 	kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeButtonColor, kIoRangeOtherColor
 };
