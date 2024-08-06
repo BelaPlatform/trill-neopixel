@@ -35,7 +35,6 @@ typedef enum {
 	kCvRangeBipolar,
 	kCvRangePositive5,
 	kCvRangeBipolar1,
-	kCvRangeFull,
 	kCvRangeCustom,
 	kCvRangeNum,
 } CvRange;
@@ -64,7 +63,8 @@ public:
 		};
 	}
 	void getMinMax(float& min, float& max) const {
-		CvRange range = enabled ? this->range : kCvRangeFull;
+		static int constexpr kCvRangeFull = kCvRangeNum + 1;
+		int range = enabled ? this->range : kCvRangeFull;
 		switch (range)
 		{
 			case kCvRangeFull:
