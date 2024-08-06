@@ -8200,8 +8200,12 @@ public:
 	MenuPage(const char* name, const std::vector<MenuItemType*>& items = {}, Type type = kMenuTypeButtons): name(name), items(items), type(type) {}
 	Type type;
 };
+enum MenuInteractive {
+	kMenuInteractiveWait, // wait for all touches to be released before the menu becomes interactive
+	kMenuInteractiveNow, // make the menu immediately interactive
+};
 
-static void menu_in(MenuPage& menu);
+static void menu_in(MenuPage& menu, MenuInteractive interactive = kMenuInteractiveWait);
 static MenuPage* activeMenu;
 
 class MenuItemTypeEnterSubmenu : public MenuItemTypeEvent
@@ -9045,7 +9049,7 @@ static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rg
 {
 	gAlt = 1;
 	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColors, autoExit, &bottom, &top, nullptr, display);
-	menu_in(singleRangeDisplayMenu);
+	menu_in(singleRangeDisplayMenu, kMenuInteractiveNow);
 }
 #endif // MENU_ENTER_RANGE_DISPLAY
 
@@ -9054,7 +9058,7 @@ static void menu_enterSingleSlider(const rgb_t& color, const rgb_t& otherColor, 
 {
 	gAlt = 1;
 	singleSliderMenuItem = MenuItemTypeSlider(color, otherColor, &parameter);
-	menu_in(singleSliderMenu);
+	menu_in(singleSliderMenu, kMenuInteractiveNow);
 }
 #endif // MENU_ENTER_SINGLE_SLIDER
 
@@ -9132,7 +9136,6 @@ static void menu_update()
 		M(printf("menu_update: %s\n\r", newMenu ? newMenu->name : "___"));
 		// clear display
 		np.clear();
-		// TODO: the below is not particularly elegant: add a parameter to MenuPage
 		LedSlider::LedMode_t ledMode = LedSlider::MANUAL_CENTROIDS;
 		if(MenuPage::kMenuTypeButtons == activeMenu->type)
 		{
@@ -9150,7 +9153,6 @@ static void menu_update()
 				true,
 				1
 			);
-			menuWaitsForTouchRelease = true;
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
 			ledSlidersSetupMultiSlider(
@@ -9162,7 +9164,6 @@ static void menu_update()
 				true,
 				maxNumCentroids
 			);
-			menuWaitsForTouchRelease = false; // this is immediately interactive
 		}
 		menu_resetStates(nullptr);
 	}
@@ -9199,10 +9200,11 @@ static void menu_up()
 		menu_exit();
 }
 
-static void menu_in(MenuPage& menu)
+static void menu_in(MenuPage& menu, MenuInteractive interactive)
 {
 	M(printf("menu_in from %s to %s\n\r", menuStack.size() ? menuStack.back()->name : "___", menu.name));
 	menuStack.emplace_back(&menu);
+	menuWaitsForTouchRelease = (kMenuInteractiveWait == interactive);
 }
 
 int menu_dosetup(MenuPage& menu)
