@@ -8012,8 +8012,10 @@ public:
 		latchProcessor.reset();
 		for(size_t n = 0; n < kNumEnds; ++n)
 		{
-			pastFrames[n].location = parameters[n]->get();
+			float value = parameters[n]->get();
+			pastFrames[n].location = value;
 			pastFrames[n].size = 1;
+			displayLocations[n] = value;
 		}
 		std::array<LatchProcessor::Reason,2> isLatched;
 		latchProcessor.reset();
