@@ -8025,24 +8025,17 @@ public:
 	}
 	void process(LedSlider& slider) override
 	{
+		bool allLatched = false;
 		if(parameters[0] && parameters[1])
 		{
 			size_t numTouches = slider.getNumTouches();
-			if(0 == numTouches && hasHadTouch && autoExit)
-			{
-				// both touches released: exit
-				menu_up();
-				return;
-			} else if(numTouches) {
+			if(numTouches)
 				hasHadTouch = true;
-			}
 			if(hasHadTouch)
 			{
 				bool validTouch = 0;
-				std::array<centroid_t,kNumEnds> frames;
-				if(0 == numTouches) {
-					frames = pastFrames;
-				} else if(1 == numTouches)
+				std::array<centroid_t,kNumEnds> frames {};
+				if(1 == numTouches)
 				{
 					// find which existing values this is closest to
 					float current = slider.touchLocation(0);
@@ -8063,7 +8056,7 @@ public:
 					// and a non-touch on the other one
 					frames[!validTouch].location = 0;
 					frames[!validTouch].size = 0;
-				} else if (2 == numTouches)
+				} else if (numTouches >= kNumEnds)
 				{
 					for(size_t n = 0; n < kNumEnds; ++n)
 					{
@@ -8084,8 +8077,20 @@ public:
 					displayLocations[n] = preprocessedValue;
 					pastFrames[n] = frames[n];
 				}
+				if(autoExit)
+				{
+					size_t numLatched = 0;
+					for(auto& l : isLatched)
+						numLatched += (LatchProcessor::kLatchNone != l);
+					allLatched = isLatched.size() == numLatched;
+				}
 			}
 			updateDisplay(slider);
+		}
+		if(hasHadTouch && autoExit && allLatched)
+		{
+			// all touches released: exit
+			menu_up();
 		}
 	}
 protected:
