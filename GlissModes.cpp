@@ -9039,7 +9039,7 @@ static void menu_updateSubmenu()
 	enterModeSettingsPage1.submenu = menuPagesIoRanges[gNewMode];
 }
 
-static bool menuJustEntered;
+static bool menuWaitsForTouchRelease;
 
 #ifdef MENU_ENTER_RANGE_DISPLAY
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
@@ -9150,7 +9150,7 @@ static void menu_update()
 				true,
 				1
 			);
-			menuJustEntered = true;
+			menuWaitsForTouchRelease = true;
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
 			LedSlider::LedMode_t ledMode;
@@ -9179,7 +9179,7 @@ static void menu_update()
 				true,
 				maxNumCentroids
 			);
-			menuJustEntered = false; // this is immediately interactive
+			menuWaitsForTouchRelease = false; // this is immediately interactive
 		}
 		menu_resetStates(nullptr);
 	}
@@ -9286,14 +9286,14 @@ void menu_render(BelaContext*, FrameData* frameData)
 	if(!activeMenu)
 		return;
 	// update touches
-	if(menuJustEntered)
+	if(menuWaitsForTouchRelease)
 	{
 		// if we just entered the menu, ensure we have removed
 		// all fingers once before enabling interaction
 		if(!globalSlider.getNumTouches())
-			menuJustEntered = false;
+			menuWaitsForTouchRelease = false;
 	}
-	if(menuJustEntered) {
+	if(menuWaitsForTouchRelease) {
 		// provide empty blank data so that process doesn't know about any touches
 		// that may still be present after entering menu. The reason we cannot simply use
 		// ledSlidersAlt.enableTouch(false) is because also tr_render() sets/unsets
