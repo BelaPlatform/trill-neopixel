@@ -34,6 +34,7 @@ typedef enum {
 	kCvRangePositive10,
 	kCvRangeBipolar,
 	kCvRangePositive5,
+	kCvRangeBipolar1,
 	kCvRangeFull,
 	kCvRangeCustom,
 	kCvRangeNum,
@@ -73,6 +74,10 @@ public:
 			case kCvRangeBipolar:
 				min = 0;
 				max = gnd * 2.f;
+				break;
+			case kCvRangeBipolar1:
+				min = gnd - gnd / 5.f;
+				max = gnd + gnd / 5.f;
 				break;
 			case kCvRangePositive5:
 				min = gnd;
