@@ -1892,8 +1892,8 @@ public:
 	}
 	IoRangeParameters(ParameterUpdateCapable* that) :
 		ParameterEnumT<kCvRangeNum,CvRange>({that, kCvRangePositive10}),
-		min(that, CalibrationData::kGnd - CalibrationData::kGnd / 5.f), // -1 V
-		max(that, CalibrationData::kGnd + CalibrationData::kGnd / 5.f) // +1 V
+		min(that, 0), // -5 V
+		max(that, 1) // +10 V
 	{}
 	virtual void animate(LedSlider& l, rgb_t baseColor, uint32_t ms) override
 	{
