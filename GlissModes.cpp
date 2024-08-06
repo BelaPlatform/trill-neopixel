@@ -8521,7 +8521,7 @@ public:
 	void enterPlus() override
 	{
 		M(printf("RangeCv: going to range\n\r"));
-		singleRangeMenuItem = MenuItemTypeRange(colors[getIdx(valueEn.get())], colors.back(), true, &ioRangeParameters.min, &ioRangeParameters.max, quantiseNormalisedForIntegerVolts);
+		singleRangeMenuItem = MenuItemTypeRange(colors[getIdx(valueEn.get())], colors.back(), false, &ioRangeParameters.min, &ioRangeParameters.max, quantiseNormalisedForIntegerVolts);
 		menu_in(singleRangeMenu);
 	}
 
