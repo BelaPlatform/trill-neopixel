@@ -2006,7 +2006,7 @@ public:
 	std::vector<ParameterContainer> parameters;
 	PerformanceMode() : buttonColor(kRgbGreen) {}
 	PerformanceMode(rgb_t color)
-	: buttonColor(kRgbGreen) // TODO: change kRgbGreen to color if you want to obey the color
+	: buttonColor(color)
 	{}
 	rgb_t buttonColor {kRgbGreen};
 };
