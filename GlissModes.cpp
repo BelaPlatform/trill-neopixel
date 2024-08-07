@@ -3148,11 +3148,14 @@ static inline float inToV(float in)
 	return normToVfs(in);
 }
 
-static inline float vToOut(float v)
+static inline float vToOut(float v, bool allowUnsafe = false)
 {
-	// checks to ensure we make sense
-	assert(true == gOutUsesCalibration);
-	assert(false == gOutUsesRange[0] || false == gOutUsesRange[1]); // TODO: should check the specific channel
+	if(!allowUnsafe)
+	{
+		// checks to ensure we make sense
+		assert(true == gOutUsesCalibration);
+		assert(false == gOutUsesRange[0] || false == gOutUsesRange[1]); // TODO: should check the specific channel
+	}
 	return (v + 5.f) / 15.f;
 }
 
