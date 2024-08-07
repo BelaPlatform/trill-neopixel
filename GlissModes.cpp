@@ -6056,6 +6056,10 @@ public:
 				ENUMERATE_ARRAY_5(keyStepModes),
 				// offsetParameterRaw, // doesn't need to be exposed
 		}};
+		// set default range to 0V : 2V
+		ioRangesParameters.outTop.cvRange.set(kCvRangeCustom);
+		ioRangesParameters.outTop.min.set(vToOut(0, true));
+		ioRangesParameters.outTop.max.set(vToOut(2, true));
 		PresetDesc_t presetDesc = {
 			.field = this,
 			.size = sizeof(PresetFieldData_t),
