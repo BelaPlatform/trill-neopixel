@@ -6726,7 +6726,7 @@ public:
 			{
 				if(allTestsSuccessful())
 				{
-					requestNewMode(0);
+					requestOldMode();
 					gp_store();
 				}
 				else if(++finalButtonCount >= 2)
