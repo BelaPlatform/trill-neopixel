@@ -8789,19 +8789,34 @@ static void doOutRangeOverride(size_t c)
 class GlobalSettings : public ParameterUpdateCapable {
 	enum Flag {
 		kFlagJacksOnTop = 1 << 0,
-		kFlagAnimationsWithFs = 1 << 1,
+		kFlagMenuInvert = 1 << 1,
 		kFlagMenuLockingAllowed = 1 << 2,
 		kFlagMenuLocked = 1 << 3,
-		kFlagMax = 1 << 4,
+		kFlagAnimationsWithFs = 1 << 4,
+		kFlagMax = 1 << 5,
 	};
-	void flagSet(Flag flag, int value)
+	enum Orientation {
+		// numbering here matches the position on the MenuItemTypeQuantised slider
+		kOrientation4HpBottom = 0,
+		kOrientation1ULeft = 1,
+		kOrientation4HpTop = 2,
+		kOrientation1URight = 3, // this is not achievable via the slider, but handled below for completeness
+	};
+	template <typename T>
+	static T flagSetRaw(T f, Flag flag, bool value)
 	{
-		uint8_t f = flags.get();
 		if(value)
 			f |= int(flag);
 		else
 			f &= ~int(flag);
-		flags.set(f);
+		return f;
+	}
+	void flagSet(Flag flag, bool value)
+	{
+		auto f = flags.get();
+		f = flagSetRaw(f, flag, value);
+		if(flags.get() != f)
+			flags.set(f);
 	}
 	template <unsigned char T>
 	void updateFlagParameterFromFlags(ParameterEnumT<T>& p, Flag flag)
@@ -8810,14 +8825,60 @@ class GlobalSettings : public ParameterUpdateCapable {
 		if(p.get() != val)
 			p.set(val);
 	}
+	void getFromOrientation(bool& jacksOnTop, bool& menuInvert)
+	{
+		switch(orientation.get())
+		{
+		default:
+		case kOrientation4HpBottom:
+			jacksOnTop = false;
+			menuInvert = false;
+			break;
+		case kOrientation4HpTop:
+			jacksOnTop = true;
+			menuInvert = false;
+			break;
+		case kOrientation1ULeft:
+			jacksOnTop = false;
+			menuInvert = true;
+			break;
+		case kOrientation1URight:
+			jacksOnTop = true;
+			menuInvert = true;
+			break;
+		}
+	}
+	Orientation orientationFromFlags()
+	{
+		switch(flags & (kFlagJacksOnTop | kFlagMenuInvert))
+		{
+		default:
+		case 0:
+			return kOrientation4HpBottom;
+		case kFlagJacksOnTop:
+			return kOrientation4HpTop;
+		case kFlagMenuInvert:
+			return kOrientation1ULeft;
+		case kFlagJacksOnTop | kFlagMenuInvert:
+			return kOrientation1URight;
+		}
+	}
 public:
 	void updated(Parameter& p)
 	{
 		S(bool verbose = true);
 		S(char const* str = "+++");
-		if(p.same(jacksOnTop)) {
-			S(str = "jacksOnTop");
-			flagSet(kFlagJacksOnTop, jacksOnTop);
+		if(p.same(orientation)) {
+			S(str = "orientation");
+			bool jacksOnTop;
+			bool menuInvert;
+			getFromOrientation(jacksOnTop, menuInvert);
+			// set all flags at once, to avoid updated() being called on flags with partial values
+			auto newFlags = flags.get();
+			newFlags = flagSetRaw(newFlags, kFlagJacksOnTop, jacksOnTop);
+			newFlags = flagSetRaw(newFlags, kFlagMenuInvert, menuInvert);
+			if(newFlags != flags)
+				flags.set(newFlags);
 		}
 		else if(p.same(animationMode)) {
 			S(str = "animationMode");
@@ -8837,8 +8898,10 @@ public:
 			// we arrive here either because  set() has been called on the individual parameters
 			// or because it has been called on flags() directly (typically by the preset loader)
 			// so call set() from here only if different to avoid infinite recursion
-			updateFlagParameterFromFlags(jacksOnTop, kFlagJacksOnTop);
-			gJacksOnTop = jacksOnTop;
+			Orientation newOrientation = orientationFromFlags();
+			if(orientation != newOrientation)
+				orientation.set(newOrientation);
+			getFromOrientation(gJacksOnTop, gMenuInvert);
 			updateFlagParameterFromFlags(animationMode, kFlagAnimationsWithFs);
 			gAnimationMode = AnimationMode(animationMode.get());
 			updateFlagParameterFromFlags(menuLockingAllowed, kFlagMenuLockingAllowed);
@@ -8907,7 +8970,9 @@ public:
 		presetDescSet(5, &presetDesc);
 	}
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
-	ParameterEnumT<2> jacksOnTop {this, true};
+	// NOTE: 3 below intentionally limits available orientations achievable through the slider to 3,
+	// leaving out kOrientation1URight.
+	ParameterEnumT<3> orientation {this, kOrientation4HpTop};
 	ParameterEnumT<kNumAnimationMode> animationMode {this, gAnimationMode};
 	ParameterEnumT<2> menuLockingAllowed {this, false};
 	ParameterEnumT<2> menuLocked {this, false};
@@ -8987,7 +9052,7 @@ static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsContinuousOtherColor, gGlobalSettings.sizeScaleCoeff);
 static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
 static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
-static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.jacksOnTop);
+static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.orientation);
 static MenuItemTypeDiscreteHold globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, 3000, gGlobalSettings.animationMode);
 
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsContinuousOtherColor, gGlobalSettings.brightness);
