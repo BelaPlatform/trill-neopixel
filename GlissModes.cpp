@@ -8318,7 +8318,7 @@ public:
 	{
 		if(kHoldHigh == e) {
 			singleQuantisedMenuItem = MenuItemTypeQuantised(baseColor, &value);
-			menu_in(singleQuantisedMenu);
+			menu_in(singleQuantisedMenu, kMenuInteractiveNow);
 		}
 	}
 	ParameterEnum& value;
