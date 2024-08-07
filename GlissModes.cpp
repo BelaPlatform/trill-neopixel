@@ -8788,8 +8788,9 @@ class GlobalSettings : public ParameterUpdateCapable {
 	enum Flag {
 		kFlagJacksOnTop = 1 << 0,
 		kFlagAnimationsWithFs = 1 << 1,
-		kFlagMenuLocked = 1 << 2,
-		kFlagMax = 1 << 3,
+		kFlagMenuLockingAllowed = 1 << 2,
+		kFlagMenuLocked = 1 << 3,
+		kFlagMax = 1 << 4,
 	};
 	void flagSet(Flag flag, int value)
 	{
@@ -8819,6 +8820,10 @@ public:
 		else if(p.same(animationMode)) {
 			S(str = "animationMode");
 			flagSet(kFlagAnimationsWithFs, animationMode);
+		}
+		else if(p.same(menuLockingAllowed)) {
+			S(str = "menuLockingAllowed");
+			flagSet(kFlagMenuLockingAllowed, menuLockingAllowed);
 		}
 		else if(p.same(menuLocked)) {
 			S(str = "menuLocked");
@@ -8899,11 +8904,11 @@ public:
 		};
 		presetDescSet(5, &presetDesc);
 	}
-	bool menuLocked_ = false;
 	ParameterContinuous sizeScaleCoeff {this, 0.5};
 	ParameterEnumT<2> jacksOnTop {this, true};
 	ParameterEnumT<kNumAnimationMode> animationMode {this, gAnimationMode};
-	ParameterEnumT<2> menuLocked {this, menuLocked_};
+	ParameterEnumT<2> menuLockingAllowed {this, false};
+	ParameterEnumT<2> menuLocked {this, false};
 	ParameterContinuous brightness {this, 0.35};
 	ParameterEnumT<kNumModes> newMode{this, gNewMode};
 	ParameterEnumT<kFlagMax> flags {this, kFlagJacksOnTop};
