@@ -15,6 +15,7 @@
 
 static void updateAllPresets();
 void requestNewMode(int mode);
+static void requestOldMode();
 
 static constexpr size_t kNumSplits = 2;
 float gBrightness = 1;
@@ -7261,6 +7262,7 @@ static const ssize_t kCalibrationModeIdx = findModeIdx(gCalibrationMode);
 const ssize_t kFactoryTestModeIdx = findModeIdx(gFactoryTestMode);
 static const ssize_t kEraseSettingsModeIdx = findModeIdx(gEraseSettingsMode);
 uint8_t gNewMode = kFactoryTestModeIdx; // if there is a preset to load (i.e.: always except on first boot), this will be overridden then.
+static uint8_t gOldMode = 0;
 
 bool performanceMode_setup(double ms)
 {
@@ -9007,16 +9009,39 @@ void menu_setLocked(bool val)
 	updateAllPresets(); // this won't be triggered by exiting the menu, so we do it manually
 }
 
+bool modeShouldBeSaved(ssize_t mode)
+{
+	std::array<ssize_t,2> undesiredModes = {{ kCalibrationModeIdx, kEraseSettingsModeIdx }};
+	bool found = false;
+	for(auto& u : undesiredModes)
+	{
+		if(u == mode)
+			found = true;
+	}
+	return !found;
+}
+
 static void menu_updateSubmenu();
 void requestNewMode(int mode)
 {
-	bool different = (gNewMode != mode);
+	float oldMode = gNewMode;
+	bool different = (oldMode != mode);
 	gNewMode = mode;
-	// notify the setting that is stored to disk (unless calibration),
-	// but avoid the set() to trigger a circular call to requestNewMode()
-	if(different && mode != kCalibrationModeIdx)
-		gGlobalSettings.newMode.set(mode);
+	if(different)
+	{
+		// notify the setting that is stored to disk
+		// but avoid the set() to trigger a circular call to requestNewMode()
+		if(modeShouldBeSaved(mode))
+			gGlobalSettings.newMode.set(mode);
+		if(modeShouldBeSaved(oldMode))
+			gOldMode = oldMode;
+	}
 	menu_updateSubmenu();
+}
+
+static void requestOldMode()
+{
+	requestNewMode(gOldMode);
 }
 
 static std::array<float,MenuItemTypeRange::kNumEnds> quantiseNormalisedForIntegerVolts(const std::array<float,MenuItemTypeRange::kNumEnds>& in)
