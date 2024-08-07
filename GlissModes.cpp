@@ -45,6 +45,7 @@ static AnimationColors buttonColors = {
 		kRgbBlack, // dummy
 		kRgbBlack, // dummy
 };
+static const rgb_t kDefaultSelectorColor = kRgbRed;
 
 static const rgb_t& getQuantisedColor(const AnimationColors& colors, float v)
 {
@@ -8297,7 +8298,7 @@ public:
 			if(ignoreNextFalling)
 				ignoreNextFalling = false;
 			else {
-				singleSliderMenuItem = MenuItemTypeSlider(baseColor, otherColor, &value);
+				singleSliderMenuItem = MenuItemTypeSlider(kDefaultSelectorColor, otherColor, &value);
 				menu_in(singleSliderMenu);
 			}
 		}
@@ -8558,7 +8559,6 @@ public:
 };
 
 constexpr size_t kMaxModeParameters = 3;
-static const rgb_t buttonColor = kRgbRed;
 static MenuItemTypeDisabled disabled(kRgbBlack);
 
 static ButtonAnimationSplit animationSplit(buttonColors);
@@ -8660,7 +8660,7 @@ static std::array<MenuItemType*,kMaxModeParameters> balancedOscsModeMenu = {
 #ifdef ENABLE_EXPR_BUTTONS_MODE
 static ButtonAnimationSmoothQuantised animationSmoothQuantised {buttonColors};
 static ButtonAnimationKeysSeq animationKeysSeq {buttonColors};
-static ButtonAnimationTriangle animationTriangleExprButtonsModRange(buttonColor, 3000);
+static ButtonAnimationTriangle animationTriangleExprButtonsModRange(kDefaultSelectorColor, 3000);
 //static ButtonAnimationCounter animationCounterNumKeys {buttonColors, 300, 800};
 static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeQuantised("gExprButtonsModeQuantised", buttonColors, gExprButtonsMode.quantised, false, &animationSmoothQuantised);
 static MenuItemTypeDiscreteFullScreenAnimation exprButtonsModeSeqMode("gExprButtonsModeSeqMode", buttonColors, gExprButtonsMode.seqMode, false, &animationKeysSeq);
