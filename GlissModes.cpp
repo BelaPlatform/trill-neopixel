@@ -9050,9 +9050,9 @@ static constexpr rgb_t globalSettingsColor = kRgbOrange;
 static constexpr rgb_t globalSettingsContinuousOtherColor = kRgbYellow;
 static ButtonAnimationTriangle animationTriangleGlobal(globalSettingsColor, 3000);
 static MenuItemTypeEnterContinuous globalSettingsSizeScale("globalSettingsSizeScale", globalSettingsColor, globalSettingsContinuousOtherColor, gGlobalSettings.sizeScaleCoeff);
-static constexpr rgb_t jacksOnTopButtonColor = kRgbRed;
-static ButtonAnimationBrightDimmed animationBrightDimmed(jacksOnTopButtonColor);
-static MenuItemTypeEnterQuantised globalSettingsJacksOnTop("globalSettingsJacksOnTop", jacksOnTopButtonColor, gGlobalSettings.orientation);
+static constexpr rgb_t kOrientationButtonColor = kRgbRed;
+static ButtonAnimationBrightDimmed animationBrightDimmed(kOrientationButtonColor);
+static MenuItemTypeEnterQuantised globalSettingsOrientation("globalSettingsOrientation", kOrientationButtonColor, gGlobalSettings.orientation);
 static MenuItemTypeDiscreteHold globalSettingsAnimationMode("globalSettingsAnimationMode", globalSettingsColor, 3000, gGlobalSettings.animationMode);
 
 static MenuItemTypeEnterContinuous globalSettingsBrightness("globalSettingsBrightness", globalSettingsColor, globalSettingsContinuousOtherColor, gGlobalSettings.brightness);
@@ -9185,7 +9185,7 @@ static void menu_update()
 	{
 		inited = true;
 		globalSettingsMenu0.items = {
-			&globalSettingsJacksOnTop,
+			&globalSettingsOrientation,
 			&disabled,
 			&globalSettingsAnimationMode,
 			&globalSettingsBrightness,
