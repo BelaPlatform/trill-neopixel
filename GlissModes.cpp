@@ -6535,6 +6535,9 @@ class CalibrationMode : public PerformanceModeWithoutRanges {
 	uint32_t startTime;
 	size_t demoModeCount;
 	size_t demoModeState;
+	double lastClickMs;
+	static constexpr uint32_t kInvalidMs = -1;
+	static constexpr float kPostClickTimeoutMs = 300;
 	void resetDemoMode()
 	{
 		demoModeCount = 0;
@@ -6558,6 +6561,7 @@ public:
 			baseColor,
 			LedSlider::MANUAL_CENTROIDS
 		);
+		lastClickMs = kInvalidMs;
 		return true;
 	}
 	void render(BelaContext* context, FrameData* frameData) override
@@ -6571,8 +6575,33 @@ public:
 		uint32_t tick = HAL_GetTick();
 		// wait for button press to start or stop calibration.
 		ButtonView btn = ButtonViewSimplify(performanceBtn);
-		if(btn.offset ||
-				(btn.tripleClick && gCalibrationProcedure.done()))
+		bool shouldRestart = false;
+		if(gCalibrationProcedure.done())
+		{
+			// if procedure is complete, postpone the effect of a click until
+			// we verify whether it's a double click or not.
+			if(btn.offset)
+			{
+				lastClickMs = tri.getTimeMs();
+			}
+			// if single click exit
+			if(kInvalidMs != lastClickMs && tri.getTimeMs() - lastClickMs >= kPostClickTimeoutMs)
+			{
+				lastClickMs = kInvalidMs;
+				requestOldMode();
+				return;
+			}
+			// if double click restart
+			if(btn.doubleClickOffset)
+			{
+				shouldRestart = true;
+				lastClickMs = kInvalidMs;
+			}
+		} else {
+			if(btn.offset)
+				shouldRestart = true;
+		}
+		if(shouldRestart)
 		{
 			gCalibrationProcedure.toggle();
 			resetDemoMode();
