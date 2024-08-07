@@ -5297,28 +5297,14 @@ public:
 			// We leverage the state machine above even if it's
 			// more complicated than / slightly different from
 			// what we need here
+			bool shouldEnterManualTuning = false;
 			switch(touch.state)
 			{
 			case kBending:
-				// if bending, we enter the slider menu that allows manually setting the pitch
 				if(!gAlt)
 				{
-					keyBeingAdjusted = touch.key;
-					// TODO: clear up this mess of actualKey vs touch.key.
-					size_t actualKey = seqMode ? touch.key : keysIdx[touch.key];
-					const IoRange& outTop = ioRangesParameters.outTop;
-					float min;
-					float max;
-					outTop.getMinMax(min, max);
-					// reverse map the range so that we start with an initial centroid that represents
-					// the current voltage
-					float initialValue = map(offsetParameters[actualKey], min, max, 0, 1); // this is allowed to be outside the [0, 1] range
-					offsetParameterRaw.set(initialValue);
-					menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameterRaw);
-					sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
-					// once we bend once, don't allow sampling
-					// till the next time we enter the page
-					samplingEnabled = false;
+					// if bending, we enter the slider menu that allows manually setting the pitch
+					shouldEnterManualTuning = true;
 				}
 				break;
 			case kDisabled:
@@ -5345,6 +5331,7 @@ public:
 					// into bending to set the voltage via slider, we do not
 					// accidentally assign it the sampled input on press
 				}
+				heldFrames = 0;
 				// no break
 			case kMoved:
 			case kGood:
@@ -5353,6 +5340,12 @@ public:
 					// hold
 					gManualAnOut[0] = quantise(sampled);
 					gManualAnOut[1] = centroid.size;
+				}
+				heldFrames++;
+				if(!gAlt && heldFrames * context->analogFrames / float(context->analogSampleRate) * 1000.f > kHoldMsToEnterManualTuning)
+				{
+					// hold press to enter manual tuning
+					shouldEnterManualTuning = true;
 				}
 				break;
 			case kHold:
@@ -5369,6 +5362,25 @@ public:
 						offsetParameters[sampledKey].set(sampled);
 				}
 				samplingPastTouchState = touch.state;
+			}
+			if(shouldEnterManualTuning)
+			{
+				keyBeingAdjusted = touch.key;
+				// TODO: clear up this mess of actualKey vs touch.key.
+				size_t actualKey = seqMode ? touch.key : keysIdx[touch.key];
+				const IoRange& outTop = ioRangesParameters.outTop;
+				float min;
+				float max;
+				outTop.getMinMax(min, max);
+				// reverse map the range so that we start with an initial centroid that represents
+				// the current voltage
+				float initialValue = map(offsetParameters[actualKey], min, max, 0, 1); // this is allowed to be outside the [0, 1] range
+				offsetParameterRaw.set(initialValue);
+				menu_enterSingleSlider(colors[actualKey], colors[actualKey], offsetParameterRaw);
+				sampledKey = kKeyInvalid; // avoid assigning the sampled value to the key on release
+				// once we do manual tuning once, don't allow sampling
+				// till the next time we enter the page
+				samplingEnabled = false;
 			}
 		}
 
@@ -5886,6 +5898,7 @@ private:
 	static constexpr float b1 = float(-0.9922070637080485);
 	static constexpr float a1 = float(-0.9844141274160969);
 	static constexpr size_t kKeyInvalid = -1;
+	static constexpr float kHoldMsToEnterManualTuning = 3000;
 	struct Touch {
 		TouchState state = kDisabled;
 		size_t key = 0;
@@ -6083,6 +6096,7 @@ public:
 private:
 	float out = 0;
 	size_t keyBeingAdjusted = kKeyInvalid;
+	size_t heldFrames = 0;
 	uint32_t frameId = -1;
 } gExprButtonsMode;
 #endif // ENABLE_EXPR_BUTTONS_MODE
