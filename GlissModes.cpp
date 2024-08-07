@@ -404,6 +404,8 @@ int gCounter = 0;
 int gSubMode = 0;
 std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = true;
+static bool gMenuInvert = false;
+
 enum AnimationMode
 {
 	kAnimationModeSolid,
@@ -9159,6 +9161,11 @@ static void menu_update()
 			hasChanged = true;
 		}
 	}
+	// check if menu orientation has changed
+	static int lastMenuInvert = gMenuInvert;
+	hasChanged |= (lastMenuInvert != gMenuInvert);
+	lastMenuInvert = gMenuInvert;
+
 	MenuPage* newMenu = menu_getCurrent();
 	if(newMenu && (activeMenu != newMenu || hasChanged))
 	{
@@ -9169,15 +9176,18 @@ static void menu_update()
 		LedSlider::LedMode_t ledMode = LedSlider::MANUAL_CENTROIDS;
 		if(MenuPage::kMenuTypeButtons == activeMenu->type)
 		{
+			std::vector<MenuItemType*> items = activeMenu->items;
+			if(gMenuInvert)
+				std::reverse(items.begin(), items.end());
 			//buttons
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
 				{
-					activeMenu->items[0]->baseColor,
-					activeMenu->items[1]->baseColor,
-					activeMenu->items[2]->baseColor,
-					activeMenu->items[3]->baseColor,
-					activeMenu->items[4]->baseColor,
+					items[0]->baseColor,
+					items[1]->baseColor,
+					items[2]->baseColor,
+					items[3]->baseColor,
+					items[4]->baseColor,
 				},
 				ledMode,
 				true,
@@ -9350,7 +9360,8 @@ void menu_render(BelaContext*, FrameData* frameData)
 	uint32_t ms = HAL_GetTick();
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 	{
-		MenuItemType* item = activeMenu->items[n];
+		size_t idx = gMenuInvert ?ledSlidersAlt.sliders.size() - 1 - n : n;
+		MenuItemType* item = activeMenu->items[idx];
 		// TODO: using timeout because it's easier, but it should be refactored
 		// so that it's more elegant
 		if(ms - gAnimationPlayedLast < 10)
