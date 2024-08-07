@@ -8799,6 +8799,13 @@ class GlobalSettings : public ParameterUpdateCapable {
 			f &= ~int(flag);
 		flags.set(f);
 	}
+	template <unsigned char T>
+	void updateFlagParameterFromFlags(ParameterEnumT<T>& p, Flag flag)
+	{
+		bool val = flag & flags;
+		if(p.get() != val)
+			p.set(val);
+	}
 public:
 	void updated(Parameter& p)
 	{
@@ -8822,17 +8829,12 @@ public:
 			// we arrive here either because  set() has been called on the individual parameters
 			// or because it has been called on flags() directly (typically by the preset loader)
 			// so call set() from here only if different to avoid infinite recursion
-			bool anim = (flags & kFlagAnimationsWithFs);
-			if(animationMode.get() !=  anim)
-				animationMode.set(anim);
-			gAnimationMode = AnimationMode(anim);
-			bool jacks = (flags & kFlagJacksOnTop);
-			if(jacksOnTop.get() != jacks)
-				jacksOnTop.set(jacks);
-			gJacksOnTop = jacks;
-			bool menu = kFlagMenuLocked & flags;
-			if(menuLocked.get() != menu)
-				menuLocked.set(menu);
+			updateFlagParameterFromFlags(jacksOnTop, kFlagJacksOnTop);
+			gJacksOnTop = jacksOnTop;
+			updateFlagParameterFromFlags(animationMode, kFlagAnimationsWithFs);
+			gAnimationMode = AnimationMode(animationMode.get());
+			updateFlagParameterFromFlags(menuLockingAllowed, kFlagMenuLockingAllowed);
+			updateFlagParameterFromFlags(menuLocked, kFlagMenuLocked);
 		}
 		else if(p.same(sizeScaleCoeff)) {
 			S(str = "sizeScaleCoeff");
