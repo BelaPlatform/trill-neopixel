@@ -9479,7 +9479,11 @@ void menu_render(BelaContext*, FrameData* frameData)
 	uint32_t ms = HAL_GetTick();
 	for(size_t n = 0; n < ledSlidersAlt.sliders.size(); ++n)
 	{
-		size_t idx = gMenuInvert ?ledSlidersAlt.sliders.size() - 1 - n : n;
+		// processing of an item may have exited the menu, so we check
+		// that we still have a valid menu every step of the way
+		if(!activeMenu)
+			break;
+		size_t idx = gMenuInvert ? ledSlidersAlt.sliders.size() - 1 - n : n;
 		MenuItemType* item = activeMenu->items[idx];
 		// TODO: using timeout because it's easier, but it should be refactored
 		// so that it's more elegant
