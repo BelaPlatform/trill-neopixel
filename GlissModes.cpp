@@ -3040,7 +3040,7 @@ public:
 					constexpr float kMinTau = 1.f / SAMPLE_RATE / (1.f - kAlphaDefault);
 					float val = smooths[n];
 					float smooth = mapAndConstrain(val, kDeadZone, 1, 0, 1);
-					float tau = kMinTau + powf(smooth, 5.3) * 50; // approx 1s at 50% range and 50s at 100% range
+					float tau = kMinTau + powf(smooth, 5.3) * 20;
 					alphas[n] = 1.f - (1.f / SAMPLE_RATE / tau);
 					M(printf("DirectControlMode: %.4fs -> %0.10f\n\r", tau, alphas[n]));
 				}
