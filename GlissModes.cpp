@@ -2685,8 +2685,8 @@ protected:
 					gAnimateFs.directWriteCentroid(p, l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
 				case kModeSplitLocationSize:
-					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0, 0.5), .size = kFixedCentroidSize }, color);
-					gAnimateFs.directWriteCentroid(p, l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = 0.1, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
 				}
 			}
