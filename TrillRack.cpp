@@ -911,7 +911,7 @@ void tr_render(BelaContext* context)
 	// that will be overwritten below
 	// TODO: consolidate these three loops. Try to incorporate this above, or just use it on
 	// all channels after the next loop.
-		if(gJacksOnTop)
+		if(gJacksOnTop || gSwapOutputs)
 		{
 			for(unsigned int n = 0; n < context->analogFrames; ++n)
 			{

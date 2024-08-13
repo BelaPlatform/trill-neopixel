@@ -405,6 +405,7 @@ int gCounter = 0;
 int gSubMode = 0;
 std::array<bool,2> gOutIsSize;
 bool gJacksOnTop = true;
+bool gSwapOutputs = false;
 static bool gMenuInvert = false;
 
 enum AnimationMode
@@ -1803,6 +1804,20 @@ public:
 		}
 		}
 	}
+	ParameterContinuous* getAsContinuous()
+	{
+		if(kParameterContinuous == type)
+			return (ParameterContinuous*)p;
+		else
+			return nullptr;
+	}
+	ParameterEnum* getAsEnum()
+	{
+		if(kParameterEnum == type)
+			return (ParameterEnum*)p;
+		else
+			return nullptr;
+	}
 private:
 	enum {
 		kParameterEnum,
@@ -2557,15 +2572,16 @@ void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slid
 }
 
 class SplitPerformanceMode : public PerformanceMode {
+public:
+	bool isSplit()
+	{
+		return splitMode != kModeNoSplit;
+	}
 protected:
 	static constexpr size_t kNumSplits = ::kNumSplits;
 	size_t currentSplits()
 	{
 		return 1 + isSplit();
-	}
-	bool isSplit()
-	{
-		return splitMode != kModeNoSplit;
 	}
 	bool isAsymmetricalSplit()
 	{
@@ -7322,6 +7338,17 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 		gOutRangeBottom = ioRanges.outBottom;
 		gInRange = ioRanges.in;
 	}
+	if(gMenuInvert)
+	{
+		PerformanceMode* mode = performanceModes[gNewMode];
+		gSwapOutputs = true;
+		if(mode == &gDirectControlMode || mode == &gRecorderMode)
+		{
+			if(((SplitPerformanceMode*)mode)->isSplit())
+				gSwapOutputs = false;
+		}
+	} else
+		gSwapOutputs = false;
 	// make the final states visible to the wrapper
 	gOutRangeTop.enabled = gOutUsesRange[0];
 	gOutRangeBottom.enabled = gOutUsesRange[1];

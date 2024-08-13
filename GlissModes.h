@@ -172,6 +172,7 @@ static inline float mapAndConstrain(float x, float in_min, float in_max, float o
 
 extern float gBrightness;
 extern bool gJacksOnTop;
+extern bool gSwapOutputs;
 extern uint8_t gNewMode;
 extern uint16_t gDebugFlags;
 extern bool gOutAddsIn;
