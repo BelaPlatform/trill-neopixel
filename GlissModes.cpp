@@ -1741,6 +1741,75 @@ private:
 	const float defaultValue;
 };
 
+// It behaves like a ParameterContinuous but it can wrap either a
+// ParameterContinuous or a ParameterEnum
+class ParameterContinuousGeneric : public Parameter
+{
+public:
+	ParameterContinuousGeneric() {}
+	ParameterContinuousGeneric(ParameterContinuous& p): pc(&p) {}
+	ParameterContinuousGeneric(ParameterEnum& p): pe(&p) {}
+	bool valid()
+	{
+		return pc || pe;
+	}
+	void set(float newValue)
+	{
+		if(pc)
+			pc->set(newValue);
+		else if(pe)
+			pe->set(floatToEnum(newValue));
+	}
+	float get() const
+	{
+		if(pc)
+			return pc->get();
+		else if(pe)
+			return enumToFloat(pe->get());
+		return 0;
+	}
+	// only change from ParameterContinuous: transform the value
+	// as if it were stored into the parameter and read back from it
+	float transform(float v) const
+	{
+		if(pc)
+			return v;
+		else if(pe)
+			return enumToFloat(floatToEnum(v));
+		return 0;
+	}
+	operator float() const { return get(); }
+	void resetToDefault()
+	{
+		if(pc)
+			pc->resetToDefault();
+		if(pe)
+			pe->set(pe->getDefault());
+	}
+	float getDefault() const {
+		if(pc)
+			return pc->getDefault();
+		else if(pe) {
+			return enumToFloat(pe->getDefault());
+		}
+		return 0;
+	}
+	float enumToFloat(int val) const
+	{
+		if(pe)
+			return val / float(pe->getMax() - 1);
+		return 0;
+	}
+	int floatToEnum(float val) const
+	{
+		if(pe)
+			return std::round(val * (pe->getMax() - 1));
+		return 0;
+	}
+	ParameterContinuous* pc = nullptr;
+	ParameterEnum* pe = nullptr;
+};
+
 // generic container for parameters with fixed resolution
 // performs data conversion when setting/getting
 class ParameterContainer {
