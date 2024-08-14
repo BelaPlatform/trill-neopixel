@@ -8478,12 +8478,12 @@ public:
 	bool ignoreNextFalling;
 };
 
-// If held-press, get into singleQuantisedMenu to set value as if it was a big toggle
+// If held-press, get into singleSliderMenuItem to set value as if it was a big slide switch
 class MenuItemTypeEnterQuantised : public MenuItemTypeEnterSubmenu
 {
 public:
 	MenuItemTypeEnterQuantised(const char* name, rgb_t baseColor, ParameterEnum& value, ButtonAnimation* animation = nullptr) :
-		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleQuantisedMenu), value(value), animation(animation) {}
+		MenuItemTypeEnterSubmenu(name, baseColor, 500, singleSliderMenu), value(value), animation(animation) {}
 	void process(LedSlider& slider)
 	{
 		MenuItemTypeEnterSubmenu::process(slider);
@@ -8495,8 +8495,8 @@ public:
 	void event(Event e) override
 	{
 		if(kHoldHigh == e) {
-			singleQuantisedMenuItem = MenuItemTypeQuantised(baseColor, &value);
-			menu_in(singleQuantisedMenu, kMenuInteractiveNow);
+			singleSliderMenuItem = MenuItemTypeSlider(baseColor, baseColor, value, true, true);
+			menu_in(singleSliderMenu, kMenuInteractiveNow);
 		}
 	}
 	ParameterEnum& value;
@@ -8948,7 +8948,7 @@ class GlobalSettings : public ParameterUpdateCapable {
 		kFlagMax = 1 << 5,
 	};
 	enum Orientation {
-		// numbering here matches the position on the MenuItemTypeQuantised slider
+		// numbering here matches the position on the MenuItemTypeContinuous slider
 		kOrientation4HpBottom = 0,
 		kOrientation1ULeft = 1,
 		kOrientation4HpTop = 2,
