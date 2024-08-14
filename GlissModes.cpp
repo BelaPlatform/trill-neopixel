@@ -8024,21 +8024,24 @@ protected:
 };
 
 AutoLatcher gMenuAutoLatcher;
+// continuous or stepped slider
 class MenuItemTypeSlider : public MenuItemType {
 public:
 	MenuItemTypeSlider(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuous* parameter) :
-		MenuItemType(color), otherColor(otherColor), parameter(parameter) {
+	MenuItemTypeSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuousGeneric parameter, bool onlySetOnExit = false, bool orientationAgnostic = false) :
+		MenuItemType(color), otherColor(otherColor), p(parameter), onlySetOnExit(onlySetOnExit), orientationAgnostic(orientationAgnostic) {
 		gMenuAutoLatcher.reset();
 	}
 	void process(LedSlider& slider) override
 	{
-		if(parameter)
+		if(p.valid())
 		{
+			auto* parameter = &p;
 			centroid_t frame {
 				.location = slider.compoundTouchLocation(),
 				.size = slider.compoundTouchSize(),
 			};
+			frame.location = fix(frame.location);
 			// for some reason we are called with location and size = 0 at least once
 			// When we start.
 			// Work around that by checking for frame.size before starting
@@ -8048,7 +8051,7 @@ public:
 				// this can't be moved to constructor because
 				// we don't have the slider there.
 				tracking = false;
-				initialPos = frame.location;
+				initialPos = parameter->transform(frame.location);
 				hasDoneSetup = true;
 				initialTime = HAL_GetTick();
 			}
@@ -8068,21 +8071,25 @@ public:
 			bool latched = false;
 			gMenuAutoLatcher.process(frame, latched);
 			// set the centroid position to whatever the current parameter value is
+			float pValue = tracking ? parameter->transform(frame.location) : parameter->get();
 			centroid_t centroid = {
-					.location = constrain(parameter->get(), 0, 1), // ensure it's within the visualisable range
+					.location = fix(constrain(pValue, 0, 1)), // ensure it's within the visualisable range
 					.size = kFixedCentroidSize / 2,
 			};
 			rgb_t color;
-			if(parameter->isDefault(kDefaultThreshold)) {
+			float diffFromDefault = std::abs(parameter->getDefault() - frame.location);
+			if(diffFromDefault < kDefaultThreshold)
+			{
 				color = baseColor;
 				if(tracking) // make the centroid bigger as we approach the default
-					centroid.size = map(std::abs(parameter->getDefault() - parameter->get()), kDefaultThreshold, 0, centroid.size, 0.9);
+					centroid.size = mapAndConstrain(diffFromDefault, kDefaultThreshold, 0, centroid.size, 0.9);
 			} else {
 				color = otherColor;
 			}
 			if(tracking) {
 				// only track the slider if we have at some point crossed the initial point
-				parameter->set(frame.location);
+				if(!onlySetOnExit)
+					parameter->set(frame.location);
 			} else {
 				// or show a pulsating centroid
 				centroid.size *= simpleTriangle(HAL_GetTick() - initialTime, 130);
@@ -8091,17 +8098,29 @@ public:
 			ledSlidersAlt.sliders[0].setLedsCentroids(&centroid, 1);
 
 			if(latched)
+			{
+				if(onlySetOnExit && tracking)
+					parameter->set(frame.location); // otherwise set above
 				menu_up();
+			}
 		}
 	}
 	rgb_t otherColor;
-	ParameterContinuous* parameter;
+	ParameterContinuousGeneric p;
 	//below are init'd to avoid warning
 	float initialPos = 0;
 	uint32_t initialTime = 0;
 	bool tracking = false;
 	bool hasDoneSetup = false;
 	bool hasHadTouch = false;
+	bool onlySetOnExit = false;
+	bool orientationAgnostic = false;
+	float fix(float pos)
+	{
+		if(orientationAgnostic)
+			return gJacksOnTop ? 1.f - pos : pos;
+		return pos;
+	}
 };
 
 class MenuItemTypeQuantised : public MenuItemType {
@@ -8448,7 +8467,7 @@ public:
 			if(ignoreNextFalling)
 				ignoreNextFalling = false;
 			else {
-				singleSliderMenuItem = MenuItemTypeSlider(kDefaultSelectorColor, otherColor, &value);
+				singleSliderMenuItem = MenuItemTypeSlider(kDefaultSelectorColor, otherColor, value);
 				menu_in(singleSliderMenu);
 			}
 		}
@@ -8643,7 +8662,7 @@ public:
 	{
 		M(printf("DiscreteContinuous: going to slider\n\r"));
 		// TODO: if using this again, pass a different color as otherColor
-		singleSliderMenuItem = MenuItemTypeSlider(baseColor, baseColor, &valueCon);
+		singleSliderMenuItem = MenuItemTypeSlider(baseColor, baseColor, valueCon);
 		menu_in(singleSliderMenu);
 	}
 	ParameterContinuous& valueCon;
@@ -9310,7 +9329,7 @@ static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rg
 static void menu_enterSingleSlider(const rgb_t& color, const rgb_t& otherColor, ParameterContinuous& parameter)
 {
 	gAlt = 1;
-	singleSliderMenuItem = MenuItemTypeSlider(color, otherColor, &parameter);
+	singleSliderMenuItem = MenuItemTypeSlider(color, otherColor, parameter);
 	menu_in(singleSliderMenu, kMenuInteractiveNow);
 }
 #endif // MENU_ENTER_SINGLE_SLIDER
