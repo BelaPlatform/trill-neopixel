@@ -8123,51 +8123,6 @@ public:
 	}
 };
 
-class MenuItemTypeQuantised : public MenuItemType {
-public:
-	MenuItemTypeQuantised(): MenuItemType({0, 0, 0}) {}
-	MenuItemTypeQuantised(const rgb_t& color, ParameterEnum* parameter) :
-		MenuItemType(color), parameter(parameter) {
-		gMenuAutoLatcher.reset();
-	}
-	void process(LedSlider& slider) override
-	{
-		if(parameter)
-		{
-			unsigned int quantised = parameter->getMax();
-			centroid_t frame = {
-				.location = slider.compoundTouchLocation(),
-				.size = slider.compoundTouchSize(),
-			};
-			bool latched = false;
-			gMenuAutoLatcher.process(frame, latched);
-			float pos = fix(frame.location);
-			unsigned int n = (unsigned int)(pos * quantised);
-			if(n >= quantised) // you may reach the top when pos is exactly 1 (or more...)
-				n--;
-			pos = n / float(quantised);
-			if(latched)
-			{
-				parameter->set(n);
-				menu_up();
-			}
-			centroid_t centroid = {
-					.location = fix(int(pos * quantised) / float(quantised - 1)),
-					.size = kFixedCentroidSize,
-			};
-			slider.setLedsCentroids(&centroid, 1);
-		}
-	}
-	float fix(float pos)
-	{
-		if(orientationAgnostic)
-			return gJacksOnTop ? 1.f - pos : pos;
-		return pos;
-	}
-	ParameterEnum* parameter;
-	bool orientationAgnostic = true;
-};
-
 #include <functional>
 
 
@@ -8432,11 +8387,6 @@ static MenuItemTypeRangeDisplayCentroids singleRangeDisplayMenuItem;
 // this is a submenu consisting of a range+display (no buttons). Before entering it,
 // appropriately set the properties of singleRangeDisplayMenuItem
 MenuPage singleRangeDisplayMenu("single range", {&singleRangeDisplayMenuItem}, MenuPage::kMenuTypeRange);
-
-static MenuItemTypeQuantised singleQuantisedMenuItem;
-// this is a submenu consisting of a quantised slider(no buttons). Before entering it,
-// appropriately set the properties of singleQuantisedMenuItem
-MenuPage singleQuantisedMenu("single quantised", {&singleQuantisedMenuItem}, MenuPage::kMenuTypeQuantised);
 
 static void buttonBlinkResetToDefault()
 {
