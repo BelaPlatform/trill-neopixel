@@ -1664,6 +1664,7 @@ public:
 	virtual void next() = 0;
 	virtual uint8_t get() const = 0;
 	virtual uint8_t getMax() const = 0;
+	virtual uint8_t getDefault() const = 0;
 	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) {};
 };
 
@@ -1672,7 +1673,7 @@ class ParameterEnumT : public ParameterEnum
 {
 public:
 	ParameterEnumT<N,type>(ParameterUpdateCapable* that, uint8_t value = 0):
-		that(that), value(value) {}
+		that(that), value(value), defaultValue(value) {}
 
 	void set(unsigned int newValue) override
 	{
@@ -1694,6 +1695,10 @@ public:
 	{
 		return N;
 	}
+	uint8_t getDefault() const override
+	{
+		return defaultValue;
+	}
 	virtual void animate(LedSlider& l, rgb_t color, uint32_t ms) override
 	{
 		if(hasFsAnimation())
@@ -1703,6 +1708,7 @@ public:
 private:
 	ParameterUpdateCapable* that;
 	uint8_t value;
+	uint8_t defaultValue;
 };
 
 class ParameterContinuous : public Parameter {
