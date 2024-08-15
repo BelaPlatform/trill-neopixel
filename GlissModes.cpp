@@ -557,8 +557,8 @@ static inline void applyOrder(LedSlidersOrder order, T& first, T& last, T max)
 {
 	if(kBottomUp == order)
 		return;
-	first = max - 1 - first;
-	last = max - 1 - last;
+	first = max - first;
+	last = max - last;
 	std::swap(first, last);
 };
 
@@ -569,7 +569,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	if(!numSplits)
 		return;
 
-	float guardPads = 2;
+	float guardPads = 0.07; //relative to the whole slider
 	float guardLeds = 2;
 	float nextPad = 0;
 	size_t nextLed = 0;
@@ -578,34 +578,37 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 		float coeff = 1;
 		if(2 == numSplits && asymmetricalSplit)
 			coeff = 2 * (0 == n ? (1.f - kAsymmetricalSplitPoint) : kAsymmetricalSplitPoint);
-		float activePads = ((kNumPads - (guardPads * (numSplits - 1))) * coeff) / numSplits;
 		float activeLeds = ((kNumLeds - (guardLeds * (numSplits - 1))) * coeff) / numSplits;
-		float firstPad = nextPad;
-		float lastPad = firstPad + activePads;
 		size_t firstLed = nextLed;
 		size_t lastLed = firstLed + activeLeds;
-		applyOrder(order, firstPad, lastPad, float(kNumPads));
+		if(2 == numSplits && numSplits - 1 == n && lastLed != kNumLeds)
+		{
+			// it's hard to evenly distribute an arbitrary number
+			// of splits across 23 LEDs.
+			// In the common case of two splits, we ensure
+			// they are evenly split and extend to the last LED
+			int diff = kNumLeds - lastLed;
+			if(diff > 0)
+			{
+				lastLed += diff;
+				firstLed += diff;
+			}
+		}
 		applyOrder(order, firstLed, lastLed, kNumLeds);
-		float sliderMin = nextPad / float(kNumPads);
-		float sliderMax = lastPad / float(kNumPads);
+
+		float activePads = ((1.f - (guardPads * (numSplits - 1))) * coeff) / numSplits;
+		float firstPad = nextPad;
+		float lastPad = firstPad + activePads;
+		applyOrder(order, firstPad, lastPad, 1.f);
 
 		boundaries.push_back({
-				.sliderMin = sliderMin,
-				.sliderMax = sliderMax,
+				.sliderMin = firstPad,
+				.sliderMax = lastPad,
 				.firstLed = firstLed,
 				.lastLed = lastLed,
 		});
 		nextPad += activePads + guardPads;
 		nextLed +=  activeLeds + guardLeds;
-	}
-	if(2 == numSplits) {
-		// it's hard to evenly distribute an arbitrary number
-		// of splits across 23 LEDs.
-		// In the common case of two splits, we ensure
-		// they are evenly split and extend to the last LED
-		size_t diff = kNumLeds - boundaries[0].lastLed;
-		boundaries[0].lastLed = kNumLeds;
-		boundaries[0].firstLed += diff;
 	}
 	LedSliders::Settings settings = {
 			.sizeScale = gSizeScale,
