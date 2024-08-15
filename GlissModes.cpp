@@ -3463,10 +3463,29 @@ public:
 		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 
 		bool circularShouldReset = false;
-		// handle button
-		if(!(kInputModeEnvelope == inputMode) && // when in envelope mode, there is never a good reason to erase recordings
-				(performanceBtn.pressDuration == msToNumBlocks(context, 3000)
-				|| (!buttonTriggers() && performanceBtn.tripleClick))) // if button triggers, it may be pressed repeatedly for performance reasons
+		bool eraseOnTriple = false;
+		bool eraseOnHold = false;
+		switch(inputMode.get())
+		{
+		case kInputModeLfo:
+			// fast clicks are a performance gesture
+			eraseOnHold = true;
+			break;
+		case kInputModeEnvelope:
+			// holding or fast clicks are a performance gesture
+			break;
+		case kInputModeClock:
+		case kInputModeCv:
+		case kInputModePhasor:
+		default:
+			eraseOnHold = true;
+			eraseOnTriple = true;
+		}
+		// handle erasing via button
+		if(
+				(eraseOnHold && performanceBtn.pressDuration == msToNumBlocks(context, 3000))
+				|| (eraseOnTriple && performanceBtn.tripleClick)
+			)
 		{
 			std::array<bool,kNumSplits> shouldClear {};
 			if(isSplit()) {
