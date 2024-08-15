@@ -2523,6 +2523,22 @@ protected:
 	{
 		return kModeSplitLocationSize == splitMode;
 	}
+	void setupSliders(const rgb_t& color, double ms)
+	{
+		if(isSplit())
+		{
+			if(ms <= 0)
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, isAsymmetricalSplit());
+		} else {
+			if(ms <= 0)
+			{
+				ledSlidersSetupOneSlider(
+					color,
+					LedSlider::MANUAL_CENTROIDS
+				);
+			}
+		}
+	}
 	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues, std::array<bool,kNumSplits> preserveSplitLocationSize = {})
 	{
 		for(ssize_t n = 0; n < isSplit() + 1; ++n)
@@ -2713,19 +2729,7 @@ public:
 	{
 		asrs.fill(kAsrAttack);
 		gOutMode.fill(kOutModeManualBlockCustomSmoothed);
-		if(isSplit())
-		{
-			if(ms <= 0)
-				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, isAsymmetricalSplit());
-		} else {
-			if(ms <= 0)
-			{
-				ledSlidersSetupOneSlider(
-					color,
-					LedSlider::MANUAL_CENTROIDS
-				);
-			}
-		}
+		setupSliders(color, ms);
 		if(ms < 0)
 			return true;
 		// opening animation
@@ -3220,16 +3224,7 @@ public:
 		idxFrac = 0;
 		ignoredTouch.fill(TouchTracker::kIdInvalid);
 		buttonBlinksIgnored = 0;
-		if(isSplit())
-		{
-			if(ms <= 0)
-				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, isAsymmetricalSplit());
-		}
-		else
-		{
-			if(ms <= 0)
-				ledSlidersSetupOneSlider(color, LedSlider::MANUAL_CENTROIDS);
-		}
+		setupSliders(color, ms);
 		if(ms < 0)
 			return true;
 		// opening animation
