@@ -6606,6 +6606,7 @@ public:
 			{
 				lastClickMs = kInvalidMs;
 				requestOldMode();
+				gp_store();
 				return;
 			}
 			// if double click restart
