@@ -30,7 +30,6 @@ extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& sta
 std::array<float,kNumOutChannels> gManualAnOut;
 
 #define STM32_NEOPIXEL
-// #define MIDI_CTL_SETS_PIXELS
 
 // Gliss revs:
 // 1: no logo, exposed copper, non-inverting I/O, only used internally
@@ -135,83 +134,6 @@ std::vector<unsigned int> padsToOrderMap = {
 CentroidDetectionScaled globalSlider;
 int gAlt = 0;
 
-#ifdef MIDI_CTL_SETS_PIXELS
-#include "usbd_midi_if.h"
-uint8_t midiInToPixel(uint8_t value)
-{
-	value = value * 2;
-	if(254 == value)
-		value = 255;
-	return value;
-}
-#include "LedSliders.h" // rgb_t
-static void midiCtlCallback(uint8_t ch, uint8_t num, uint8_t value){
-	bool shouldOverrideDisplay = false;
-	if (num < 100){
-		static rgb_t color;
-		if(num < 3) {
-			value = midiInToPixel(value);
-			if(0 == num)
-				color.r = value;
-			if(1 == num)
-				color.g = value;
-			if(2 == num)
-				color.b = value;
-		}
-		if (4 == num) {
-			// we ignore the controller's value: just use this as a trigger
-			for(unsigned int n = 0; n < kNumLeds; ++n)
-				np.setPixelColor(n, color.r, color.g, color.b);
-			printf("all leds to %d %d %d\n\r", color.r, color.g, color.b);
-			shouldOverrideDisplay = true;
-		}
-		else if(5 == num)
-		{
-			unsigned int idx = 0;
-			idx = value;
-			if(idx < kNumLeds) {
-				np.setPixelColor(idx, color.r, color.g, color.b);
-			}
-			printf("color at pixel %d: %d %d %d\n\r", idx, color.r, color.g, color.b);
-			shouldOverrideDisplay = true;
-		} else if(6 == num) {
-			unsigned int split = value;
-			LedSliders& sliders = (1 == gAlt) ? ledSlidersAlt : ledSliders;
-			// set color currently used by active mode
-			if(split < sliders.sliders.size()) {
-				// for most modes
-				sliders.sliders[split].setColor(color);
-				printf("mode color at split %d: %d %d %d\n\r", split, color.r, color.g, color.b);
-			}
-			if(split < gBalancedLfoColors.size()) // for balanced lfo modes
-				gBalancedLfoColors[split] = color;
-
-		}
-	} else {
-		// set DACs
-		static int msb;
-		if(100 == num)
-			msb  = value;
-		else if (101 == num) {
-			int lsb = value;
-			gOutMode.fill(kOutModeManualBlock);
-			float f = ((msb << 7) | lsb) / 4096.f;
-			gManualAnOut[0] = f;
-			gManualAnOut[1] = f;
-			shouldOverrideDisplay = true; // override display so we know something's off
-		}
-	}
-	static int pastAlt = -1;
-	if(shouldOverrideDisplay) {
-		if(gAlt != 2)
-			pastAlt = gAlt;
-		gAlt = 2;
-	} else {
-		if(pastAlt >= 0)
-			gAlt = pastAlt;
-	}
-}
-#endif // MIDI_CTL_SETS_PIXELS
 #ifdef STM32_NEOPIXEL
 static Stm32NeoPixelT<uint32_t, kNumLeds> snp(&neoPixelHtim, neoPixelHtim_TIM_CHANNEL_x, 0.66 * neoPixelHtim_COUNTER_PERIOD, 0.33 * neoPixelHtim_COUNTER_PERIOD);
 #endif // STM32_NEOPIXEL
@@ -230,9 +152,6 @@ void tr_snpDone()
 int tr_setup()
 {
 	printf("stringId: %s\n\r", kVerificationBlock.stringId);
-#ifdef MIDI_CTL_SETS_PIXELS
-	setHdlCtlChange(midiCtlCallback);
-#endif // MIDI_CTL_SETS_PIXELS
 #ifdef TRILL_BAR
 	padsToOrderMap.resize(kNumPads);
 	for(size_t n = 0; n < padsToOrderMap.size(); ++n)
@@ -511,13 +430,6 @@ static std::array<float,kNumOutChannels> outDiffs {};
 void tr_render(BelaContext* context)
 {
 	gp_processIncoming();
-#ifdef MIDI_CTL_SETS_PIXELS
-	if(2 == gAlt)
-	{
-		np.show();
-		return;
-	}
-#endif // MIDI_CTL_SETS_PIXELS
 	static uint32_t pastFrameId = kInvalidFrameId;
 	uint32_t frameId = trillFrameId.load();
 	bool newFrame = false;
