@@ -442,7 +442,7 @@ static std::array<bool,kNumOutChannels> gOutUsesRange;
 bool gOutAddsIn;
 
 // Recording the gesture
-static constexpr size_t kMaxRecordLength = 5000;
+static constexpr size_t kMaxRecordBytes = 80000;
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 const float kFixedCentroidSize = 0.3;
@@ -1174,13 +1174,34 @@ public:
 
 #ifdef ENABLE_RECORDER_MODE
 static constexpr size_t kNumRecs = 4;
-static std::array<float,kMaxRecordLength * kNumRecs> recorderData;
+typedef float RecorderSampleT;
+static std::array<RecorderSampleT,kMaxRecordBytes / sizeof(RecorderSampleT)> recorderData;
 class GestureRecorder
 {
 public:
 	typedef uint32_t FrameId;
-	typedef float sample_t;
-	typedef Recorder<sample_t>::ValidSample HalfGesture_t;
+	typedef RecorderSampleT sample_t;
+	static_assert(std::is_unsigned_v<sample_t> || std::is_floating_point_v<sample_t>, "Invalid RecorderSampleT");
+	// when recorder is an int, values are stored using
+	static constexpr sample_t kNoOutputInteger = std::numeric_limits<sample_t>::max();
+	static constexpr sample_t kMaxInteger = kNoOutputInteger - 1;
+	typedef Recorder<sample_t>::ValidSample HalfGestureRecorder_t;
+	struct HalfGesture_t
+	{
+		float sample;
+		bool valid;
+		HalfGesture_t() :
+			sample(0), valid(false)
+		{}
+		HalfGesture_t(float sample, bool valid) :
+			sample(sample), valid(valid)
+		{}
+		HalfGesture_t(const HalfGestureRecorder_t& g)
+		{
+			sample = recorderToFloat(g.sample);
+			valid = g.valid;
+		}
+	};
 	struct Gesture_t {
 		HalfGesture_t first;
 		HalfGesture_t second;
@@ -1222,11 +1243,37 @@ public:
 #endif
 		}
 	}
-	HalfGesture_t process(size_t n, float touch, const FrameId frameId, bool loop, bool retriggerNow, ssize_t autoFreezeAt)
+	static sample_t floatToRecorder(float v)
 	{
+		if constexpr(std::is_unsigned_v<sample_t>)
+		{
+			if(kNoOutput == v)
+				return kNoOutputInteger;
+			else
+				return std::round(v * kMaxInteger);
+		}
+		else
+			return v;
+	}
+	static float recorderToFloat(sample_t v)
+	{
+		if constexpr(std::is_unsigned_v<sample_t>)
+		{
+			if(kNoOutputInteger == v)
+				return kNoOutput;
+			else
+				return v / float(kMaxInteger);
+
+		}
+		else
+			return v;
+	}
+	HalfGesture_t process(size_t n, float touchFloat, const FrameId frameId, bool loop, bool retriggerNow, ssize_t autoFreezeAt)
+	{
+		sample_t touch = floatToRecorder(touchFloat);
 		if(n >= kNumRecs)
-			return {0, false};
-		HalfGesture_t out;
+			return {};
+		HalfGestureRecorder_t out;
 		switch(rs[n].state)
 		{
 		case kRecJustStarted:
@@ -1327,7 +1374,7 @@ public:
 			State state {};
 			FrameId firstFrameId {};
 			FrameId lastFrameId {};
-			HalfGesture_t lastOut {};
+			HalfGestureRecorder_t lastOut {};
 			uint32_t recCounter {};
 			double playHead {};
 			double playbackInc {1};
@@ -3096,8 +3143,15 @@ enum TreatNoOutput {
 	kTreatPassThrough,
 	kTreatAsZero,
 };
-static float interpolatedRead(const float* table, size_t size, float idx, TreatNoOutput treat = kTreatAssumeNot)
+template<typename T>
+static float interpolatedRead(const T* table, size_t size, float idx, TreatNoOutput treat = kTreatAssumeNot)
 {
+	// workaround because I can't get decltype(table[0]) to work
+	static auto dummy = table[0];
+	constexpr bool isSameAsRecorder = std::is_same<decltype(dummy), RecorderSampleT>::value;
+	constexpr bool isFloat = std::is_floating_point_v<decltype(dummy)>;
+	static_assert((isSameAsRecorder || isFloat), "Invalid type to interpolatedRead()");
+
 	float n = size * idx;
 	size_t prev = size_t(n);
 	size_t next = size_t(n + 1);
@@ -3106,8 +3160,16 @@ static float interpolatedRead(const float* table, size_t size, float idx, TreatN
 	if(next >= size)
 		next = 0; // could be we are at the end of table
 	float frac = n - prev;
-	float pr = table[prev];
-	float ne = table[next];
+	float pr;
+	float ne;
+	if constexpr(isSameAsRecorder)
+	{
+		pr = GestureRecorder::recorderToFloat(table[prev]);
+		ne = GestureRecorder::recorderToFloat(table[next]);
+	} else {
+		pr = table[prev];
+		ne = table[next];
+	}
 	if(kNoOutput == pr || kNoOutput == ne)
 	{
 		switch(treat)
@@ -3997,7 +4059,7 @@ public:
 				if(TouchTracker::kIdInvalid == getId(twis, c))
 				{
 					preserveSplitLocationSize[c] = true;
-					const float* table = gGestureRecorder.rs[c].r.first();
+					const auto* table = gGestureRecorder.rs[c].r.first();
 					size_t tableSize = gGestureRecorder.rs[c].r.size();
 					vizValues[c] = {};
 					if(tableSize)
@@ -4009,7 +4071,7 @@ public:
 							vizValues[c].size = isSizeOnly[c] ? vizValues[c].location : kFixedCentroidSize;
 						} else {
 							// be explicit about indeces here, as we are only here if c == 0
-							const float* table = gGestureRecorder.rs[1].r.getData().data();
+							const auto* table = gGestureRecorder.rs[1].r.getData().data();
 							size_t tableSize = gGestureRecorder.rs[1].r.size();
 							if(tableSize)
 								vizValues[0].size = interpolatedRead(table, tableSize, applyTrim(idxFrac), kTreatPassThrough);
@@ -4078,7 +4140,7 @@ public:
 	{
 		assert(c < context->analogOutChannels && c < gGestureRecorder.kNumRecs && c < kNumSplits);
 		float vizOut = 0;
-		const float* table = gGestureRecorder.rs[c].r.first();
+		const auto* table = gGestureRecorder.rs[c].r.first();
 		size_t tableSize = gGestureRecorder.rs[c].r.size();
 		if(!tableSize)
 		{
@@ -4121,7 +4183,7 @@ public:
 					{
 						// for visualisation purposes, avoid
 						// interpolation when reading the table
-						vizOut = table[size_t(idx * tableSize)];
+						vizOut = GestureRecorder::recorderToFloat(table[size_t(idx * tableSize)]);
 					}
 			}
 		} else if (kInputModePhasor == inputMode) {
