@@ -6222,8 +6222,8 @@ CalibrationProcedure() :
 	PresetDesc_t presetDesc = {
 		.field = this,
 		.size = sizeof(PresetFieldData_t),
-		.defaulter = GENERIC_DEFAULTER(MP(calibrationOut), MP(calibrationOut)),
-		.loadCallback = LOAD_CALLBACK(MP(calibrationOut), MP(calibrationOut)),
+		.defaulter = GENERIC_DEFAULTER(MP(calibrationOut), MP(calibrationIn)),
+		.loadCallback = LOAD_CALLBACK(MP(calibrationOut), MP(calibrationIn)),
 	};
 	presetDescSet(4, &presetDesc);
 }
