@@ -1174,7 +1174,7 @@ public:
 
 #ifdef ENABLE_RECORDER_MODE
 static constexpr size_t kNumRecs = 4;
-typedef float RecorderSampleT;
+typedef uint16_t RecorderSampleT;
 static std::array<RecorderSampleT,kMaxRecordBytes / sizeof(RecorderSampleT)> recorderData;
 class GestureRecorder
 {
