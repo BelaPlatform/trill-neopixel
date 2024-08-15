@@ -3463,8 +3463,15 @@ public:
 		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 
 		bool circularShouldReset = false;
-		bool eraseOnTriple = false;
-		bool eraseOnHold = false;
+		bool touchPresent = false;
+		for(auto& t: hadTouch)
+		{
+			if(t)
+				touchPresent = true;
+		}
+		// always allow to erase if there is at least one touch present
+		bool eraseOnTriple = touchPresent;
+		bool eraseOnHold = touchPresent;
 		switch(inputMode.get())
 		{
 		case kInputModeLfo:
