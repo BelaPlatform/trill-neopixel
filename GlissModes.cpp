@@ -3462,6 +3462,7 @@ public:
 		std::array<StopMode,kNumSplits> qrecStopNow {kStopNone, kStopNone};
 		std::array<RecordingMode,kNumSplits> qrecStartNow {kRecNone , kRecNone};
 
+		bool circularShouldReset = false;
 		// handle button
 		if(!(kInputModeEnvelope == inputMode) && // when in envelope mode, there is never a good reason to erase recordings
 				(performanceBtn.pressDuration == msToNumBlocks(context, 3000)
@@ -3502,7 +3503,12 @@ public:
 					flashRequest(n, kFlashErased);
 				}
 			}
+			// TODO: circularmodes will only be erased via long press if they are not
+			// in trimming mode, as that's technically inside a menu
+			// and so we won't get the button press here at all
+
 			// clear possible side effects of previous press:
+			circularShouldReset = true;
 			reinitInputModeClock();
 			lastIgnoredPressId = performanceBtn.pressId;
 			tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 300);
@@ -3632,7 +3638,7 @@ public:
 				nextCircularMode = kCircularModeNew;
 			}
 			oldGAlt = gAlt;
-			if(performanceBtn.offset)
+			if(performanceBtn.offset && lastIgnoredPressId != performanceBtn.pressId)
 			{
 				// NOTE: This won't be hit when exiting trimming as that's swallowed by menuBtn,
 				// hence the above workaround
@@ -3641,6 +3647,8 @@ public:
 					nextCircularMode = kCircularModeNew;
 
 			}
+			if(circularShouldReset)
+				nextCircularMode = kCircularModeNew;
 			if(circularMode != nextCircularMode)
 			{
 				circularMode = nextCircularMode;
