@@ -84,8 +84,8 @@ public:
 	}
 	bool areLedsEnabled();
 	bool isTouchEnabled();
-private:
 	Settings s;
+private:
 	bool ledsEnabled = true;
 	bool touchEnabled = true;
 };

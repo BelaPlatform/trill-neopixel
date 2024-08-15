@@ -2460,35 +2460,16 @@ void updatePresetField(PerfMode* that, Ts... varargs)
 // values must have enough space for numSplits * maxTouchesPerSplit elements.
 // it will contain, interleaved, maxTouchesPerSplit elements per each split. Invalid
 // elements (i.e.: non-touches) will have a kIdInvalid id.
-void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slider, bool shouldProcess, size_t numSplits, size_t maxTouchesPerSplit, bool asymmetricalSplit, TouchTracker::TouchWithId* values)
+void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slider, bool shouldProcess, const LedSliders& ls, size_t maxTouchesPerSplit, TouchTracker::TouchWithId* values)
 {
+	size_t numSplits = ls.sliders.size();
 	if(shouldProcess)
 		touchTracker.process(globalSlider);
 	size_t numTouches = touchTracker.getNumTouches();
-	float deadZone;
-	if(numSplits <= 2)
-		deadZone = 0.1;
-	else
-		deadZone = 0.05;
-	const float activeZone = (1.f - deadZone * (numSplits - 1)) / numSplits;
 	for(size_t s = 0; s < numSplits; ++s)
 	{
-		float min;
-		float max;
-		if(2 == numSplits && asymmetricalSplit)
-		{
-			if(0 == s)
-			{
-				min = kAsymmetricalSplitPoint + deadZone * 0.5f;
-				max = 1;
-			} else {
-				min = 0;
-				max = kAsymmetricalSplitPoint - deadZone * 0.5f;
-			}
-		} else {
-			min = (numSplits - 1 - s) * (activeZone + deadZone);
-			max = min + activeZone;
-		}
+		float min = ls.s.boundaries[s].sliderMin;
+		float max = ls.s.boundaries[s].sliderMax;;
 		TouchTracker::TouchWithId twi[maxTouchesPerSplit];
 		size_t touches = 0;
 		for(ssize_t i = numTouches - 1; i >= 0 && touches < maxTouchesPerSplit; --i)
@@ -2770,7 +2751,7 @@ public:
 		bool analogRisingEdge = (analogInHigh && !pastAnalogInHigh);
 		pastAnalogInHigh = analogInHigh;
 		std::array<TouchTracker::TouchWithId,kNumSplits> twis;
-		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, currentSplits(), 1, isAsymmetricalSplit(), twis.data());
+		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, ledSliders, 1, twis.data());
 		std::array<centroid_t,kNumSplits> values {};
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
@@ -3744,7 +3725,7 @@ public:
 				}
 			}
 		}
-		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, currentSplits(), 1, isAsymmetricalSplit(), twis.data());
+		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, ledSliders, 1, twis.data());
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
@@ -9454,14 +9435,13 @@ void menu_render(BelaContext*, FrameData* frameData)
 			// calling this only on frameData->isNew would cause
 			// flickering because the LEDs are cleared in tr_render()
 			// so we call it unconditionally
-			ssize_t numSplits = std::min(activeMenu->items.size(), kMaxMenuItems);
+			size_t numSplits = std::min(activeMenu->items.size(), kMaxMenuItems);
 			static constexpr size_t kMaxTouchesPerSplit = 2;
 			std::array<TouchTracker::TouchWithId,kMaxMenuItems*kMaxTouchesPerSplit> twis;
-			touchTrackerSplit(gTouchTrackerAlt, globalSlider, ledSlidersAlt.isTouchEnabled() && frameData->isNew, numSplits, kMaxTouchesPerSplit, false, twis.data());
+			touchTrackerSplit(gTouchTrackerAlt, globalSlider, ledSlidersAlt.isTouchEnabled() && frameData->isNew, ledSlidersAlt, kMaxTouchesPerSplit, twis.data());
 			std::array<centroid_t const*,kMaxMenuItems*kMaxTouchesPerSplit + kMaxMenuItems> centroids {}; // enough for kMaxTouchePerSplit touches per menu item + separators
 			size_t c = 0;
-			// reverse because globalSlider behaves backwards wrt splits.
-			for(ssize_t n = numSplits - 1; n >= 0; --n)
+			for(size_t n = 0; n < numSplits; ++n)
 			{
 				for(size_t t = 0; t < kMaxTouchesPerSplit; ++t)
 				{
