@@ -2528,7 +2528,12 @@ protected:
 		if(isSplit())
 		{
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, kTopBottom, isAsymmetricalSplit());
+			{
+				LedSlidersOrder order =
+						gMenuInvert ? kBottomUp :
+								kTopBottom;
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, order, isAsymmetricalSplit());
+			}
 		} else {
 			if(ms <= 0)
 			{
@@ -7320,15 +7325,8 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 		gInRange = ioRanges.in;
 	}
 	if(gMenuInvert)
-	{
-		PerformanceMode* mode = performanceModes[gNewMode];
 		gSwapOutputs = true;
-		if(mode == &gDirectControlMode || mode == &gRecorderMode)
-		{
-			if(((SplitPerformanceMode*)mode)->isSplit())
-				gSwapOutputs = false;
-		}
-	} else
+	else
 		gSwapOutputs = false;
 	// make the final states visible to the wrapper
 	gOutRangeTop.enabled = gOutUsesRange[0];
@@ -8909,7 +8907,14 @@ public:
 			Orientation newOrientation = orientationFromFlags();
 			if(orientation != newOrientation)
 				orientation.set(newOrientation);
+			bool oldMenuInvert = gMenuInvert;
 			getFromOrientation(gJacksOnTop, gMenuInvert);
+			if(gMenuInvert != oldMenuInvert)
+			{
+				// these modes need to reset their sliders when menuinvert changes
+				gRecorderMode.setup(-1);
+				gDirectControlMode.setup(-1);
+			}
 			updateFlagParameterFromFlags(animationMode, kFlagAnimationsWithFs);
 			gAnimationMode = AnimationMode(animationMode.get());
 			updateFlagParameterFromFlags(menuLockingAllowed, kFlagMenuLockingAllowed);
