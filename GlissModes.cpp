@@ -98,7 +98,7 @@ T fixedOrientation(T pos, T max)
 {
 	// allow to get a touchstrip value (e.g.: slider value or LED or PAD number) that represents a fixed point
 	// on the touch strip, regardless of its swapped state
-	return gJacksOnTop ? max - pos : pos;
+	return uio.touchStripSwapped() ? max - pos : pos;
 }
 
 #include <cmath>
@@ -412,9 +412,7 @@ std::array<OutMode,kNumOutChannels> gOutMode { kOutModeManualBlock, kOutModeManu
 int gCounter = 0;
 int gSubMode = 0;
 std::array<bool,2> gOutIsSize;
-bool gJacksOnTop = true;
-bool gSwapOutputs = false;
-static bool gMenuInvert = false;
+UiOrientation uio;
 
 enum AnimationMode
 {
@@ -581,7 +579,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	float guardLeds = 2;
 	float nextPad = 0;
 	size_t nextLed = 0;
-	if(gJacksOnTop && 5 == numSplits && 2 == LedSlider::kDefaultNumWeights)
+	if(uio.touchStripSwapped() && 5 == numSplits && 2 == LedSlider::kDefaultNumWeights)
 	{
 		// With 2 guardLeds, each split uses 3 LEDs; however
 		// with kDefaultNumWeights == 2, this in practice means that only 2 LEDs are used
@@ -2563,7 +2561,7 @@ protected:
 			if(ms <= 0)
 			{
 				LedSlidersOrder order;
-				if(gMenuInvert)
+				if(uio.menuSwapped())
 				{
 					order = kBottomUp;
 					asymSplits = { .location = 1, .size = 0};
@@ -2615,7 +2613,7 @@ protected:
 					start = 0.37;
 				else
 					start = 0.63;
-				if(gJacksOnTop)
+				if(uio.touchStripSwapped())
 					start += 0.1;
 				drawSizeSplit(ledSliders.sliders[n], start, displayValues[n].size);
 				out[n] = touchOrNot(values[n]).size;
@@ -2634,7 +2632,7 @@ protected:
 
 				size_t s = asymSplits.size;
 				float start = 0.5;
-				if(!gJacksOnTop)
+				if(!uio.touchStripSwapped())
 					start -= 0.05;
 				drawSizeSplit(ledSliders.sliders[s], start, displayValues[s].size);
 				out[s] = touchOrNot(values[s]).size;
@@ -7178,7 +7176,7 @@ private:
 		if(!gAlt)
 		{
 			//viz during test
-			bool highSide = gJacksOnTop ? 0 == outCh : 1 == outCh;
+			bool highSide = uio.touchStripSwapped() ? 0 == outCh : 1 == outCh;
 			if(!testFailed)
 			{
 				rgb_t color = kRgbYellow;
@@ -7375,10 +7373,6 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 		gOutRangeBottom = ioRanges.outBottom;
 		gInRange = ioRanges.in;
 	}
-	if(gMenuInvert)
-		gSwapOutputs = true;
-	else
-		gSwapOutputs = false;
 	// make the final states visible to the wrapper
 	gOutRangeTop.enabled = gOutUsesRange[0];
 	gOutRangeBottom.enabled = gOutUsesRange[1];
@@ -8958,14 +8952,11 @@ public:
 			Orientation newOrientation = orientationFromFlags();
 			if(orientation != newOrientation)
 				orientation.set(newOrientation);
-			bool oldMenuInvert = gMenuInvert;
-			getFromOrientation(gJacksOnTop, gMenuInvert);
-			if(gMenuInvert != oldMenuInvert)
-			{
-				// these modes need to reset their sliders when menuinvert changes
-				gRecorderMode.setup(-1);
-				gDirectControlMode.setup(-1);
-			}
+			bool jacksOnTop;
+			bool menuInvert;
+			getFromOrientation(jacksOnTop, menuInvert);
+			uio.setMenuSwapped(menuInvert);
+			uio.setTouchStripSwapped(jacksOnTop);
 			updateFlagParameterFromFlags(animationMode, kFlagAnimationsWithFs);
 			gAnimationMode = AnimationMode(animationMode.get());
 			updateFlagParameterFromFlags(menuLockingAllowed, kFlagMenuLockingAllowed);
@@ -9314,9 +9305,9 @@ static void menu_update()
 		}
 	}
 	// check if menu orientation has changed
-	static int lastMenuInvert = gMenuInvert;
-	hasChanged |= (lastMenuInvert != gMenuInvert);
-	lastMenuInvert = gMenuInvert;
+	static bool lastMenuSwapped = uio.menuSwapped();
+	hasChanged |= (lastMenuSwapped != uio.menuSwapped());
+	lastMenuSwapped = uio.menuSwapped();
 
 	MenuPage* newMenu = menu_getCurrent();
 	if(newMenu && (activeMenu != newMenu || hasChanged))
@@ -9342,7 +9333,7 @@ static void menu_update()
 				ledMode,
 				true,
 				1,
-				gMenuInvert ? kTopBottom : kBottomUp
+				uio.menuSwapped() ? kTopBottom : kBottomUp
 			);
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
@@ -9524,6 +9515,17 @@ void menu_render(BelaContext*, FrameData* frameData)
 				continue;
 		}
 		item->process(ledSlidersAlt.sliders[n]);
+	}
+}
+
+void UiOrientation::setMenuSwapped(bool v)
+{
+	if(v != menu)
+	{
+		menu = v;
+		// these modes need to reset their sliders when menuinvert changes
+		gRecorderMode.setup(-1);
+		gDirectControlMode.setup(-1);
 	}
 }
 

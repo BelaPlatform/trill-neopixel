@@ -171,8 +171,6 @@ static inline float mapAndConstrain(float x, float in_min, float in_max, float o
 }
 
 extern float gBrightness;
-extern bool gJacksOnTop;
-extern bool gSwapOutputs;
 extern uint8_t gNewMode;
 extern uint16_t gDebugFlags;
 extern bool gOutAddsIn;
@@ -202,3 +200,23 @@ static inline centroid_t touchOrNot(const centroid_t& touch)
 {
 	return touch.size ? touch : centroid_t{kNoOutput, kNoOutput};
 }
+
+class UiOrientation
+{
+public:
+	void setMenuSwapped(bool v);
+	void setTouchStripSwapped(bool v)
+	{
+		touchStrip = v;
+	}
+
+	bool menuSwapped() { return menu; }
+	bool touchStripSwapped() { return touchStrip; }
+	bool outputsSwapped() {
+		return menu ^ touchStrip; // OMG using XOR
+	}
+private:
+	bool touchStrip = false;
+	bool menu = false;
+};
+extern UiOrientation uio;

@@ -413,8 +413,8 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 
 static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned int channel, float value)
 {
-	// swap out channels if gJacksOnTop
-	unsigned int c = gJacksOnTop || gSwapOutputs ? !channel : channel;
+	// swap output channels if needed
+	unsigned int c = uio.outputsSwapped() ? !channel : channel;
 	analogWriteOnce(context, frame, c, value);
 }
 
@@ -498,7 +498,7 @@ void tr_render(BelaContext* context)
 
 	float min = kSliderBottomMargin;
 	float max = 1.f - kSliderTopMargin;
-	if(gJacksOnTop)
+	if(uio.touchStripSwapped())
 		std::swap(min, max);
 	globalSlider.setUsableRange(min, max);
 
@@ -731,7 +731,7 @@ void tr_render(BelaContext* context)
 				analogWriteJacks(context, n, c, 0);
 		}
 	}
-	if(gJacksOnTop)
+	if(uio.touchStripSwapped())
 		np.reverse();
 	// actually display the updated LEDs
 	// this may have been written by alt, mode_setups or mode_renders, whatever last wrote it is whatever we display
@@ -823,7 +823,7 @@ void tr_render(BelaContext* context)
 	// that will be overwritten below
 	// TODO: consolidate these three loops. Try to incorporate this above, or just use it on
 	// all channels after the next loop.
-		if(gJacksOnTop || gSwapOutputs)
+		if(uio.outputsSwapped())
 		{
 			for(unsigned int n = 0; n < context->analogFrames; ++n)
 			{
