@@ -2522,6 +2522,10 @@ public:
 	}
 protected:
 	static constexpr size_t kNumSplits = ::kNumSplits;
+	struct {
+		uint8_t location;
+		uint8_t size;
+	} asymSplits = {0, 1};
 	size_t currentSplits()
 	{
 		return 1 + isSplit();
@@ -2597,15 +2601,17 @@ protected:
 					continue;
 				// TODO: refactor with the previous ones
 				centroid_t centroid;
-				centroid.location = displayValues[0].location;
-				centroid.size = (displayValues[0].size > 0) * kFixedCentroidSize;
-				ledSliders.sliders[0].setLedsCentroids(&centroid, 1);
+				size_t l = asymSplits.location;
+				centroid.location = displayValues[l].location;
+				centroid.size = (displayValues[l].size > 0) * kFixedCentroidSize;
+				ledSliders.sliders[l].setLedsCentroids(&centroid, 1);
 
+				size_t s = asymSplits.size;
 				// Use multiple centroids to make a bigger dot.
 				// Their spacing increases with the size
 				std::array<centroid_t,2> centroids;
-				float value = displayValues[1].size;
-				float spread = 0.15f * std::min(1.f, displayValues[1].size);
+				float value = displayValues[s].size;
+				float spread = 0.15f * std::min(1.f, displayValues[s].size);
 				float start = 0.5;
 				if(!gJacksOnTop)
 					start -= 0.05;
@@ -2614,10 +2620,10 @@ protected:
 					centroids[c].location = start + (0 == c ? -spread : +spread);
 					centroids[c].size = value;
 				}
-				ledSliders.sliders[1].setLedsCentroids(centroids.data(), centroids.size());
+				ledSliders.sliders[s].setLedsCentroids(centroids.data(), centroids.size());
 
-				out[0] = touchOrNot(values[0]).location;
-				out[1] = touchOrNot(values[1]).size;
+				out[l] = touchOrNot(values[l]).location;
+				out[s] = touchOrNot(values[s]).size;
 			}
 				break;
 			}
@@ -2637,7 +2643,7 @@ protected:
 			gOutIsSize = {false, false};
 			break;
 		case kModeSplitLocationSize:
-			gOutIsSize = {false, true};
+			gOutIsSize = {0 == asymSplits.size, 1 == asymSplits.size};
 			break;
 
 		}
@@ -2665,8 +2671,8 @@ protected:
 					gAnimateFs.directWriteCentroid(p, l, { .location = 0.9, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
 				case kModeSplitLocationSize:
-					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0.5, 1), .size = kFixedCentroidSize }, color);
-					gAnimateFs.directWriteCentroid(p, l, { .location = 0.1, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
+					gAnimateFs.directWriteCentroid(p, l, { .location = map(loc, 0, 1, 0.3, 1), .size = kFixedCentroidSize }, color);
+					gAnimateFs.directWriteCentroid(p, l, { .location = 0.05, .size = loc }, color, LedSlider::kDefaultNumWeights * 2);
 					break;
 				}
 			}
@@ -3893,8 +3899,8 @@ public:
 			recIns[1] = t1.size;
 			break;
 		case kModeSplitLocationSize:
-			recIns[0] = t0.location;
-			recIns[1] = t1.size;
+			recIns[0] = 0 == asymSplits.location ? t0.location : t0.size;
+			recIns[1] = 1 == asymSplits.size ? t1.size : t1.location;
 			break;
 		}
 		// gesture may be overwritten below before it is visualised
@@ -3973,7 +3979,10 @@ public:
 							sample = touch.size;
 							break;
 						case kModeSplitLocationSize:
-							sample = 0 == n ? touch.location : touch.size;
+							if(asymSplits.location == n)
+								sample = touch.location;
+							else if(asymSplits.size == n)
+								sample = touch.size;
 							break;
 						}
 						gesture[n] = GestureRecorder::HalfGesture_t {
@@ -4019,7 +4028,10 @@ public:
 		static constexpr centroid_t kInvalid = {0, 0};
 		// visualise
 		std::array<centroid_t,kNumSplits> vizValues;
-		std::array<bool,2> isSizeOnly = { kModeSplitSize == splitMode, kModeSplitLocationSize == splitMode || kModeSplitSize == splitMode };
+		std::array<bool,2> isSizeOnly = {
+				kModeSplitSize == splitMode || (kModeSplitLocationSize == splitMode && 0 == asymSplits.size),
+				kModeSplitSize == splitMode || (kModeSplitLocationSize == splitMode && 1 == asymSplits.size),
+		};
 		if(isSplit()){
 			for(size_t n = 0; n < gesture.size(); ++n)
 			{
