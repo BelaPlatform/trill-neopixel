@@ -9312,8 +9312,6 @@ static void menu_update()
 		if(MenuPage::kMenuTypeButtons == activeMenu->type)
 		{
 			std::vector<MenuItemType*> items = activeMenu->items;
-			if(gMenuInvert)
-				std::reverse(items.begin(), items.end());
 			//buttons
 			ledSlidersSetupMultiSlider(
 				ledSlidersAlt,
@@ -9326,7 +9324,8 @@ static void menu_update()
 				},
 				ledMode,
 				true,
-				1
+				1,
+				gMenuInvert ? kTopBottom : kBottomUp
 			);
 		} else {
 			size_t maxNumCentroids = MenuPage::kMenuTypeRange == activeMenu->type ? 2 : 1;
@@ -9498,8 +9497,7 @@ void menu_render(BelaContext*, FrameData* frameData)
 		// that we still have a valid menu every step of the way
 		if(!activeMenu)
 			break;
-		size_t idx = gMenuInvert ? ledSlidersAlt.sliders.size() - 1 - n : n;
-		MenuItemType* item = activeMenu->items[idx];
+		MenuItemType* item = activeMenu->items[n];
 		// TODO: using timeout because it's easier, but it should be refactored
 		// so that it's more elegant
 		if(ms - gAnimationPlayedLast < 10)
