@@ -577,7 +577,14 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	{
 		float coeff = 1;
 		if(2 == numSplits && asymmetricalSplit)
-			coeff = 2 * (0 == n ? (1.f - kAsymmetricalSplitPoint) : kAsymmetricalSplitPoint);
+		{
+			bool longerSplit;
+			if(kTopBottom == order)
+				longerSplit = 0 == n;
+			else
+				longerSplit = 1 == n;
+			coeff = 2 * (longerSplit ? (1.f - kAsymmetricalSplitPoint) : kAsymmetricalSplitPoint);
+		}
 		float activeLeds = ((kNumLeds - (guardLeds * (numSplits - 1))) * coeff) / numSplits;
 		size_t firstLed = nextLed;
 		size_t lastLed = firstLed + activeLeds;
