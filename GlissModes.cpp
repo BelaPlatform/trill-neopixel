@@ -2540,9 +2540,15 @@ protected:
 		{
 			if(ms <= 0)
 			{
-				LedSlidersOrder order =
-						gMenuInvert ? kBottomUp :
-								kTopBottom;
+				LedSlidersOrder order;
+				if(gMenuInvert)
+				{
+					order = kBottomUp;
+					asymSplits = { .location = 1, .size = 0};
+				} else {
+					order = kTopBottom;
+					asymSplits = { .location = 0, .size = 1};
+				}
 				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, order, isAsymmetricalSplit());
 			}
 		} else {
