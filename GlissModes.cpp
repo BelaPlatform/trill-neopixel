@@ -703,9 +703,9 @@ static void ledSlidersSetupOneSlider(rgb_t color, LedSlider::LedMode_t mode)
 	ledSlidersSetupMultiSlider(ledSliders, {color}, mode, false, 1);
 }
 
-static void ledSlidersSetupTwoSliders(rgb_t color, LedSlider::LedMode_t mode, bool asymmetricalSplit = false)
+static void ledSlidersSetupTwoSliders(rgb_t color, LedSlider::LedMode_t mode, LedSlidersOrder order, bool asymmetricalSplit = false)
 {
-	ledSlidersSetupMultiSlider(ledSliders, {color, color}, mode, false, 1, kTopBottom, asymmetricalSplit);
+	ledSlidersSetupMultiSlider(ledSliders, {color, color}, mode, false, 1, order, asymmetricalSplit);
 }
 
 bool modeChangeBlinkSplit(double ms, rgb_t colors[2], size_t endFirst, size_t startSecond)
@@ -2528,7 +2528,7 @@ protected:
 		if(isSplit())
 		{
 			if(ms <= 0)
-				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, isAsymmetricalSplit());
+				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, kTopBottom, isAsymmetricalSplit());
 		} else {
 			if(ms <= 0)
 			{
