@@ -2826,21 +2826,22 @@ public:
 		// make a copy before possibly removing size
 		std::array<centroid_t,kNumSplits> displayValues = values;
 
-		bool shouldOverrideOut0 = false;
+		std::array<bool,kNumSplits> shouldOverrideOuts = { false, false };
 		if(hasSizeOutput() && !shouldAutoLatchSize())
 		{
-			for(size_t n = 0; n < isLatched.size() && n < size_t(1 + isSplit()); ++n)
+			for(size_t n = 0; n < isLatched.size() && n < currentSplits(); ++n)
 			{
 				if(LatchProcessor::kLatchAuto == isLatched[n])
 				{
-					// if we were autolatched, we ned to ignore size
+					// if we were autolatched, we need to ignore size
 					// CV outs:
 					// set size to 0 for output
 					values[n].size = 0;
-					// TODO: this also sets location to kNoOutput, so we have to "fixup" it below.
-					// so we make a not of it here
-					if(kModeNoSplit == splitMode || kModeSplitLocationSize == splitMode)
-						shouldOverrideOut0 = true;
+					// TODO: this also sets location to kNoOutput, so we mark it for fixup below.
+					if(kModeNoSplit == splitMode)
+						shouldOverrideOuts[n] = true;
+					if(kModeSplitLocationSize == splitMode)
+						shouldOverrideOuts[asymSplits.location] = true;
 					// display:
 					if(gOutIsSize[n]) // it's size and shouldn't be latched
 						// display is dark
@@ -2957,10 +2958,13 @@ public:
 			gCustomSmoothedAlpha[n] = alpha;
 
 		}
-		if(shouldOverrideOut0) {
-			// fixup: yet another hack to get something displayed, kNoOutput size output,
-			// but valid location output. See TODO above
-			gManualAnOut[0] = values[0].location;
+		for(size_t n = 0; n < kNumSplits; ++n)
+		{
+			if(shouldOverrideOuts[n]) {
+				// fixup: yet another hack to get something displayed, kNoOutput size output,
+				// but valid location output. See TODO above
+				gManualAnOut[n] = values[n].location;
+			}
 		}
 	}
 	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
