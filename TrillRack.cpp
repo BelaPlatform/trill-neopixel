@@ -414,7 +414,7 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned int channel, float value)
 {
 	// swap out channels if gJacksOnTop
-	unsigned int c = gJacksOnTop ? !channel : channel;
+	unsigned int c = gJacksOnTop || gSwapOutputs ? !channel : channel;
 	analogWriteOnce(context, frame, c, value);
 }
 
