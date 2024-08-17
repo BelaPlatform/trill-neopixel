@@ -2601,13 +2601,14 @@ protected:
 				float value = displayValues[n].size;
 				float spread = 0.15f * std::min(1.f, displayValues[n].size);
 				float start;
-				// for visualisation reasons, we move the dots slightly  closer to the centre of the slider
+				// to make it look more evenly spaced, we move the dots
+				// slightly closer to the centre of the slider
 				if((0 == n && !gMenuInvert) || (1 ==n && gMenuInvert))
-					start = 0.4;
+					start = 0.37;
 				else
-					start = 0.65;
-				if(!gJacksOnTop)
-					start -= 0.05;
+					start = 0.63;
+				if(gJacksOnTop)
+					start += 0.1;
 				for(size_t c = 0; c < centroids.size(); ++c)
 				{
 					centroids[c].location = start + (0 == c ? -spread : +spread);
