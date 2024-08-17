@@ -2537,6 +2537,9 @@ protected:
 		uint8_t location;
 		uint8_t size;
 	} asymSplits = {0, 1};
+	// whether as you go from split 0 to 1
+	// the slider value increases
+	bool splitsIncreasing = true;
 	size_t currentSplits()
 	{
 		return 1 + isSplit();
@@ -2556,9 +2559,11 @@ protected:
 				{
 					order = kBottomUp;
 					asymSplits = { .location = 1, .size = 0};
+					splitsIncreasing = false;
 				} else {
 					order = kTopBottom;
 					asymSplits = { .location = 0, .size = 1};
+					splitsIncreasing = true;
 				}
 				ledSlidersSetupTwoSliders(color, LedSlider::MANUAL_CENTROIDS, order, isAsymmetricalSplit());
 			}
@@ -2598,7 +2603,7 @@ protected:
 				// to make it look more evenly spaced, we move the dots
 				// slightly closer to the centre of the slider
 				float start;
-				if((0 == n && !gMenuInvert) || (1 ==n && gMenuInvert))
+				if((0 == n && splitsIncreasing) || (1 == n && !splitsIncreasing))
 					start = 0.37;
 				else
 					start = 0.63;
