@@ -93,6 +93,14 @@ constexpr size_t kNumModes = 3 // calibration, factorytest and erasesettings are
 #endif
 		; // kNumModes
 
+template <typename T>
+T fixedOrientation(T pos, T max)
+{
+	// allow to get a touchstrip value (e.g.: slider value or LED or PAD number) that represents a fixed point
+	// on the touch strip, regardless of its swapped state
+	return gJacksOnTop ? max - pos : pos;
+}
+
 #include <cmath>
 size_t msToNumBlocks(BelaContext* context, float ms)
 {
@@ -6832,7 +6840,7 @@ public:
 				for(size_t n = 0; n < kNumPads; ++n)
 				{
 					PadState& t = padStates[n];
-					size_t orderIdx = gJacksOnTop ? padsToOrderMap.size() - 1 - n : n;
+					size_t orderIdx = fixedOrientation(n, padsToOrderMap.size() - 1);
 					size_t pad = padsToOrderMap[orderIdx];
 					if(pad >= rawData.size())
 						continue;
@@ -8065,7 +8073,7 @@ public:
 	float fix(float pos)
 	{
 		if(orientationAgnostic)
-			return gJacksOnTop ? 1.f - pos : pos;
+			return fixedOrientation(pos, 1.f);
 		return pos;
 	}
 };
