@@ -2595,26 +2595,16 @@ protected:
 				break;
 			case kModeSplitSize:
 			{
-				// Use multiple centroids to make a bigger dot.
-				// Their spacing increases with the size
-				std::array<centroid_t,kNumSplits> centroids;
-				float value = displayValues[n].size;
-				float spread = 0.15f * std::min(1.f, displayValues[n].size);
-				float start;
 				// to make it look more evenly spaced, we move the dots
 				// slightly closer to the centre of the slider
+				float start;
 				if((0 == n && !gMenuInvert) || (1 ==n && gMenuInvert))
 					start = 0.37;
 				else
 					start = 0.63;
 				if(gJacksOnTop)
 					start += 0.1;
-				for(size_t c = 0; c < centroids.size(); ++c)
-				{
-					centroids[c].location = start + (0 == c ? -spread : +spread);
-					centroids[c].size = value;
-				}
-				ledSliders.sliders[n].setLedsCentroids(centroids.data(), centroids.size());
+				drawSizeSplit(ledSliders.sliders[n], start, displayValues[n].size);
 				out[n] = touchOrNot(values[n]).size;
 			}
 				break;
@@ -2622,30 +2612,18 @@ protected:
 			{
 				if(1 == n) // all set on first iteration
 					continue;
-				// TODO: refactor with the previous ones
 				centroid_t centroid;
 				size_t l = asymSplits.location;
 				centroid.location = displayValues[l].location;
 				centroid.size = (displayValues[l].size > 0) * kFixedCentroidSize;
 				ledSliders.sliders[l].setLedsCentroids(&centroid, 1);
+				out[l] = touchOrNot(values[l]).location;
 
 				size_t s = asymSplits.size;
-				// Use multiple centroids to make a bigger dot.
-				// Their spacing increases with the size
-				std::array<centroid_t,2> centroids;
-				float value = displayValues[s].size;
-				float spread = 0.15f * std::min(1.f, displayValues[s].size);
 				float start = 0.5;
 				if(!gJacksOnTop)
 					start -= 0.05;
-				for(size_t c = 0; c < centroids.size(); ++c)
-				{
-					centroids[c].location = start + (0 == c ? -spread : +spread);
-					centroids[c].size = value;
-				}
-				ledSliders.sliders[s].setLedsCentroids(centroids.data(), centroids.size());
-
-				out[l] = touchOrNot(values[l]).location;
+				drawSizeSplit(ledSliders.sliders[s], start, displayValues[s].size);
 				out[s] = touchOrNot(values[s]).size;
 			}
 				break;
@@ -2700,6 +2678,20 @@ protected:
 				}
 			}
 		}
+	}
+private:
+	void drawSizeSplit(LedSlider& slider, float start, float value)
+	{
+		// Use multiple centroids to make a bigger dot.
+		// Their spacing increases with the size
+		std::array<centroid_t,kNumSplits> centroids;
+		float spread = 0.15f * std::min(1.f, value);
+		for(size_t c = 0; c < centroids.size(); ++c)
+		{
+			centroids[c].location = start + (0 == c ? -spread : +spread);
+			centroids[c].size = value;
+		}
+		slider.setLedsCentroids(centroids.data(), centroids.size());
 	}
 public:
 	enum SplitMode {
