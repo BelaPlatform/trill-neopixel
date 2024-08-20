@@ -9668,7 +9668,7 @@ void gp_RecorderMode_setGestureContent(uint8_t recorder, size_t offset, size_t l
 			val = kNoOutput;
 		else // normalize the rest
 			val = float(in) / float(kNoOutputInt - 1);
-		array[offset + n] = val;
+		array[offset + n] = GestureRecorder::floatToRecorder(val);
 	}
 }
 
@@ -9721,7 +9721,7 @@ int gp_RecorderMode_getGestureContent(uint8_t recorder, size_t offset, size_t le
 		if(offset + n < array.size())
 		{
 			hasData = true;
-			float val = array[offset + n];
+			float val = GestureRecorder::recorderToFloat(array[offset + n]);
 			if(val < 0 || val > 1 || kNoOutput == val)
 				out = kNoOutputInt;
 			else
