@@ -375,6 +375,11 @@ static float processRawThroughCalibration(const CalibrationData& cal, bool input
 	return value;
 }
 
+static float reverseProcessRawThroughCalibration(const CalibrationData& cal, bool input, float cooked)
+{
+	return processRawThroughCalibration(cal, !input, cooked);
+}
+
 static float rescaleInput(const CalibrationData& inCal, float value)
 {
 	float min;
@@ -409,6 +414,18 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	return value;
 }
 
+static float reverseRescaleOutput(bool ignoreRange, size_t channel, const CalibrationData& cal, float value)
+{
+	float min = 0;
+	float top = 1;
+	if(!ignoreRange)
+		getRangeMinMax(false, channel, min, top);
+	// in the reverse order as rescaleOutput()
+	value = reverseProcessRawThroughCalibration(cal, false, value);
+	value = mapAndConstrain(value, min, top, 0, 1); // swapped args 1,2 and 3,4
+	return value;
+}
+
 static void analogWriteJacks(BelaContext* context, unsigned int frame, unsigned int channel, float value)
 {
 	// swap output channels if needed
@@ -424,6 +441,7 @@ static void renderMenuEnter(unsigned int n)
 }
 
 static std::array<float,kNumOutChannels> outDiffs {};
+static std::array<float,kNumOutChannels> pastOutReverseMapped {};
 
 void tr_render(BelaContext* context)
 {
@@ -771,6 +789,7 @@ void tr_render(BelaContext* context)
 		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
 		rangeGnd[n] = constrain(gnd, 0, 1); // TODO: is constrain appropriate here?
 	}
+	static std::array<float,kNumOutChannels> pastOut {};
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
 		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
@@ -787,7 +806,6 @@ void tr_render(BelaContext* context)
 			}
 			static auto pastSmoothed = smoothed;
 			static std::array<bool,kNumOutChannels> pastStartWasNoOutput{true, true};
-			static std::array<float,kNumOutChannels> pastOut {};
 			if(smoothed[channel] && !pastSmoothed[channel])
 			{
 				// if we haven't processed the channel for some time, reset the filter
@@ -814,6 +832,13 @@ void tr_render(BelaContext* context)
 			outDiffs[channel] = out - rescaled;
 		}
 	}
+	// Store the past smoothed output after reverse-applying the voltage range.
+	// This may be used by some modes that need it for visualisation purposes.
+	for(size_t c = 0; c < kNumOutChannels; ++c)
+	{
+		pastOutReverseMapped[c] = reverseRescaleOutput(false, c, outCal, pastOut[c]);
+	}
+
 	// we do the loop again to swap channels if needed
 	// this can be incorporated in the above loop
 	// but it needs a lot of care not to overwrite the other channel
@@ -862,5 +887,14 @@ float getOutputSmoothDiff(size_t idx)
 {
 	if(idx < kNumOutChannels)
 		return outDiffs[idx];
+	return 0;
+}
+
+float getOutputReverseMap(size_t idx)
+{
+	if(idx < kNumOutChannels)
+	{
+		return pastOutReverseMapped[idx];
+	}
 	return 0;
 }

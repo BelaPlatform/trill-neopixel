@@ -17,6 +17,7 @@ extern std::array<float,kNumOutChannels> gCustomSmoothedAlpha;
 extern std::array<OutMode,kNumOutChannels> gOutMode;
 constexpr float kAlphaDefault = 0.993;
 float getOutputSmoothDiff(size_t idx);
+float getOutputReverseMap(size_t idx);
 
 struct CalibrationData {
 	static constexpr float kGnd = 0.3333333333f;
