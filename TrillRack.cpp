@@ -789,7 +789,7 @@ void tr_render(BelaContext* context)
 		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
 		rangeGnd[n] = constrain(gnd, 0, 1); // TODO: is constrain appropriate here?
 	}
-	static std::array<float,kNumOutChannels> pastOut {};
+	static std::array<double,kNumOutChannels> pastOut {};
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
 		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
@@ -813,9 +813,9 @@ void tr_render(BelaContext* context)
 				pastStartWasNoOutput[channel] = true;
 			}
 			pastSmoothed[channel] = smoothed[channel];
-			float rescaled = rescaleOutput(false, channel, outCal, start);
-			float tmp = pastOut[channel];
-			float alpha;
+			double rescaled = rescaleOutput(false, channel, outCal, start);
+			double tmp = pastOut[channel];
+			double alpha;
 			bool startIsNoOutput = (start == kNoOutput);
 			if(smoothed[channel])
 			{
@@ -826,7 +826,7 @@ void tr_render(BelaContext* context)
 			} else
 				alpha = 0;
 			pastStartWasNoOutput[channel] = startIsNoOutput;
-			float out = tmp * alpha + rescaled * (1.f - alpha);
+			double out = tmp * alpha + rescaled * (1 - alpha);
 			analogWriteOnce(context, n, channel, out);
 			pastOut[channel] = out;
 			outDiffs[channel] = out - rescaled;
