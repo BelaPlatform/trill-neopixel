@@ -449,7 +449,7 @@ static std::array<bool,kNumOutChannels> gOutUsesRange;
 static constexpr size_t kMaxRecordBytes = 80000;
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
-const float kFixedCentroidSize = 0.3;
+static constexpr float kFixedCentroidSize = 0.3;
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
@@ -2892,7 +2892,6 @@ public:
 				}
 			}
 		}
-		renderOut(gManualAnOut, values, displayValues);
 		for(size_t n = 0; n < kNumOutChannels; ++n)
 		{
 			unsigned int refIdx = isSplit() ? n : 0;
@@ -3013,6 +3012,54 @@ public:
 			}
 			gCustomSmoothedAlpha[n] = alpha;
 		}
+		for(size_t n = 0; n < currentSplits(); ++n)
+		{
+			bool vizFollowsSmooth = true;
+			if(vizFollowsSmooth)
+			{
+				static constexpr float kDummySize = 0.2f * kFixedCentroidSize;
+				if(isSplit())
+				{
+					if(kAsrDone == asrs[n])
+					{
+						// if the envelope is done, there's nothing to do here
+						// because each centroid visualises a single value and so they'll just be zero
+						continue;
+					}
+					if(outIsSize(n))
+						displayValues[n].size = getOutputReverseMap(n);
+					else {
+						displayValues[n].location = getOutputReverseMap(n);
+						// if a split is location, we give it a dummy small size for viz purposes
+						// during attack and release
+						float centroidSize = kAsrSustain != asrs[n] ? kDummySize : kFixedCentroidSize;
+						if(kModeSplitLocation == splitMode)
+							displayValues[n].size = centroidSize;
+						else if(kModeSplitLocationSize == splitMode)
+						{
+							if(n == asymSplits.location)
+								displayValues[n].size = centroidSize;
+						}
+					}
+				}
+				else
+				{
+					if(kAsrDone == asrs[0] && kAsrDone == asrs[1])
+						continue;
+					displayValues[0].location = getOutputReverseMap(0);
+					displayValues[0].size = getOutputReverseMap(1);
+					if(kAsrRelease == asrs[0])
+					{
+						// We have let go of the touch. If size reaches zero before
+						// location does (e.g.: because of longer smoothing), then there would
+						// be no size left to show the location.
+						// Here we give it at least a dummy small size for viz purposes.
+						displayValues[0].size = std::max(displayValues[0].size, kDummySize); // used if location is still active
+					}
+				}
+			}
+		}
+		renderOut(gManualAnOut, values, displayValues, {true, true});
 		for(size_t n = 0; n < kNumSplits; ++n)
 		{
 			if(shouldOverrideOuts[n]) {
