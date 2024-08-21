@@ -411,7 +411,6 @@ std::array<float,kNumOutChannels> gCustomSmoothedAlpha;
 std::array<OutMode,kNumOutChannels> gOutMode { kOutModeManualBlock, kOutModeManualBlock };
 int gCounter = 0;
 int gSubMode = 0;
-std::array<bool,2> gOutIsSize;
 UiOrientation uio;
 
 enum AnimationMode
@@ -2663,24 +2662,25 @@ protected:
 			}
 		}
 	}
-	void setOutIsSize()
+	bool outIsSize(size_t n)
 	{
+		std::array<bool,kNumSplits> outIsSize;
 		switch(splitMode)
 		{
 		case kModeNoSplit:
-			gOutIsSize = {false, true};
+			outIsSize = {false, true};
 			break;
 		case kModeSplitSize:
-			gOutIsSize = {true, true};
+			outIsSize = {true, true};
 			break;
 		case kModeSplitLocation:
-			gOutIsSize = {false, false};
+			outIsSize = {false, false};
 			break;
 		case kModeSplitLocationSize:
-			gOutIsSize = {0 == asymSplits.size, 1 == asymSplits.size};
+			outIsSize = {0 == asymSplits.size, 1 == asymSplits.size};
 			break;
-
 		}
+		return outIsSize[n];
 	}
 	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
 	{
@@ -2813,7 +2813,6 @@ public:
 	}
 	void render(BelaContext*, FrameData* frameData) override
 	{
-		setOutIsSize();
 		// ensure a change in the mode color is updated on each callback
 		for(auto& s : ledSliders.sliders)
 			s.setColor(color);
@@ -2885,7 +2884,7 @@ public:
 					if(kModeSplitLocationSize == splitMode)
 						shouldOverrideOuts[asymSplits.location] = true;
 					// display:
-					if(gOutIsSize[n]) // it's size and shouldn't be latched
+					if(outIsSize(n)) // it's size and shouldn't be latched
 						// display is dark
 						displayValues[n].size = 0;
 					else
@@ -2900,7 +2899,7 @@ public:
 			unsigned int refIdx = isSplit() ? n : 0;
 			float val = values[refIdx].size;
 			// update state
-			if(gOutIsSize[n])
+			if(outIsSize(n))
 			{
 				// out is size
 				// Broadly speaking:
@@ -3356,7 +3355,6 @@ public:
 			}
 		}
 		// set global states
-		setOutIsSize();
 		switch(inputMode.get())
 		{
 		default:
@@ -4548,7 +4546,6 @@ public:
 	static constexpr size_t kCentroidSize = 2;
 	bool setup(double ms) override
 	{
-		gOutIsSize = {false, false};
 		count = 0;
 		x1 = 0;
 		y1 = 0;
@@ -4936,7 +4933,6 @@ class BalancedOscsMode : public PerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		gOutIsSize = {false, false};
 		gBalancedLfoColors = gBalancedLfoColorsInit; //restore default in case it got changed via MIDI
 		if(ms <= 0)
 		{
@@ -5081,7 +5077,6 @@ public:
 	bool setup(double ms)
 	{
 		updateNumButtons();
-		gOutIsSize = {false, true};
 		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);

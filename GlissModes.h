@@ -181,7 +181,6 @@ extern struct Override {
 	bool bypassOutRange;
 	bool isSize;
 } gOverride;
-extern std::array<bool,2> gOutIsSize;
 
 #include <libraries/Trill/CentroidDetection.h>
 extern CentroidDetectionScaled globalSlider;

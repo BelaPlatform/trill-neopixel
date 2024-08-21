@@ -403,8 +403,6 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	float top = 1;
 	if(!ignoreRange)
 		getRangeMinMax(false, channel, min, top);
-//	if(gOutIsSize[channel]) // if this is a size
-//		min = gnd; // make it always positive
 
 	value = mapAndConstrain(value, 0, 1, min, top);
 	value = processRawThroughCalibration(cal, false, value);
@@ -850,13 +848,10 @@ void tr_render(BelaContext* context)
 	bool overrideOutput = tick - gOverride.started < 10;
 	if(overrideOutput)
 	{
-		auto outIsSizeStash = gOutIsSize;
-		gOutIsSize[gOverride.ch] = gOverride.isSize;
 		unsigned int c = gOverride.ch;
 		float value = rescaleOutput(gOverride.bypassOutRange, c, outCal, gOverride.out);
 		for(unsigned int n = 0; n < context->analogFrames; ++n)
 			analogWriteJacks(context, n, c, finalise(value));
-		gOutIsSize = outIsSizeStash;
 	}
 #if 0 // send out a quiet tone on one channel and loop back the input on the other
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
