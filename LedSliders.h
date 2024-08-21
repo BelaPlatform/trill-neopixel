@@ -32,7 +32,7 @@ public:
 	void process(const float* locations, const float* sizes, unsigned int length);
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
-	void directBegin();
+	void directBegin(bool clear = true);
 	void directWriteCentroid(const centroid_t& centroid, rgb_t color, size_t numWeigths = kDefaultNumWeights);
 	centroid_t& operator[](size_t i) {return ledCentroids[i];}
 	static int writeCentroidToArray(const centroid_t& centroid, size_t numWeights, float* dest, size_t destSize);

@@ -61,11 +61,12 @@ void LedSlider::enableLeds(bool enable)
 	ledsEnabled = enable;
 }
 
-void LedSlider::directBegin()
+void LedSlider::directBegin(bool clear)
 {
 	if(!ledsEnabled)
 		return;
-	np->clear();
+	if(clear)
+		np->clear();
 }
 
 extern void resample(float* out, unsigned int nOut, float* in, unsigned int nIn);
