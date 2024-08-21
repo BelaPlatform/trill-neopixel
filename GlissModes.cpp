@@ -8667,25 +8667,25 @@ public:
 		smooths({{
 			{
 				"DirectControlSmooth0",
-				buttonColors[0],
+				buttonColors[1],
 				buttonColors[1],
 				gDirectControlMode.smooths[0],
 			},
 			{
 				"DirectControlSmooth1",
-				buttonColors[0],
+				buttonColors[1],
 				buttonColors[1],
 				gDirectControlMode.smooths[1],
 			},
 			{
 				"DirectControlSmooth2",
-				buttonColors[0],
+				buttonColors[1],
 				buttonColors[1],
 				gDirectControlMode.smooths[2],
 			},
 			{
 				"DirectControlSmooth3",
-				buttonColors[0],
+				buttonColors[1],
 				buttonColors[1],
 				gDirectControlMode.smooths[3],
 			},
