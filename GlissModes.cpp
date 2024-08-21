@@ -2792,7 +2792,7 @@ class DirectControlMode : public SplitPerformanceMode {
 public:
 	bool setup(double ms) override
 	{
-		asrs.fill(kAsrAttack);
+		asrs.fill(kAsrDone);
 		gOutMode.fill(kOutModeManualBlockCustomSmoothed);
 		setupSliders(color, ms);
 		if(ms < 0)
@@ -2897,6 +2897,8 @@ public:
 		{
 			unsigned int refIdx = isSplit() ? n : 0;
 			float val = values[refIdx].size;
+			float osd = getOutputSmoothDiff(n);
+			bool closeEnough = std::abs(osd) < 0.0005;
 			// update state
 			if(outIsSize(n))
 			{
@@ -2911,13 +2913,18 @@ public:
 				if(!val)
 				{
 					// no touch
-					if(kAsrRelease != asrs[n])
+					if(kAsrRelease != asrs[n] && kAsrDone != asrs[n])
 					{
 						S(printf("%d rel\n\r", n));
+						asrs[n] = kAsrRelease;
 					}
-					asrs[n] = kAsrRelease;
+					if(kAsrRelease == asrs[n] && closeEnough)
+					{
+						S(printf("%d don\n\r", n));
+						asrs[n] = kAsrDone;
+					}
 				}
-				else if(getOutputSmoothDiff(n) <= 0)
+				else if(osd <= 0)
 				{
 					if(kAsrAttack != asrs[n])
 					{
@@ -2938,7 +2945,6 @@ public:
 				// - "attack" is until the actual output becomes close enough to the nominal output
 				// - "sustain" follows, until
 				// - "release" begins when the touch stops
-				float osd = getOutputSmoothDiff(n);
 				static std::array<float,kNumSplits> pastOsd {};
 				static std::array<float,kNumSplits> pastVals {};
 				bool crossedOver = false;
@@ -2964,11 +2970,18 @@ public:
 					S(printf("%d %d rel\n\r", count, n));
 				} else if(kAsrAttack == asrs[n])
 				{
-					if(std::abs(osd) < 0.001 || crossedOver)
+					if(closeEnough || crossedOver)
 					{
 						// if close enough or crossed over, attack is completed
 						asrs[n] = kAsrSustain;
 						S(printf("%d %d s %s\n\r", count, n, crossedOver ? "cross" : ""));
+					}
+				} else if(kAsrRelease == asrs[n])
+				{
+					if(closeEnough)
+					{
+						asrs[n] = kAsrDone;
+						S(printf("%d %d d\n\r", count, n));
 					}
 				}
 				if(touchStarts)
@@ -2989,14 +3002,16 @@ public:
 				alpha = alphas[2 * n];
 				break;
 			case kAsrSustain:
-					alpha = kAlphaDefault;
+				alpha = kAlphaDefault;
 				break;
 			case kAsrRelease:
 				alpha = alphas[2 * n + 1];
 				break;
+			case kAsrDone:
+				alpha = 0;
+				break;
 			}
 			gCustomSmoothedAlpha[n] = alpha;
-
 		}
 		for(size_t n = 0; n < kNumSplits; ++n)
 		{
@@ -3137,6 +3152,7 @@ private:
 		kAsrAttack,
 		kAsrSustain,
 		kAsrRelease,
+		kAsrDone,
 	};
 	std::array<AsrState,kNumSplits> asrs;
 } gDirectControlMode;
