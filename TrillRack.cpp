@@ -830,18 +830,13 @@ void tr_render(BelaContext* context)
 			}
 		}
 
-	// finalise and possibly add analogIn pass through
+	// finalise
 	for(size_t n = 0; n < context->analogFrames; ++n)
 	{
-		float add;
-		if(gOutAddsIn) // TODO: ensure analog in is full scale
-			add = analogRead(context, n, 0) - inCal.kGnd;
-		else
-			add = 0;
 		for(size_t c = 0; c < context->analogOutChannels; ++c)
 		{
 			size_t idx = n * context->analogOutChannels + c;
-			context->analogOut[idx] = finalise(context->analogOut[idx] + add);
+			context->analogOut[idx] = finalise(context->analogOut[idx]);
 		}
 	}
 

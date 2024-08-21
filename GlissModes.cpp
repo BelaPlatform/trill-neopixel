@@ -444,7 +444,6 @@ static bool gInUsesCalibration;
 static bool gOutUsesCalibration;
 static bool gInUsesRange;
 static std::array<bool,kNumOutChannels> gOutUsesRange;
-bool gOutAddsIn;
 
 // Recording the gesture
 static constexpr size_t kMaxRecordBytes = 80000;
@@ -7378,7 +7377,6 @@ void performanceMode_render(BelaContext* context, FrameData* frameData)
 	gInUsesCalibration = true;
 	gInUsesRange = true;
 	gOutUsesRange = {true, true};
-	gOutAddsIn = false;
 	gModeWantsInteractionPreMenu = false;
 	gModeWantsMenuDelay = false;
 	// call the processing callback
