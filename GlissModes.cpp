@@ -1904,41 +1904,59 @@ public:
 		{
 			if(!gAnimateFs.writeInit(*this, l))
 				return;
-			CvRange range = CvRange(get());
-			if(kCvRangeCustom == range)
+			// The code below can draw a crossfaded bar between the two extremes of the range.
+			// However, we always have baseColor == secondaryColor, so no crossfading is happening
+			// at the moment
+			// If CvRange is not kCvRangeCustom, there will be just a solid bar..
+			// If instead it is kCvRangeCustom, the two endpoints will be drawn as centroid on top
+			// of a white bar
+			IoRange r = *this;
+			r.enabled = true;
+			float bottom;
+			float top;
+			r.getMinMax(bottom, top);
+			rgb_t secondaryColor;
+			if(kCvRangeCustom == r.range)
 			{
-				l.directBegin();
+				if(std::abs(top - bottom) > 0.08)
+				{
+					// if they are far enough, fill the bar between the two endpoints
+					rgb_t realWhite = {255, 255, 255}; // kRgbWhite is actually blue in some cases
+					baseColor = realWhite.scaledBy(0.2);
+					secondaryColor = realWhite.scaledBy(0.2);
+				} else {
+					baseColor = kRgbBlack;
+					secondaryColor = kRgbBlack;
+				}
+			} else
+				secondaryColor = baseColor;
+			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
+			if(std::abs(bottom - top) > 2 * kMargin)
+			{
+				if(bottom != 0)
+					bottom += kMargin;
+				if(top != 1)
+					top -= kMargin;
+			}
+			size_t start = std::round((kNumLeds - 1) * bottom);
+			size_t stop = std::round((kNumLeds - 1) * top);
+			for(size_t n = start; n <= stop; ++n)
+			{
+				rgb_t pixel;
+				float rel = (n - start) / float(stop - start);
+				if(stop == start)
+					rel = 0.5; // ensure some mixing happens
+				for(size_t c = 0; c < pixel.size(); ++c)
+					pixel[c] = baseColor[c] * rel + secondaryColor[c] * (1.f - rel);
+				np.setPixelColor(n, pixel.scaledBy(0.2));
+			}
+			// draw centroid at the endpoints on top of the existing bar
+			if(kCvRangeCustom == r.range)
+			{
+				// _not_ clearing before we draw
+				l.directBegin(false);
 				l.directWriteCentroid({ min, 0.15 }, getQuantisedColor(buttonColors, min));
 				l.directWriteCentroid({ max, 0.15 }, getQuantisedColor(buttonColors, max));
-			} else {
-				IoRange r = {
-					.range = range,
-					.enabled = true,
-				};
-				float bottom;
-				float top;
-				r.getMinMax(bottom, top);
-				const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
-				if(std::abs(bottom - top) > 2 * kMargin)
-				{
-					if(bottom != 0)
-						bottom += kMargin;
-					if(top != 1)
-						top -= kMargin;
-				}
-				rgb_t secondaryColor = baseColor;
-				size_t start = std::round((kNumLeds - 1) * bottom);
-				size_t stop = std::round((kNumLeds - 1) * top);
-				for(size_t n = start; n <= stop; ++n)
-				{
-					rgb_t pixel;
-					float rel = (n - start) / float(stop - start);
-					if(stop == start)
-						rel = 0.5; // ensure some mixing happens
-					for(size_t c = 0; c < pixel.size(); ++c)
-						pixel[c] = baseColor[c] * rel + secondaryColor[c] * (1.f - rel);
-					np.setPixelColor(n, pixel.scaledBy(0.2));
-				}
 			}
 		}
 	}
