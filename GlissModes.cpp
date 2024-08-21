@@ -1295,6 +1295,10 @@ public:
 		else
 			return v;
 	}
+	static bool isNoTouch(sample_t s)
+	{
+		return s == floatToRecorder(kNoOutput);
+	}
 	HalfGesture_t process(size_t n, float touchFloat, const FrameId frameId, bool loop, bool retriggerNow, ssize_t autoFreezeAt)
 	{
 		sample_t touch = floatToRecorder(touchFloat);
