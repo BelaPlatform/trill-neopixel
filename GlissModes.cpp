@@ -2615,14 +2615,8 @@ protected:
 				out[1] = touchOrNot(values[0]).size;
 				break;
 			case kModeSplitLocation:
-			{
-				bool hasTouch = (displayValues[n].size > 0);
-				centroid_t centroid;
-				centroid.location = displayValues[n].location;
-				centroid.size = preserveSizeInVizOfLocationSplit[n] ? displayValues[n].size : hasTouch * kFixedCentroidSize;
-				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
+				drawLocationSplit(ledSliders.sliders[n], displayValues[n], preserveSizeInVizOfLocationSplit[n]);
 				out[n] = touchOrNot(values[n]).location;
-			}
 				break;
 			case kModeSplitSize:
 			{
@@ -2643,12 +2637,10 @@ protected:
 			{
 				if(1 == n) // all set on first iteration
 					continue;
-				centroid_t centroid;
 				size_t l = asymSplits.location;
-				centroid.location = displayValues[l].location;
-				centroid.size = (displayValues[l].size > 0) * kFixedCentroidSize;
-				ledSliders.sliders[l].setLedsCentroids(&centroid, 1);
+				drawLocationSplit(ledSliders.sliders[l], displayValues[l], preserveSizeInVizOfLocationSplit[l]);
 				out[l] = touchOrNot(values[l]).location;
+
 
 				size_t s = asymSplits.size;
 				float start = 0.5;
@@ -2724,6 +2716,14 @@ private:
 			centroids[c].size = value;
 		}
 		slider.setLedsCentroids(centroids.data(), centroids.size());
+	}
+	void drawLocationSplit(LedSlider& slider, const centroid_t& displayValue, bool preserveSizeInVizOfLocationSplit)
+	{
+		bool hasTouch = (displayValue.size > 0);
+		centroid_t centroid;
+		centroid.location = displayValue.location;
+		centroid.size = preserveSizeInVizOfLocationSplit ? displayValue.size : hasTouch * kFixedCentroidSize;
+		slider.setLedsCentroids(&centroid, 1);
 	}
 public:
 	enum SplitMode {
