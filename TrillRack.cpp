@@ -790,7 +790,7 @@ void tr_render(BelaContext* context)
 	for(size_t n = 0; n < kNumOutChannels; ++n)
 	{
 		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
-		rangeGnd[n] = constrain(gnd, 0, 1); // TODO: is constrain appropriate here?
+		rangeGnd[n] = gnd; // we do not constrain, so this could be negative if gnd is out of the range
 	}
 	static std::array<double,kNumOutChannels> pastOut {};
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
