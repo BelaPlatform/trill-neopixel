@@ -2603,7 +2603,7 @@ protected:
 			}
 		}
 	}
-	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues, std::array<bool,kNumSplits> preserveSplitLocationSize = {})
+	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues, std::array<bool,kNumSplits> preserveSizeInVizOfLocationSplit = {})
 	{
 		for(ssize_t n = 0; n < isSplit() + 1; ++n)
 		{
@@ -2616,10 +2616,10 @@ protected:
 				break;
 			case kModeSplitLocation:
 			{
-				bool hasTouch = (values[n].size > 0);
+				bool hasTouch = (displayValues[n].size > 0);
 				centroid_t centroid;
 				centroid.location = displayValues[n].location;
-				centroid.size = preserveSplitLocationSize[n] ? values[n].size : hasTouch * kFixedCentroidSize;
+				centroid.size = preserveSizeInVizOfLocationSplit[n] ? displayValues[n].size : hasTouch * kFixedCentroidSize;
 				ledSliders.sliders[n].setLedsCentroids(&centroid, 1);
 				out[n] = touchOrNot(values[n]).location;
 			}
