@@ -409,8 +409,11 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 	if(!ignoreRange)
 		getRangeMinMax(false, channel, min, top);
 
-	value = mapAndConstrain(value, 0, 1, min, top);
+	// the input can be negative: out of the specified range but possibly still within the capabilities of the module
+	value = map(value, 0, 1, min, top);
 	value = processRawThroughCalibration(cal, false, value);
+	// we only constrain at the end: can't write outside full scale
+	value = constrain(value, 0, 1);
 	return value;
 }
 
