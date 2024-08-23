@@ -2895,7 +2895,19 @@ public:
 		for(size_t n = 0; n < kNumOutChannels; ++n)
 		{
 			unsigned int refIdx = isSplit() ? n : 0;
-			float asrHasTouch = values[refIdx].size;
+			bool hasActualTouch = values[refIdx].size > 0;
+			bool asrHasTouch = hasActualTouch;
+			if(!isSplit())
+			{
+				// when nonSplit and latched location only, act as if the touch is still present
+				// as far as the location output's ASR is concerned. This means that if you
+				// let go of the touch while the attack was not completed, it stays
+				// in attack
+				if(kAutoLatchLocationOnly == autoLatch && 0 == n)
+				{
+					asrHasTouch |= LatchProcessor::kLatchAuto != isLatched[n];
+				}
+			}
 			float osd = getOutputSmoothDiff(n);
 			bool closeEnough = std::abs(osd) < 0.0005;
 			// update state
@@ -2945,18 +2957,27 @@ public:
 				// - "sustain" follows, until
 				// - "release" begins when the touch stops
 				static std::array<float,kNumSplits> pastOsd {};
-				static std::array<float,kNumSplits> pastAsrHasTouch {};
+				static std::array<bool,kNumSplits> pastAsrHasTouch {};
+				static std::array<LatchProcessor::Reason,2> wasLatched = isLatched;
 				bool crossedOver = false;
 				bool touchStarts = false;
 				static int count = 0;
 				count++;
+
 				if(pastAsrHasTouch[n] && asrHasTouch)
 				{
 					// touch is already in progress
 					if(sign(pastOsd[n]) == -sign(osd))
 						crossedOver = true;
 				}
-				if(asrHasTouch && !pastAsrHasTouch[n])
+				bool shouldAttack = false;
+				if(wasLatched[n] != isLatched[n] && hasActualTouch) {
+					// a new touch has hit the touchstrip that was previously latched
+					// we force jump to attack even if we didn't do release previously
+					shouldAttack = true;
+				}
+				wasLatched[n] = isLatched[n];
+				if((asrHasTouch && !pastAsrHasTouch[n]) || shouldAttack)
 				{
 					// touch started
 					asrs[n] = kAsrAttack;
