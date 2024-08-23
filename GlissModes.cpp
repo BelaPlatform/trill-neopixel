@@ -2895,7 +2895,7 @@ public:
 		for(size_t n = 0; n < kNumOutChannels; ++n)
 		{
 			unsigned int refIdx = isSplit() ? n : 0;
-			float val = values[refIdx].size;
+			float asrHasTouch = values[refIdx].size;
 			float osd = getOutputSmoothDiff(n);
 			bool closeEnough = std::abs(osd) < 0.0005;
 			// update state
@@ -2909,7 +2909,7 @@ public:
 				// there's no unintended jump from the curren tvalue to something lower
 				// (due to a release size artifact) before the filter kicks in.
 				// There is no "sustain".
-				if(!val)
+				if(!asrHasTouch)
 				{
 					// no touch
 					if(kAsrRelease != asrs[n] && kAsrDone != asrs[n])
@@ -2945,24 +2945,24 @@ public:
 				// - "sustain" follows, until
 				// - "release" begins when the touch stops
 				static std::array<float,kNumSplits> pastOsd {};
-				static std::array<float,kNumSplits> pastVals {};
+				static std::array<float,kNumSplits> pastAsrHasTouch {};
 				bool crossedOver = false;
 				bool touchStarts = false;
 				static int count = 0;
 				count++;
-				if(pastVals[n] && val)
+				if(pastAsrHasTouch[n] && asrHasTouch)
 				{
 					// touch is already in progress
 					if(sign(pastOsd[n]) == -sign(osd))
 						crossedOver = true;
 				}
-				if(val && !pastVals[n])
+				if(asrHasTouch && !pastAsrHasTouch[n])
 				{
 					// touch started
 					asrs[n] = kAsrAttack;
 					S(printf("%d %d attack\n\r", count, n));
 					touchStarts = true;
-				} else if(!val && pastVals[n])
+				} else if(!asrHasTouch && pastAsrHasTouch[n])
 				{
 					 // touch ended / was unlatched
 					asrs[n] = kAsrRelease;
@@ -2990,7 +2990,7 @@ public:
 					S(printf("%d %d reset\n\r", count, n));
 				} else
 					pastOsd[n] = osd;
-				pastVals[n] = val;
+				pastAsrHasTouch[n] = asrHasTouch;
 			}
 			float alpha = 0;
 			static_assert(kNumOutChannels * 2 ==  std::tuple_size<decltype(alphas)>::value, "indexing below wouldn't work");
