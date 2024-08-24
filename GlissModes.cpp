@@ -815,37 +815,38 @@ public:
 				// nothing: we have nothing to latch onto, so we do not alter frame
 			}
 			latchStarts = true;
+			idx = 0;
 			pastFrames[idx].location = pastFrames[idx].size = 0;
 			validFrames = 0;
 		} else {
+			// store current input value for later
+			// increment first, so outside of this block,
+			// idx means "last written value"
+			++idx;
+			if(idx >= pastFrames.size())
+				idx = 0;
+			pastFrames[idx] = frame;
+			validFrames++;
+
 			// if we are still touching
 			// apply a variable delay to the output size
-			if(validFrames < kMaxDelay)
+			if(validFrames < kMaxSizeDelay)
 			{
 				// we are just at the beginning of a touch: get the most recent size
 				delay = 0;
-			} else if (delay < kMaxDelay)
+			} else if (delay / 2 < kMaxSizeDelay)
 			{
 				// the touch has been going on for a while, we need to progressively
 				// reach the max delay
 				delay++;
 			}
 			float newSize = frame.size; // no delay!
-			if(delay > 0)
+			if(delay >= 2)
 			{
-				// validFrames is always larger than delay, so we always
-				// get a valid inde
-				ssize_t n = getPastFrame(delay - 1);
-				assert(n >= 0);
-				newSize = pastFrames[n].size;
+				// read increasingly older touch size until maximum kMaxSizeDelay.
+				// The / 2 here and above ensures we increase delay only every other frame.
+				newSize = pastFrames[getPastFrame(delay / 2- 1)].size;
 			}
-
-			// store current input value for later
-			pastFrames[idx] = frame;
-			++idx;
-			if(idx >= pastFrames.size())
-				idx = 0;
-			validFrames++;
 
 			// output the delayed size
 			frame.size = newSize;
@@ -864,17 +865,14 @@ private:
 		if(!validFrames)
 			return -1;
 		size_t lastGood;
-		if(back >= validFrames)
-			back = validFrames - 1;
-		// all values in the circular buffer are valid. Get the oldest
-		if(back >= kHistoryLength)
-			back = kHistoryLength - 1;
+		back = std::min(back, kHistoryLength - 1);
+		back = std::min(back, validFrames);
 		// go back in the circular buffer to the oldest valid value.
-		lastGood = (idx - 1 - back + kHistoryLength) % kHistoryLength;
+		lastGood = (idx - back + kHistoryLength) % kHistoryLength;
 		return lastGood;
 	}
 	static constexpr size_t kHistoryLength = 15;
-	static constexpr size_t kMaxDelay = std::min(4u, kHistoryLength - 1); // could be even less than this, if desired
+	static constexpr size_t kMaxSizeDelay = std::min(8u, kHistoryLength - 1); // could be even less than this, if desired
 	std::array<centroid_t,kHistoryLength> pastFrames;
 	size_t idx;
 	size_t validFrames;
