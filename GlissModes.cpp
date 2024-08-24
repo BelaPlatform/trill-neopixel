@@ -2927,7 +2927,7 @@ public:
 						S(printf("%d rel\n\r", n));
 						asrs[n] = kAsrRelease;
 					}
-					if(kAsrRelease == asrs[n] && closeEnough)
+					else if(kAsrRelease == asrs[n] && closeEnough)
 					{
 						S(printf("%d don\n\r", n));
 						asrs[n] = kAsrDone;
