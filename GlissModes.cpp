@@ -872,7 +872,7 @@ private:
 		return lastGood;
 	}
 	static constexpr size_t kHistoryLength = 15;
-	static constexpr size_t kMaxSizeDelay = std::min(8u, kHistoryLength - 1); // could be even less than this, if desired
+	static constexpr size_t kMaxSizeDelay = std::min(12u, kHistoryLength - 1); // could be even less than this, if desired
 	std::array<centroid_t,kHistoryLength> pastFrames;
 	size_t idx;
 	size_t validFrames;
