@@ -2897,6 +2897,8 @@ public:
 		}
 		for(size_t n = 0; n < kNumOutChannels; ++n)
 		{
+			static std::array<LatchProcessor::Reason,2> wasLatched = isLatched;
+			static std::array<bool,kNumSplits> pastAsrHasTouch {};
 			unsigned int refIdx = isSplit() ? n : 0;
 			bool hasActualTouch = values[refIdx].size > 0;
 			bool asrHasTouch = hasActualTouch;
@@ -2932,10 +2934,16 @@ public:
 						S(printf("%d rel\n\r", n));
 						asrs[n] = kAsrRelease;
 					}
-					else if(kAsrRelease == asrs[n] && closeEnough)
+					else if(!pastAsrHasTouch[n] && isLatched[n] == wasLatched[n])
 					{
-						S(printf("%d don\n\r", n));
-						asrs[n] = kAsrDone;
+						// Above checks are to make sure we don't get here by mistake
+						// as soon as the touch has ended or latch is released, just
+						// because we might happen to be "closeEnough"
+						if(kAsrRelease == asrs[n] && closeEnough)
+						{
+							asrs[n] = kAsrDone;
+							S(printf("%d don\n\r", n));
+						}
 					}
 				}
 				else if(osd <= 0)
@@ -2960,8 +2968,6 @@ public:
 				// - "sustain" follows, until
 				// - "release" begins when the touch stops
 				static std::array<float,kNumSplits> pastOsd {};
-				static std::array<bool,kNumSplits> pastAsrHasTouch {};
-				static std::array<LatchProcessor::Reason,2> wasLatched = isLatched;
 				bool crossedOver = false;
 				bool touchStarts = false;
 				static int count = 0;
@@ -2979,7 +2985,6 @@ public:
 					// we force jump to attack even if we didn't do release previously
 					shouldAttack = true;
 				}
-				wasLatched[n] = isLatched[n];
 				if((asrHasTouch && !pastAsrHasTouch[n]) || shouldAttack)
 				{
 					// touch started
@@ -3014,8 +3019,9 @@ public:
 					S(printf("%d %d reset\n\r", count, n));
 				} else
 					pastOsd[n] = osd;
-				pastAsrHasTouch[n] = asrHasTouch;
 			}
+			pastAsrHasTouch[n] = asrHasTouch;
+			wasLatched[n] = isLatched[n];
 			float alpha = 0;
 			static_assert(kNumOutChannels * 2 ==  std::tuple_size<decltype(alphas)>::value, "indexing below wouldn't work");
 			// select alpha based on state
