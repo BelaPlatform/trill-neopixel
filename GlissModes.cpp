@@ -2601,10 +2601,14 @@ protected:
 			}
 		}
 	}
-	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values, const std::array<centroid_t,kNumSplits>& displayValues, std::array<bool,kNumSplits> preserveSizeInVizOfLocationSplit = {})
+	void renderOut(std::array<float,kNumSplits>& out, const std::array<centroid_t,kNumSplits>& values,
+			const std::array<centroid_t,kNumSplits>& displayValues,
+			std::array<bool,kNumSplits> preserveSizeInVizOfLocationSplit,
+			const std::array<rgb_t,kNumSplits>& colors)
 	{
 		for(ssize_t n = 0; n < isSplit() + 1; ++n)
 		{
+			ledSliders.sliders[n].setColor(colors[n]); // may be overridden below
 			switch(splitMode)
 			{
 			case kModeNoSplit:
@@ -2636,14 +2640,15 @@ protected:
 				if(1 == n) // all set on first iteration
 					continue;
 				size_t l = asymSplits.location;
+				ledSliders.sliders[l].setColor(colors[l]);
 				drawLocationSplit(ledSliders.sliders[l], displayValues[l], preserveSizeInVizOfLocationSplit[l]);
 				out[l] = touchOrNot(values[l]).location;
-
 
 				size_t s = asymSplits.size;
 				float start = 0.5;
 				if(!uio.touchStripSwapped())
 					start -= 0.05;
+				ledSliders.sliders[s].setColor(colors[s]);
 				drawSizeSplit(ledSliders.sliders[s], start, displayValues[s].size);
 				out[s] = touchOrNot(values[s]).size;
 			}
@@ -3078,7 +3083,7 @@ public:
 				}
 			}
 		}
-		renderOut(gManualAnOut, values, displayValues, {true, true});
+		renderOut(gManualAnOut, values, displayValues, {true, true}, {color, color});
 		for(size_t n = 0; n < kNumSplits; ++n)
 		{
 			if(shouldOverrideOuts[n]) {
@@ -4232,7 +4237,7 @@ public:
 			ledSliders.sliders[n].setColor(sliderColor);
 		}
 		// this may set gManualAnOut even if they are ignored
-		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize);
+		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize, {color, color});
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
 			// reset the flashes after a timeout
