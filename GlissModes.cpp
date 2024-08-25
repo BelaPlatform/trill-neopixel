@@ -2915,7 +2915,7 @@ public:
 			}
 			float osd = getOutputSmoothDiff(n);
 			bool closeEnough = std::abs(osd) < 0.0005;
-			// update state
+			// update asr state machine
 			if(outIsSize(n))
 			{
 				// out is size
@@ -3041,9 +3041,8 @@ public:
 				break;
 			}
 			gCustomSmoothedAlpha[n] = alpha;
-		}
-		for(size_t n = 0; n < currentSplits(); ++n)
-		{
+
+			// adjust size / color of visualisation, based on each asr (and more)
 			bool vizFollowsSmooth = true;
 			if(vizFollowsSmooth)
 			{
@@ -3074,6 +3073,8 @@ public:
 				}
 				else
 				{
+					if(kNumOutChannels - 1 != n) // we rely on both asrs to be ready here, so we wait until they are all done
+						continue;
 					if(kAsrDone == asrs[0] && kAsrDone == asrs[1])
 						continue;
 					displayValues[0].location = getOutputReverseMap(0);
