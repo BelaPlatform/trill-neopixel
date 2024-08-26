@@ -3091,7 +3091,7 @@ public:
 			bool vizFollowsSmooth = true;
 			if(vizFollowsSmooth)
 			{
-				static constexpr float kDummySize = 0.1f * kFixedCentroidSize;
+				static constexpr float kDummySize = 0.5f * kFixedCentroidSize;
 				if(isSplit())
 				{
 					if(kAsrDone == asrs[n])
