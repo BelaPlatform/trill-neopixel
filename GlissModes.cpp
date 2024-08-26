@@ -1195,7 +1195,6 @@ public:
 	}
 };
 
-#ifdef ENABLE_RECORDER_MODE
 static constexpr size_t kNumRecs = 4;
 typedef uint16_t RecorderSampleT;
 static std::array<RecorderSampleT,kMaxRecordBytes / sizeof(RecorderSampleT)> recorderData;
@@ -1501,7 +1500,6 @@ private:
 	std::array<bool,kNumSplits> hadTouch {};
 	bool lastStateChangeWasToggling = false;
 } gGestureRecorder;
-#endif // ENABLE_RECORDER_MODE
 
 class Parameter {
 public:
@@ -9680,8 +9678,12 @@ void UiOrientation::setMenuSwapped(bool v)
 	{
 		menu = v;
 		// these modes need to reset their sliders when menuinvert changes
+#ifdef ENABLE_RECORDER_MODE
 		gRecorderMode.setup(-1);
+#endif
+#ifdef ENABLE_DIRECT_CONTROL_MODE
 		gDirectControlMode.setup(-1);
+#endif
 	}
 }
 
