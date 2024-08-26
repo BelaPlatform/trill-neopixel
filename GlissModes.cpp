@@ -2849,6 +2849,7 @@ public:
 		}
 		bool shouldLatch = false;
 		bool shouldUnlatch = false;
+		bool shouldReset = false;
 
 		bool hasTouch = false;
 		for(size_t n = 0; n < currentSplits(); ++n)
@@ -2873,6 +2874,21 @@ public:
 			// on analog edge, if there is a touch, latch. Otherwise, unlatch.
 			shouldLatch |= hasTouch;
 			shouldUnlatch = !shouldLatch;
+		}
+		if(shouldUnlatch)
+		{
+			// if there's nothing latched, we reset instead
+			bool hasLatch = false;
+			for(const auto& l : isLatched)
+			{
+				if(LatchProcessor::kLatchNone != l)
+				{
+					hasLatch = true;
+					break;
+				}
+			}
+			if(!hasLatch)
+				shouldReset = true;
 		}
 		if(shouldLatch)
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
@@ -2915,7 +2931,13 @@ public:
 		std::array<rgb_t,kNumSplits> colors;
 		colors.fill(color);
 		rgb_t altColor = kRgbOrange;
-		for(size_t n = 0; n < kNumOutChannels; ++n)
+		if(shouldReset)
+		{
+			asrs.fill(kAsrDone);
+			gCustomSmoothedAlpha.fill(0);
+		}
+		// if not resetting, process the state machine
+		for(size_t n = 0; n < kNumOutChannels && !shouldReset; ++n)
 		{
 			static std::array<LatchProcessor::Reason,2> wasLatched = isLatched;
 			static std::array<bool,kNumSplits> pastAsrHasTouch {};
