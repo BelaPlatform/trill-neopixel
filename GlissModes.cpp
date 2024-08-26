@@ -3052,7 +3052,7 @@ public:
 			bool vizFollowsSmooth = true;
 			if(vizFollowsSmooth)
 			{
-				static constexpr float kDummySize = 0.2f * kFixedCentroidSize;
+				static constexpr float kDummySize = 0.1f * kFixedCentroidSize;
 				if(isSplit())
 				{
 					if(kAsrDone == asrs[n])
@@ -3063,6 +3063,7 @@ public:
 					}
 					if(outIsSize(n))
 					{
+						// is size
 //#define DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
 						// simply relying on asr to determine whether to use altColor
 						// is not possible for a size output,
@@ -3089,12 +3090,13 @@ public:
 
 						displayValues[n].size = getOutputReverseMap(n);
 					} else {
-						if(kAsrSustain != asrs[n])
+						// is position
+						if(locationShouldAltViz(n))
 							colors[n] = altColor;
 						displayValues[n].location = getOutputReverseMap(n);
 						// if a split is location, we give it a dummy small size for viz purposes
 						// during attack and release
-						float centroidSize = kAsrSustain != asrs[n] ? kDummySize : kFixedCentroidSize;
+						float centroidSize = locationShouldAltViz(n) ? kDummySize : kFixedCentroidSize;
 						if(kModeSplitLocation == splitMode)
 							displayValues[n].size = centroidSize;
 						else if(kModeSplitLocationSize == splitMode)
@@ -3106,21 +3108,22 @@ public:
 				}
 				else
 				{
+					// no split
 					if(kNumOutChannels - 1 != n) // we rely on both asrs to be ready here, so we wait until they are all done
 						continue;
 					if(kAsrDone == asrs[0] && kAsrDone == asrs[1])
 						continue;
-					if(kAsrSustain != asrs[0])
+					if(locationShouldAltViz(0))
 						colors[0] = altColor;
 					displayValues[0].location = getOutputReverseMap(0);
 					displayValues[0].size = getOutputReverseMap(1);
-					if(kAsrRelease == asrs[0])
+					if(kAsrDone != asrs[0] && (kAsrDone == asrs[1] || kAsrRelease == asrs[1]))
 					{
-						// We have let go of the touch. If size reaches zero before
-						// location does (e.g.: because of longer smoothing), then there would
-						// be no size left to show the location.
+						// If size reaches zero before location does (e.g.: because
+						// of shorter smoothing or because only location is latched),
+						// then there would be no size left to show the location.
 						// Here we give it at least a dummy small size for viz purposes.
-						displayValues[0].size = std::max(displayValues[0].size, kDummySize); // used if location is still active
+						displayValues[0].size = std::max(displayValues[0].size, kDummySize);
 					}
 				}
 			}
@@ -3243,6 +3246,15 @@ public:
 		std::array<float,kNumSmooths> smooths;
 	} presetFieldData;
 private:
+	bool locationShouldAltViz(size_t n) const
+	{
+		// more relaxed "closeEnough" for viz only
+		// we use this for turning the color to default whenever we are visually "close enough"
+		// to it, to avoid agonizing slow approach
+		bool closeEnoughAltColor = std::abs(getOutputSmoothDiff(n)) > 0.02;
+		return (kAsrAttack == asrs[n] && closeEnoughAltColor)
+				|| kAsrRelease == asrs[n];
+	}
 	bool hasSizeOutput()
 	{
 		return kModeSplitLocation != splitMode;
