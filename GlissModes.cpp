@@ -2895,6 +2895,9 @@ public:
 				}
 			}
 		}
+		std::array<rgb_t,kNumSplits> colors;
+		colors.fill(color);
+		rgb_t altColor = kRgbOrange;
 		for(size_t n = 0; n < kNumOutChannels; ++n)
 		{
 			static std::array<LatchProcessor::Reason,2> wasLatched = isLatched;
@@ -3056,8 +3059,35 @@ public:
 						continue;
 					}
 					if(outIsSize(n))
+					{
+//#define DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+						// simply relying on asr to determine whether to use altColor
+						// is not possible for a size output,
+						// as there's no kAsrSustain.
+						// so we give it altColor if it has no touch
+#ifdef DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+						// or is far enough
+						// NOTE: we are using a different, more relaxed "enough" than the one for
+						// the asr state machine as well as some hysteresis to prevent flickering
+						static std::array<bool,kNumOutChannels> isAlt {};
+#endif //DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+						if(!hasActualTouch
+#ifdef DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+							|| (isAlt[n] && std::abs(osd) > 0.1)
+							|| (!isAlt[n] && std::abs(osd) > 0.001)
+#endif //DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+							)
+						{
+							colors[n] = altColor;
+						}
+#ifdef DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+						isAlt[n] = altColor == colors[n];
+#endif //DIRECT_CONTROL_OSD_FOR_COLOR_ON_SIZE
+
 						displayValues[n].size = getOutputReverseMap(n);
-					else {
+					} else {
+						if(kAsrSustain != asrs[n])
+							colors[n] = altColor;
 						displayValues[n].location = getOutputReverseMap(n);
 						// if a split is location, we give it a dummy small size for viz purposes
 						// during attack and release
@@ -3077,6 +3107,8 @@ public:
 						continue;
 					if(kAsrDone == asrs[0] && kAsrDone == asrs[1])
 						continue;
+					if(kAsrSustain != asrs[0])
+						colors[0] = altColor;
 					displayValues[0].location = getOutputReverseMap(0);
 					displayValues[0].size = getOutputReverseMap(1);
 					if(kAsrRelease == asrs[0])
@@ -3090,7 +3122,7 @@ public:
 				}
 			}
 		}
-		renderOut(gManualAnOut, values, displayValues, {true, true}, {color, color});
+		renderOut(gManualAnOut, values, displayValues, {true, true}, colors);
 		for(size_t n = 0; n < kNumSplits; ++n)
 		{
 			if(shouldOverrideOuts[n]) {
