@@ -8180,7 +8180,7 @@ public:
 					.size = kFixedCentroidSize / 2,
 			};
 			rgb_t color;
-			float diffFromDefault = std::abs(parameter->getDefault() - frame.location);
+			float diffFromDefault = std::abs(parameter->getDefault() - pValue);
 			if(diffFromDefault < kDefaultThreshold)
 			{
 				color = baseColor;
