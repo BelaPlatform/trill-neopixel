@@ -2913,7 +2913,10 @@ public:
 				// in attack
 				if(kAutoLatchLocationOnly == autoLatch && 0 == n)
 				{
-					asrHasTouch |= LatchProcessor::kLatchAuto != isLatched[n];
+					if(LatchProcessor::kLatchAuto == isLatched[n])
+					{
+						asrHasTouch = true;
+					}
 				}
 			}
 			float osd = getOutputSmoothDiff(n);
