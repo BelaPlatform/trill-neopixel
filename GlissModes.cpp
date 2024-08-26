@@ -14,7 +14,7 @@
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
 
 static void updateAllPresets();
-void requestNewMode(int mode);
+void requestNewMode(int mode, bool forceSave = false);
 static void requestOldMode();
 
 static constexpr size_t kNumSplits = 2;
@@ -9231,7 +9231,7 @@ bool modeShouldBeSaved(ssize_t mode)
 }
 
 static void menu_updateSubmenu();
-void requestNewMode(int mode)
+void requestNewMode(int mode, bool forceSave)
 {
 	float oldMode = gNewMode;
 	bool different = (oldMode != mode);
@@ -9240,7 +9240,7 @@ void requestNewMode(int mode)
 	{
 		// notify the setting that is stored to disk
 		// but avoid the set() to trigger a circular call to requestNewMode()
-		if(modeShouldBeSaved(mode))
+		if(modeShouldBeSaved(mode) || forceSave)
 			gGlobalSettings.newMode.set(mode);
 		if(modeShouldBeSaved(oldMode))
 			gOldMode = oldMode;
@@ -9691,7 +9691,7 @@ void UiOrientation::setMenuSwapped(bool v)
 
 void gp_setMode(uint8_t mode)
 {
-	requestNewMode(mode);
+	requestNewMode(mode, true);
 }
 
 static ParameterContainer* getmeModeParameter(uint8_t mode, uint8_t parameter)
