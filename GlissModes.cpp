@@ -1856,6 +1856,65 @@ uint32_t hasWrittenInit = 0;
 bool all = false;
 } gAnimateFs;
 
+static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx);
+
+static void colorBar(float value, size_t startLed, size_t stopLed, rgb_t colorStart, rgb_t colorStop)
+{
+	float top = map(value, 0, 1, startLed, stopLed);
+	for(size_t n = startLed; n < stopLed && n < kNumLeds; ++n)
+	{
+		const rgb_t color = crossfade(colorStart, colorStop, map(n, startLed, stopLed, 0, 1));
+		float scale = 0.15; // dimmed to avoid using too much current
+		if(n > top)
+			scale = 0;
+		else if(top == n)
+			scale *= top - int(top); // smooth the top LED
+		np.setPixelColor(n, color.scaledBy(scale));
+	}
+}
+
+static void displayRangeWithBarAndEndpoints(LedSlider& l, rgb_t baseColor, float brightness, float margin, float bottom, float top, bool showEndpoints)
+{
+	l.directBegin();
+	rgb_t secondaryColor;
+	if(showEndpoints)
+	{
+		if(std::abs(top - bottom) > 0.08)
+		{
+			// if they are far enough, fill the bar between the two endpoints
+			rgb_t realWhite = {255, 255, 255}; // kRgbWhite is actually blue in some cases
+			baseColor = realWhite.scaledBy(0.4);
+			secondaryColor = realWhite.scaledBy(0.4);
+		} else {
+			baseColor = kRgbBlack;
+			secondaryColor = kRgbBlack;
+		}
+	} else
+		secondaryColor = baseColor;
+	baseColor.scale(brightness);
+	secondaryColor.scale(brightness);
+	// the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualisation
+	float centroidBottom = bottom;
+	float centroidTop = top;
+	if(bottom != 0)
+		bottom += margin;
+	if(top != 1)
+		top -= margin;
+	bottom = constrain(bottom, 0, top);
+	top = constrain(top, bottom, 1);
+	size_t start = std::round((kNumLeds - 1) * bottom);
+	size_t stop = std::round((kNumLeds - 1) * top);
+	colorBar(1, start, stop, baseColor, secondaryColor);
+	if(showEndpoints)
+	{
+		// _not_ clearing before we draw, so we keep the bar
+		// we drew above
+		l.directBegin(false);
+		l.directWriteCentroid({ centroidBottom, 0.15 }, getQuantisedColor(buttonColors, centroidBottom));
+		l.directWriteCentroid({ centroidTop, 0.15 }, getQuantisedColor(buttonColors, centroidTop));
+	}
+}
+
 static float simpleRamp(unsigned int phase, unsigned int period)
 {
 	if(!period)
@@ -1911,49 +1970,7 @@ public:
 			float bottom;
 			float top;
 			r.getMinMax(bottom, top);
-			rgb_t secondaryColor;
-			if(kCvRangeCustom == r.range)
-			{
-				if(std::abs(top - bottom) > 0.08)
-				{
-					// if they are far enough, fill the bar between the two endpoints
-					rgb_t realWhite = {255, 255, 255}; // kRgbWhite is actually blue in some cases
-					baseColor = realWhite.scaledBy(0.2);
-					secondaryColor = realWhite.scaledBy(0.2);
-				} else {
-					baseColor = kRgbBlack;
-					secondaryColor = kRgbBlack;
-				}
-			} else
-				secondaryColor = baseColor;
-			const float kMargin = 0.05; // the LEDs spill up and down a bit, so we limit them a bit to get a more "accurate" visualsation
-			if(std::abs(bottom - top) > 2 * kMargin)
-			{
-				if(bottom != 0)
-					bottom += kMargin;
-				if(top != 1)
-					top -= kMargin;
-			}
-			size_t start = std::round((kNumLeds - 1) * bottom);
-			size_t stop = std::round((kNumLeds - 1) * top);
-			for(size_t n = start; n <= stop; ++n)
-			{
-				rgb_t pixel;
-				float rel = (n - start) / float(stop - start);
-				if(stop == start)
-					rel = 0.5; // ensure some mixing happens
-				for(size_t c = 0; c < pixel.size(); ++c)
-					pixel[c] = baseColor[c] * rel + secondaryColor[c] * (1.f - rel);
-				np.setPixelColor(n, pixel.scaledBy(0.2));
-			}
-			// draw centroid at the endpoints on top of the existing bar
-			if(kCvRangeCustom == r.range)
-			{
-				// _not_ clearing before we draw
-				l.directBegin(false);
-				l.directWriteCentroid({ min, 0.15 }, getQuantisedColor(buttonColors, min));
-				l.directWriteCentroid({ max, 0.15 }, getQuantisedColor(buttonColors, max));
-			}
+			displayRangeWithBarAndEndpoints(l, baseColor, 1, 0.05, bottom, top, kCvRangeCustom == r.range);
 		}
 	}
 };
@@ -4675,8 +4692,6 @@ private:
 
 static void menu_up();
 
-static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx);
-
 #ifdef ENABLE_SCALE_METER_MODE
 #define MENU_ENTER_RANGE_DISPLAY
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
@@ -5039,20 +5054,6 @@ private:
 	{
 		float in = analogRead(context, frame, channel);
 		return mapAndConstrain(in, inRangeBottom, inRangeTop, 0, 1);
-	}
-	void colorBar(float value, size_t startLed, size_t stopLed, rgb_t colorStart, rgb_t colorStop)
-	{
-		float top = map(value, 0, 1, startLed, stopLed);
-		for(size_t n = startLed; n < stopLed && n < kNumLeds; ++n)
-		{
-			const rgb_t color = crossfade(colorStart, colorStop, map(n, startLed, stopLed, 0, 1));
-			float scale = 0.15; // dimmed to avoid using too much current
-			if(n > top)
-				scale = 0;
-			else if(top == n)
-				scale *= top - int(top); // smooth the top LED
-			np.setPixelColor(n, color.scaledBy(scale));
-		}
 	}
 	rgb_t signalColor = kRgbGreen;
 	rgb_t endpointsColorIn = kRgbRed;
