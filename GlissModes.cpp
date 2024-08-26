@@ -8343,14 +8343,14 @@ private:
 	}
 	virtual void updateDisplay(LedSlider& slider)
 	{
-		slider.directBegin();
-		otherColor = getQuantisedColor(buttonColors, displayLocations[0]);
-		baseColor = getQuantisedColor(buttonColors, displayLocations[1]);
-		slider.directWriteCentroid({ displayLocations[0], 0.15 }, otherColor);
-		slider.directWriteCentroid({ displayLocations[1], 0.15 }, baseColor);
+		static unsigned int phase = 0;
+		brightness = 0.25 + 0.5f * simpleTriangle(phase, 200);
+		phase++;
+		displayRangeWithBarAndEndpoints(slider, kRgbBlack, brightness, 0.12, displayLocations[0], displayLocations[1], true);
 	}
 	std::array<ParameterContinuous*,kNumEnds> parameters;
 	static LatchProcessor latchProcessor;
+	float brightness;
 	bool autoExit;
 	bool hasHadTouch;
 };
