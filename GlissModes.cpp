@@ -8802,25 +8802,25 @@ public:
 			{
 				"DirectControlSmooth0",
 				buttonColors[1],
-				buttonColors[1],
+				kSettingsContinuousOtherColor,
 				gDirectControlMode.smooths[0],
 			},
 			{
 				"DirectControlSmooth1",
 				buttonColors[1],
-				buttonColors[1],
+				kSettingsContinuousOtherColor,
 				gDirectControlMode.smooths[1],
 			},
 			{
 				"DirectControlSmooth2",
 				buttonColors[1],
-				buttonColors[1],
+				kSettingsContinuousOtherColor,
 				gDirectControlMode.smooths[2],
 			},
 			{
 				"DirectControlSmooth3",
 				buttonColors[1],
-				buttonColors[1],
+				kSettingsContinuousOtherColor,
 				gDirectControlMode.smooths[3],
 			},
 		}})
