@@ -3067,25 +3067,7 @@ public:
 			}
 			pastAsrHasTouch[n] = asrHasTouch;
 			wasLatched[n] = isLatched[n];
-			float alpha = 0;
-			static_assert(kNumOutChannels * 2 ==  std::tuple_size<decltype(alphas)>::value, "indexing below wouldn't work");
-			// select alpha based on state
-			switch(asrs[n])
-			{
-			case kAsrAttack:
-				alpha = alphas[2 * n];
-				break;
-			case kAsrSustain:
-				alpha = kAlphaDefault;
-				break;
-			case kAsrRelease:
-				alpha = alphas[2 * n + 1];
-				break;
-			case kAsrDone:
-				alpha = 0;
-				break;
-			}
-			gCustomSmoothedAlpha[n] = alpha;
+			gCustomSmoothedAlpha[n] = getAlpha(n);
 
 			// adjust size / color of visualisation, based on each asr (and more)
 			bool vizFollowsSmooth = true;
@@ -3285,6 +3267,28 @@ public:
 		std::array<float,kNumSmooths> smooths;
 	} presetFieldData;
 private:
+	float getAlpha(size_t n)
+	{
+		float alpha = 0;
+		static_assert(kNumOutChannels * 2 ==  std::tuple_size<decltype(alphas)>::value, "indexing below wouldn't work");
+		// select alpha based on state
+		switch(asrs[n])
+		{
+		case kAsrAttack:
+			alpha = alphas[2 * n];
+			break;
+		case kAsrSustain:
+			alpha = kAlphaDefault;
+			break;
+		case kAsrRelease:
+			alpha = alphas[2 * n + 1];
+			break;
+		case kAsrDone:
+			alpha = 0;
+			break;
+		}
+		return alpha;
+	}
 	bool locationShouldAltViz(size_t n) const
 	{
 		// more relaxed "closeEnough" for viz only
