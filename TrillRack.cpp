@@ -259,7 +259,7 @@ void tr_mainLoop()
 			printf("presetCheckSave: %d\n\r", ret);
 	}
 	processMidiMessage();
-	gp_outgoing(kGpMidi, sysexSend);
+	gp_outgoing(kSysexUsb, sysexSend);
 #endif // TEST_MODE
 }
 

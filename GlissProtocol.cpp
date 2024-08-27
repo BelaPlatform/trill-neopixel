@@ -468,9 +468,9 @@ private:
 	static constexpr uint8_t kReserved = 255;
 };
 
-static std::array<GlissProtocolProcessor,kGpNumPp> processors;
+static std::array<GlissProtocolProcessor,kSysexNumSp> processors;
 
-int gp_incoming(ProtocolPeripheral src, const void* data, size_t len)
+int gp_incoming(SysexPeripheral src, const void* data, size_t len)
 {
 	if(len > GlissProtocolProcessor::kMaxMsgLength)
 	{
@@ -491,7 +491,7 @@ void gp_processIncoming()
 		p.process();
 }
 
-int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, size_t maxLen))
+int gp_outgoing(SysexPeripheral dst, int (*callback)(SysexPeripheral sp, const uint8_t* data, size_t maxLen))
 {
 	constexpr size_t kMaxSent = 48; // arbitrary limit. Outgoing queues for the peripherals are the actual limiting factors
 	std::array<uint8_t,kMaxSent> buffer;
@@ -502,7 +502,7 @@ int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, siz
 		size_t count = processors[dst].msgPopOutgoing(buffer.data(), std::min(kMaxSent - sent, buffer.size()));
 		if(count)
 		{
-			ret |= callback(buffer.data(), count);
+			ret |= callback(dst, buffer.data(), count);
 			sent += count;
 		} else
 			break;

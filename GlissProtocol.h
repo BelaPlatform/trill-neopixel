@@ -1,12 +1,10 @@
+#pragma once
+
 #include <stdint.h>
 #include <stddef.h>
 #include "rgb.h"
+#include "../../common_stuff/sysex.h"
 
-enum ProtocolPeripheral {
-	kGpMidi,
-	kGpI2c,
-	kGpNumPp,
-};
 enum ProtocolCmd {
 	kGpMode = 0,
 	kGpParameter = 1,
@@ -26,8 +24,8 @@ enum ProtocolCmdRecorderModeGesture {
 };
 
 // I/O and processing
-int gp_incoming(ProtocolPeripheral src, const void* data, size_t len);
-int gp_outgoing(ProtocolPeripheral dst, int (*callback)(const uint8_t* data, size_t maxLen));
+int gp_incoming(SysexPeripheral src, const void* data, size_t len);
+int gp_outgoing(SysexPeripheral dst, int (*callback)(SysexPeripheral sp, const uint8_t* data, size_t maxLen));
 void gp_processIncoming(); // call from the audio thread to process incoming messages
 struct GpIoRange {
 	uint8_t cvRange;
