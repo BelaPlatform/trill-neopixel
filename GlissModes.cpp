@@ -3076,6 +3076,8 @@ public:
 				static constexpr float kDummySize = 0.5f * kFixedCentroidSize;
 				if(isSplit())
 				{
+					if(getAlpha(n) <= kAlphaDefault) // avoid fleeting flickering animations when alpha is real small
+						continue;
 					if(kAsrDone == asrs[n])
 					{
 						// if the envelope is done, there's nothing to do here
@@ -3134,11 +3136,16 @@ public:
 						continue;
 					if(kAsrDone == asrs[0] && kAsrDone == asrs[1])
 						continue;
-					if(locationShouldAltViz(0))
+					if(locationShouldAltViz(0) || (!asrHasTouch && locationShouldAltViz(1)))
 						colors[0] = altColor;
-					displayValues[0].location = getOutputReverseMap(0);
-					displayValues[0].size = getOutputReverseMap(1);
-					if(kAsrDone != asrs[0] && (kAsrDone == asrs[1] || kAsrRelease == asrs[1]))
+					// avoid fleeting flickering animations on attack and release when alpha is real small
+					if(getAlpha(0) > kAlphaDefault) {
+						displayValues[0].location = getOutputReverseMap(0);
+					}
+					if(getAlpha(1) > kAlphaDefault) {
+						displayValues[0].size = getOutputReverseMap(1);
+					}
+					if(getAlpha(0) > kAlphaDefault && kAsrDone != asrs[0] && (kAsrDone == asrs[1] || kAsrRelease == asrs[1]))
 					{
 						// If size reaches zero before location does (e.g.: because
 						// of shorter smoothing or because only location is latched),
@@ -3148,6 +3155,7 @@ public:
 					}
 				}
 			}
+			// do not put anything useful here as we may have continued the loop in the previous block
 		}
 		renderOut(gManualAnOut, values, displayValues, {true, true}, colors);
 		for(size_t n = 0; n < kNumSplits; ++n)
