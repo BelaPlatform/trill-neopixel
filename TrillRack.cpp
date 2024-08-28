@@ -11,6 +11,7 @@
 #include <atomic>
 #include "../../common_stuff/verificationBlock.h"
 #include "../../common_stuff/sysex.h"
+#include "../../common_stuff/i2cExternal.h"
 
 constexpr std::array<float,CalibrationData::kNumPoints> CalibrationData::points;
 
@@ -259,7 +260,9 @@ void tr_mainLoop()
 			printf("presetCheckSave: %d\n\r", ret);
 	}
 	processMidiMessage();
+	i2cProcessIncomingFromMainThread();
 	gp_outgoing(kSysexUsb, sysexSend);
+	gp_outgoing(kSysexI2c, sysexSend);
 #endif // TEST_MODE
 }
 
