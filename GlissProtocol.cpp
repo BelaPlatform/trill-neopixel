@@ -112,12 +112,13 @@ public:
 	{
 		return msgPop(outQ, data, maxLen);
 	}
-	void process()
+	// return true if it did process something (and there may be something more waiting to be processed)
+	bool process()
 	{
 		uint8_t msg[kMaxMsgLength];
 		size_t len = msgPopIncoming(msg, sizeof(msg));
 		if(len <= 0)
-			return;
+			return false;
 		uint8_t* m = msg + 1;
 #if 0
 		// we refactored this to pop the message at once, and we now have a full message
@@ -265,6 +266,7 @@ public:
 				break;
 			}
 		}
+		return true;
 	}
 private:
 	// only allow uint16_t to be passed to lsb()_ and msb()
@@ -488,7 +490,12 @@ int gp_incoming(SysexPeripheral src, const void* data, size_t len)
 void gp_processIncoming()
 {
 	for(auto& p : processors)
-		p.process();
+	{
+		while(p.process())
+		{
+			// call as long as there are messages to process
+		}
+	}
 }
 
 int gp_outgoing(SysexPeripheral dst, int (*callback)(SysexPeripheral sp, const uint8_t* data, size_t maxLen))
