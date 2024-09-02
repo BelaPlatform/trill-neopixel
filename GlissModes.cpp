@@ -788,23 +788,15 @@ public:
 	{
 		idx = 0;
 		validFrames = 0;
-		pastInputFrame = {0, 0};
 		lastOutSize = 0;
 		pastFrames.fill({0, 0});
 		delay = 0;
 	}
 	// return: may modify frame and latchStarts
-	void process(centroid_t& frame, bool& latchStarts)
+	void process(bool isNew, centroid_t& frame, bool& latchStarts)
 	{
-		// filter out duplicate frames
-		// TODO: call this per each new frame instead
-		if(validFrames && pastInputFrame == frame)
-		{
-			frame.size = lastOutSize;
+		if(!isNew)
 			return;
-		}
-		// cache for duplicate detection
-		pastInputFrame = frame;
 		if(validFrames && pastFrames[getPastFrame(0)].size && !frame.size) // if size went to zero
 		{
 			// use the oldest frame we have for location, keeping whatever size we have been using
@@ -877,7 +869,6 @@ private:
 	size_t idx;
 	size_t validFrames;
 	size_t delay;
-	centroid_t pastInputFrame;
 	float lastOutSize;
 #if 0
 	public: static void test()
@@ -939,7 +930,7 @@ public:
 		for(auto& al : autoLatchers)
 			al.reset();
 	}
-	void process(bool autoLatch, size_t numValues, std::array<centroid_t,kMaxNumValues>& values, std::array<Reason,kMaxNumValues>& isLatchedRet,
+	void process(bool isNew, bool autoLatch, size_t numValues, std::array<centroid_t,kMaxNumValues>& values, std::array<Reason,kMaxNumValues>& isLatchedRet,
 			bool shouldLatch = false, bool shouldUnlatch = false)
 	{
 		if(numValues > kMaxNumValues)
@@ -976,7 +967,7 @@ public:
 				if(!isLatched[n])
 				{
 					bool autoLatchStarts = false;
-					autoLatchers[n].process(values[n], autoLatchStarts);
+					autoLatchers[n].process(isNew, values[n], autoLatchStarts);
 					if(autoLatchStarts && kLatchNone == latchStarts[n])
 						latchStarts[n] = kLatchAuto;
 				}
@@ -2930,7 +2921,7 @@ public:
 		if(shouldLatch)
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		// sets values and isLatched
-		latchProcessor.process(shouldAutoLatch(), 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
+		latchProcessor.process(frameData->isNew, shouldAutoLatch(), 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
@@ -8219,6 +8210,10 @@ public:
 	}
 	void process(LedSlider& slider) override
 	{
+		Error_Handler(); // need to call the other one
+	}
+	void process(LedSlider& slider, bool isNew) override
+	{
 		if(p.valid())
 		{
 			auto* parameter = &p;
@@ -8254,7 +8249,7 @@ public:
 					tracking = true;
 			}
 			bool latched = false;
-			gMenuAutoLatcher.process(frame, latched);
+			gMenuAutoLatcher.process(isNew, frame, latched);
 			// set the centroid position to whatever the current parameter value is
 			float pValue = tracking ? parameter->transform(frame.location) : parameter->get();
 			centroid_t centroid = {
@@ -8330,10 +8325,14 @@ public:
 		std::array<LatchProcessor::Reason,2> isLatched;
 		latchProcessor.reset();
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
-		latchProcessor.process(true, pastFrames.size(), pastFrames, isLatched);
+		latchProcessor.process(true, true, pastFrames.size(), pastFrames, isLatched);
 		hasHadTouch = false;
 	}
 	void process(LedSlider& slider) override
+	{
+		Error_Handler(); // should call the other one
+	}
+	void process(LedSlider& slider, bool isNew) override
 	{
 		bool allLatched = false;
 		if(parameters[0] && parameters[1])
@@ -8375,7 +8374,7 @@ public:
 					}
 				}
 				std::array<LatchProcessor::Reason,2> isLatched;
-				latchProcessor.process(true, frames.size(), frames, isLatched);
+				latchProcessor.process(isNew, true, frames.size(), frames, isLatched);
 				auto preprocessedValues = preprocess({frames[0].location, frames[1].location});
 				for(size_t n = 0; n < frames.size(); ++n)
 				{
