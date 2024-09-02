@@ -8102,7 +8102,12 @@ class MenuItemType
 {
 public:
 	MenuItemType(rgb_t baseColor) : baseColor(baseColor) {}
+	// For backwards compatibilty, we provide the base call without isNew.
+	// Inheriting classes that care about isNew should implement
+	// process(LedSlider& slider, bool isNew) and throw an error
+	// in the process(LedSlider& slider)
 	virtual void process(LedSlider& slider) = 0;
+	virtual void process(LedSlider& slider, bool isNew) { process(slider); };
 	virtual void resetState() {};
 	rgb_t baseColor;
 };
@@ -9745,7 +9750,7 @@ void menu_render(BelaContext*, FrameData* frameData)
 			if(gAnimationIsPlaying && item != gAnimationIsPlaying)
 				continue;
 		}
-		item->process(ledSlidersAlt.sliders[n]);
+		item->process(ledSlidersAlt.sliders[n], frameData->isNew);
 	}
 }
 
