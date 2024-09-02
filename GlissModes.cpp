@@ -813,22 +813,18 @@ public:
 						.location = pastFrames[getOldestFrame()].location,
 						.size = lastOutSize,
 				};
-			} else {
-				// nothing: we have nothing to latch onto, so we do not alter frame
 			}
 			latchStarts = true;
 			idx = 0;
-			pastFrames[idx].location = pastFrames[idx].size = 0;
 			validFrames = 0;
-		} else {
+			delay = 0;
+		} else if(frame.size) {
 			// store current input value for later
-			// increment first, so outside of this block,
-			// idx means "last written value"
+			pastFrames[idx] = frame;
+			validFrames++;
 			++idx;
 			if(idx >= pastFrames.size())
 				idx = 0;
-			pastFrames[idx] = frame;
-			validFrames++;
 
 			// if we are still touching
 			// apply a variable delay to the output size
@@ -846,8 +842,10 @@ public:
 			if(delay >= 2)
 			{
 				// read increasingly older touch size until maximum kMaxSizeDelay.
-				// The / 2 here and above ensures we increase delay only every other frame.
-				newSize = pastFrames[getPastFrame(delay / 2- 1)].size;
+				// The / 2 here and above ensures we increase the actual delay
+				// only every other frame which ensures we don't hold the same
+				// value for a long time while the delay increases.
+				newSize = pastFrames[getPastFrame(delay / 2 - 1)].size;
 			}
 
 			// output the delayed size
@@ -868,9 +866,9 @@ private:
 			return -1;
 		size_t lastGood;
 		back = std::min(back, kHistoryLength - 1);
-		back = std::min(back, validFrames);
+		back = std::min(back, validFrames - 1);
 		// go back in the circular buffer to the oldest valid value.
-		lastGood = (idx - back + kHistoryLength) % kHistoryLength;
+		lastGood = (idx - 1 - back + kHistoryLength) % kHistoryLength;
 		return lastGood;
 	}
 	static constexpr size_t kHistoryLength = 15;
@@ -881,6 +879,45 @@ private:
 	size_t delay;
 	centroid_t pastInputFrame;
 	float lastOutSize;
+#if 0
+	public: static void test()
+	{
+		AutoLatcher a;
+		std::array<centroid_t,80> inputs;
+		for(size_t n = 0; n < inputs.size(); ++n)
+		{
+			float val = 10 + n;
+			if(n < 1)
+				val = 0;
+			if(n > 40)
+				val = 0;
+			inputs[n] =  { val, val };
+		}
+		a.reset();
+		for(size_t n = 0; n < inputs.size(); ++n)
+		{
+			bool latchStarts = false;
+			auto frame = inputs[n];
+			a.process(frame, latchStarts);
+			printf("%2zu %.f,%.f -->> %.f,%.f %s ",
+				n, inputs[n].location, inputs[n].size, frame.location,
+				frame.size, latchStarts ? "LATCH" : "     ");
+			printf("idx: %zu, validFrames: %zu, delay: %zd, latest: %zd, actual oldest: %zd\n",
+				a.idx, a.validFrames, a.delay / 2 - 1, a.getPastFrame(0), a.getOldestFrame());
+			if(latchStarts)
+			{
+				printf("ITEMS %zu\n", a.validFrames);
+				for(size_t p = 0; p < a.pastFrames.size(); ++p)
+				{
+					auto f = a.pastFrames[p];
+					printf("[%zu] {%.0f %.0f}, ", p, f.location, f.size);
+				}
+				printf("\n");
+			}
+			printf("=====================\n");
+		}
+	}
+#endif
 };
 
 class LatchProcessor {
