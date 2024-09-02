@@ -2940,6 +2940,7 @@ public:
 		std::array<centroid_t,kNumSplits> displayValues = values;
 
 		std::array<bool,kNumSplits> shouldOverrideOuts = { false, false };
+		static constexpr float kDummySize = 0.3f * kFixedCentroidSize;
 		if(hasSizeOutput() && !shouldAutoLatchSize())
 		{
 			for(size_t n = 0; n < isLatched.size() && n < currentSplits(); ++n)
@@ -2961,13 +2962,13 @@ public:
 						displayValues[n].size = 0;
 					else
 						// leave a faint dot for display while location is latched
-						displayValues[n].size = 0.15;
+						displayValues[n].size = kDummySize;
 				}
 			}
 		}
 		std::array<rgb_t,kNumSplits> colors;
 		colors.fill(color);
-		rgb_t altColor = kRgbOrange;
+		const rgb_t altColor = kRgbOrange;
 		if(shouldReset)
 		{
 			asrs.fill(kAsrDone);
@@ -3110,7 +3111,6 @@ public:
 			bool vizFollowsSmooth = true;
 			if(vizFollowsSmooth)
 			{
-				static constexpr float kDummySize = 0.5f * kFixedCentroidSize;
 				if(isSplit())
 				{
 					if(getAlpha(n) <= kAlphaDefault) // avoid fleeting flickering animations when alpha is real small
@@ -3182,7 +3182,10 @@ public:
 					if(getAlpha(1) > kAlphaDefault) {
 						displayValues[0].size = getOutputReverseMap(1);
 					}
-					if(getAlpha(0) > kAlphaDefault && kAsrDone != asrs[0] && (kAsrDone == asrs[1] || kAsrRelease == asrs[1]))
+					if((getAlpha(0) > kAlphaDefault || asrs[0] == kAsrSustain)
+							&& kAsrDone != asrs[0]
+							&& (kAsrDone == asrs[1] || kAsrRelease == asrs[1])
+						)
 					{
 						// If size reaches zero before location does (e.g.: because
 						// of shorter smoothing or because only location is latched),
