@@ -805,6 +805,14 @@ public:
 						.location = pastFrames[getOldestFrame()].location,
 						.size = lastOutSize,
 				};
+				centroid_t frame0 = pastFrames[getPastFrame(0)];
+				// If sliding off either edge of the slider, using the above method
+				// you'd latch to a value that may be far off from the edge - depending
+				// on how fast you have been sliding.
+				// Instead, you'd expect to latch to the actual edge.
+				// Here we detect if we actually were at the edge
+				if(0 == frame0.location || 1 == frame0.location)
+					frame.location = frame0.location;
 			}
 			latchStarts = true;
 			idx = 0;
