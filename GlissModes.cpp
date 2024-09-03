@@ -3167,10 +3167,8 @@ public:
 					if(locationShouldAltViz(0) || (!asrHasTouch && locationShouldAltViz(1)))
 						colors[0] = altColor;
 					// avoid fleeting flickering animations on attack and release when alpha is real small
-					if(getAlpha(0) > kAlphaDefault) {
+					if(getAlpha(0) > kAlphaDefault || getAlpha(1) > kAlphaDefault) {
 						displayValues[0].location = getOutputReverseMap(0);
-					}
-					if(getAlpha(1) > kAlphaDefault) {
 						displayValues[0].size = getOutputReverseMap(1);
 					}
 					if((getAlpha(0) > kAlphaDefault || asrs[0] == kAsrSustain)
