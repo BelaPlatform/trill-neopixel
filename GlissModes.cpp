@@ -8245,12 +8245,19 @@ public:
 			{
 				// check if we crossed the initial point
 				// limit to a range we can actually reach on the slider, even if the initial
-				// value is allowed to be outside the slider rane
+				// value is allowed to be outside the slider range
 				float refPos = constrain(parameter->get(), 0, 1);
 				float current = frame.location;
+				float diffInitial = initialPos - refPos;
+				float diffCurrent = current - refPos;
+				constexpr float kCloseToTheEdge = 0.05;
+				// if the pointer is very close to the edge
+				// pick it up if we get "close enough" to it
+				bool downByTheCorner = (refPos < kCloseToTheEdge || refPos > 1 - kCloseToTheEdge) && std::abs(diffCurrent) < kCloseToTheEdge;
 				if(
-						(initialPos <= refPos && current >= refPos) ||
-						(initialPos >= refPos && current <= refPos)
+						(diffInitial <= 0 && diffCurrent >= 0) ||
+						(diffInitial >= 0 && diffCurrent <= 0) ||
+						downByTheCorner
 					)
 					tracking = true;
 			}
