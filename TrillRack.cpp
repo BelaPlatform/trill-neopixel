@@ -795,7 +795,7 @@ void tr_render(BelaContext* context)
 		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
 		rangeGnd[n] = gnd; // we do not constrain, so this could be negative if gnd is out of the range
 	}
-	typedef double SmoothFloat;
+	typedef float SmoothFloat;
 	static std::array<SmoothFloat,kNumOutChannels> pastOut {};
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
