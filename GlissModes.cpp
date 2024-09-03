@@ -4087,7 +4087,7 @@ public:
 						}
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
-						printf("%u periods\n\r", periodsInTables[n]);
+						// printf("%u periods\n\r", periodsInTables[n]);
 						if(kStopNowLate == qrecStopNow[n])
 						{
 							// adjust the phase to make up for the lost time
