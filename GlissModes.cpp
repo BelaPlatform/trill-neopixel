@@ -3481,7 +3481,7 @@ static float interpolatedRead(const T* table, size_t size, float idx, TreatNoOut
 }
 
 template <typename T>
-static float interpolatedRead(const T& table, float idx)
+static float interpolatedRead(const T& table, float idx, TreatNoOutput treat = kTreatAssumeNot)
 {
 	return interpolatedRead(table.data(), table.size(), idx);
 }
@@ -3547,12 +3547,24 @@ public:
 	{
 		return kInputModeCv == inputMode || kInputModePhasor == inputMode;
 	}
-	float applyTrim(float idx)
+	ArrayView<const GestureRecorder::sample_t> getTable(size_t c)
 	{
+		auto& t = gGestureRecorder.rs[c].r;
+		auto* ptr = t.first();
+		size_t size = t.size();
 		if(modeAllowsCircular())
-			idx = map(idx, 0, 1, trimRangeBottom, trimRangeTop);
-		return idx;
+		{
+			size_t start = map(trimRangeBottom, 0, 1, 0, size);
+			size_t stop = map(trimRangeTop, 0, 1, 0, size);
+			if(start <= stop)
+			{
+				ptr += start;
+				size = stop - start;
+			}
+		}
+		return { ptr, size };
 	}
+
 	void finaliseTrim()
 	{
 		for(size_t n = 0; n < gGestureRecorder.rs.size(); ++n)
@@ -4343,22 +4355,20 @@ public:
 				if(TouchTracker::kIdInvalid == getId(twis, c))
 				{
 					preserveSplitLocationSize[c] = true;
-					const auto* table = gGestureRecorder.rs[c].r.first();
-					size_t tableSize = gGestureRecorder.rs[c].r.size();
+					const auto table = getTable(c);
 					vizValues[c] = {};
-					if(tableSize)
+					if(table.size())
 					{
 						// visualise with fix period
-						vizValues[c].location = interpolatedRead(table, tableSize, applyTrim(idxFrac), kTreatPassThrough);
+						vizValues[c].location = interpolatedRead(table, idxFrac, kTreatPassThrough);
 						if(isSplit())
 						{
 							vizValues[c].size = isSizeOnly[c] ? vizValues[c].location : kFixedCentroidSize;
 						} else {
 							// be explicit about indeces here, as we are only here if c == 0
-							const auto* table = gGestureRecorder.rs[1].r.getData().data();
-							size_t tableSize = gGestureRecorder.rs[1].r.size();
-							if(tableSize)
-								vizValues[0].size = interpolatedRead(table, tableSize, applyTrim(idxFrac), kTreatPassThrough);
+							const auto table = getTable(1);
+							if(table.size())
+								vizValues[0].size = interpolatedRead(table, idxFrac, kTreatPassThrough);
 							else // shouldn't get here
 								vizValues[0].size = kFixedCentroidSize;
 						}
@@ -4424,9 +4434,8 @@ public:
 	{
 		assert(c < context->analogOutChannels && c < gGestureRecorder.kNumRecs && c < kNumSplits);
 		float vizOut = 0;
-		const auto* table = gGestureRecorder.rs[c].r.first();
-		size_t tableSize = gGestureRecorder.rs[c].r.size();
-		if(!tableSize)
+		ArrayView table = getTable(c);
+		if(!table.size())
 		{
 			for(size_t n = 0; n < context->analogFrames; ++n)
 				analogWriteOnce(context, n, c, kNoOutput);
@@ -4454,9 +4463,9 @@ public:
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 					float idx = oscs[c].process(normFreq);
-					float value = interpolatedRead(table, tableSize, applyTrim(idx), kTreatPassThrough);
+					float value = interpolatedRead(table, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
-					if(kInputModeClock == inputMode && idx * tableSize < 1)
+					if(kInputModeClock == inputMode && idx * table.size() < 1)
 					{
 						// flash the split to notify of the reset
 						if(!isRecording(c))
@@ -4467,7 +4476,7 @@ public:
 					{
 						// for visualisation purposes, avoid
 						// interpolation when reading the table
-						vizOut = GestureRecorder::recorderToFloat(table[size_t(idx * tableSize)]);
+						vizOut = GestureRecorder::recorderToFloat(table[size_t(idx * table.size())]);
 					}
 			}
 		} else if (kInputModePhasor == inputMode) {
@@ -4475,7 +4484,7 @@ public:
 			{
 				float idx = analogRead(context, n, 0);
 				{
-					float out = interpolatedRead(table, tableSize, applyTrim(idx), kTreatPassThrough);
+					float out = interpolatedRead(table, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, out);
 					if(0 == n)
 						vizOut = out;
