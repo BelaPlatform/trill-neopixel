@@ -4251,9 +4251,25 @@ public:
 						gGestureRecorder.resumePlaybackFrom(n, envelopeReleaseStarts[n]);
 				}
 				gesture[n] = gGestureRecorder.process(idx, recIns[n], frameData->id, autoRetrigger, triggerNow, freezeAt);
-				if(gGestureRecorder.rs[idx].r.size() && gGestureRecorder.rs[idx].playHead < 1 && !gGestureRecorder.isRecording(idx))
+				size_t gestureSize = gGestureRecorder.rs[idx].r.size();
+				if(gestureSize && !gGestureRecorder.isRecording(idx))
 				{
-					flashRequest(n, kFlashRestarted);
+					double playHead = gGestureRecorder.rs[idx].playHead;
+					if(playHead < 0.5)
+					{
+						flashRequest(n, kFlashRestarted);
+						if(kInputModeLfo == inputMode && kModeNoSplit == splitMode && 1 == n && gestureSize > 1)
+						{
+							// single slider, lfo. When touch sensitivity is maximum, the bottom output is a
+							// constant value (1)
+							// Let's make sure we get a "gate-like" signal instead
+							// by setting the first few frames of the gesture to 0
+							gesture[n].sample = 0;
+							// NOTE: we could have made it so that we set the _last_ few frames to 0, but that
+							// would mean that the first gesture wouldn't get a "gate", so we opt for this even if
+							// it leads to a slight offset between gesture starts and gate out
+						}
+					}
 				}
 				TouchTracker::Id id = getId(twis, n);
 				if(gGestureRecorder.isRecording(idx) && gGestureRecorder.rs[idx].r.full)
