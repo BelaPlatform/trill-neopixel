@@ -4148,8 +4148,11 @@ public:
 			{
 				if(hasTouch[n] != hadTouch[n]) //state change
 				{
-					finaliseTrim();
 					if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
+						// starting a new recording
+						// reset trim endpoints (do not finaliseTrim() to avoid affecting the other split's recording)
+						trimRangeBottom.set(0);
+						trimRangeTop.set(1);
 						bool preserveSize = false;
 						if(modeAllowsCircular() && kCircularModeOverwrite == circularMode)
 						{
