@@ -3521,6 +3521,7 @@ public:
 		reinitInputModeClock();
 		gOutMode.fill(kOutModeManualBlock);
 		hadTouch.fill(false);
+		recordingStopsWithButton.fill(false);
 		idxFrac = 0;
 		ignoredTouch.fill(TouchTracker::kIdInvalid);
 		buttonBlinksIgnored = 0;
@@ -3746,6 +3747,7 @@ public:
 				lastIgnoredPressId = performanceBtn.pressId;
 			}
 		}
+		std::array<bool,kNumSplits> stopRecording {};
 		if(performanceBtn.onset)
 		{
 			if(kInputModeEnvelope == inputMode || kInputModeLfo == inputMode)
@@ -3762,6 +3764,20 @@ public:
 							envelopeReleaseStarts[n] = gGestureRecorder.rs[n].r.size();
 							lastIgnoredPressId = performanceBtn.pressId;
 							tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 150);
+						} else if(kInputModeLfo == inputMode)
+						{
+							if(recordingStopsWithButton[n])
+							{
+								stopRecording[n] = true;
+								lastIgnoredPressId = performanceBtn.pressId;
+							} else
+							{
+								// if a button is pressed while recording
+								// we request that the button is used again to stop the recording
+								recordingStopsWithButton[n] = true;
+								tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 150);
+								lastIgnoredPressId = performanceBtn.pressId;
+							}
 						}
 					} else {
 						// if not recording, on button press we
@@ -4134,7 +4150,7 @@ public:
 			}
 
 		} else {
-			// start/stop recording based on touch
+			// start/stop recording based on touch (or button if recordingStopsWithButton)
 
 			// We have two recording tracks available, one per each analog output.
 			// We are always using both tracks and the loop below controls automatic
@@ -4146,7 +4162,7 @@ public:
 				hasTouch[1] = hasTouch[0]; // the second track follows the same touch as the first one
 			for(size_t n = 0; n < kNumSplits; ++n)
 			{
-				if(hasTouch[n] != hadTouch[n]) //state change
+				if(hasTouch[n] != hadTouch[n] && !recordingStopsWithButton[n]) //state change
 				{
 					if(1 == hasTouch[n] && 0 == hadTouch[n]) { // going from 0 to 1 touch: start recording
 						// starting a new recording
@@ -4165,14 +4181,18 @@ public:
 						envelopeReleaseStarts[n] = -1;
 					} else if(0 == hasTouch[n]) {
 						// going to 0 touches
-
-						// if this is size and we are looping:
-						// overwrite last few values in buffer to avoid
-						// discontinuity on release
-						bool optimizeForLoop = isSize(n) && (kInputModeLfo == inputMode);
-						gGestureRecorder.stopRecording(n, optimizeForLoop);
-						periodsInTables[n] = 1;
+						stopRecording[n] = true;
 					}
+				}
+				if(stopRecording[n] && gGestureRecorder.isRecording(n))
+				{
+					// if this is size and we are looping:
+					// overwrite last few values in buffer to avoid
+					// discontinuity on release
+					bool optimizeForLoop = isSize(n) && (kInputModeLfo == inputMode);
+					gGestureRecorder.stopRecording(n, optimizeForLoop);
+					periodsInTables[n] = 1;
+					recordingStopsWithButton[n] = false;
 				}
 			}
 		}
@@ -4512,6 +4532,7 @@ public:
 			setup(-1);
 		} else if (p.same(inputMode)) {
 			M(printf("RecorderMode: Updated inputMode: %d\n\r", inputMode.get()));
+			recordingStopsWithButton.fill(false);
 			circularMode = kCircularModeNew;
 			finaliseTrim();
 			if(kInputModeClock == inputMode)
@@ -4770,6 +4791,7 @@ private:
 	float circularModeViz = 0;
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton = true;
+	std::array<bool,kNumSplits> recordingStopsWithButton = {};
 	enum CircularMode {
 		kCircularModeNew,
 		kCircularModeOverwrite,
