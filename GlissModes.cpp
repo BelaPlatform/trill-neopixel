@@ -3752,14 +3752,17 @@ public:
 			{
 				for(size_t n = 0; n < kNumSplits; ++n)
 				{
-					// in envelope mode,
-					if(gGestureRecorder.isRecording(n)) { // TODO: this should not be allowed for kInputModeLfo
-						// if a button is pressed while recording
-						// we use this intermediate point to act as
-						// a separator between attack and release when playing back
-						envelopeReleaseStarts[n] = gGestureRecorder.rs[n].r.size();
-						lastIgnoredPressId = performanceBtn.pressId;
-						tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 150);
+					if(gGestureRecorder.isRecording(n))
+					{
+						if(kInputModeEnvelope == inputMode)
+						{
+							// if a button is pressed while recording
+							// we use this intermediate point to act as
+							// a separator between attack and release when playing back
+							envelopeReleaseStarts[n] = gGestureRecorder.rs[n].r.size();
+							lastIgnoredPressId = performanceBtn.pressId;
+							tri.buttonLedSet(TRI::kSolid, TRI::kG, 1, 150);
+						}
 					} else {
 						// if not recording, on button press we
 						// start the attack section of the envelope
