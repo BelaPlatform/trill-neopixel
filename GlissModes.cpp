@@ -4810,9 +4810,9 @@ private:
 	std::array<bool,kNumSplits> recordingStopsWithButton = {};
 	enum CircularMode {
 		kCircularModeNew,
-		kCircularModeOverwrite,
 		kCircularModeTrim,
 		kCircularModeNum,
+		kCircularModeOverwrite, // temporarily disabled
 	} circularMode;
 } gRecorderMode;
 #endif // ENABLE_RECORDER_MODE
