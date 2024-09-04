@@ -3803,7 +3803,7 @@ public:
 					{
 						auto& qrec = qrecs[n];
 						if(closeEnough && 0 == n)
-							printf("C %.3fs\n\r", lateSamples / context->analogSampleRate);
+							S(printf("C %.3fs\n\r", lateSamples / context->analogSampleRate));
 						switch(qrec.recording)
 						{
 						case kRecOnButton:
@@ -4105,7 +4105,7 @@ public:
 						}
 						qrecResetPhase[n] = true;
 						qrec.periodsInPlayback = 0;
-						// printf("%u periods\n\r", periodsInTables[n]);
+						S(printf("%u periods\n\r", periodsInTables[n]));
 						if(kStopNowLate == qrecStopNow[n])
 						{
 							// adjust the phase to make up for the lost time
