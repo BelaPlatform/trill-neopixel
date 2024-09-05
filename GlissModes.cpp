@@ -4392,6 +4392,12 @@ public:
 			static constexpr float kDisplayPeriod = 2; // seconds
 			for(size_t c = 0; c < currentSplits(); ++c)
 			{
+				if(stopRecording[c])
+				{
+					// one recorder just stopped recording:
+					// reset phase so we show the full waveform
+					idxFrac = 0;
+				}
 				if(TouchTracker::kIdInvalid == getId(twis, c))
 				{
 					preserveSplitLocationSize[c] = true;
@@ -4418,7 +4424,6 @@ public:
 				} else {
 					// visualise current touch
 					vizValues[c] = twis[c].touch;
-					idxFrac = 0; // prepare phase for next time we get to draw it
 				}
 			}
 			idxFrac += (context->analogFrames) / (context->analogSampleRate) / kDisplayPeriod;
