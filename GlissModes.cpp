@@ -3863,12 +3863,6 @@ public:
 		if(modeAllowsCircular())
 		{
 			CircularMode nextCircularMode = circularMode;
-			static int oldGAlt = gAlt;
-			if(!gAlt && oldGAlt) {
-				// Workaround to detect when we are exiting kCircularModeTrim or exiting menu
-				nextCircularMode = kCircularModeNew;
-			}
-			oldGAlt = gAlt;
 			if(performanceBtn.offset && lastIgnoredPressId != performanceBtn.pressId)
 			{
 				// NOTE: This won't be hit when exiting trimming as that's swallowed by menuBtn,
@@ -3882,15 +3876,12 @@ public:
 				nextCircularMode = kCircularModeNew;
 			if(circularMode != nextCircularMode)
 			{
-				circularMode = nextCircularMode;
-				if(kCircularModeTrim == circularMode)
-				{
-						menu_enterRangeDisplay(kRgbYellow, {kRgbGreen, kRgbGreen}, false, trimRangeBottom, trimRangeTop, circularModeViz);
-						// TODO: line below is just a workaround because we don't have a clean way of
-						// _exiting_ the menu from here while ignoring the _first_ slider readings
-						ledSliders.sliders[0].process(nullptr, nullptr, 0);
-				}
+				if(kCircularModeTrim == nextCircularMode)
+					overlayRangeInit(kRgbGreen, false, &trimRangeBottom, &trimRangeTop);
 			}
+			circularMode = nextCircularMode;
+			if(kCircularModeTrim == circularMode)
+				shouldLedSliderWork = false;
 		}
 
 		if(gAlt && kInputModeClock == inputMode && areRecording())
@@ -4475,6 +4466,15 @@ public:
 							np.setPixelColor(p, kRgbRed.scaledBy(0.2 * brightness));
 					}
 				}
+			}
+		}
+		if(modeAllowsCircular() && kCircularModeTrim == circularMode)
+		{
+			assert(!shouldLedSliderWork);
+			if(ledSliders.isTouchEnabled())
+			{
+				// draw overlay endpoints on top of regular visualisation
+				overlayRangeProcess(globalSlider, ledSliders.sliders[0], frameData->isNew);
 			}
 		}
 	}
