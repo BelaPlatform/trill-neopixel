@@ -3496,6 +3496,9 @@ static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
 	return ms;
 }
 
+static void overlayRangeInit(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop);
+static void overlayRangeProcess(CentroidDetectionScaled& inputSlider, LedSlider& ledSlider, bool isNew);
+
 #ifdef ENABLE_RECORDER_MODE
 #define MENU_ENTER_RANGE_DISPLAY
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
@@ -8540,6 +8543,18 @@ private:
 	const float* display;
 	bool clearBeforeDrawing;
 };
+
+static MenuItemTypeRangeDisplayCentroids overlayRange;
+
+void overlayRangeInit(const rgb_t& color, bool autoExit, ParameterContinuous* paramBottom, ParameterContinuous* paramTop)
+{
+	overlayRange = MenuItemTypeRangeDisplayCentroids(kRgbBlack, {color, color}, autoExit, paramBottom, paramTop, nullptr, nullptr, false);
+}
+
+void overlayRangeProcess(CentroidDetectionScaled& inputSlider, LedSlider& ledSlider, bool isNew)
+{
+	overlayRange.process(inputSlider, ledSlider, isNew);
+}
 
 static void requestIncMode()
 {
