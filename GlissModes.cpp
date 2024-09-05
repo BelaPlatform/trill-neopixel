@@ -9828,12 +9828,20 @@ void UiOrientation::setMenuSwapped(bool v)
 	{
 		menu = v;
 		// these modes need to reset their sliders when menuinvert changes
-#ifdef ENABLE_RECORDER_MODE
-		gRecorderMode.setup(-1);
-#endif
+		static std::array<PerformanceMode*,2> modes = {
 #ifdef ENABLE_DIRECT_CONTROL_MODE
-		gDirectControlMode.setup(-1);
+				&gDirectControlMode,
 #endif
+#ifdef ENABLE_RECORDER_MODE
+				&gRecorderMode,
+#endif
+		};
+		for(auto& m : modes)
+		{
+			// if it's the current mode, re-setup it
+			if(gp_getMode() == findModeIdx(*m))
+				m->setup(-1);
+		}
 	}
 }
 
