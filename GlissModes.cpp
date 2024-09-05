@@ -8401,12 +8401,16 @@ public:
 	{
 		Error_Handler(); // should call the other one
 	}
-	void process(LedSlider& slider, bool isNew) override
+	void process(LedSlider& ledSlider, bool isNew) override
+	{
+		process(ledSlider, ledSlider, isNew);
+	}
+	void process(CentroidDetectionScaled& inputSlider, LedSlider& ledSlider, bool isNew)
 	{
 		bool allLatched = false;
 		if(parameters[0] && parameters[1])
 		{
-			size_t numTouches = slider.getNumTouches();
+			size_t numTouches = inputSlider.getNumTouches();
 			if(numTouches)
 				hasHadTouch = true;
 			if(hasHadTouch)
@@ -8416,7 +8420,7 @@ public:
 				if(1 == numTouches)
 				{
 					// find which existing values this is closest to
-					float current = slider.touchLocation(0);
+					float current = inputSlider.touchLocation(0);
 					std::array<float,kNumEnds> diffs;
 					for(size_t n = 0; n < kNumEnds; ++n)
 						diffs[n] = std::abs(current - pastFrames[n].location);
@@ -8429,8 +8433,8 @@ public:
 					// the only touch we have is controlling the one that was closest to it
 					validTouch = (diffs[0] > diffs[1]);
 					// put the good one where it belongs
-					frames[validTouch].location = slider.touchLocation(0);
-					frames[validTouch].size = slider.touchSize(0);
+					frames[validTouch].location = inputSlider.touchLocation(0);
+					frames[validTouch].size = inputSlider.touchSize(0);
 					// and a non-touch on the other one
 					frames[!validTouch].location = 0;
 					frames[!validTouch].size = 0;
@@ -8438,8 +8442,8 @@ public:
 				{
 					for(size_t n = 0; n < kNumEnds; ++n)
 					{
-						frames[n].location = slider.touchLocation(n);
-						frames[n].size = slider.touchSize(n);
+						frames[n].location = inputSlider.touchLocation(n);
+						frames[n].size = inputSlider.touchSize(n);
 					}
 				}
 				std::array<LatchProcessor::Reason,2> isLatched;
@@ -8463,7 +8467,7 @@ public:
 					allLatched = isLatched.size() == numLatched;
 				}
 			}
-			updateDisplay(slider);
+			updateDisplay(ledSlider);
 		}
 		if(hasHadTouch && autoExit && allLatched)
 		{
