@@ -8511,18 +8511,20 @@ class MenuItemTypeRangeDisplayCentroids : public MenuItemTypeRange {
 public:
 	MenuItemTypeRangeDisplayCentroids(){}
 	MenuItemTypeRangeDisplayCentroids(const rgb_t& displayColor, const std::array<rgb_t,kNumEnds>& endpointsColor, bool autoExit,
-				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, PreprocessFn preprocess, const float& display) :
-		MenuItemTypeRange(endpointsColor[0], endpointsColor[1], autoExit, paramBottom, paramTop, preprocess), displayColor(displayColor), endpointsColor(endpointsColor), display(&display) {}
+				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, PreprocessFn preprocess, const float* display, bool clearBeforeDrawing = false) :
+		MenuItemTypeRange(endpointsColor[0], endpointsColor[1], autoExit, paramBottom, paramTop, preprocess), displayColor(displayColor), endpointsColor(endpointsColor), display(display), clearBeforeDrawing(clearBeforeDrawing) {}
 	void updateDisplay(LedSlider& slider) override
 	{
 		std::array<centroid_t,2> endpointsCentroids {
 			centroid_t{ pastFrames[0].location, 0.1 },
 			centroid_t{ pastFrames[1].location, 0.1 },
 		};
-		slider.directBegin();
+		if(clearBeforeDrawing)
+			slider.directBegin();
 		for(size_t n = 0; n < endpointsColor.size(); ++n)
 			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n], kRangeLedsPerCentroid);
-		slider.directWriteCentroid({ *display, 0.15 }, displayColor, kRangeLedsPerCentroid);
+		if(display)
+			slider.directWriteCentroid({ *display, 0.15 }, displayColor, kRangeLedsPerCentroid);
 #ifdef ENABLE_SCALE_METER_MODE
 		if(display == &gScaleMeterMode.inDisplay)
 			gScaleMeterMode.inDisplayUpdated = 10;
@@ -8532,6 +8534,7 @@ private:
 	rgb_t displayColor;
 	std::array<rgb_t,kNumEnds> endpointsColor; // TODO: delegate drawing endpoints to MenuItemTypeRange::updateDisplay() and avoid caching these colors here
 	const float* display;
+	bool clearBeforeDrawing;
 };
 
 static void requestIncMode()
@@ -9531,7 +9534,7 @@ static bool menuWaitsForTouchRelease;
 static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display)
 {
 	gAlt = 1;
-	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColors, autoExit, &bottom, &top, nullptr, display);
+	singleRangeDisplayMenuItem = MenuItemTypeRangeDisplayCentroids(signalColor, endpointsColors, autoExit, &bottom, &top, nullptr, &display);
 	menu_in(singleRangeDisplayMenu, kMenuInteractiveNow);
 }
 #endif // MENU_ENTER_RANGE_DISPLAY
