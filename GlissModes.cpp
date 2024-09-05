@@ -3856,6 +3856,7 @@ public:
 				}
 			}
 		}
+		bool shouldLedSliderWork = true;
 		if(modeAllowsCircular())
 		{
 			CircularMode nextCircularMode = circularMode;
@@ -4050,7 +4051,10 @@ public:
 				}
 			}
 		}
-		touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, ledSliders, 1, twis.data());
+		if(shouldLedSliderWork)
+			touchTrackerSplit(gTouchTracker, globalSlider, ledSliders.isTouchEnabled() && frameData->isNew, ledSliders, 1, twis.data());
+		else
+			twis = {};
 		for(size_t n = 0; n < currentSplits(); ++n)
 			twis[n].touch = processSize(twis[n].touch, n);
 		std::array<bool,kNumSplits> hasTouch;
