@@ -7305,32 +7305,15 @@ public:
 				break;
 			case kStateCalibrationAndTopOut:
 			{
-				switch(topOutState)
+				// process until calibration is done
+				if(!gCalibrationMode.done())
+					gCalibrationMode.render(context, frameData);
+				if(gCalibrationMode.done())
 				{
-					case kTopOutCalibrating:
-						// process until calibration is done
-						gCalibrationMode.render(context, frameData);
-						if(gCalibrationProcedure.done())
-						{
-							bool success = AnalogVerifier::formal(getCalibrationInput(), getCalibrationOutput());
-							if(success)
-							{
-								topOutState = kTopOutVerifying;
-								analogVerifier = AnalogVerifier(0);
-							} else
-								testFailed = true;
-						}
-						break;
-					case kTopOutVerifying:
-					{
-						int ret = analogVerifier.render(context);
-						if(ret)
-						{
-							stateSuccess = ret > 0;
-							testFailed |= ret < 0;
-						}
-					}
-						break;
+					if(gCalibrationMode.success())
+						stateSuccess = true;
+					else
+						testFailed = true;
 				}
 				break;
 			}
@@ -7422,7 +7405,6 @@ private:
 		case kStateCalibrationAndTopOut:
 			gCalibrationMode.setup(-1);
 			gCalibrationProcedure.start();
-			topOutState = kTopOutCalibrating;
 			break;
 		case kStateWiggleTop:
 			analogWiggler = AnalogWiggler();
@@ -7451,11 +7433,6 @@ private:
 		kNumStates,
 	};
 	State state = kStateButton;
-	enum TopOutState {
-		kTopOutCalibrating,
-		kTopOutVerifying,
-	};
-	TopOutState topOutState;
 	size_t stateSliderLedCount;
 	enum PadState {
 		kPadStateInitial,
