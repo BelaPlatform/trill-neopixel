@@ -7473,7 +7473,7 @@ private:
 		if(!gAlt)
 		{
 			//viz during test
-			bool highSide = uio.touchStripSwapped() ? 0 == outCh : 1 == outCh;
+			bool highSide = (uio.outputsSwapped() == uio.touchStripSwapped()) ? 0 == outCh : 1 == outCh;
 			if(!testFailed)
 			{
 				rgb_t color = kRgbYellow;
