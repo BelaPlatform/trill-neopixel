@@ -6871,6 +6871,73 @@ static rgb_t crossfade(const rgb_t& a, const rgb_t& b, float idx)
 	};
 }
 
+class AnalogVerifier {
+private:
+	uint64_t lastSet;
+	float value;
+	size_t channel;
+	size_t failCount;
+	bool inited;
+	void setValue(uint64_t now, float val)
+	{
+		lastSet = now;
+		value = val;
+		failCount = 0;
+	}
+public:
+	AnalogVerifier(size_t channel):
+		channel(channel),
+		inited(false)
+	{}
+	int render(BelaContext* context)
+	{
+		static constexpr float kThreshold = 0.05;
+		static constexpr size_t kMaxFails = 5;
+		uint64_t now = context->audioFramesElapsed;
+		if(!inited)
+		{
+			setValue(now, 0.05);
+			inited = true;
+		}
+		bool outOfRange = false;
+		// a generous wait between starting to write a value and reading it back
+		// this is for two reasons:
+		// - a longer wait is needed when resetting from 1 to 0
+		// because of the external capacitance and large voltage swing
+		// - much larger wait is used for channel 1 so that the procedure takes
+		// long enough that the operator notices it happens
+		if(now - lastSet >= context->analogFrames * 12 * (0 == channel ? 1 : 5))
+		{
+			float minDiff = 10000;
+			float maxDiff = -1;
+			for(size_t n = 0; n < context->analogFrames; ++n)
+			{
+				float diff = value - analogRead(context, n, 0);
+				if(std::abs(diff) > kThreshold)
+					outOfRange = true;
+				maxDiff = std::max(maxDiff, diff);
+				minDiff = std::min(minDiff, diff);
+			}
+			if(outOfRange)
+				failCount++;
+			if(outOfRange && failCount < kMaxFails)
+				printf(".");
+			else if(kMaxFails == failCount || !outOfRange)
+			{
+				printf("%d,o:%.2f,%s,{%.5f,%.5f}\n\r", channel, value, outOfRange ? "FAIL" : "PASS", minDiff, maxDiff);
+			}
+			if(!outOfRange)
+				setValue(now, value + 0.05);
+		}
+		analogWrite(context, 0, channel, value);
+		if(failCount > kMaxFails)
+			return -1;
+		if(value > 0.99) // done successfully
+			return 1;
+		return 0;
+	}
+};
+
 static constexpr rgb_t kCalibrationColor = kRgbRed;
 class CalibrationMode : public PerformanceModeWithoutRanges {
 	enum Animation {
@@ -7343,72 +7410,7 @@ private:
 	size_t finalButtonCount;
 	bool stateSuccess = false;
 	bool testFailed;
-	class AnalogVerifier {
-	private:
-		uint64_t lastSet;
-		float value;
-		size_t channel;
-		size_t failCount;
-		bool inited;
-		void setValue(uint64_t now, float val)
-		{
-			lastSet = now;
-			value = val;
-			failCount = 0;
-		}
-	public:
-		AnalogVerifier(size_t channel):
-			channel(channel),
-			inited(false)
-		{}
-		int render(BelaContext* context)
-		{
-			static constexpr float kThreshold = 0.05;
-			static constexpr size_t kMaxFails = 5;
-			uint64_t now = context->audioFramesElapsed;
-			if(!inited)
-			{
-				setValue(now, 0.05);
-				inited = true;
-			}
-			bool outOfRange = false;
-			// a generous wait between starting to write a value and reading it back
-			// this is for two reasons:
-			// - a longer wait is needed when resetting from 1 to 0
-			// because of the external capacitance and large voltage swing
-			// - much larger wait is used for channel 1 so that the procedure takes
-			// long enough that the operator notices it happens
-			if(now - lastSet >= context->analogFrames * 12 * (0 == channel ? 1 : 5))
-			{
-				float minDiff = 10000;
-				float maxDiff = -1;
-				for(size_t n = 0; n < context->analogFrames; ++n)
-				{
-					float diff = value - analogRead(context, n, 0);
-					if(std::abs(diff) > kThreshold)
-						outOfRange = true;
-					maxDiff = std::max(maxDiff, diff);
-					minDiff = std::min(minDiff, diff);
-				}
-				if(outOfRange)
-					failCount++;
-				if(outOfRange && failCount < kMaxFails)
-					printf(".");
-				else if(kMaxFails == failCount || !outOfRange)
-				{
-					printf("%d,o:%.2f,%s,{%.5f,%.5f}\n\r", channel, value, outOfRange ? "FAIL" : "PASS", minDiff, maxDiff);
-				}
-				if(!outOfRange)
-					setValue(now, value + 0.05);
-			}
-			analogWrite(context, 0, channel, value);
-			if(failCount > kMaxFails)
-				return -1;
-			if(value > 0.99) // done successfully
-				return 1;
-			return 0;
-		}
-	} analogVerifier = AnalogVerifier(0);
+	AnalogVerifier analogVerifier {0};
 	class AnalogWiggler {
 	private:
 		size_t count;
