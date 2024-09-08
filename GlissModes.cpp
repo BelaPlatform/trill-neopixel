@@ -6961,6 +6961,7 @@ class CalibrationMode : public PerformanceModeWithoutRanges {
 	size_t demoModeCount;
 	size_t demoModeState;
 	double lastClickMs;
+	AnalogVerifier analogVerifier {0};
 	static constexpr uint32_t kInvalidMs = -1;
 	static constexpr float kPostClickTimeoutMs = 300;
 	void resetDemoMode()
@@ -6968,6 +6969,13 @@ class CalibrationMode : public PerformanceModeWithoutRanges {
 		demoModeCount = 0;
 		demoModeState = 0;
 	}
+	enum VerifierState {
+		kStateNotRunning,
+		kStateFormal,
+		kStateRunning,
+		kStateSuccess,
+		kStateFailed,
+	} state;
 public:
 	CalibrationMode(const rgb_t& color) :
 		baseColor(color),
@@ -6987,23 +6995,24 @@ public:
 			LedSlider::MANUAL_CENTROIDS
 		);
 		lastClickMs = kInvalidMs;
+		state = kStateNotRunning;
 		return true;
 	}
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		gOutMode.fill(kOutModeManualBlock);
+		gOutMode.fill(kOutModeManualSample);
 		// these may be overridden below if calibration is done
 		gOutUsesCalibration = false;
 		gInUsesCalibration = false;
 		gInUsesRange = false;
 		gOutUsesRange = {false, false};
 		uint32_t tick = HAL_GetTick();
-		// wait for button press to start or stop calibration.
+		// wait for button press to start or stop calibration or exit mode
 		ButtonView btn = ButtonViewSimplify(performanceBtn);
 		bool shouldRestart = false;
-		if(gCalibrationProcedure.done())
+		if(done() && success())
 		{
-			// if procedure is complete, postpone the effect of a click until
+			// if procedure is successful, postpone the effect of a click until
 			// we verify whether it's a double click or not.
 			if(btn.offset)
 			{
@@ -7032,9 +7041,14 @@ public:
 			gCalibrationProcedure.toggle();
 			resetDemoMode();
 		}
+		bool wasDone = gCalibrationProcedure.done();
 		gCalibrationProcedure.process(context);
+		if(!wasDone && gCalibrationProcedure.done())
+		{
+			state = kStateFormal;
+		}
 
-		Animation animation;
+		Animation animation = kStatic;
 		CalibrationProcedure::Calibration_t calibrationState = gCalibrationProcedure.getState();
 		size_t begin = 8;
 		size_t end = 16;
@@ -7059,30 +7073,60 @@ public:
 			gInUsesCalibration = true;
 			gInUsesRange = false; // still disabled: want to get actual volts
 			gOutUsesRange = {false, false}; // still disabled: want to get actual volts
-			static constexpr std::array<float,4> kTestVoltages = {0, 5, 10, -5};
-			demoModeCount++;
-			if((demoModeCount % 300) == 0)
-				printf("%.4f->%.3fV\n\r", analogRead(context, 0, 0), inToV(analogRead(context, 0, 0)));
-			if(3000 == demoModeCount)
+			if(kStateFormal == state)
 			{
-				demoModeCount = 0;
-				demoModeState++;
-				if(demoModeState == kTestVoltages.size())
-					demoModeState = 0;
+				if(AnalogVerifier::formal(getCalibrationInput(), getCalibrationOutput()))
+				{
+					analogVerifier = AnalogVerifier(0);
+					state = kStateRunning;
+				} else {
+					printf("Formal validation failed\n\r");
+					state = kStateFailed;
+				}
+			} else
+			if(kStateRunning == state)
+			{
+				int ret = analogVerifier.render(context);
+				if(ret)
+				{
+					if(ret > 0)
+						state = kStateSuccess;
+					else
+						state = kStateFailed;
+				}
+			} else {
+				static constexpr std::array<float,4> kTestVoltages = {0, 5, 10, -5};
+				demoModeCount++;
+				if((demoModeCount % 300) == 0)
+					printf("%.4f->%.3fV\n\r", analogRead(context, 0, 0), inToV(analogRead(context, 0, 0)));
+				if(3000 == demoModeCount)
+				{
+					demoModeCount = 0;
+					demoModeState++;
+					if(demoModeState == kTestVoltages.size())
+						demoModeState = 0;
+				}
+				LedSlider& sl = ledSliders.sliders[0];
+				float v = kTestVoltages[demoModeState];
+				if(sl.getNumTouches()) // draw voltage quantised to 1V
+					v = round(normToVfs(sl.compoundTouchLocation()));
+				float out = vToOut(v);
+				for(size_t c = 0; c < kNumOutChannels; ++c)
+					analogWrite(context, 0, c, out);
+				if(CalibrationProcedure::kDone == calibrationState)
+					animation = kGlow;
+				else
+					animation = kStatic;
+				begin = out * (np.getNumPixels() - 1);
+				end = begin + 1;
 			}
-			LedSlider& sl = ledSliders.sliders[0];
-			float v = kTestVoltages[demoModeState];
-			if(sl.getNumTouches()) // draw voltage quantised to 1V
-				v = round(normToVfs(sl.compoundTouchLocation()));
-			float out = vToOut(v);
-			gManualAnOut[0] = out;
-			gManualAnOut[1] = out;
-			if(CalibrationProcedure::kDone == calibrationState)
-				animation = kGlow;
-			else
-				animation = kStatic;
-			begin = out * (np.getNumPixels() - 1);
-			end = begin + 1;
+			if(done())
+			{
+				if(kStateSuccess == state)
+					tri.buttonLedSet(TRI::kSolid, TRI::kG, 1);
+				else if(kStateFailed == state)
+					tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
+			}
 		}
 			break;
 		}
@@ -7115,6 +7159,14 @@ public:
 	void updatePreset() override
 	{
 		gCalibrationProcedure.updatePreset();
+	}
+	bool done()
+	{
+		return gCalibrationProcedure.done() && (kStateSuccess == state || kStateFailed == state);
+	}
+	bool success()
+	{
+		return done() && kStateSuccess == state;
 	}
 } gCalibrationMode(kCalibrationColor);
 
