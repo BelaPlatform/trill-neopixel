@@ -6936,6 +6936,17 @@ public:
 			return 1;
 		return 0;
 	}
+	static bool formal(const CalibrationData& inCal, const CalibrationData& outCal)
+	{
+		const auto& in = inCal.values;
+		const auto& out = outCal.values;
+		// calibration is done, check if its values make sense
+		return (in[0] > 0 && in[0] < 0.1
+			&& in[2] > 0.9 && in[2] < 4095.f/4096.f
+			&& out[0] > 0 && out[0] < 0.1
+			&& out[2] > 0.9 && out[2] < 4095.f/4096.f
+		);
+	}
 };
 
 static constexpr rgb_t kCalibrationColor = kRgbRed;
@@ -7249,14 +7260,8 @@ public:
 						gCalibrationMode.render(context, frameData);
 						if(gCalibrationProcedure.done())
 						{
-							auto& in = getCalibrationInput().values;
-							auto& out = getCalibrationOutput().values;
-							// calibration is done, check if its values make sense
-							if(in[0] > 0 && in[0] < 0.1
-								&& in[2] > 0.9 && in[2] < 4095.f/4096.f
-								&& out[0] > 0 && out[0] < 0.1
-								&& out[2] > 0.9 && out[2] < 4095.f/4096.f
-							)
+							bool success = AnalogVerifier::formal(getCalibrationInput(), getCalibrationOutput());
+							if(success)
 							{
 								topOutState = kTopOutVerifying;
 								analogVerifier = AnalogVerifier(0);
