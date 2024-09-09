@@ -8559,7 +8559,7 @@ class MenuItemTypeRangeDisplayCentroids : public MenuItemTypeRange {
 public:
 	MenuItemTypeRangeDisplayCentroids(){}
 	MenuItemTypeRangeDisplayCentroids(const rgb_t& displayColor, const std::array<rgb_t,kNumEnds>& endpointsColor, bool autoExit,
-				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, PreprocessFn preprocess, const float* display, bool clearBeforeDrawing = false) :
+				ParameterContinuous* paramBottom,ParameterContinuous* paramTop, PreprocessFn preprocess, const float* display, bool clearBeforeDrawing = true) :
 		MenuItemTypeRange(endpointsColor[0], endpointsColor[1], autoExit, paramBottom, paramTop, preprocess), displayColor(displayColor), endpointsColor(endpointsColor), display(display), clearBeforeDrawing(clearBeforeDrawing) {}
 	void updateDisplay(LedSlider& slider) override
 	{
