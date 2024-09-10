@@ -402,6 +402,29 @@ static float finalise(float value)
 #endif
 }
 
+template <typename T>
+class SmootherT
+{
+	T past = 0;
+public:
+	SmootherT() {};
+	SmootherT(T val) : past(val) {}
+	T process(T in, T alpha)
+	{
+		T out = past * alpha + in * (T(1) - alpha);
+		past = out;
+		return out;
+	}
+	void set(T val)
+	{
+		past = val;
+	}
+	T get()
+	{
+		return past;
+	}
+};
+
 static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationData& cal, float value)
 {
 	float gnd = cal.values[1];
@@ -795,8 +818,7 @@ void tr_render(BelaContext* context)
 		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
 		rangeGnd[n] = gnd; // we do not constrain, so this could be negative if gnd is out of the range
 	}
-	typedef float SmoothFloat;
-	static std::array<SmoothFloat,kNumOutChannels> pastOut {};
+	static std::array<SmootherT<float>,kNumOutChannels> smoothers {};
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
 		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
@@ -813,16 +835,15 @@ void tr_render(BelaContext* context)
 			}
 			static auto pastSmoothed = smoothed;
 			static std::array<bool,kNumOutChannels> pastStartWasNoOutput{true, true};
+			float rescaled = rescaleOutput(false, channel, outCal, start);
 			if(smoothed[channel] && !pastSmoothed[channel])
 			{
 				// if we haven't processed the channel for some time, reset the filter
-				pastOut[channel] = rescaleOutput(false, channel, outCal, start);
+				smoothers[channel].set(rescaled);
 				pastStartWasNoOutput[channel] = true;
 			}
 			pastSmoothed[channel] = smoothed[channel];
-			SmoothFloat rescaled = rescaleOutput(false, channel, outCal, start);
-			SmoothFloat tmp = pastOut[channel];
-			SmoothFloat alpha;
+			float alpha;
 			bool startIsNoOutput = (start == kNoOutput);
 			if(smoothed[channel])
 			{
@@ -833,9 +854,8 @@ void tr_render(BelaContext* context)
 			} else
 				alpha = 0;
 			pastStartWasNoOutput[channel] = startIsNoOutput;
-			SmoothFloat out = tmp * alpha + rescaled * (1 - alpha);
+			float out = smoothers[channel].process(rescaled, alpha);
 			analogWriteOnce(context, n, channel, out);
-			pastOut[channel] = out;
 			outDiffs[channel] = out - rescaled;
 		}
 	}
@@ -843,7 +863,7 @@ void tr_render(BelaContext* context)
 	// This may be used by some modes that need it for visualisation purposes.
 	for(size_t c = 0; c < kNumOutChannels; ++c)
 	{
-		pastOutReverseMapped[c] = reverseRescaleOutput(false, c, outCal, pastOut[c]);
+		pastOutReverseMapped[c] = reverseRescaleOutput(false, c, outCal, smoothers[c].get());
 	}
 
 	// we do the loop again to swap channels if needed
