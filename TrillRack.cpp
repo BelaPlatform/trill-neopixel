@@ -31,7 +31,7 @@ extern void ledSlidersFixedButtonsProcess(LedSliders& sl, std::vector<bool>& sta
 std::array<float,kNumOutChannels> gManualAnOut;
 
 #define STM32_NEOPIXEL
-
+// #define PRINT_CPU_TIME
 // Gliss revs:
 // 1: no logo, exposed copper, non-inverting I/O, only used internally
 // 2: logo, exposed copper, inverting I/O, first beta testing
@@ -150,9 +150,37 @@ void tr_snpDone()
 }
 #endif // STM32_NEOPIXEL
 
+#ifdef PRINT_CPU_TIME
+// https://community.st.com/t5/stm32-mcus-products/how-do-you-measure-the-execution-cpu-cycles-for-a-section-of/td-p/213709
+//****************************************************************************
+
+volatile unsigned int *DWT_CYCCNT   = (volatile unsigned int *)0xE0001004;
+volatile unsigned int *DWT_CONTROL  = (volatile unsigned int *)0xE0001000;
+volatile unsigned int *DWT_LAR      = (volatile unsigned int *)0xE0001FB0;
+volatile unsigned int *SCB_DHCSR    = (volatile unsigned int *)0xE000EDF0;
+volatile unsigned int *SCB_DEMCR    = (volatile unsigned int *)0xE000EDFC;
+volatile unsigned int *ITM_TER      = (volatile unsigned int *)0xE0000E00;
+volatile unsigned int *ITM_TCR      = (volatile unsigned int *)0xE0000E80;
+static int Debug_ITMDebug = 0;
+
+void EnableTiming(void)
+{
+  if ((*SCB_DHCSR & 1) && (*ITM_TER & 1)) // Enabled?
+    Debug_ITMDebug = 1;
+
+  *SCB_DEMCR |= 0x01000000;
+  *DWT_LAR = 0xC5ACCE55; // enable access
+  *DWT_CYCCNT = 0; // reset the counter
+  *DWT_CONTROL |= 1 ; // enable the counter
+}
+#endif // PRINT_CPU_TIME
+
 int tr_setup()
 {
 	printf("stringId: %s\n\r", kVerificationBlock.stringId);
+#ifdef PRINT_CPU_TIME
+	EnableTiming();
+#endif // PRINT_CPU_TIME
 #ifdef TRILL_BAR
 	padsToOrderMap.resize(kNumPads);
 	for(size_t n = 0; n < padsToOrderMap.size(); ++n)
@@ -250,9 +278,31 @@ int tr_setup()
 }
 
 extern "C" void processMidiMessage(void);
+#ifdef PRINT_CPU_TIME
+static volatile unsigned int minTime = -1;
+static volatile unsigned int maxTime = 0;
+static volatile uint32_t cpuReportsCount = 0;
+static size_t samplesPerBlock;
+static float sampleRate;
+float cpuPercentage(unsigned int val)
+{
+	return 100 * val / float(170000000) / (samplesPerBlock / sampleRate);
+}
+#endif // PRINT_CPU_TIME
+
 void tr_mainLoop()
 {
 #ifndef TEST_MODE
+#ifdef PRINT_CPU_TIME
+	static uint32_t lastPrinted = 0;
+	if(lastPrinted != cpuReportsCount)
+	{
+		lastPrinted = cpuReportsCount;
+		printf("%7.4f%% %7.4f%%\n\r", cpuPercentage(minTime), cpuPercentage(maxTime));
+		minTime = 0;
+		maxTime = 0;
+	}
+#endif
 	if(!gAlt)
 	{
 		int ret = presetCheckSave();
@@ -506,6 +556,11 @@ static std::array<float,kNumOutChannels> pastOutReverseMapped {};
 
 void tr_render(BelaContext* context)
 {
+#ifdef PRINT_CPU_TIME
+	auto cpuCyclesStart = *DWT_CYCCNT;
+	samplesPerBlock = context->analogFrames;
+	sampleRate = context->analogSampleRate;
+#endif // PRINT_CPU_TIME
 	gp_processIncoming();
 	static uint32_t pastFrameId = kInvalidFrameId;
 	uint32_t frameId = trillFrameId.load();
@@ -946,6 +1001,28 @@ void tr_render(BelaContext* context)
 		analogWriteOnce(context, n , 1, (osc + 2048) / 4096.f);
 	}
 #endif
+#ifdef PRINT_CPU_TIME
+	{
+		auto time = *DWT_CYCCNT - cpuCyclesStart;
+		static decltype(time) minTime = -1;
+		static decltype(time) maxTime = 0;
+		static unsigned int count = 0;
+
+		if(time < minTime)
+			minTime = time;
+		if(time > maxTime)
+			maxTime = time;
+		if(++count == 500)
+		{
+			count = 0;
+			::maxTime = maxTime;
+			::minTime = minTime;
+			cpuReportsCount++;
+			minTime = -1;
+			maxTime = 0;
+		}
+	}
+#endif // PRINT_CPU_TIME
 }
 
 float getOutputSmoothDiff(size_t idx)
