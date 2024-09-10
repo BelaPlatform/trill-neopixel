@@ -425,6 +425,38 @@ public:
 	}
 };
 
+class Smoother
+{
+	SmootherT<double> db;
+	SmootherT<float> fl;
+	bool doub = false;
+public:
+	Smoother() {};
+	void setDoublePrecision(bool doub)
+	{
+		this->doub = doub;
+	}
+	float process(float in, float alpha)
+	{
+		if(doub)
+			return db.process(in, alpha);
+		else
+			return fl.process(in, alpha);
+	}
+	void set(float val)
+	{
+		db.set(val);
+		fl.set(val);
+	}
+	float get()
+	{
+		if(doub)
+			return db.get();
+		else
+			return fl.get();
+	}
+};
+
 static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationData& cal, float value)
 {
 	float gnd = cal.values[1];
@@ -818,7 +850,13 @@ void tr_render(BelaContext* context)
 		float gnd = (0 == n ? gOutRangeTop : gOutRangeBottom).getGnd();
 		rangeGnd[n] = gnd; // we do not constrain, so this could be negative if gnd is out of the range
 	}
-	static std::array<SmootherT<float>,kNumOutChannels> smoothers {};
+	static std::array<Smoother,kNumOutChannels> smoothers {};
+	for(size_t c = 0; c < kNumOutChannels; ++c)
+	{
+		// double precision is expensive so we use it only if we are expecting
+		// alphas very close to 1
+		smoothers[c].setDoublePrecision(kOutModeManualBlockCustomSmoothed == gOutMode[c]);
+	}
 	for(unsigned int n = 0; n < context->analogFrames; ++n)
 	{
 		for(unsigned int channel = 0; channel < kNumOutChannels; ++channel)
