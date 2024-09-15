@@ -9,6 +9,7 @@
 #include "packed.h"
 #include "bootloader.h"
 #include <tuple>
+#include <math.h>
 
 #define SIZE(a) (std::tuple_size<decltype(a)>::value) // gives you a constexpr size of the tuple
 #define FILL_ARRAY(name, ...) [this](){decltype(name) a; a.fill( __VA_ARGS__); return a;}()
@@ -95,6 +96,26 @@ constexpr size_t kNumModes = 3 // calibration, factorytest and erasesettings are
 #endif
 		; // kNumModes
 
+static float standardDeviation(const float* data, size_t size)
+{
+	// std (x) = sqrt ((1 / (N-1)) * SUM_i ((x(i) - mean(x))^2))
+	float mean = 0;
+	for(size_t n = 0; n < size; ++n)
+	{
+		// for small enough size we shouldn't have numerical problems and we save some
+		// multiplications by accumulating first and dividing in one go
+		mean += data[n];
+	}
+	mean /= float(size);
+
+	float sum = 0;
+	for(size_t n = 0; n < size; ++n)
+	{
+		float val = data[n] - mean;
+		sum += val * val;
+	}
+	return sqrtf((1.f / (size - 1)) * sum);
+}
 template <typename T>
 T fixedOrientation(T pos, T max)
 {
@@ -3378,8 +3399,6 @@ static float linearInterpolation(float frac, float pastValue, float value)
 {
 	return (1.f - frac) * pastValue + frac * value;
 }
-
-#include <math.h>
 
 static inline float vToFreq(float volts, float baseFreq)
 {
