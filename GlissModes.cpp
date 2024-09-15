@@ -892,6 +892,7 @@ private:
 	}
 	float guessHoldValue()
 	{
+		static constexpr size_t kMaxSpuriousRelease = 5;
 		// guess location value to hold
 		centroid_t frame0 = pastFrames[getPastFrame(0)];
 		if(0 == frame0.location || 1 == frame0.location)
@@ -900,8 +901,35 @@ private:
 			// latch to the actual edge.
 			return frame0.location;
 		} else {
-			// get the oldest value in the history
-			return pastFrames[getOldestFrame()].location;
+			size_t length = std::min(validFrames, kHistoryLength);
+			if(length < 2 * kMaxSpuriousRelease)
+			{
+				// if we don't have enough samples, take them at face value:
+				// hold the last one
+				return pastFrames[getPastFrame(0)].location;
+			}
+			// otherwise, look at the temporal evolution of the samples in the buffer
+			std::array<float,kHistoryLength> history;
+			for(size_t n = 0; n < length; ++n)
+				history[n] = pastFrames[getPastFrame(length - 1 - n)].location;
+			float std = standardDeviation(history.data(), length - kMaxSpuriousRelease);
+			float releaseDiff = 0;
+			float releaseRef = history[length - kMaxSpuriousRelease - 1];
+			// see how much the last few frames depart from a 'supposedly good' one
+			for(size_t n = length - kMaxSpuriousRelease; n < length; ++n)
+				releaseDiff = std::max(releaseDiff, std::abs(releaseRef - history[n]));
+			if(std < 0.004 && releaseDiff < 0.035)
+			{
+				// recent history was static and the release transient
+				// was accidental:
+				// get the oldest frame in history
+				return pastFrames[getOldestFrame()].location;
+			} else {
+				// recent history was dynamic or the release transient
+				// was intentional:
+				// get most recent frame
+				return pastFrames[getPastFrame(0)].location;
+			}
 		}
 	}
 	static constexpr size_t kHistoryLength = 15;
