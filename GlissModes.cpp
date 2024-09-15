@@ -987,6 +987,7 @@ public:
 		kLatchNone,
 		kLatchAuto,
 		kLatchManual,
+		kLatchSingleFrame,
 	};
 	LatchProcessor() {
 		reset();
@@ -1028,17 +1029,38 @@ public:
 				}
 			}
 		}
-		if(autoLatch)
 		{
 			// try to hold without button
 			for(size_t n = 0; n < numValues; ++n)
 			{
+				if(kLatchSingleFrame == isLatched[n])
+				{
+					// In the past call we sent out the latched value.
+					// Now we can reset the flag.
+					isLatched[n] = kLatchNone;
+					isNew = true; // force the autolatched to update its output, even if this frame is not actually new
+				}
 				if(!isLatched[n])
 				{
 					bool autoLatchStarts = false;
 					autoLatchers[n].process(isNew, values[n], autoLatchStarts);
 					if(autoLatchStarts && kLatchNone == latchStarts[n])
-						latchStarts[n] = kLatchAuto;
+					{
+						if(autoLatch)
+						{
+							latchStarts[n] = kLatchAuto;
+						} else {
+							// we "latched" according to the autoLatcher, which means
+							// touch size went to zero and values has been updated
+							// with the latched values. We send this out for this frame only,
+							// then the flag is reset automatically.
+							// This is a workaround to allow DirectControlMode to be notified
+							// in advance that a release is about to start so that it can
+							// tweak the output filter to ensure the release
+							// smoothing starts from the correct value.
+							latchStarts[n] = kLatchSingleFrame;
+						}
+					}
 				}
 			}
 		}
@@ -1073,6 +1095,7 @@ public:
 			// or leave them untouched
 		}
 		isLatchedRet = isLatched;
+
 	}
 private:
 	std::array<Reason,kMaxNumValues> isLatched;
@@ -3169,6 +3192,15 @@ public:
 			pastAsrHasTouch[n] = asrHasTouch;
 			wasLatched[refIdx] = isLatched[refIdx];
 			gCustomSmoothedAlpha[n] = getAlpha(n);
+			if(LatchProcessor::kLatchSingleFrame == isLatched[refIdx] && !outIsSize(n) && kAsrSustain == asrs[n])
+			{
+				// we are not formally latching, but a touch just ended
+				// so for this frame only we are latching.
+				// If output is location, set alpha to 0 to reset the output filter so that
+				// from the next frame we can start decaying from the
+				// "correct" (latched) value
+				gCustomSmoothedAlpha[n] = 0;
+			}
 
 			// adjust size / color of visualisation, based on each asr (and more)
 			bool vizFollowsSmooth = true;
