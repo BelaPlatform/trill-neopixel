@@ -820,20 +820,13 @@ public:
 			return;
 		if(validFrames && pastFrames[getPastFrame(0)].size && !frame.size) // if size went to zero
 		{
-			// use the oldest frame we have for location, keeping whatever size we have been using
 			if(validFrames) {
-				frame = centroid_t {
-						.location = pastFrames[getOldestFrame()].location,
-						.size = lastOutSize,
-				};
-				centroid_t frame0 = pastFrames[getPastFrame(0)];
-				// If sliding off either edge of the slider, using the above method
-				// you'd latch to a value that may be far off from the edge - depending
-				// on how fast you have been sliding.
-				// Instead, you'd expect to latch to the actual edge.
-				// Here we detect if we actually were at the edge
-				if(0 == frame0.location || 1 == frame0.location)
-					frame.location = frame0.location;
+				// keep whatever size we have been using,
+				// which may already be a delayed version,
+				// designed to jump over the release transient
+				frame.size = lastOutSize;
+				// For location, things are more complicated
+				frame.location = guessHoldValue();
 			}
 			latchStarts = true;
 			idx = 0;
@@ -891,6 +884,20 @@ private:
 		// go back in the circular buffer to the oldest valid value.
 		lastGood = (idx - 1 - back + kHistoryLength) % kHistoryLength;
 		return lastGood;
+	}
+	float guessHoldValue()
+	{
+		// guess location value to hold
+		centroid_t frame0 = pastFrames[getPastFrame(0)];
+		if(0 == frame0.location || 1 == frame0.location)
+		{
+			// If sliding off either edge of the slider,
+			// latch to the actual edge.
+			return frame0.location;
+		} else {
+			// get the oldest value in the history
+			return pastFrames[getOldestFrame()].location;
+		}
 	}
 	static constexpr size_t kHistoryLength = 15;
 	static constexpr size_t kMaxSizeDelay = std::min(12u, kHistoryLength - 1); // could be even less than this, if desired
