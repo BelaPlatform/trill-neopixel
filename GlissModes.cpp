@@ -33,7 +33,7 @@ static constexpr rgb_t kRgbBlack {0, 0, 0};
 static constexpr float kMenuButtonDefaultBrightness = 0.2;
 static constexpr float kMenuButtonActiveBrightness = 0.7;
 static constexpr float kDefaultThreshold = 0.03;
-const float kAsymmetricalSplitPoint = 0.15;
+const float kAsymmetricalSplitPoint = 0.2;
 static constexpr size_t kRangeLedsPerCentroid = 2;
 
 constexpr size_t kMaxBtnStates = 7;
