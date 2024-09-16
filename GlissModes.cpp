@@ -817,7 +817,10 @@ public:
 	void process(bool isNew, centroid_t& frame, bool& latchStarts)
 	{
 		if(!isNew)
+		{
+			frame.size = lastOutSize;
 			return;
+		}
 		if(validFrames && pastFrames[getPastFrame(0)].size && !frame.size) // if size went to zero
 		{
 			if(validFrames) {
@@ -865,6 +868,8 @@ public:
 			// output the delayed size
 			frame.size = newSize;
 			lastOutSize = frame.size;
+		} else {
+			lastOutSize = 0;
 		}
 	}
 private:
