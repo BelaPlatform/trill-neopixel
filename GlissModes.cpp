@@ -4489,6 +4489,21 @@ public:
 			while(idxFrac >= 1)
 				idxFrac -= 1;
 		}
+		if(kInputModePhasor == inputMode)
+		{
+			if(kCircularModeNew == circularMode)
+			{
+				for(size_t c = 0; c < currentSplits(); ++c)
+				{
+					// follow finger position while we are drawing
+					// this is decoupled from the actual output (which
+					// depends on the current input value), but
+					// it is clearer for the user
+					if(twis[c].touch.size)
+						vizValues[c] = twis[c].touch;
+				}
+			}
+		}
 		circularModeViz = vizValues[0].location;
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
