@@ -3053,7 +3053,7 @@ public:
 				// in attack
 				if(kAutoLatchLocationOnly == autoLatch && 0 == n)
 				{
-					if(LatchProcessor::kLatchAuto == isLatched[n])
+					if(LatchProcessor::kLatchAuto == isLatched[refIdx])
 					{
 						asrHasTouch = true;
 					}
@@ -3080,7 +3080,7 @@ public:
 						S(printf("%d rel\n\r", n));
 						asrs[n] = kAsrRelease;
 					}
-					else if(!pastAsrHasTouch[n] && isLatched[n] == wasLatched[n])
+					else if(!pastAsrHasTouch[n] && isLatched[refIdx] == wasLatched[refIdx])
 					{
 						// Above checks are to make sure we don't get here by mistake
 						// as soon as the touch has ended or latch is released, just
@@ -3126,7 +3126,7 @@ public:
 						crossedOver = true;
 				}
 				bool shouldAttack = false;
-				if(wasLatched[n] != isLatched[n] && hasActualTouch) {
+				if(wasLatched[refIdx] != isLatched[refIdx] && hasActualTouch) {
 					// a new touch has hit the touchstrip that was previously latched
 					// we force jump to attack even if we didn't do release previously
 					shouldAttack = true;
@@ -3167,7 +3167,7 @@ public:
 					pastOsd[n] = osd;
 			}
 			pastAsrHasTouch[n] = asrHasTouch;
-			wasLatched[n] = isLatched[n];
+			wasLatched[refIdx] = isLatched[refIdx];
 			gCustomSmoothedAlpha[n] = getAlpha(n);
 
 			// adjust size / color of visualisation, based on each asr (and more)
