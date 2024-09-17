@@ -199,7 +199,7 @@ public:
 	{
 		maxTrackingDistance = d;
 	}
-	void process(CentroidDetection& slider) {
+	void process(const CentroidDetection& slider) {
 		// cache previous readings
 		std::array<TouchWithId,kMaxTouches> prevSortedTouches = sortedTouches;
 		size_t prevNumTouches = numTouches;
@@ -2646,7 +2646,7 @@ void touchTrackerSplit(TouchTracker& touchTracker, const CentroidDetection& slid
 {
 	size_t numSplits = ls.sliders.size();
 	if(shouldProcess)
-		touchTracker.process(globalSlider);
+		touchTracker.process(slider);
 	size_t numTouches = touchTracker.getNumTouches();
 	for(size_t s = 0; s < numSplits; ++s)
 	{
