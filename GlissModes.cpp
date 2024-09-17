@@ -3591,9 +3591,6 @@ static void overlayRangeInit(const rgb_t& color, bool autoExit, ParameterContinu
 static void overlayRangeProcess(CentroidDetectionScaled& inputSlider, LedSlider& ledSlider, bool isNew);
 
 #ifdef ENABLE_RECORDER_MODE
-#define MENU_ENTER_RANGE_DISPLAY
-static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
-
 class RecorderMode : public SplitPerformanceMode {
 public:
 	enum InputMode {
@@ -4938,14 +4935,13 @@ private:
 static void menu_up();
 
 #ifdef ENABLE_SCALE_METER_MODE
-#define MENU_ENTER_RANGE_DISPLAY
-static void menu_enterRangeDisplay(const rgb_t& signalColor, const std::array<rgb_t,2>& endpointsColors, bool autoExit, ParameterContinuous& bottom, ParameterContinuous& top, const float& display);
 
 class ScaleMeterMode : public PerformanceMode {
 public:
 	static constexpr size_t kCentroidSize = 2;
 	bool setup(double ms) override
 	{
+		adjusting = kAdjustingNone;
 		count = 0;
 		x1 = 0;
 		y1 = 0;
@@ -4983,33 +4979,28 @@ public:
 
 	void render(BelaContext* context, FrameData* frameData) override
 	{
-		// we can quickly get into menu mode from here
-		if(!gAlt)
+		static size_t pastNumTouches;
+		size_t numTouches = ledSliders.sliders[0].getNumTouches();
+		if(numTouches && !pastNumTouches && kAdjustingNone == adjusting)
 		{
-			if(!performanceBtn.pressed && ledSliders.sliders[0].getNumTouches())
+			adjusting = kAdjustingOut;
+			overlayRangeInit(kRgbYellow, true, &outRangeMin, &outRangeMax);
+		}
+		if(!numTouches && pastNumTouches && kAdjustingOut == adjusting)
+		{
+			adjusting = kAdjustingNone;
+		}
+		if(performanceBtn.offset)
+		{
+			if(kAdjustingIn == adjusting)
 			{
-				// only touch on: set output range
-				menu_enterRangeDisplay(signalColor, {endpointsColorOut, endpointsColorOut}, true, outRangeMin, outRangeMax, outDisplay);
-				// TODO: line below is just a workaround because we don't have a clean way of
-				// _entering_ menu from here while ignoring the _last_ slider readings,
-				// resulting in automatically re-entering immediately after exiting
-				ledSliders.sliders[0].process(nullptr, nullptr, 0);
-			}
-			if(performanceBtn.offset)
-			{
-				// press button: set input range
-				menu_enterRangeDisplay(signalColor, {endpointsColorIn, endpointsColorIn}, false, inRangeBottom, inRangeTop, inDisplay);
-				// TODO: line below is just a workaround because we don't have a clean way of
-				// _exiting_ the menu from here while ignoring the _first_ slider readings
-				ledSliders.sliders[0].process(nullptr, nullptr, 0);
+				adjusting = kAdjustingNone;
+			} else {
+				adjusting = kAdjustingIn;
+				overlayRangeInit(kRgbRed, false, &inRangeBottom, &inRangeTop);
 			}
 		}
-		// ugly workaround to turn on the red LED when in the "clipping" page
-		if(inDisplayUpdated)
-		{
-			inDisplayUpdated--;
-			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1);
-		}
+		pastNumTouches = numTouches;
 		float outVizThrough = 0;
 		float outVizEnv = 0;
 		for(size_t n = 0; n < context->analogFrames; ++n)
@@ -5078,43 +5069,59 @@ public:
 			}
 		}
 		// displays if in In/OutRange mode
-		outDisplay = mapAndConstrain(outVizThrough, 0, 1, outRangeMin, outRangeMax);
-		inDisplay = analogRead(context, 0, 0); // we always display the input range full-scale.
-		// displays if in pure performance mode
-		std::array<centroid_t,kNumOutChannels> centroids {};
-		bool hasEnvelope = kOutputModeNN != outputMode;
-		bool hasNormal = kOutputModeEE != outputMode;
-		if(hasNormal)
-		{
-			centroids[0].location = outDisplay;
-			centroids[0].size = kFixedCentroidSize;
-		}
-		const float kMagicLogCorrection = 2.f;
-		if(hasEnvelope)
-		{
-			if(kCouplingAcRms == coupling)
-				outVizEnv = log10f(1.f + kMagicLogCorrection * outVizEnv * 9.f);
-			centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMin, outRangeMax);
-			centroids[1].size = kFixedCentroidSize;
-		}
+		float outDisplay = mapAndConstrain(outVizThrough, 0, 1, outRangeMin, outRangeMax);
 		ledSliders.sliders[0].directBegin(); // clears display
-		if(kCouplingAcRms == coupling)
+		if(kAdjustingNone == adjusting)
 		{
-			//display color bar
-			if(ledSliders.areLedsEnabled())
+			// displays if in pure performance mode
+			std::array<centroid_t,kNumOutChannels> centroids {};
+			bool hasEnvelope = kOutputModeNN != outputMode;
+			bool hasNormal = kOutputModeEE != outputMode;
+			if(hasNormal)
 			{
-				float throughLog = log10f(1.f + kMagicLogCorrection * outVizThrough * 9.f);
-				colorBar(throughLog, outRangeMin * kNumLeds, outRangeMax * kNumLeds, kRgbGreen, kRgbRed);
+				centroids[0].location = outDisplay;
+				centroids[0].size = kFixedCentroidSize;
 			}
-		}
-		for(size_t n = 0; n < centroids.size(); ++n)
-		{
-			rgb_t color;
-			if(kCouplingDc == coupling)
-				color = signalColor;
-			else
-				color = crossfade(kRgbGreen, kRgbRed, map(centroids[n].location, outRangeMin, outRangeMax, 0, 1));
-			ledSliders.sliders[0].directWriteCentroid(centroids[n], color, kRangeLedsPerCentroid);
+			const float kMagicLogCorrection = 2.f;
+			if(hasEnvelope)
+			{
+				if(kCouplingAcRms == coupling)
+					outVizEnv = log10f(1.f + kMagicLogCorrection * outVizEnv * 9.f);
+				centroids[1].location = mapAndConstrain(outVizEnv, 0, 1, outRangeMin, outRangeMax);
+				centroids[1].size = kFixedCentroidSize;
+			}
+			if(kCouplingAcRms == coupling)
+			{
+				//display color bar
+				if(ledSliders.areLedsEnabled())
+				{
+					float throughLog = log10f(1.f + kMagicLogCorrection * outVizThrough * 9.f);
+					colorBar(throughLog, outRangeMin * kNumLeds, outRangeMax * kNumLeds, kRgbGreen, kRgbRed);
+				}
+			}
+			for(size_t n = 0; n < centroids.size(); ++n)
+			{
+				rgb_t color;
+				if(kCouplingDc == coupling)
+					color = signalColor;
+				else
+					color = crossfade(kRgbGreen, kRgbRed, map(centroids[n].location, outRangeMin, outRangeMax, 0, 1));
+				ledSliders.sliders[0].directWriteCentroid(centroids[n], color, kRangeLedsPerCentroid);
+			}
+		} else {
+			float display = 0;
+			if(kAdjustingIn == adjusting)
+			{
+				// we always display the input range full-scale.
+				display = analogRead(context, 0, 0);
+				tri.buttonLedSet(TRI::kSolid, TRI::kR, 2);
+			} else if(kAdjustingOut == adjusting)
+			{
+				display = outDisplay;
+			}
+			ledSliders.sliders[0].directWriteCentroid({ .location = display, .size = kFixedCentroidSize}, kRgbGreen, kRangeLedsPerCentroid);
+			// draw overlay endpoints on top of regular visualisation
+			overlayRangeProcess(globalSlider, ledSliders.sliders[0], frameData->isNew);
 		}
 	}
 
@@ -5290,10 +5297,12 @@ public:
 		int coupling;
 		float cutoff;
 	} presetFieldData;
-	size_t inDisplayUpdated;
-	float inDisplay;
+	enum {
+		kAdjustingNone,
+		kAdjustingOut,
+		kAdjustingIn,
+	} adjusting;
 private:
-	float outDisplay;
 	float decay;
 	float analogReadMapped(BelaContext* context, size_t frame, size_t channel)
 	{
@@ -8679,10 +8688,6 @@ public:
 			slider.directWriteCentroid(endpointsCentroids[n], endpointsColor[n], kRangeLedsPerCentroid);
 		if(display)
 			slider.directWriteCentroid({ *display, 0.15 }, displayColor, kRangeLedsPerCentroid);
-#ifdef ENABLE_SCALE_METER_MODE
-		if(display == &gScaleMeterMode.inDisplay)
-			gScaleMeterMode.inDisplayUpdated = 10;
-#endif // ENABLE_SCALE_METER_MODE
 	}
 private:
 	rgb_t displayColor;
