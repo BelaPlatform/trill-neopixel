@@ -34,21 +34,21 @@ void LedSlider::setLedsRaw(const float* values)
 	memcpy(ledValues.data(), values, ledValues.size() * sizeof(ledValues[0]));
 }
 
-void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length)
+void LedSlider::setLedsCentroids(const centroid_t* values, unsigned int length, bool replace)
 {
 	ledCentroids.resize(length);
 	for(unsigned int n = 0; n < length && n < ledCentroids.size(); ++n)
 		ledCentroids[n] = values[n];
-	updateLeds();
+	updateLeds(replace);
 }
 
-void LedSlider::process(const float* newLocations, const float* newSizes, unsigned int length)
+void LedSlider::process(const float* newLocations, const float* newSizes, unsigned int length, bool replace)
 {
 	if(touchEnabled)
 	{
 		CentroidSettableScaled::set(newLocations, newSizes, length);
 	}
-	updateLeds();
+	updateLeds(replace);
 }
 
 void LedSlider::enableTouch(bool enable)
@@ -154,7 +154,7 @@ int LedSlider::writeCentroidToArray(const centroid_t& centroid, size_t numWeight
 	return 0;
 }
 
-void LedSlider::updateLeds()
+void LedSlider::updateLeds(bool replace)
 {
 	if(MANUAL_DIRECT == mode)
 		return;
@@ -176,8 +176,17 @@ void LedSlider::updateLeds()
 	// MANUAL_RAW will have set ledValues elsewhere
 	// so at this point ledValues is all set and we use it to set the LEDs
 	for(unsigned int n = 0; n < ledValues.size(); ++n)
-		np->setPixelColor(ledOffset + n, clipLed(color.r * ledValues[n]),
-				clipLed(color.g * ledValues[n]), clipLed(color.b * ledValues[n]));
+	{
+		size_t idx = ledOffset + n;
+		rgb_t base { 0, 0, 0};
+		if(!replace)
+		{
+			for(size_t c = 0; c < base.size(); ++c)
+				base[c] = np->getPixelChannel(idx, c);
+		}
+		np->setPixelColor(idx, clipLed(base.r + color.r * ledValues[n]),
+				clipLed(base.g + color.g * ledValues[n]), clipLed(base.b + color.b * ledValues[n]));
+	}
 }
 
 LedSliders::LedSliders(const Settings& settings)

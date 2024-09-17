@@ -28,8 +28,8 @@ public:
 	void setColor(const rgb_t& color);
 	void setLedMode(LedMode_t mode);
 	void setLedsRaw(const float* values);
-	void setLedsCentroids(const centroid_t* values, unsigned int length);
-	void process(const float* locations, const float* sizes, unsigned int length);
+	void setLedsCentroids(const centroid_t* values, unsigned int length, bool replace = true);
+	void process(const float* locations, const float* sizes, unsigned int length, bool replace = true);
 	void enableTouch(bool enable);
 	void enableLeds(bool enable);
 	void directBegin(bool clear = true);
@@ -37,7 +37,7 @@ public:
 	centroid_t& operator[](size_t i) {return ledCentroids[i];}
 	static int writeCentroidToArray(const centroid_t& centroid, size_t numWeights, float* dest, size_t destSize);
 private:
-	void updateLeds();
+	void updateLeds(bool replace);
 	NeoPixel* np;
 	unsigned int ledOffset;
 	rgb_t color;

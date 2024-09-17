@@ -3297,6 +3297,18 @@ public:
 				gManualAnOut[n] = values[n].location;
 			}
 		}
+		for(size_t n = 0; n < currentSplits(); ++n)
+		{
+			if(!outIsSize(n) && kAsrSustain != asrs[n])
+			{
+				// if touch location, draw current location under the finger
+				ledSliders.sliders[n].directBegin(false);
+				ledSliders.sliders[n].directWriteCentroid({
+					.location = values[n].location,
+					.size = std::max(values[n].size, kDummySize), // size may have gone to zero if latching position only
+				} , color);
+			}
+		}
 	}
 	void animate(Parameter& p, LedSlider& l, rgb_t color, uint32_t ms) override
 	{
