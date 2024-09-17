@@ -3302,11 +3302,15 @@ public:
 			if(!outIsSize(n) && kAsrSustain != asrs[n])
 			{
 				// if touch location, draw current location under the finger
-				ledSliders.sliders[n].directBegin(false);
-				ledSliders.sliders[n].directWriteCentroid({
-					.location = values[n].location,
-					.size = std::max(values[n].size, kDummySize), // size may have gone to zero if latching position only
-				} , color);
+				float size = values[n].size;
+				if(kAutoLatchLocationOnly == autoLatch && LatchProcessor::kLatchAuto == isLatched[n])
+						size = std::max(values[n].size, kDummySize); // size may have gone to zero if latching location only
+				centroid_t centroid = {
+						.location = values[n].location,
+						.size = size,
+				};
+				ledSliders.sliders[n].setColor(color);
+				ledSliders.sliders[n].setLedsCentroids(&centroid, 1, false);
 			}
 		}
 	}
