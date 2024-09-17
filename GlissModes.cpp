@@ -2785,7 +2785,7 @@ protected:
 				out[l] = touchOrNot(values[l]).location;
 
 				size_t s = asymSplits.size;
-				float start = 0.5;
+				float start = 0.8;
 				if(!uio.touchStripSwapped())
 					start -= 0.05;
 				ledSliders.sliders[s].setColor(colors[s]);
@@ -2851,7 +2851,7 @@ private:
 	{
 		// Use multiple centroids to make a bigger dot.
 		// Their spacing increases with the size
-		std::array<centroid_t,kNumSplits> centroids;
+		std::array<centroid_t,3> centroids;
 		float spread = 0.15f * std::min(1.f, value);
 		for(size_t c = 0; c < centroids.size(); ++c)
 		{
