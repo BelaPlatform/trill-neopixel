@@ -630,6 +630,12 @@ void tr_render(BelaContext* context)
 
 	float min = kSliderBottomMargin;
 	float max = 1.f - kSliderTopMargin;
+	if(gAlt && 5 == ledSlidersAlt.sliders.size())
+	{
+		// tweak to get more accurate mapping of the menu selectors to the LEDs
+		max = uio.touchStripSwapped() ? 1 : max;
+		min = uio.menuSwapped() ? 0.1 : min;
+	}
 	if(uio.touchStripSwapped())
 		std::swap(min, max);
 	globalSlider.setUsableRange(min, max);

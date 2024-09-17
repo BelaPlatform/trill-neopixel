@@ -600,16 +600,14 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 	float guardLeds = 2;
 	float nextPad = 0;
 	size_t nextLed = 0;
-	if(uio.touchStripSwapped() && 5 == numSplits && 2 == LedSlider::kDefaultNumWeights)
+	float shortenFirst = 0;
+	if(uio.menuSwapped() && 5 == numSplits && 2 == LedSlider::kDefaultNumWeights)
 	{
 		// With 2 guardLeds, each split uses 3 LEDs; however
 		// with kDefaultNumWeights == 2, this in practice means that only 2 LEDs are used
 		// and so the last LEDs will be dark with the normal orientation.
-		// When inverting the touchStrip, this would mean that the LEDs end up being
-		// further away from the jack sockets and slightly offset with respect to the slider
-
-		// here we compensate for that with an extra offset
-		nextLed = 1;
+		// here we provide an adjustment so that 1U looks like jacks on top.
+		shortenFirst = 1;
 	}
 	for(size_t n = 0; n < numSplits; ++n)
 	{
@@ -623,7 +621,7 @@ static void ledSlidersSetupMultiSlider(LedSliders& ls, std::vector<rgb_t> const&
 				longerSplit = 1 == n;
 			coeff = 2 * (longerSplit ? (1.f - kAsymmetricalSplitPoint) : kAsymmetricalSplitPoint);
 		}
-		float activeLeds = ((kNumLeds - (guardLeds * (numSplits - 1))) * coeff) / numSplits;
+		float activeLeds = ((kNumLeds - (guardLeds * (numSplits - 1))) * coeff) / numSplits - (0 == n ? shortenFirst : 0);
 		size_t firstLed = nextLed;
 		size_t lastLed = firstLed + activeLeds;
 		if(2 == numSplits && numSplits - 1 == n && lastLed != kNumLeds)
