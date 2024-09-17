@@ -3766,6 +3766,7 @@ public:
 				|| (eraseOnTriple && performanceBtn.tripleClick)
 			)
 		{
+			recordingStopsWithButton.fill(false);
 			std::array<bool,kNumSplits> shouldClear {};
 			if(isSplit()) {
 				// if it's split, allow to delete only one of the two if you have a finger on it
