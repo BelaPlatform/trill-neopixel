@@ -4554,8 +4554,35 @@ public:
 					size_t size = np.getNumPixels() / currentSplits();
 					size_t start;
 					if(isSplit())
-						start = (1 - n) * size + 1; // 1 - n because top split is number 0 but LEDs start counting from bottom split
-					else
+					{
+						if(isAsymmetricalSplit())
+						{
+							size_t shortOne = kAsymmetricalSplitPoint * np.getNumPixels();
+							size_t longOne = (1.f - kAsymmetricalSplitPoint) * np.getNumPixels();
+							size = n == asymSplits.location ? longOne : shortOne;
+							if(1 == asymSplits.location)
+							{
+								if(0 == n)
+									start = 0;
+								else
+									start = shortOne;
+							}
+							else
+							{
+								if(1 == n)
+									start = 0;
+								else
+									start = shortOne;
+							}
+						} else {
+							size_t idx;
+							if(1 == asymSplits.location)
+								idx = n;
+							else
+								idx = !n;
+							start = idx * size + 1;
+						}
+					} else
 						start = 0;
 					for(size_t p = start; p < start + size - 1 && p < np.getNumPixels(); ++p)
 					{
