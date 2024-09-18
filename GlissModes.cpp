@@ -814,7 +814,7 @@ public:
 	// return: may modify frame and latchStarts
 	void process(bool isNew, centroid_t& frame, bool& latchStarts)
 	{
-		if(!isNew)
+		if(!isNew && validFrames)
 		{
 			frame.size = lastOutSize;
 			return;
