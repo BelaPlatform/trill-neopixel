@@ -3031,7 +3031,7 @@ public:
 			}
 		}
 		std::array<bool,kNumSplits> shouldOverrideOuts = { false, false };
-		static constexpr float kDummySize = 0.3f * kFixedCentroidSize;
+		static constexpr float kDummySize = 0.4f * kFixedCentroidSize;
 		if(hasSizeOutput() && !shouldAutoLatchSize())
 		{
 			for(size_t n = 0; n < isLatched.size() && n < currentSplits(); ++n)
@@ -3215,10 +3215,26 @@ public:
 			bool vizFollowsSmooth = true;
 			if(vizFollowsSmooth)
 			{
+				// in here we draw an altColor centroid which is added to the `color` one
+				// representing the touch (drawn after renderOut). If the one we draw here is location,
+				// it fades out as it approaches the one representing the touch.
+				// TODO: see if locationShouldAltViz() is still meaningful
+				float gain = 1;
+				float diff = std::abs(getOutputSmoothDiffNormalised(refIdx));
+				if(diff < 0.4f)
+					gain = diff / 0.4f;
 				if(isSplit())
 				{
 					if(getAlpha(n) <= kAlphaDefault) // avoid fleeting flickering animations when alpha is real small
+					{
+						if(!outIsSize(n))
+						{
+							// avoid generating a altColor centroid that overlaps with the color one
+							// TODO: better place this
+							displayValues[n] = {0,0};
+						}
 						continue;
+					}
 					if(kAsrDone == asrs[n])
 					{
 						// if the envelope is done, there's nothing to do here
@@ -3256,7 +3272,7 @@ public:
 					} else {
 						// is position
 						if(locationShouldAltViz(n))
-							colors[n] = altColor;
+							colors[n] = altColor.scaledBy(gain);
 						displayValues[n].location = getOutputReverseMap(n);
 						// if a split is location, we give it a dummy small size for viz purposes
 						// during attack and release
@@ -3279,6 +3295,7 @@ public:
 						continue;
 					if(locationShouldAltViz(0) || (!asrHasTouch && locationShouldAltViz(1)))
 						colors[0] = altColor;
+					colors[0].scale(gain);
 					// avoid fleeting flickering animations on attack and release when alpha is real small
 					if(getAlpha(0) > kAlphaDefault || getAlpha(1) > kAlphaDefault) {
 						displayValues[0].location = getOutputReverseMap(0);
@@ -3310,12 +3327,14 @@ public:
 		}
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
-			if(!outIsSize(n) && kAsrSustain != asrs[n])
+			if(!outIsSize(n))
 			{
 				// if touch location, draw current location under the finger
 				float size = values[n].size;
-				if(kAutoLatchLocationOnly == autoLatch && LatchProcessor::kLatchAuto == isLatched[n])
-						size = std::max(values[n].size, kDummySize); // size may have gone to zero if latching location only
+				if(isSplit()) // disregard actual touch size if not represented
+					size = (values[n].size > 0) * kFixedCentroidSize;
+				if(!isSplit() && kAutoLatchLocationOnly == autoLatch && LatchProcessor::kLatchAuto == isLatched[n])
+						size = std::max(size, kDummySize); // size may have gone to zero if latching location only
 				centroid_t centroid = {
 						.location = values[n].location,
 						.size = size,
@@ -3460,7 +3479,7 @@ private:
 		// more relaxed "closeEnough" for viz only
 		// we use this for turning the color to default whenever we are visually "close enough"
 		// to it, to avoid agonizing slow approach
-		bool closeEnoughAltColor = std::abs(getOutputSmoothDiff(n)) > 0.02;
+		bool closeEnoughAltColor = std::abs(getOutputSmoothDiff(n)) > 0.0005;
 		return (kAsrAttack == asrs[n] && closeEnoughAltColor)
 				|| kAsrRelease == asrs[n];
 	}
