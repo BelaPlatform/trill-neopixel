@@ -4353,6 +4353,7 @@ public:
 			recIns[1] = 1 == asymSplits.size ? t1.size : t1.location;
 			break;
 		}
+		bool muteSizeOutputForGate = false;
 		// gesture may be overwritten below before it is visualised
 		for(size_t n = 0; n < recIns.size(); ++n)
 		{
@@ -4395,7 +4396,7 @@ public:
 							// constant value (1)
 							// Let's make sure we get a "gate-like" signal instead
 							// by setting the first few frames of the gesture to 0
-							gesture[n].sample = 0;
+							muteSizeOutputForGate = true;
 							// NOTE: we could have made it so that we set the _last_ few frames to 0, but that
 							// would mean that the first gesture wouldn't get a "gate", so we opt for this even if
 							// it leads to a slight offset between gesture starts and gate out
@@ -4586,6 +4587,10 @@ public:
 		}
 		// this may set gManualAnOut even if they are ignored
 		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize, {color, color});
+		if(muteSizeOutputForGate)
+		{
+			gManualAnOut[1] = kNoOutput;
+		}
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
 			// reset the flashes after a timeout
