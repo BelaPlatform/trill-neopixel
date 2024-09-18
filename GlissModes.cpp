@@ -3147,7 +3147,11 @@ public:
 						crossedOver = true;
 				}
 				bool shouldAttack = false;
-				if(wasLatched[refIdx] != isLatched[refIdx] && hasActualTouch) {
+				if(
+					(wasLatched[refIdx] && !isLatched[refIdx])
+					   && LatchProcessor::kLatchSingleFrame != wasLatched[refIdx]
+					   && hasActualTouch)
+				{
 					// a new touch has hit the touchstrip that was previously latched
 					// we force jump to attack even if we didn't do release previously
 					shouldAttack = true;
