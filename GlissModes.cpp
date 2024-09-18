@@ -3336,7 +3336,8 @@ public:
 				float size = values[n].size;
 				if(isSplit()) // disregard actual touch size if not represented
 					size = (values[n].size > 0) * kFixedCentroidSize;
-				if(!isSplit() && kAutoLatchLocationOnly == autoLatch && LatchProcessor::kLatchAuto == isLatched[n])
+
+				if((!isSplit() || asymSplits.location == n) && kAutoLatchLocationOnly == autoLatch && LatchProcessor::kLatchAuto == isLatched[n])
 						size = std::max(size, kDummySize); // size may have gone to zero if latching location only
 				centroid_t centroid = {
 						.location = values[n].location,
