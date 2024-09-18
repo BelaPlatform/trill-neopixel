@@ -1038,6 +1038,18 @@ float getOutputSmoothDiff(size_t idx)
 	return 0;
 }
 
+float getOutputSmoothDiffNormalised(size_t idx)
+{
+	if(idx < kNumOutChannels)
+	{
+		float min;
+		float max;
+		getRangeMinMax(false, idx, min, max);
+		return getOutputSmoothDiff(idx) * 15.f / std::abs(max - min);
+	}
+	return 0;
+}
+
 float getOutputReverseMap(size_t idx)
 {
 	if(idx < kNumOutChannels)
