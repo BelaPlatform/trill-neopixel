@@ -5574,7 +5574,7 @@ public:
 		if(ms <= 0)
 		{
 			ledSlidersSetupOneSlider(colors[0], LedSlider::MANUAL_CENTROIDS);
-			gOutMode.fill(kOutModeManualBlock);
+			gOutMode.fill(kOutModeManualBlockCustomSmoothed);
 			changeState(kDisabled, {0, 0});
 		}
 		changePage(kPagePerf);
@@ -5601,6 +5601,7 @@ public:
 	}
 	void render(BelaContext* context, FrameData* frameData)
 	{
+		gCustomSmoothedAlpha = { kAlphaDefault, seqMode ? 0 : kAlphaDefault };
 		constexpr float kDefaultSize = 0.5;
 		ButtonView btn = ButtonViewSimplify(performanceBtn);
 		gInUsesRange = false;
