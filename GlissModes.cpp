@@ -3400,8 +3400,30 @@ public:
 					constexpr float kDeadZone = 0.03;
 					constexpr float kMinTau = 1.f / SAMPLE_RATE / (1.f - kAlphaDefault);
 					float val = smooths[n];
-					float smooth = mapAndConstrain(val, kDeadZone, 1, 0, 1);
-					float tau = kMinTau + powf(smooth, 5.3) * 20;
+					std::array<float,4> divisions = { 0, kDeadZone, 0.4, 0.8 };
+					std::array<float,4> values = { kMinTau * 5, 0.8, 9.2, 90 };
+					float time = 0;
+					float sum = 0;
+					for(size_t n = 0; n < divisions.size(); ++n)
+					{
+						float start = divisions[n];
+						float stop = n < divisions.size() - 1 ? divisions[n + 1] : 1.0000001;
+						if(val >= start && val < stop)
+						{
+							if(0 == n)
+							{
+								// dead zone
+								time = values[0];
+							} else {
+								stop = constrain(stop, 0, 1);
+								float norm = mapAndConstrain(val, start, stop, 0, 1);
+								time = sum + values[n] * norm * norm;
+							}
+							break;
+						}
+						sum += values[n];
+					}
+					float tau = time / 5;
 					alphas[n] = 1.f - (1.f / SAMPLE_RATE / tau);
 					M(printf("DirectControlMode: %.4fs -> %0.10f\n\r", tau, alphas[n]));
 				}
