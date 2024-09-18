@@ -3022,7 +3022,14 @@ public:
 		}
 		// make a copy before possibly removing size
 		std::array<centroid_t,kNumSplits> displayValues = values;
-
+		for(size_t n = 0; n < currentSplits() && isSplit(); ++n)
+		{
+			if(!outIsSize(n))
+			{
+				// if the centroid should have a fixed size, overwite the actual size with it
+				displayValues[n].size = displayValues[n].size ? kFixedCentroidSize : 0;
+			}
+		}
 		std::array<bool,kNumSplits> shouldOverrideOuts = { false, false };
 		static constexpr float kDummySize = 0.3f * kFixedCentroidSize;
 		if(hasSizeOutput() && !shouldAutoLatchSize())
