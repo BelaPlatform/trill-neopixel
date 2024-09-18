@@ -3644,7 +3644,7 @@ static float interpolatedRead(const T* table, size_t size, float idx, TreatNoOut
 template <typename T>
 static float interpolatedRead(const T& table, float idx, TreatNoOutput treat = kTreatAssumeNot)
 {
-	return interpolatedRead(table.data(), table.size(), idx);
+	return interpolatedRead(table.data(), table.size(), idx, treat);
 }
 
 static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)
