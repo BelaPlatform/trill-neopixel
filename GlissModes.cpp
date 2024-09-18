@@ -3295,12 +3295,14 @@ public:
 						continue;
 					if(locationShouldAltViz(0) || (!asrHasTouch && locationShouldAltViz(1)))
 						colors[0] = altColor;
-					colors[0].scale(gain);
+					float size = displayValues[0].size;
 					// avoid fleeting flickering animations on attack and release when alpha is real small
 					if(getAlpha(0) > kAlphaDefault || getAlpha(1) > kAlphaDefault) {
 						displayValues[0].location = getOutputReverseMap(0);
-						displayValues[0].size = getOutputReverseMap(1);
+						size = getOutputReverseMap(1);
 					}
+					if(kAsrRelease != asrs[1])
+						size *= gain;
 					if((getAlpha(0) > kAlphaDefault || asrs[0] == kAsrSustain)
 							&& kAsrDone != asrs[0]
 							&& (kAsrDone == asrs[1] || kAsrRelease == asrs[1])
@@ -3310,8 +3312,9 @@ public:
 						// of shorter smoothing or because only location is latched),
 						// then there would be no size left to show the location.
 						// Here we give it at least a dummy small size for viz purposes.
-						displayValues[0].size = std::max(displayValues[0].size, kDummySize);
+						size = std::max(size, kDummySize);
 					}
+					displayValues[0].size = size;
 				}
 			}
 			// do not put anything useful here as we may have continued the loop in the previous block
