@@ -2768,7 +2768,9 @@ protected:
 				else
 					start = 0.63;
 				if(uio.touchStripSwapped())
-					start += 0.1;
+					start += 0.05 - n * 0.05;
+				if(uio.menuSwapped())
+					start += 0.05 + n * 0.05;
 				drawSizeSplit(ledSliders.sliders[n], start, displayValues[n].size);
 				out[n] = touchOrNot(values[n]).size;
 			}
