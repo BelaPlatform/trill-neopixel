@@ -9674,7 +9674,7 @@ void requestNewMode(int mode, bool forceSave)
 		// but avoid the set() to trigger a circular call to requestNewMode()
 		if(modeShouldBeSaved(mode) || forceSave)
 			gGlobalSettings.newMode.set(mode);
-		if(modeShouldBeSaved(oldMode))
+		if(modeShouldBeSaved(oldMode) && kFactoryTestModeIdx != oldMode) // never go back to factory test
 			gOldMode = oldMode;
 	}
 	menu_updateSubmenu();
