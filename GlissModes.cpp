@@ -4526,7 +4526,7 @@ public:
 		}
 		static constexpr centroid_t kInvalid = {0, 0};
 		// visualise
-		std::array<centroid_t,kNumSplits> vizValues;
+		std::array<centroid_t,kNumSplits> values;
 		std::array<bool,2> isSizeOnly = {
 				kModeSplitSize == splitMode || (kModeSplitLocationSize == splitMode && 0 == asymSplits.size),
 				kModeSplitSize == splitMode || (kModeSplitLocationSize == splitMode && 1 == asymSplits.size),
@@ -4536,19 +4536,19 @@ public:
 			{
 				if(gesture[n].valid)
 				{
-					vizValues[n].location = gesture[n].sample;
-					vizValues[n].size = isSizeOnly[n] ? gesture[n].sample : kFixedCentroidSize;
+					values[n].location = gesture[n].sample;
+					values[n].size = isSizeOnly[n] ? gesture[n].sample : kFixedCentroidSize;
 				} else {
-					vizValues[n] = kInvalid;
+					values[n] = kInvalid;
 				}
 			}
 		} else {
 			if(gesture.first.valid && gesture.second.valid)
 			{
-				vizValues[0].location = gesture.first.sample;
-				vizValues[0].size = gesture.second.sample;
+				values[0].location = gesture.first.sample;
+				values[0].size = gesture.second.sample;
 			} else
-				vizValues[0] = kInvalid;
+				values[0] = kInvalid;
 		}
 		std::array<bool,kNumSplits> preserveSplitLocationSize {};
 		if(kInputModeCv == inputMode)
@@ -4568,28 +4568,28 @@ public:
 				{
 					preserveSplitLocationSize[c] = true;
 					const auto table = getTable(c);
-					vizValues[c] = {};
+					values[c] = {};
 					if(table.size())
 					{
 						// visualise with fix period
-						vizValues[c].location = interpolatedRead(table, idxFrac, kTreatPassThrough);
+						values[c].location = interpolatedRead(table, idxFrac, kTreatPassThrough);
 						if(isSplit())
 						{
-							vizValues[c].size = isSizeOnly[c] ? vizValues[c].location : kFixedCentroidSize;
+							values[c].size = isSizeOnly[c] ? values[c].location : kFixedCentroidSize;
 						} else {
 							// be explicit about indeces here, as we are only here if c == 0
 							const auto table = getTable(1);
 							if(table.size())
-								vizValues[0].size = interpolatedRead(table, idxFrac, kTreatPassThrough);
+								values[0].size = interpolatedRead(table, idxFrac, kTreatPassThrough);
 							else // shouldn't get here
-								vizValues[0].size = kFixedCentroidSize;
+								values[0].size = kFixedCentroidSize;
 						}
 						// animate the centroid so you can tell it's not "real" but fixed period
-						vizValues[c].size *= 0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed, unsigned(context->analogSampleRate * 0.1f));
+						values[c].size *= 0.1f + 0.9f * simpleTriangle(context->audioFramesElapsed, unsigned(context->analogSampleRate * 0.1f));
 					}
 				} else {
 					// visualise current touch
-					vizValues[c] = twis[c].touch;
+					values[c] = twis[c].touch;
 				}
 			}
 			idxFrac += (context->analogFrames) / (context->analogSampleRate) / kDisplayPeriod;
@@ -4607,7 +4607,7 @@ public:
 					// depends on the current input value), but
 					// it is clearer for the user
 					if(twis[c].touch.size)
-						vizValues[c] = twis[c].touch;
+						values[c] = twis[c].touch;
 				}
 			}
 		}
@@ -4616,8 +4616,9 @@ public:
 			rgb_t sliderColor = color;
 			ledSliders.sliders[n].setColor(sliderColor);
 		}
+		auto displayValues = values;
 		// this may set gManualAnOut even if they are ignored
-		renderOut(gManualAnOut, vizValues, vizValues, preserveSplitLocationSize, {color, color});
+		renderOut(gManualAnOut, values, displayValues, preserveSplitLocationSize, {color, color});
 		if(muteSizeOutputForGate)
 		{
 			gManualAnOut[1] = kNoOutput;
