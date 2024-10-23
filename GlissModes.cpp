@@ -4463,7 +4463,7 @@ public:
 				// if a finger is on the sensor and we are not recording, pass through current touch
 				if(hasTouch[n])
 					directControl[n] = true;
-				centroid_t touch = touchOrNot(twis[n].touch);
+				centroid_t touch = ts[n];
 				if(isSplit()) {
 					if(directControl[n])
 					{
