@@ -3663,6 +3663,8 @@ static void overlayRangeInit(const rgb_t& color, bool autoExit, ParameterContinu
 static void overlayRangeProcess(CentroidDetectionScaled& inputSlider, LedSlider& ledSlider, bool isNew);
 
 #ifdef ENABLE_RECORDER_MODE
+//#define RECORDER_MODE_CLOCK_AUTO_LATCH
+
 class RecorderMode : public SplitPerformanceMode {
 public:
 	enum InputMode {
@@ -4239,6 +4241,16 @@ public:
 					qrec.armedFor = kArmedForNone;
 				}
 
+#ifdef RECORDER_MODE_CLOCK_AUTO_LATCH
+				if(kRecActual == qrecStartNow[n] || qrecStopNow[n])
+				{
+					// TODO: we would want this to be less invasive, i.e.:
+					// not disrupt current latching unless we do something to it.
+					// However that makes it harder to decide whether to record
+					// or not when recording starts with a latched value
+					latchProcessor.reset();
+				}
+#endif // RECORDER_MODE_CLOCK_AUTO_LATCH
 				if(qrecStartNow[n])
 				{
 					gGestureRecorder.startRecording(n + recordOffset, false);
@@ -4362,9 +4374,32 @@ public:
 
 		std::array<centroid_t,kNumSplits> ts;
 		for(size_t n = 0; n < ts.size(); ++n)
-		{
 			ts[n] = twis[n].touch;
+#ifdef RECORDER_MODE_CLOCK_AUTO_LATCH
+		bool autoLatchLocation = true;
+		std::array<LatchProcessor::Reason,kNumSplits> reason;
+		if(kInputModeClock == inputMode && autoLatchLocation)
+		{
+			std::array<bool,kNumSplits> autoLatch;
+			for(size_t n = 0; n < currentSplits(); ++n)
+			{
+				// we cannot latch while playing on top of playing back a  esture,
+				// or the playback will never resume
+				bool recordingIsEmpty = !gGestureRecorder.rs[n].r.size();
+				bool shouldAutoLatch = isRecording(n) || recordingIsEmpty;
+				autoLatch[n] = shouldAutoLatch;
+			}
+			latchProcessor.process(frameData->isNew, autoLatch, currentSplits(), ts, reason);
+		}
+#endif // RECORDER_MODE_CLOCK_AUTO_LATCH
+		for(size_t n = 0; n < ts.size(); ++n)
+		{
 			ts[n] = touchOrNot(ts[n]);
+#ifdef RECORDER_MODE_CLOCK_AUTO_LATCH
+			// only latching location: remove size if latched
+			if(kInputModeClock == inputMode && autoLatchLocation && LatchProcessor::kLatchAuto == reason[n])
+				ts[n].size = kNoOutput;
+#endif // RECORDER_MODE_CLOCK_AUTO_LATCH
 		}
 		switch(splitMode)
 		{
@@ -4466,6 +4501,11 @@ public:
 					// if a finger is on the sensor, pass through current touch
 					if(hasTouch[n])
 						directControl[n] = true;
+#ifdef RECORDER_MODE_CLOCK_AUTO_LATCH
+					// hasTouch above checks for actual touch, while this case handles auto latching
+					if(LatchProcessor::kLatchNone != reason[n])
+						directControl[n] = true;
+#endif // RECORDER_MODE_CLOCK_AUTO_LATCH
 				}
 				centroid_t touch = ts[n];
 				if(isSplit()) {
@@ -5043,6 +5083,9 @@ private:
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton = true;
 	std::array<bool,kNumSplits> recordingStopsWithButton = {};
+#ifdef RECORDER_MODE_CLOCK_AUTO_LATCH
+	LatchProcessor latchProcessor;
+#endif // RECORDER_MODE_CLOCK_AUTO_LATCH
 	enum CircularMode {
 		kCircularModeNew,
 		kCircularModeTrim,
