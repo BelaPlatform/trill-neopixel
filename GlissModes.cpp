@@ -4611,7 +4611,6 @@ public:
 				}
 			}
 		}
-		circularModeViz = vizValues[0].location;
 		for(size_t n = 0; n < currentSplits(); ++n)
 		{
 			rgb_t sliderColor = color;
@@ -5028,7 +5027,6 @@ private:
 	std::array<TouchTracker::TouchWithId,kNumSplits> twis;
 	std::array<FlashReason,kNumSplits> flash = FILL_ARRAY(flash, kFlashNone);
 	std::array<uint64_t,kNumSplits> flashStart {};
-	float circularModeViz = 0;
 	bool pastAnalogInHigh = false;
 	bool inputModeClockIsButton = true;
 	std::array<bool,kNumSplits> recordingStopsWithButton = {};
