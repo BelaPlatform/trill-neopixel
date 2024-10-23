@@ -473,6 +473,7 @@ static constexpr size_t kMaxRecordBytes = 80000;
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 static constexpr float kFixedCentroidSize = 0.3;
+static constexpr float kDummySize = 0.4f * kFixedCentroidSize;
 
 LedSliders ledSliders;
 LedSliders ledSlidersAlt;
@@ -3033,7 +3034,6 @@ public:
 			}
 		}
 		std::array<bool,kNumSplits> shouldOverrideOuts = { false, false };
-		static constexpr float kDummySize = 0.4f * kFixedCentroidSize;
 		if(hasSizeOutput() && !shouldAutoLatchSize())
 		{
 			for(size_t n = 0; n < isLatched.size() && n < currentSplits(); ++n)
@@ -4535,6 +4535,7 @@ public:
 				kModeSplitSize == splitMode || (kModeSplitLocationSize == splitMode && 0 == asymSplits.size),
 				kModeSplitSize == splitMode || (kModeSplitLocationSize == splitMode && 1 == asymSplits.size),
 		};
+		float repSize = -1;
 		if(isSplit()){
 			for(size_t n = 0; n < gesture.size(); ++n)
 			{
@@ -4551,6 +4552,7 @@ public:
 			{
 				values[0].location = gesture.first.sample;
 				values[0].size = gesture.second.sample;
+				repSize = std::max(values[0].size, kDummySize * (values[0].location >= 0));
 			} else
 				values[0] = kInvalid;
 		}
@@ -4621,6 +4623,12 @@ public:
 			ledSliders.sliders[n].setColor(sliderColor);
 		}
 		auto displayValues = values;
+		if(!isSplit())
+		{
+			// ensure something is shown if we have location but no size
+			displayValues[0].size = repSize >= 0 ? repSize : displayValues[0].size;
+		}
+
 		// this may set gManualAnOut even if they are ignored
 		renderOut(gManualAnOut, values, displayValues, preserveSplitLocationSize, {color, color});
 		if(muteSizeOutputForGate)
