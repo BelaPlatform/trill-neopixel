@@ -4360,25 +4360,29 @@ public:
 		GestureRecorder::Gesture_t gesture; // used for visualization
 		std::array<float,kNumSplits> recIns;
 
-		centroid_t t0 = touchOrNot(twis[0].touch);
-		centroid_t t1 = touchOrNot(twis[1].touch);
+		std::array<centroid_t,kNumSplits> ts;
+		for(size_t n = 0; n < ts.size(); ++n)
+		{
+			ts[n] = twis[n].touch;
+			ts[n] = touchOrNot(ts[n]);
+		}
 		switch(splitMode)
 		{
 		case kModeNoSplit:
-			recIns[0] = t0.location;
-			recIns[1] = t0.size;
+			recIns[0] = ts[0].location;
+			recIns[1] = ts[0].size;
 			break;
 		case kModeSplitLocation:
-			recIns[0] = t0.location;
-			recIns[1] = t1.location;
+			recIns[0] = ts[0].location;
+			recIns[1] = ts[1].location;
 			break;
 		case kModeSplitSize:
-			recIns[0] = t0.size;
-			recIns[1] = t1.size;
+			recIns[0] = ts[0].size;
+			recIns[1] = ts[1].size;
 			break;
 		case kModeSplitLocationSize:
-			recIns[0] = 0 == asymSplits.location ? t0.location : t0.size;
-			recIns[1] = 1 == asymSplits.size ? t1.size : t1.location;
+			recIns[0] = 0 == asymSplits.location ? ts[0].location : ts[0].size;
+			recIns[1] = 1 == asymSplits.size ? ts[1].size : ts[1].location;
 			break;
 		}
 		bool muteSizeOutputForGate = false;
