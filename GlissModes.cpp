@@ -3016,7 +3016,7 @@ public:
 		if(shouldLatch)
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		// sets values and isLatched
-		latchProcessor.process(frameData->isNew, shouldAutoLatch(), 1 + isSplit(), values, isLatched, shouldLatch, shouldUnlatch);
+		latchProcessor.process(frameData->isNew, shouldAutoLatch(), currentSplits(), values, isLatched, shouldLatch, shouldUnlatch);
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
