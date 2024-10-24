@@ -4457,12 +4457,16 @@ public:
 		case kInputModeClock:
 			for(size_t n = 0; n < currentSplits(); ++n)
 			{
-				// if actually doing something while recording, pass through current touch
-				if(isRecording(n) && gGestureRecorder.rs[n + recordOffset].activity)
-					directControl[n] = true;
-				// if a finger is on the sensor and we are not recording, pass through current touch
-				if(hasTouch[n])
-					directControl[n] = true;
+				if(isRecording(n)) {
+					// if we have actually touched (and/or are still touching)
+					// during this recording, pass through current touch
+					if(gGestureRecorder.rs[n + recordOffset].activity)
+						directControl[n] = true;
+				} else {
+					// if a finger is on the sensor, pass through current touch
+					if(hasTouch[n])
+						directControl[n] = true;
+				}
 				centroid_t touch = ts[n];
 				if(isSplit()) {
 					if(directControl[n])
