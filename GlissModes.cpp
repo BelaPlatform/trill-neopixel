@@ -998,7 +998,7 @@ public:
 		for(auto& al : autoLatchers)
 			al.reset();
 	}
-	void process(bool isNew, bool autoLatch, size_t numValues, std::array<centroid_t,kMaxNumValues>& values, std::array<Reason,kMaxNumValues>& isLatchedRet,
+	void process(bool isNew, std::array<bool,kMaxNumValues> autoLatch, size_t numValues, std::array<centroid_t,kMaxNumValues>& values, std::array<Reason,kMaxNumValues>& isLatchedRet,
 			bool shouldLatch = false, bool shouldUnlatch = false)
 	{
 		if(numValues > kMaxNumValues)
@@ -1044,7 +1044,7 @@ public:
 					autoLatchers[n].process(isNew, values[n], autoLatchStarts);
 					if(autoLatchStarts && kLatchNone == latchStarts[n])
 					{
-						if(autoLatch)
+						if(autoLatch[n])
 						{
 							latchStarts[n] = kLatchAuto;
 						} else {
@@ -3016,7 +3016,7 @@ public:
 		if(shouldLatch)
 			tri.buttonLedSet(TRI::kSolid, TRI::kR, 1, 100);
 		// sets values and isLatched
-		latchProcessor.process(frameData->isNew, shouldAutoLatch(), currentSplits(), values, isLatched, shouldLatch, shouldUnlatch);
+		latchProcessor.process(frameData->isNew, {shouldAutoLatch(), shouldAutoLatch()}, currentSplits(), values, isLatched, shouldLatch, shouldUnlatch);
 		if(shouldLatch && (isLatched[0] || isLatched[isSplit()]))
 		{
 			// keep note of current press
@@ -8670,7 +8670,7 @@ public:
 		std::array<LatchProcessor::Reason,2> isLatched;
 		latchProcessor.reset();
 		// "prime" the latchProcessor. Needed because we'll always start with one touch
-		latchProcessor.process(true, true, pastFrames.size(), pastFrames, isLatched);
+		latchProcessor.process(true, {true, true}, pastFrames.size(), pastFrames, isLatched);
 		hasHadTouch = false;
 	}
 	void process(LedSlider& slider) override
@@ -8723,7 +8723,7 @@ public:
 					}
 				}
 				std::array<LatchProcessor::Reason,2> isLatched;
-				latchProcessor.process(isNew, true, frames.size(), frames, isLatched);
+				latchProcessor.process(isNew, {true, true}, frames.size(), frames, isLatched);
 				auto preprocessedValues = preprocess({frames[0].location, frames[1].location});
 				for(size_t n = 0; n < frames.size(); ++n)
 				{
