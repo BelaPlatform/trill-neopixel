@@ -469,7 +469,12 @@ static bool gInUsesRange;
 static std::array<bool,kNumOutChannels> gOutUsesRange;
 
 // Recording the gesture
+#ifdef LOG_OUTPUT
+static constexpr size_t kMaxRecordBytes = 70000;
+#else
 static constexpr size_t kMaxRecordBytes = 80000;
+#endif
+
 const float kSizeScale = 10000; // value used internally for rescaling the slider
 static float gSizeScale = kSizeScale; // current, active value. Gets overriden upon loading from preset
 static constexpr float kFixedCentroidSize = 0.3;

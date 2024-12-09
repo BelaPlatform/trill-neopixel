@@ -507,6 +507,29 @@ public:
 	}
 };
 
+#ifdef LOG_OUTPUT
+static float doLog(float value)
+{
+	static std::array<float,1000> logTable;
+	static bool inited = false;
+	if(!inited)
+	{
+		inited = true;
+		// let's handle log sliders the way Pd does
+	    float min = 1;
+	    float max = 101;
+	    for(size_t n = 0; n < logTable.size(); ++n) {
+	        logTable[n] = (min * exp(log(max/min) * (n / float(logTable.size() - 1))) - 1) / (max - min);
+	    }
+	}
+	value = constrain(value, 0, 1);
+	size_t prevIdx = std::min(logTable.size() - 1, size_t(value * (logTable.size() - 1)));
+	float prev = logTable[prevIdx];
+	float next = logTable[std::min(prevIdx + 1, logTable.size() - 1)];
+	return linearInterpolation(fmodf(value, 1), prev, next);
+}
+#endif // LOG_OUTPUT
+
 static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationData& cal, float value)
 {
 	float gnd = cal.values[1];
@@ -518,6 +541,9 @@ static float rescaleOutput(bool ignoreRange, size_t channel, const CalibrationDa
 		getRangeMinMax(false, channel, min, top);
 
 	// the input can be negative: out of the specified range but possibly still within the capabilities of the module
+#ifdef LOG_OUTPUT
+	value = doLog(value);
+#endif // LOG_OUTPUT
 	value = map(value, 0, 1, min, top);
 	value = processRawThroughCalibration(cal, false, value);
 	// we only constrain at the end: can't write outside full scale

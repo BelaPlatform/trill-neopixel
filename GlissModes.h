@@ -164,6 +164,7 @@ struct FrameData {
 	bool isNew;
 };
 //#define TEST_MODE
+//#define LOG_OUTPUT
 
 static inline float mapAndConstrain(float x, float in_min, float in_max, float out_min, float out_max)
 {
