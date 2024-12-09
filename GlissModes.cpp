@@ -3539,11 +3539,6 @@ private:
 } gDirectControlMode;
 #endif // ENABLE_DIRECT_CONTROL_MODE
 
-static float linearInterpolation(float frac, float pastValue, float value)
-{
-	return (1.f - frac) * pastValue + frac * value;
-}
-
 static inline float vToFreq(float volts, float baseFreq)
 {
 	float semitones = volts * 12.f; // 1V/oct
@@ -3647,6 +3642,11 @@ template <typename T>
 static float interpolatedRead(const T& table, float idx, TreatNoOutput treat = kTreatAssumeNot)
 {
 	return interpolatedRead(table.data(), table.size(), idx, treat);
+}
+
+float interpolatedRead(const float* table, size_t size, float idx)
+{
+	return interpolatedRead(table, size, idx);
 }
 
 static inline float getBlinkPeriod(BelaContext* context, bool lessIntrusive)

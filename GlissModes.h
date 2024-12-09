@@ -220,3 +220,7 @@ private:
 	bool menu = false;
 };
 extern UiOrientation uio;
+static inline float linearInterpolation(float frac, float pastValue, float value)
+{
+	return (1.f - frac) * pastValue + frac * value;
+}
