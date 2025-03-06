@@ -4388,7 +4388,7 @@ public:
 			std::array<bool,kNumSplits> autoLatch;
 			for(size_t n = 0; n < currentSplits(); ++n)
 			{
-				// we cannot latch while playing on top of playing back a  esture,
+				// we cannot latch while playing on top of playing back a gesture,
 				// or the playback will never resume
 				bool recordingIsEmpty = !gGestureRecorder.rs[n].r.size();
 				bool shouldAutoLatch = isRecording(n) || recordingIsEmpty;
@@ -4786,6 +4786,36 @@ public:
 			for(size_t n = 0; n < context->analogFrames; ++n)
 			{
 					float idx = oscs[c].process(normFreq);
+#ifdef RECORDER_MODE_CLOCK_AUTO_LATCH
+					if(kInputModeClock == inputMode && kModeNoSplit == splitMode)
+					{
+						// clock mode, no split, autolatching
+
+						// When auto latching, during playback the position won't jump
+						// to the new value because it doesn't come from a kNoOutput,
+						// instead it will ramp to it in interpolatedRead().
+						// This may lead to undesirable asynchronies where the size output
+						// (which starts from a kNoOutput) reaches its target value before the
+						// position output.
+						// So in this case we delay the size (c == 1) by a bit so that
+						// it reaches its target value at the same time as the position output.
+						// Nominally it should be delayed by 1 sensor frame, however the kNoOutput
+						// business is also affecting the smoothing in render(), so we give it a
+						// bit of extra leeway
+						constexpr float kDelayFrames = 1.8;
+
+						// TODO: if this became a core feature, a better result can be achieved
+						// by using the size recording to infer whether it should jump, both in the
+						// interpolated read and in the smoothing
+						if(1 == c)
+						{
+							static float sizeDelay = 0;
+							if(0 == n) // caching it here once per loop
+								sizeDelay = kDelayFrames / table.size();
+							idx = idx >= sizeDelay ? idx - sizeDelay : idx;
+						}
+					}
+#endif // RECORDER_MODE_CLOCK_AUTO_LATCH
 					float value = interpolatedRead(table, idx, kTreatPassThrough);
 					analogWriteOnce(context, n, c, value);
 					if(kInputModeClock == inputMode && idx * table.size() < 1)
