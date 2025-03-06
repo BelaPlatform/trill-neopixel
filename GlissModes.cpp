@@ -4802,7 +4802,7 @@ public:
 						// Nominally it should be delayed by 1 sensor frame, however the kNoOutput
 						// business is also affecting the smoothing in render(), so we give it a
 						// bit of extra leeway
-						constexpr float kDelayFrames = 1.8;
+						constexpr float kDelayFrames = 7;
 
 						// TODO: if this became a core feature, a better result can be achieved
 						// by using the size recording to infer whether it should jump, both in the
